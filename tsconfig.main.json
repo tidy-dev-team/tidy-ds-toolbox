@@ -4,11 +4,16 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "dist",
-    "types": ["@figma/plugin-typings"],
+    "types": [
+      "@figma/plugin-typings",
+      "node"
+    ],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/code.ts"]
+  "include": [
+    "src/code.ts"
+  ]
 }

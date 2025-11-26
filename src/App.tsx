@@ -1,40 +1,43 @@
-import React from 'react'
-import { ShellProvider, useShell } from './ShellContext'
-import './App.css'
+import React from "react";
+import { ShellProvider, useShell } from "./ShellContext";
+import { ErrorBoundary } from "./components";
+import { moduleRegistry } from "./moduleRegistry";
+import "./App.css";
 
 function Navigation() {
-  const { state, dispatch } = useShell()
-  const { moduleRegistry } = require('./moduleRegistry')
-
-  const modules = Object.values(moduleRegistry)
+  const { state, dispatch } = useShell();
+  const modules = Object.values(moduleRegistry) as any[];
 
   return (
     <nav>
-      {modules.map(module => (
+      {modules.map((module) => (
         <button
           key={module.id}
-          className={`nav-item ${state.activeModule === module.id ? 'active' : ''}`}
-          onClick={() => dispatch({ type: 'SET_ACTIVE_MODULE', payload: module.id })}
+          className={`nav-item ${state.activeModule === module.id ? "active" : ""}`}
+          onClick={() =>
+            dispatch({ type: "SET_ACTIVE_MODULE", payload: module.id })
+          }
         >
           <span className="icon">{module.icon}</span>
           <span className="label">{module.label}</span>
         </button>
       ))}
     </nav>
-  )
+  );
 }
 
 function Viewport() {
-  const { state } = useShell()
-  const { moduleRegistry } = require('./moduleRegistry')
+  const { state } = useShell();
 
-  const ActiveModule = moduleRegistry[state.activeModule]?.ui || (() => <div>Module not found</div>)
+  const ActiveModule =
+    moduleRegistry[state.activeModule]?.ui ||
+    (() => <div>Module not found</div>);
 
   return (
     <div className="viewport-content">
       <ActiveModule />
     </div>
-  )
+  );
 }
 
 function AppContent() {
@@ -52,15 +55,17 @@ function AppContent() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function App() {
   return (
-    <ShellProvider>
-      <AppContent />
-    </ShellProvider>
-  )
+    <ErrorBoundary>
+      <ShellProvider>
+        <AppContent />
+      </ShellProvider>
+    </ErrorBoundary>
+  );
 }
 
-export default App
+export default App;

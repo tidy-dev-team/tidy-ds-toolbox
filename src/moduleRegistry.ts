@@ -1,60 +1,46 @@
-import React from 'react'
-import { ModuleRegistry, ModuleManifest } from '@shared/types'
-import { ShapeShifterUI } from './plugins/shape-shifter/ui'
+import React from "react";
+import { ModuleRegistry, ModuleManifest } from "@shared/types";
+import { ShapeShifterUI } from "./plugins/shape-shifter/ui";
+import { handleShapeShifter } from "./plugins/shape-shifter/logic";
+import { TextMasterUI } from "./plugins/text-master/ui";
+import { handleTextMaster } from "./plugins/text-master/logic";
 
 // Placeholder components for modules
-const DashboardComponent = () => React.createElement('div', null, 'Dashboard Module')
-const TextMasterComponent = () => React.createElement('div', null, 'Text Master Module')
-const ColorLabComponent = () => React.createElement('div', null, 'Color Lab - Coming Soon')
+const ColorLabComponent = () =>
+  React.createElement("div", null, "Color Lab - Coming Soon");
 
-// Module handlers (will be implemented)
-const dashboardHandler = async (action: string, payload: any, figma: any) => {
-  // Dashboard logic
-}
+// Module handlers
+const shapeShifterHandler = handleShapeShifter;
 
-const shapeShifterHandler = async (action: string, payload: any, figma: any) => {
-  // Shape shifter logic
-}
-
-const textMasterHandler = async (action: string, payload: any, figma: any) => {
-  // Text master logic
-}
+const textMasterHandler = handleTextMaster;
 
 const colorLabHandler = async (action: string, payload: any, figma: any) => {
   // Color lab logic
-}
+};
 
 export const moduleRegistry: ModuleRegistry = {
-  dashboard: {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: '🏠',
-    ui: DashboardComponent,
-    handler: dashboardHandler,
-    permissionRequirements: [],
-  },
-  'shape-shifter': {
-    id: 'shape-shifter',
-    label: 'Shape Shifter',
-    icon: '🔄',
-    ui: ShapeShifterComponent,
+  "shape-shifter": {
+    id: "shape-shifter",
+    label: "Shape Shifter",
+    icon: "🔄",
+    ui: ShapeShifterUI,
     handler: shapeShifterHandler,
-    permissionRequirements: ['activeselection'],
+    permissionRequirements: ["activeselection"],
   },
-  'text-master': {
-    id: 'text-master',
-    label: 'Text Master',
-    icon: '📝',
-    ui: TextMasterComponent,
+  "text-master": {
+    id: "text-master",
+    label: "Text Master",
+    icon: "📝",
+    ui: TextMasterUI,
     handler: textMasterHandler,
-    permissionRequirements: ['activeselection'],
+    permissionRequirements: ["activeselection"],
   },
-  'color-lab': {
-    id: 'color-lab',
-    label: 'Color Lab',
-    icon: '🎨',
+  "color-lab": {
+    id: "color-lab",
+    label: "Color Lab",
+    icon: "🎨",
     ui: ColorLabComponent,
     handler: colorLabHandler,
-    permissionRequirements: ['activeselection'],
+    permissionRequirements: ["activeselection"],
   },
-}
+};

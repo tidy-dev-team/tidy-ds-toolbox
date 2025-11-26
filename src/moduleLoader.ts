@@ -1,4 +1,4 @@
-import { ModuleManifest } from '@shared/types'
+import { ModuleManifest, ModuleRegistry } from "@shared/types";
 
 // Helper to load and wire a module
 export function loadModule(manifest: ModuleManifest) {
@@ -8,18 +8,20 @@ export function loadModule(manifest: ModuleManifest) {
   return {
     ui: manifest.ui,
     handler: manifest.handler,
-  }
+  };
 }
 
 // Export handlers for the main thread
 export function getModuleHandlers() {
   // This would be used in code.ts to register handlers
-  const { moduleRegistry } = require('../moduleRegistry')
+  const { moduleRegistry } = require("./moduleRegistry") as {
+    moduleRegistry: ModuleRegistry;
+  };
 
-  const handlers: Record<string, Function> = {}
-  Object.values(moduleRegistry).forEach(manifest => {
-    handlers[manifest.id] = manifest.handler
-  })
+  const handlers: Record<string, Function> = {};
+  Object.values(moduleRegistry).forEach((manifest: ModuleManifest) => {
+    handlers[manifest.id] = manifest.handler;
+  });
 
-  return handlers
+  return handlers;
 }
