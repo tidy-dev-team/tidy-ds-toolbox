@@ -3,6 +3,7 @@
 export type PluginID =
   | "shape-shifter"
   | "text-master"
+  | "ds-explorer"
   | "color-lab"
   | (string & {});
 

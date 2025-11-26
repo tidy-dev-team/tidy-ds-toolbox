@@ -1,11 +1,15 @@
 // Main thread code for Figma plugin
+/// <reference types="@figma/plugin-typings" />
+
+import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
+
 figma.showUI(__html__, { width: 800, height: 600 });
 
 // Shape Shifter Logic
 async function handleShapeShifter(
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ): Promise<any> {
   switch (action) {
     case "create-rects":
@@ -71,7 +75,7 @@ function getSelection(figma: any): any {
 async function handleTextMaster(
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ): Promise<any> {
   switch (action) {
     case "insert-text":
@@ -86,7 +90,7 @@ async function handleTextMaster(
 async function insertTextNode(
   text: string,
   style: any = {},
-  figma: any
+  figma: any,
 ): Promise<any> {
   if (!text || text.trim().length === 0) {
     throw new Error("Text cannot be empty");
@@ -176,15 +180,43 @@ async function loadFonts(figma: any): Promise<any> {
 const handlers: Record<string, Function> = {
   "shape-shifter": handleShapeShifter,
   "text-master": handleTextMaster,
+  "ds-explorer": async (action: string, payload: any, figma: any) => {
+    console.log("🔧 DS Explorer: Loading logic module...");
+    console.log("🔧 DS Explorer: Module loaded:", {
+      hasGetComponentProperties: !!dsExplorerLogic.handleGetComponentProperties,
+      hasBuildComponent: !!dsExplorerLogic.handleBuildComponent,
+      action,
+    });
+
+    switch (action) {
+      case "get-component-properties":
+        console.log("🔧 DS Explorer: Calling handleGetComponentProperties");
+        return await dsExplorerLogic.handleGetComponentProperties(payload, figma);
+      case "build-component":
+        console.log("🔧 DS Explorer: Calling handleBuildComponent");
+        return await dsExplorerLogic.handleBuildComponent(payload, figma);
+      default:
+        throw new Error(`Unknown DS Explorer action: ${action}`);
+    }
+  },
   "color-lab": async () => ({}),
 };
 
 // Message routing
 figma.ui.onmessage = async (msg: any) => {
-  if (msg?.pluginMessage) {
-    const { target, action, payload, requestId } = msg.pluginMessage;
+  console.log("🔍 [Main] Received message:", msg);
 
-    console.log(`[Main] Received: ${target}:${action}`, payload);
+  // Handle both wrapped and unwrapped messages
+  const message = msg?.pluginMessage || msg;
+
+  if (message?.target && message?.action) {
+    const { target, action, payload, requestId } = message;
+
+    console.log(`✅ [Main] Extracted: ${target}:${action}`, {
+      payload,
+      requestId,
+      hasHandler: !!handlers[target],
+    });
 
     try {
       // Handle shell-specific actions
@@ -204,18 +236,23 @@ figma.ui.onmessage = async (msg: any) => {
       }
 
       if (handlers[target]) {
+        console.log(`🚀 [Main] Calling handler for ${target}:${action}`);
         const result = await handlers[target](action, payload, figma);
+        console.log(`✅ [Main] Handler result:`, result);
 
         // Send response back to UI if requestId provided
         if (requestId) {
+          console.log(`📤 [Main] Sending response for requestId:`, requestId);
           figma.ui.postMessage({
             type: "response",
             requestId,
             result,
           });
+        } else {
+          console.log(`⚠️ [Main] No requestId, skipping response`);
         }
       } else {
-        console.error(`[Main] Unknown target: ${target}`);
+        console.error(`❌ [Main] Unknown target: ${target}`);
         figma.ui.postMessage({
           type: "error",
           requestId,
@@ -223,12 +260,18 @@ figma.ui.onmessage = async (msg: any) => {
         });
       }
     } catch (error: any) {
-      console.error(`[Main] Error handling ${target}:${action}`, error);
+      console.error(`❌ [Main] Error handling ${target}:${action}`, error);
+      console.error(`❌ [Main] Error stack:`, error?.stack);
       figma.ui.postMessage({
         type: "error",
         requestId,
         error: error?.message || String(error),
       });
     }
+  } else {
+    console.log(
+      "⚠️ [Main] Message received but no pluginMessage property:",
+      msg,
+    );
   }
 };

@@ -64,7 +64,7 @@ function getSelection(figma: any): any {
 
   return {
     count: selection.length,
-    types: selection.map((node) => node.type),
-    names: selection.map((node) => node.name),
+    types: selection.map((node: any) => node.type),
+    names: selection.map((node: any) => node.name),
   };
 }

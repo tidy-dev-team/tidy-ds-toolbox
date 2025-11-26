@@ -2,6 +2,7 @@ import { PluginMessage, ShellMessage } from './types'
 
 // Helper to send messages from UI to main thread
 export function postToFigma(message: PluginMessage): void {
+  console.log("📤 Bridge: Sending message to Figma:", message);
   parent.postMessage({ pluginMessage: message }, '*')
 }
 
