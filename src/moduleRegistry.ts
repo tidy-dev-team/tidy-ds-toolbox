@@ -1,5 +1,6 @@
 import React from "react";
 import { ModuleRegistry, ModuleManifest } from "@shared/types";
+import { IconShape, IconTypography, IconPalette } from "@tabler/icons-react";
 import { ShapeShifterUI } from "./plugins/shape-shifter/ui";
 import { handleShapeShifter } from "./plugins/shape-shifter/logic";
 import { TextMasterUI } from "./plugins/text-master/ui";
@@ -22,7 +23,7 @@ export const moduleRegistry: ModuleRegistry = {
   "shape-shifter": {
     id: "shape-shifter",
     label: "Shape Shifter",
-    icon: "🔄",
+    icon: IconShape,
     ui: ShapeShifterUI,
     handler: shapeShifterHandler,
     permissionRequirements: ["activeselection"],
@@ -30,7 +31,7 @@ export const moduleRegistry: ModuleRegistry = {
   "text-master": {
     id: "text-master",
     label: "Text Master",
-    icon: "📝",
+    icon: IconTypography,
     ui: TextMasterUI,
     handler: textMasterHandler,
     permissionRequirements: ["activeselection"],
@@ -38,7 +39,7 @@ export const moduleRegistry: ModuleRegistry = {
   "color-lab": {
     id: "color-lab",
     label: "Color Lab",
-    icon: "🎨",
+    icon: IconPalette,
     ui: ColorLabComponent,
     handler: colorLabHandler,
     permissionRequirements: ["activeselection"],

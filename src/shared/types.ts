@@ -40,7 +40,7 @@ export interface TextMasterMessage extends PluginMessage {
 export interface ModuleManifest {
   id: PluginID;
   label: string;
-  icon: string;
+  icon: React.ComponentType<any> | string;
   ui: React.ComponentType<any>;
   handler: (action: string, payload: any, figma: any) => Promise<any>;
   permissionRequirements: string[];

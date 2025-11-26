@@ -10,18 +10,27 @@ function Navigation() {
 
   return (
     <nav>
-      {modules.map((module) => (
-        <button
-          key={module.id}
-          className={`nav-item ${state.activeModule === module.id ? "active" : ""}`}
-          onClick={() =>
-            dispatch({ type: "SET_ACTIVE_MODULE", payload: module.id })
-          }
-        >
-          <span className="icon">{module.icon}</span>
-          <span className="label">{module.label}</span>
-        </button>
-      ))}
+      {modules.map((module) => {
+        const IconComponent = module.icon;
+        return (
+          <button
+            key={module.id}
+            className={`nav-item ${state.activeModule === module.id ? "active" : ""}`}
+            onClick={() =>
+              dispatch({ type: "SET_ACTIVE_MODULE", payload: module.id })
+            }
+          >
+            <span className="icon">
+              {typeof IconComponent === "string" ? (
+                IconComponent
+              ) : (
+                <IconComponent size={20} stroke={1.5} />
+              )}
+            </span>
+            <span className="label">{module.label}</span>
+          </button>
+        );
+      })}
     </nav>
   );
 }
