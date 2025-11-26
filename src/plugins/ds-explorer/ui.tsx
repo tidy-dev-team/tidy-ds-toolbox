@@ -97,7 +97,8 @@ export function DSExplorerUI() {
   // Listen for component data
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const message = event.data;
+      // Unwrap pluginMessage from Figma
+      const message = event.data.pluginMessage || event.data;
       console.log("📨 UI received message:", message);
       
       if (
