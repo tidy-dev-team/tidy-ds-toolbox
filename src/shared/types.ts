@@ -1,6 +1,10 @@
 // Shared types for the plugin system
 
-export type PluginID = "ds-explorer" | "token-tracker" | (string & {});
+export type PluginID =
+  | "ds-explorer"
+  | "token-tracker"
+  | "component-labels"
+  | (string & {});
 
 export interface PluginMessage {
   target: PluginID;

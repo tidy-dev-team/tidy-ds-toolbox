@@ -1,8 +1,9 @@
 import React from "react";
 import { ModuleRegistry, ModuleManifest } from "@shared/types";
-import { IconComponents, IconPalette } from "@tabler/icons-react";
+import { IconComponents, IconPalette, IconTag } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { TokenTrackerUI } from "./plugins/token-tracker/ui";
+import { ComponentLabelsUI } from "./plugins/component-labels/ui";
 
 // Module handlers
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -31,6 +32,17 @@ const tokenTrackerHandler = async (
   return await handler(action, payload, figma);
 };
 
+const componentLabelsHandler = async (
+  action: string,
+  payload: any,
+  figma: any,
+) => {
+  const { componentLabelsHandler: handler } = await import(
+    "./plugins/component-labels/logic"
+  );
+  return await handler(action, payload, figma);
+};
+
 export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
     id: "ds-explorer",
@@ -46,6 +58,14 @@ export const moduleRegistry: ModuleRegistry = {
     icon: IconPalette,
     ui: TokenTrackerUI,
     handler: tokenTrackerHandler,
+    permissionRequirements: [],
+  },
+  "component-labels": {
+    id: "component-labels",
+    label: "Component Labels",
+    icon: IconTag,
+    ui: ComponentLabelsUI,
+    handler: componentLabelsHandler,
     permissionRequirements: [],
   },
 };

@@ -2,6 +2,7 @@
 
 import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
 import { tokenTrackerHandler } from "./plugins/token-tracker/logic";
+import { componentLabelsHandler } from "./plugins/component-labels/logic";
 
 figma.showUI(__html__, { width: 800, height: 600 });
 
@@ -21,6 +22,7 @@ const handlers: Record<string, Function> = {
     }
   },
   "token-tracker": tokenTrackerHandler,
+  "component-labels": componentLabelsHandler,
 };
 
 // Handle shell storage operations
