@@ -4,12 +4,14 @@ import {
   IconShape,
   IconTypography,
   IconComponents,
+  IconPalette,
 } from "@tabler/icons-react";
 import { ShapeShifterUI } from "./plugins/shape-shifter/ui";
 import { handleShapeShifter } from "./plugins/shape-shifter/logic";
 import { TextMasterUI } from "./plugins/text-master/ui";
 import { handleTextMaster } from "./plugins/text-master/logic";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
+import { TokenTrackerUI } from "./plugins/token-tracker/ui";
 
 // Module handlers
 const shapeShifterHandler = handleShapeShifter;
@@ -29,6 +31,17 @@ const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
     default:
       throw new Error(`Unknown action: ${action}`);
   }
+};
+
+const tokenTrackerHandler = async (
+  action: string,
+  payload: any,
+  figma: any,
+) => {
+  const { tokenTrackerHandler: handler } = await import(
+    "./plugins/token-tracker/logic"
+  );
+  return await handler(action, payload, figma);
 };
 
 export const moduleRegistry: ModuleRegistry = {
@@ -55,5 +68,13 @@ export const moduleRegistry: ModuleRegistry = {
     ui: DSExplorerUI,
     handler: dsExplorerHandler,
     permissionRequirements: ["activeselection"],
+  },
+  "token-tracker": {
+    id: "token-tracker",
+    label: "Token Tracker",
+    icon: IconPalette,
+    ui: TokenTrackerUI,
+    handler: tokenTrackerHandler,
+    permissionRequirements: [],
   },
 };

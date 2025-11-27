@@ -3,6 +3,7 @@
 import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
 import * as shapeShifterLogic from "./plugins/shape-shifter/logic";
 import * as textMasterLogic from "./plugins/text-master/logic";
+import { tokenTrackerHandler } from "./plugins/token-tracker/logic";
 
 figma.showUI(__html__, { width: 800, height: 600 });
 
@@ -13,22 +14,30 @@ const handlers: Record<string, Function> = {
   "ds-explorer": async (action: string, payload: any) => {
     switch (action) {
       case "get-component-properties":
-        return await dsExplorerLogic.handleGetComponentProperties(payload, figma);
+        return await dsExplorerLogic.handleGetComponentProperties(
+          payload,
+          figma,
+        );
       case "build-component":
         return await dsExplorerLogic.handleBuildComponent(payload, figma);
       default:
         throw new Error(`Unknown DS Explorer action: ${action}`);
     }
   },
+  "token-tracker": tokenTrackerHandler,
 };
 
 // Handle shell storage operations
-async function handleShellStorage(action: string, payload: any, requestId?: string) {
+async function handleShellStorage(
+  action: string,
+  payload: any,
+  requestId?: string,
+) {
   if (action === "save-storage") {
     await figma.clientStorage.setAsync(payload.key, payload.value);
     return;
   }
-  
+
   if (action === "load-storage") {
     const value = await figma.clientStorage.getAsync(payload.key);
     figma.ui.postMessage({
@@ -40,9 +49,13 @@ async function handleShellStorage(action: string, payload: any, requestId?: stri
 }
 
 // Send response to UI
-function sendResponse(requestId: string | undefined, result: any, error?: string) {
+function sendResponse(
+  requestId: string | undefined,
+  result: any,
+  error?: string,
+) {
   if (!requestId) return;
-  
+
   figma.ui.postMessage({
     type: error ? "error" : "response",
     requestId,
@@ -77,7 +90,10 @@ figma.ui.onmessage = async (msg: any) => {
     const result = await handlers[target](action, payload, figma);
     sendResponse(requestId, result);
   } catch (error: any) {
-    console.error(`❌ [Main] Error handling ${target}:${action}:`, error.message);
+    console.error(
+      `❌ [Main] Error handling ${target}:${action}:`,
+      error.message,
+    );
     sendResponse(requestId, null, error?.message || String(error));
   }
 };
