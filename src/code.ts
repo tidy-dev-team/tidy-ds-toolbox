@@ -1,16 +1,12 @@
 /// <reference types="@figma/plugin-typings" />
 
 import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
-import * as shapeShifterLogic from "./plugins/shape-shifter/logic";
-import * as textMasterLogic from "./plugins/text-master/logic";
 import { tokenTrackerHandler } from "./plugins/token-tracker/logic";
 
 figma.showUI(__html__, { width: 800, height: 600 });
 
 // Module handlers map
 const handlers: Record<string, Function> = {
-  "shape-shifter": shapeShifterLogic.handleShapeShifter,
-  "text-master": textMasterLogic.handleTextMaster,
   "ds-explorer": async (action: string, payload: any) => {
     switch (action) {
       case "get-component-properties":

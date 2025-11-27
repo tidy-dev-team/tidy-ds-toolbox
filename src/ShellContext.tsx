@@ -22,7 +22,7 @@ type ShellAction =
   | { type: "UPDATE_SETTINGS"; payload: Record<string, any> };
 
 const initialState: ShellState = {
-  activeModule: "shape-shifter",
+  activeModule: "ds-explorer",
   windowSize: { width: 800, height: 600 },
   theme: "light",
   settings: {},
