@@ -3,7 +3,6 @@ import { ModuleRegistry, ModuleManifest } from "@shared/types";
 import {
   IconShape,
   IconTypography,
-  IconPalette,
   IconComponents,
 } from "@tabler/icons-react";
 import { ShapeShifterUI } from "./plugins/shape-shifter/ui";
@@ -11,10 +10,6 @@ import { handleShapeShifter } from "./plugins/shape-shifter/logic";
 import { TextMasterUI } from "./plugins/text-master/ui";
 import { handleTextMaster } from "./plugins/text-master/logic";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
-
-// Placeholder components for modules
-const ColorLabComponent = () =>
-  React.createElement("div", null, "Color Lab - Coming Soon");
 
 // Module handlers
 const shapeShifterHandler = handleShapeShifter;
@@ -34,10 +29,6 @@ const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
     default:
       throw new Error(`Unknown action: ${action}`);
   }
-};
-
-const colorLabHandler = async (action: string, payload: any, figma: any) => {
-  // Color lab logic
 };
 
 export const moduleRegistry: ModuleRegistry = {
@@ -63,14 +54,6 @@ export const moduleRegistry: ModuleRegistry = {
     icon: IconComponents,
     ui: DSExplorerUI,
     handler: dsExplorerHandler,
-    permissionRequirements: ["activeselection"],
-  },
-  "color-lab": {
-    id: "color-lab",
-    label: "Color Lab",
-    icon: IconPalette,
-    ui: ColorLabComponent,
-    handler: colorLabHandler,
     permissionRequirements: ["activeselection"],
   },
 };
