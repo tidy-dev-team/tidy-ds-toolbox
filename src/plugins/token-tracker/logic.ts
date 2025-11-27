@@ -98,19 +98,41 @@ export async function tokenTrackerHandler(
 
   switch (action) {
     case "get-collections":
-      return handleGetCollections(payload);
+      const collections = handleGetCollections(payload);
+      figma.ui.postMessage({
+        type: "collections-result",
+        collections,
+      });
+      return collections;
 
     case "get-pages":
-      return handleGetPages(payload);
+      const pagesResult = handleGetPages(payload);
+      figma.ui.postMessage({
+        type: "pages-result",
+        pages: pagesResult.pages,
+        currentPageId: pagesResult.currentPageId,
+      });
+      return pagesResult;
 
     case "get-color-variables":
-      return handleGetColorVariables(payload);
+      const variables = handleGetColorVariables(payload);
+      console.log(
+        "📤 Token Tracker sending variables-result:",
+        variables?.length || 0,
+        "variables",
+      );
+      figma.ui.postMessage({
+        type: "variables-result",
+        variables,
+      });
+      return variables;
 
     case "find-bound-nodes":
       return await handleFindBoundNodes(payload);
 
     case "cancel-search":
-      return handleCancelSearch(payload);
+      handleCancelSearch(payload);
+      return null;
 
     default:
       console.warn(`Unknown action: ${action}`);
@@ -166,12 +188,14 @@ function handleGetColorVariables(
   payload: GetColorVariablesPayload,
 ): ColorVariable[] {
   const { collectionId } = payload;
+  console.log("🔍 Getting color variables for collection:", collectionId);
   try {
     const colorVariables: ColorVariable[] = [];
     const processedVariableIds = new Set<string>();
 
     // Process local variables
     const localVariables = figma.variables.getLocalVariables();
+    console.log("📊 Found", localVariables.length, "local variables");
     for (const variable of localVariables) {
       if (
         variable.resolvedType === "COLOR" &&
@@ -224,6 +248,7 @@ function handleGetColorVariables(
       }
     }
 
+    console.log("✅ Found", colorVariables.length, "color variables");
     return colorVariables;
   } catch (error) {
     console.error("Error fetching color variables:", error);

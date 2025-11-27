@@ -51,18 +51,22 @@ export function TokenTrackerUI() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data.pluginMessage || event.data;
+      console.log("📨 Token Tracker UI received message:", message);
 
       if (message.type === "collections-result") {
+        console.log("📋 Setting collections:", message.collections);
         setCollections(message.collections);
         if (message.collections.length > 0 && selectedCollectionId === null) {
           setSelectedCollectionId(message.collections[0].id);
         }
       } else if (message.type === "pages-result") {
+        console.log("📄 Setting pages:", message.pages);
         setPages(message.pages);
         if (message.currentPageId && selectedPageId === null) {
           setSelectedPageId(message.currentPageId);
         }
       } else if (message.type === "variables-result") {
+        console.log("🎨 Setting variables:", message.variables);
         setColorVariables(message.variables);
         setIsLoading(false);
       } else if (message.type === "search-progress") {
@@ -81,10 +85,12 @@ export function TokenTrackerUI() {
 
   const handleGetColorVariables = useCallback(() => {
     setIsLoading(true);
+    const requestId = `get-vars-${Date.now()}`;
     postToFigma({
       target: "token-tracker",
       action: "get-color-variables",
       payload: { collectionId: selectedCollectionId },
+      requestId,
     });
   }, [selectedCollectionId]);
 
