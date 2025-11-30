@@ -3,8 +3,9 @@
 import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
 import { tokenTrackerHandler } from "./plugins/token-tracker/logic";
 import { componentLabelsHandler } from "./plugins/component-labels/logic";
+import { RESIZE_DEFAULT, clampSize } from "./shared/resize";
 
-figma.showUI(__html__, { width: 800, height: 600 });
+figma.showUI(__html__, RESIZE_DEFAULT);
 
 // Module handlers map
 const handlers: Record<string, Function> = {
@@ -13,7 +14,7 @@ const handlers: Record<string, Function> = {
       case "get-component-properties":
         return await dsExplorerLogic.handleGetComponentProperties(
           payload,
-          figma,
+          figma
         );
       case "build-component":
         return await dsExplorerLogic.handleBuildComponent(payload, figma);
@@ -25,24 +26,41 @@ const handlers: Record<string, Function> = {
   "component-labels": componentLabelsHandler,
 };
 
-// Handle shell storage operations
-async function handleShellStorage(
+// Handle shell-level commands coming from the UI shell
+async function handleShellCommand(
   action: string,
   payload: any,
-  requestId?: string,
+  requestId?: string
 ) {
-  if (action === "save-storage") {
-    await figma.clientStorage.setAsync(payload.key, payload.value);
-    return;
-  }
+  switch (action) {
+    case "save-storage": {
+      await figma.clientStorage.setAsync(payload.key, payload.value);
+      return;
+    }
+    case "load-storage": {
+      const value = await figma.clientStorage.getAsync(payload.key);
+      figma.ui.postMessage({
+        type: "response",
+        requestId,
+        result: value,
+      });
+      return;
+    }
+    case "resize-ui": {
+      const targetWidth = Number(payload?.width) || RESIZE_DEFAULT.width;
+      const targetHeight = Number(payload?.height) || RESIZE_DEFAULT.height;
+      const nextSize = clampSize(targetWidth, targetHeight);
 
-  if (action === "load-storage") {
-    const value = await figma.clientStorage.getAsync(payload.key);
-    figma.ui.postMessage({
-      type: "response",
-      requestId,
-      result: value,
-    });
+      figma.ui.resize(nextSize.width, nextSize.height);
+      figma.ui.postMessage({
+        type: "resize",
+        payload: nextSize,
+      });
+      return;
+    }
+    default: {
+      console.warn(`⚠️ [Main] Unknown shell action: ${action}`);
+    }
   }
 }
 
@@ -50,7 +68,7 @@ async function handleShellStorage(
 function sendResponse(
   requestId: string | undefined,
   result: any,
-  error?: string,
+  error?: string
 ) {
   if (!requestId) return;
 
@@ -76,7 +94,7 @@ figma.ui.onmessage = async (msg: any) => {
   try {
     // Handle shell-specific actions
     if (target === "shell") {
-      await handleShellStorage(action, payload, requestId);
+      await handleShellCommand(action, payload, requestId);
       return;
     }
 
@@ -90,7 +108,7 @@ figma.ui.onmessage = async (msg: any) => {
   } catch (error: any) {
     console.error(
       `❌ [Main] Error handling ${target}:${action}:`,
-      error.message,
+      error.message
     );
     sendResponse(requestId, null, error?.message || String(error));
   }
