@@ -284,6 +284,38 @@ export function DSExplorerUI() {
             </div>
           </div>
         )}
+
+        {/* Build Button (Fixed at bottom) */}
+        {selectedComponent && (
+          <div
+            style={{
+              position: "static",
+              display: "flex",
+              justifyContent: "flex-end",
+              width: "100%",
+              zIndex: 1000,
+            }}
+          >
+            <button
+              onClick={handleBuild}
+              disabled={isLoading}
+              style={{
+                padding: "12px 32px",
+                backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+                fontSize: "14px",
+                fontWeight: 500,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+                transition: "all 0.15s ease",
+              }}
+            >
+              Build Component
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Right Panel - Component List */}
@@ -419,37 +451,6 @@ export function DSExplorerUI() {
           )}
         </div>
       </div>
-
-      {/* Build Button (Fixed at bottom) */}
-      {selectedComponent && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "32px",
-            right: "288px",
-            zIndex: 1000,
-          }}
-        >
-          <button
-            onClick={handleBuild}
-            disabled={isLoading}
-            style={{
-              padding: "12px 32px",
-              backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "14px",
-              fontWeight: 500,
-              cursor: isLoading ? "not-allowed" : "pointer",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-              transition: "all 0.15s ease",
-            }}
-          >
-            Build Component
-          </button>
-        </div>
-      )}
-    </div>
+    </div >
   );
 }
