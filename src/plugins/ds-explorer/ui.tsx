@@ -430,9 +430,8 @@ export function DSExplorerUI() {
         <div
           style={{
             position: "fixed",
-            bottom: "24px",
-            left: "50%",
-            transform: "translateX(-50%)",
+            bottom: "32px",
+            right: "288px",
             zIndex: 1000,
           }}
         >
