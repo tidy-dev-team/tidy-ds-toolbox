@@ -15,6 +15,10 @@ body {
   background: #ffffff;
 }
 
+h3 {
+  margin-top: 0;
+}
+
 .header {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
@@ -251,7 +255,6 @@ button:not(.nav-item):disabled {
 
 .main-view {
   padding-right: 256px;
-  margin-bottom: 16px;
 }
 
 .right-menu {

@@ -127,7 +127,6 @@ export function DSExplorerUI() {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          gap: "16px",
         }}
       >
         {selectedComponent ? (
@@ -138,10 +137,9 @@ export function DSExplorerUI() {
                   src={componentData.image}
                   alt={selectedComponent}
                   style={{
-                    width: "100%",
+                    maxWidth: "100%",
                     maxHeight: "200px",
                     objectFit: "contain",
-                    borderRadius: "4px",
                   }}
                 />
               ) : (
@@ -357,7 +355,7 @@ export function DSExplorerUI() {
               groupNames[groupIndex] || `Group ${groupIndex + 1}`;
 
             return (
-              <div key={groupIndex} style={{ marginBottom: "16px" }}>
+              <div key={groupIndex}>
                 {/* Group Header */}
                 <div
                   style={{
@@ -429,9 +427,8 @@ export function DSExplorerUI() {
         <div
           style={{
             position: "fixed",
-            bottom: "24px",
-            left: "50%",
-            transform: "translateX(-50%)",
+            bottom: "32px",
+            right: "288px",
             zIndex: 1000,
           }}
         >
