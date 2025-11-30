@@ -33,6 +33,7 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  margin-bottom: 16px;
 }
 
 .sidebar {
@@ -251,7 +252,6 @@ button:not(.nav-item):disabled {
 
 .main-view {
   padding-right: 256px;
-  margin-bottom: 16px;
 }
 
 .right-menu {
