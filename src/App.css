@@ -121,6 +121,17 @@ h3 {
   letter-spacing: -0.02em;
 }
 
+.search-wrapper svg {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  opacity: 0;
+}
+
+.search-wrapper:has(input:placeholder-shown) svg {
+  opacity: .5;
+}
+
 /* Component styles */
 .card {
   background: #ffffff;

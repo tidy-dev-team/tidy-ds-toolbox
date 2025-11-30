@@ -3,6 +3,7 @@ import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { componentRegistry, componentGroups } from "./utils/componentData";
 import { PropertyInfo, PropertyStates, ComponentData } from "./types";
+import { IconSearch } from "@tabler/icons-react";
 
 export function DSExplorerUI() {
   const [selectedComponent, setSelectedComponent] = useState<string | null>(
@@ -332,7 +333,9 @@ export function DSExplorerUI() {
         }}
       >
         {/* Search */}
-        <div style={{ padding: "12px", borderBottom: "1px solid #e5e7eb" }}>
+        <div
+          className="search-wrapper"
+          style={{ padding: "12px", borderBottom: "1px solid #e5e7eb" }}>
           <input
             type="text"
             placeholder="Search components..."
@@ -346,6 +349,7 @@ export function DSExplorerUI() {
               fontSize: "13px",
             }}
           />
+          <IconSearch size={16} />
         </div>
 
         {/* Component List */}
