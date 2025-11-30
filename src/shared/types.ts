@@ -5,6 +5,7 @@ export type PluginID =
   | "token-tracker"
   | "component-labels"
   | "tidy-icon-care"
+  | "sticker-sheet-builder"
   | (string & {});
 
 export interface PluginMessage {

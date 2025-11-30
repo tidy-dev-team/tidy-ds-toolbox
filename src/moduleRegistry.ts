@@ -1,8 +1,8 @@
-import React from "react";
-import { ModuleRegistry, ModuleManifest } from "@shared/types";
+import { ModuleRegistry } from "@shared/types";
 import {
   IconApps,
   IconComponents,
+  IconLayoutGrid,
   IconPalette,
   IconTag,
 } from "@tabler/icons-react";
@@ -10,6 +10,8 @@ import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { TokenTrackerUI } from "./plugins/token-tracker/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
 import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
+import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
+import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 
 // Module handlers
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -60,6 +62,17 @@ const tidyIconCareHandler = async (
   return await handler(action, payload, figma);
 };
 
+const stickerSheetBuilderHandler = async (
+  action: string,
+  payload: any,
+  figma: any
+) => {
+  const { stickerSheetBuilderHandler: handler } = await import(
+    "./plugins/sticker-sheet-builder/logic"
+  );
+  return await handler(action as StickerSheetBuilderAction, payload, figma);
+};
+
 export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
     id: "ds-explorer",
@@ -91,6 +104,14 @@ export const moduleRegistry: ModuleRegistry = {
     icon: IconApps,
     ui: TidyIconCareUI,
     handler: tidyIconCareHandler,
+    permissionRequirements: ["activeselection"],
+  },
+  "sticker-sheet-builder": {
+    id: "sticker-sheet-builder",
+    label: "Sticker Sheet Builder",
+    icon: IconLayoutGrid,
+    ui: StickerSheetBuilderUI,
+    handler: stickerSheetBuilderHandler,
     permissionRequirements: ["activeselection"],
   },
 };

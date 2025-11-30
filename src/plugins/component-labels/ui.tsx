@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Card, FormControl } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { LabelConfig, VariantProperty } from "./types";
