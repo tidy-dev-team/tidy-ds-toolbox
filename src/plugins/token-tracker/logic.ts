@@ -5,6 +5,7 @@ import {
   getVariableUsageSummary,
 } from "./utils/findBoundVariables";
 import { createResultTable, loadInterFont } from "./utils/createResultTable";
+import { debugLog } from "@shared/logging";
 import {
   ColorVariable,
   VariableCollection,
@@ -33,7 +34,7 @@ const collectionCache = new Map<
 function resolveVariableValue(
   value: any,
   modeId: string,
-  depth: number = 0,
+  depth: number = 0
 ): RGBA | string {
   if (depth > 10) {
     return "Circular reference";
@@ -54,7 +55,7 @@ function resolveVariableValue(
 
         if (!referencedValue) {
           const collection = figma.variables.getVariableCollectionById(
-            referencedVariable.variableCollectionId,
+            referencedVariable.variableCollectionId
           );
           if (collection) {
             const defaultModeId = collection.defaultModeId;
@@ -92,9 +93,9 @@ function resolveVariableValue(
 export async function tokenTrackerHandler(
   action: string,
   payload: any,
-  figma: any,
+  figma: any
 ): Promise<any> {
-  console.log(`📥 Token Tracker: ${action}`, payload);
+  debugLog(`📥 Token Tracker: ${action}`, payload);
 
   switch (action) {
     case "get-collections":
@@ -116,10 +117,10 @@ export async function tokenTrackerHandler(
 
     case "get-color-variables":
       const variables = handleGetColorVariables(payload);
-      console.log(
+      debugLog(
         "📤 Token Tracker sending variables-result:",
         variables?.length || 0,
-        "variables",
+        "variables"
       );
       figma.ui.postMessage({
         type: "variables-result",
@@ -144,7 +145,7 @@ export async function tokenTrackerHandler(
  * Get all variable collections
  */
 function handleGetCollections(
-  payload: GetCollectionsPayload,
+  payload: GetCollectionsPayload
 ): VariableCollection[] {
   try {
     const localCollections = figma.variables.getLocalVariableCollections();
@@ -152,7 +153,7 @@ function handleGetCollections(
       (collection) => ({
         id: collection.id,
         name: collection.name,
-      }),
+      })
     );
     return collections;
   } catch (error) {
@@ -185,17 +186,17 @@ function handleGetPages(payload: GetPagesPayload): {
  * Get color variables from selected collection
  */
 function handleGetColorVariables(
-  payload: GetColorVariablesPayload,
+  payload: GetColorVariablesPayload
 ): ColorVariable[] {
   const { collectionId } = payload;
-  console.log("🔍 Getting color variables for collection:", collectionId);
+  debugLog("🔍 Getting color variables for collection:", collectionId);
   try {
     const colorVariables: ColorVariable[] = [];
     const processedVariableIds = new Set<string>();
 
     // Process local variables
     const localVariables = figma.variables.getLocalVariables();
-    console.log("📊 Found", localVariables.length, "local variables");
+    debugLog("📊 Found", localVariables.length, "local variables");
     for (const variable of localVariables) {
       if (
         variable.resolvedType === "COLOR" &&
@@ -209,7 +210,7 @@ function handleGetColorVariables(
         let collectionInfo = collectionCache.get(variable.variableCollectionId);
         if (!collectionInfo) {
           const collection = figma.variables.getVariableCollectionById(
-            variable.variableCollectionId,
+            variable.variableCollectionId
           );
           if (collection) {
             collectionInfo = {
@@ -248,7 +249,7 @@ function handleGetColorVariables(
       }
     }
 
-    console.log("✅ Found", colorVariables.length, "color variables");
+    debugLog("✅ Found", colorVariables.length, "color variables");
     return colorVariables;
   } catch (error) {
     console.error("Error fetching color variables:", error);
@@ -260,18 +261,18 @@ function handleGetColorVariables(
  * Find bound nodes for selected variables
  */
 async function handleFindBoundNodes(
-  payload: FindBoundNodesPayload,
+  payload: FindBoundNodesPayload
 ): Promise<void> {
   try {
     const { variableIds, pageId } = payload;
     searchCancelled = false; // Reset cancellation flag
 
-    console.log(
+    debugLog(
       `🔍 Finding bound nodes for ${variableIds.length} selected variables${
         pageId
           ? ` on page ${figma.getNodeById(pageId)?.name || pageId}`
           : " on all pages"
-      }...`,
+      }...`
     );
 
     // Load fonts with better error handling
@@ -286,7 +287,7 @@ async function handleFindBoundNodes(
     for (let i = 0; i < variableIds.length; i++) {
       const variableId = variableIds[i];
       if (searchCancelled) {
-        console.log("🛑 Search cancelled by user");
+        debugLog("🛑 Search cancelled by user");
         break;
       }
 
@@ -322,7 +323,7 @@ async function handleFindBoundNodes(
                 });
               },
               shouldCancel: () => searchCancelled,
-            },
+            }
           );
 
           const summary = await getVariableUsageSummary(variable, true, pageId);
@@ -334,7 +335,7 @@ async function handleFindBoundNodes(
             instancesOnly: true,
           });
         } else {
-          console.log(`❌ Variable with ID ${variableId} not found`);
+          debugLog(`❌ Variable with ID ${variableId} not found`);
         }
       } catch (error) {
         console.error(`❌ Error processing variable ${variableId}:`, error);
@@ -344,30 +345,28 @@ async function handleFindBoundNodes(
     // Create visual table if we have results
     if (results.length > 0) {
       try {
-        console.log(
-          `🎨 Creating result table for ${results.length} variables...`,
-        );
+        debugLog(`🎨 Creating result table for ${results.length} variables...`);
         const resultTable = createResultTable(results);
-        console.log(
+        debugLog(
           `📊 Successfully created visual result table with ${results.reduce(
             (total, r) => total + r.boundNodes.length,
-            0,
-          )} total bound nodes across ${results.length} variables`,
+            0
+          )} total bound nodes across ${results.length} variables`
         );
       } catch (tableError) {
         console.error("❌ Error creating result table:", tableError);
         // Fallback to console output
-        console.log("📋 Falling back to console output:");
+        debugLog("📋 Falling back to console output:");
         results.forEach((result, index) => {
-          console.log(
+          debugLog(
             `${index + 1}. Variable: ${result.variable.name} - ${
               result.boundNodes.length
-            } nodes found`,
+            } nodes found`
           );
         });
       }
     } else {
-      console.log(`⚠️ No results to display`);
+      debugLog(`⚠️ No results to display`);
     }
   } catch (error) {
     console.error("❌ Error finding bound nodes:", error);
@@ -384,6 +383,6 @@ async function handleFindBoundNodes(
  * Cancel ongoing search
  */
 function handleCancelSearch(payload: CancelSearchPayload): void {
-  console.log("🛑 Cancellation requested by user");
+  debugLog("🛑 Cancellation requested by user");
   searchCancelled = true;
 }

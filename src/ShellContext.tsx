@@ -96,7 +96,7 @@ export function ShellProvider({ children }: { children: ReactNode }) {
             console.error("Shell error:", message.payload);
             break;
           default:
-            console.log("Unknown shell message:", message);
+            console.warn("Unknown shell message:", message);
         }
       }
     };

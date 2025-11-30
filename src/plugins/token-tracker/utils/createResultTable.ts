@@ -1,6 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { VariableResult } from "../types";
+import { debugLog } from "@shared/logging";
 
 /**
  * Loads the Inter font (required for text creation)
@@ -17,7 +18,7 @@ export async function loadInterFont() {
     await figma.loadFontAsync({ family: "Inter", style: "Medium" });
     await figma.loadFontAsync({ family: "Inter", style: "Bold" });
     fontsLoaded = true;
-    console.log("✅ Fonts loaded successfully");
+    debugLog("✅ Fonts loaded successfully");
   } catch (error) {
     console.warn("Could not load Inter font, trying fallback fonts");
     try {
@@ -25,7 +26,7 @@ export async function loadInterFont() {
       await figma.loadFontAsync({ family: "Roboto", style: "Medium" });
       await figma.loadFontAsync({ family: "Roboto", style: "Bold" });
       fontsLoaded = true;
-      console.log("✅ Fallback fonts (Roboto) loaded successfully");
+      debugLog("✅ Fallback fonts (Roboto) loaded successfully");
     } catch (fallbackError) {
       console.warn("Could not load fallback fonts either, using defaults");
       fontsLoaded = true;
@@ -64,7 +65,7 @@ function rgbToHex(r: number, g: number, b: number): string {
  */
 function formatRGB(r: number, g: number, b: number): string {
   return `RGB ${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(
-    b * 255,
+    b * 255
   )}`;
 }
 
@@ -117,7 +118,7 @@ function getFriendlyPropertyName(propertyPath: string): string {
 function resolveVariableAlias(
   variableId: string,
   modeId: string,
-  depth: number = 0,
+  depth: number = 0
 ): { r: number; g: number; b: number; a: number } | null {
   if (depth > 10) {
     console.warn("Maximum alias resolution depth reached");
@@ -132,7 +133,7 @@ function resolveVariableAlias(
 
     if (!aliasedValue) {
       const collection = figma.variables.getVariableCollectionById(
-        aliasedVariable.variableCollectionId,
+        aliasedVariable.variableCollectionId
       );
       if (collection) {
         const defaultModeId = collection.defaultModeId;
@@ -172,7 +173,7 @@ function getVariableColors(variable: Variable): Array<{
   }> = [];
 
   const collection = figma.variables.getVariableCollectionById(
-    variable.variableCollectionId,
+    variable.variableCollectionId
   );
 
   if (collection) {
@@ -220,7 +221,7 @@ function getVariableColors(variable: Variable): Array<{
  * Creates a visual table-like representation of variable usage results
  */
 export function createResultTable(results: VariableResult[]): FrameNode {
-  console.log(`🎨 Creating result table for ${results.length} variables...`);
+  debugLog(`🎨 Creating result table for ${results.length} variables...`);
 
   try {
     const tableContainer = figma.createFrame();
@@ -247,9 +248,7 @@ export function createResultTable(results: VariableResult[]): FrameNode {
       tableContainer.appendChild(variableCard);
     });
 
-    console.log(
-      `✅ Successfully created table with ${results.length} variables`,
-    );
+    debugLog(`✅ Successfully created table with ${results.length} variables`);
 
     tableContainer.x = 100;
     tableContainer.y = 100;
@@ -345,7 +344,7 @@ function createColorSamples(variable: Variable): FrameNode {
     hexText.characters = rgbToHex(
       modeColor.color.r,
       modeColor.color.g,
-      modeColor.color.b,
+      modeColor.color.b
     );
     hexText.fontSize = 10;
     hexText.fontName = getFontName("Regular");
@@ -411,7 +410,7 @@ function createNodesList(boundNodes: VariableResult["boundNodes"]): FrameNode {
       // Properties
       const propsText = figma.createText();
       const friendlyProps = nodeInfo.boundProperties.map((p) =>
-        getFriendlyPropertyName(p),
+        getFriendlyPropertyName(p)
       );
       propsText.characters = `Properties: ${friendlyProps.join(", ")}`;
       propsText.fontSize = 10;
