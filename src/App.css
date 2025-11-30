@@ -259,7 +259,7 @@ button:not(.nav-item):disabled {
 
 .right-menu {
   position: fixed;
-  height: calc(100% - 96px);
+  height: calc(100% - 100px);
   right: 24px;
 }
 
