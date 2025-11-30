@@ -160,10 +160,9 @@ export function DSExplorerUI() {
                   src={componentData.image}
                   alt={selectedComponent}
                   style={{
-                    width: "100%",
+                    maxWidth: "100%",
                     maxHeight: "200px",
                     objectFit: "contain",
-                    borderRadius: "4px",
                   }}
                 />
               ) : (
