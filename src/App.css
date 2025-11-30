@@ -102,6 +102,7 @@ h3 {
   flex: 1;
   overflow: auto;
   width: 100%;
+  max-width: calc(100% - 256px);
 }
 
 .viewport-content {
@@ -253,9 +254,9 @@ button:not(.nav-item):disabled {
   color: #991b1b;
 }
 
-.main-view {
-  padding-right: 256px;
-}
+/* .main-view {
+  margin-right: 256px;
+} */
 
 .right-menu {
   position: fixed;

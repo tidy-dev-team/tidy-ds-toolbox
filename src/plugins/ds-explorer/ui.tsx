@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useEffect } from "react";
-import { Card, FormControl } from "@shell/components";
+import { useState, useCallback, useEffect } from "react";
+import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { componentRegistry, componentGroups } from "./utils/componentData";
 import { PropertyInfo, PropertyStates, ComponentData } from "./types";
@@ -15,10 +15,7 @@ export function DSExplorerUI() {
   const [propertyStates, setPropertyStates] = useState<PropertyStates>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Filter components based on search
-  const filteredComponents = Object.entries(componentRegistry).filter(
-    ([name]) => name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ...existing code...
 
   // Filter groups based on search
   const filteredGroups = componentGroups
@@ -174,7 +171,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-              componentData.properties.length > 0 ? (
+                componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -273,6 +270,8 @@ export function DSExplorerUI() {
               justifyContent: "center",
               flexDirection: "column",
               gap: "12px",
+              overflow: "hidden",
+              maxHeight: "calc(100% - 4px)",
               color: "#9ca3af",
             }}
           >
@@ -349,8 +348,7 @@ export function DSExplorerUI() {
               "Progress Indicator",
               "Table",
             ];
-
-            const originalGroup = componentGroups[groupIndex];
+            // ...existing code...
             const groupName =
               groupNames[groupIndex] || `Group ${groupIndex + 1}`;
 
@@ -373,7 +371,7 @@ export function DSExplorerUI() {
                 </div>
 
                 {/* Group Items */}
-                {group.map(([name, key]) => (
+                {group.map(([name]) => (
                   <div
                     key={name}
                     onClick={() => handleComponentSelect(name)}

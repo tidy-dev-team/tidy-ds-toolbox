@@ -1,4 +1,3 @@
-import React from "react";
 import { ShellProvider, useShell } from "./ShellContext";
 import { ErrorBoundary, ResizeHandle } from "./components";
 import { moduleRegistry } from "./moduleRegistry";
