@@ -43,8 +43,10 @@ function Viewport() {
     (() => <div>Module not found</div>);
 
   return (
-    <div className="viewport-content">
-      <ActiveModule />
+    <div className="viewport-scroll">
+      <div className="viewport-content">
+        <ActiveModule />
+      </div>
     </div>
   );
 }

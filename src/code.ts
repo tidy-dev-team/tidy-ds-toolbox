@@ -3,6 +3,7 @@
 import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
 import { tokenTrackerHandler } from "./plugins/token-tracker/logic";
 import { componentLabelsHandler } from "./plugins/component-labels/logic";
+import { tidyIconCareHandler } from "./plugins/tidy-icon-care/logic";
 import { RESIZE_DEFAULT, clampSize } from "./shared/resize";
 
 figma.showUI(__html__, RESIZE_DEFAULT);
@@ -24,6 +25,7 @@ const handlers: Record<string, Function> = {
   },
   "token-tracker": tokenTrackerHandler,
   "component-labels": componentLabelsHandler,
+  "tidy-icon-care": tidyIconCareHandler,
 };
 
 // Handle shell-level commands coming from the UI shell
