@@ -358,7 +358,7 @@ export function DSExplorerUI() {
             const groupName = groupNames[groupIndex] || `Group ${groupIndex + 1}`;
 
             return (
-              <div key={groupIndex} style={{ marginBottom: "16px" }}>
+              <div key={groupIndex}>
                 {/* Group Header */}
                 <div
                   style={{
