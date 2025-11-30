@@ -103,6 +103,7 @@ h3 {
   overflow: auto;
   width: 100%;
   max-width: calc(100% - 256px);
+  scrollbar-color: lightgray transparent;
 }
 
 .viewport-content {
