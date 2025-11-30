@@ -103,6 +103,7 @@ h3 {
   overflow: auto;
   width: 100%;
   max-width: calc(100% - 256px);
+  scrollbar-color: lightgray transparent;
 }
 
 .viewport-content {
@@ -118,6 +119,17 @@ h3 {
   color: #111827;
   margin: 0 0 24px 0;
   letter-spacing: -0.02em;
+}
+
+.search-wrapper svg {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  opacity: 0;
+}
+
+.search-wrapper:has(input:placeholder-shown) svg {
+  opacity: .5;
 }
 
 /* Component styles */
