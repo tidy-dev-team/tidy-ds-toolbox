@@ -145,7 +145,7 @@ export async function tokenTrackerHandler(
  * Get all variable collections
  */
 function handleGetCollections(
-  payload: GetCollectionsPayload
+  _payload: GetCollectionsPayload
 ): VariableCollection[] {
   try {
     const localCollections = figma.variables.getLocalVariableCollections();
@@ -165,7 +165,7 @@ function handleGetCollections(
 /**
  * Get all pages
  */
-function handleGetPages(payload: GetPagesPayload): {
+function handleGetPages(_payload: GetPagesPayload): {
   pages: Page[];
   currentPageId: string | null;
 } {
@@ -346,7 +346,7 @@ async function handleFindBoundNodes(
     if (results.length > 0) {
       try {
         debugLog(`🎨 Creating result table for ${results.length} variables...`);
-        const resultTable = createResultTable(results);
+        createResultTable(results);
         debugLog(
           `📊 Successfully created visual result table with ${results.reduce(
             (total, r) => total + r.boundNodes.length,
@@ -382,7 +382,7 @@ async function handleFindBoundNodes(
 /**
  * Cancel ongoing search
  */
-function handleCancelSearch(payload: CancelSearchPayload): void {
+function handleCancelSearch(_payload: CancelSearchPayload): void {
   debugLog("🛑 Cancellation requested by user");
   searchCancelled = true;
 }

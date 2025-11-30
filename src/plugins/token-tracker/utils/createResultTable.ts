@@ -61,15 +61,6 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Formats RGB values as string
- */
-function formatRGB(r: number, g: number, b: number): string {
-  return `RGB ${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(
-    b * 255
-  )}`;
-}
-
-/**
  * Converts technical property paths to user-friendly names
  */
 function getFriendlyPropertyName(propertyPath: string): string {

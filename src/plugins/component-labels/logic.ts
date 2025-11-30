@@ -17,7 +17,7 @@ import {
 export async function componentLabelsHandler(
   action: string,
   payload: any,
-  figma: any
+  _figma?: PluginAPI
 ): Promise<any> {
   switch (action) {
     case "init":
@@ -188,7 +188,7 @@ async function createLabelsForRow(
   rowNodes: SceneNode[],
   propertyName: string,
   element: ComponentSetNode,
-  spacing: number,
+  _spacing: number,
   fontSize: number,
   positionFn: (node: SceneNode, label: TextNode) => { x: number; y: number }
 ): Promise<TextNode[]> {
@@ -332,7 +332,6 @@ async function buildLabelElements(
 
   // Calculate bounds for positioning second-level labels
   const leftBounds = computeMaximumBounds(leftLabels);
-  const topBounds = computeMaximumBounds(topLabels);
   const leftWidth = leftLabels.length ? leftBounds[1].x - leftBounds[0].x : 0;
 
   // Create second-level labels
