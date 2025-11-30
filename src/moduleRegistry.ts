@@ -1,47 +1,71 @@
 import React from "react";
 import { ModuleRegistry, ModuleManifest } from "@shared/types";
-import { IconShape, IconTypography, IconPalette } from "@tabler/icons-react";
-import { ShapeShifterUI } from "./plugins/shape-shifter/ui";
-import { handleShapeShifter } from "./plugins/shape-shifter/logic";
-import { TextMasterUI } from "./plugins/text-master/ui";
-import { handleTextMaster } from "./plugins/text-master/logic";
-
-// Placeholder components for modules
-const ColorLabComponent = () =>
-  React.createElement("div", null, "Color Lab - Coming Soon");
+import { IconComponents, IconPalette, IconTag } from "@tabler/icons-react";
+import { DSExplorerUI } from "./plugins/ds-explorer/ui";
+import { TokenTrackerUI } from "./plugins/token-tracker/ui";
+import { ComponentLabelsUI } from "./plugins/component-labels/ui";
 
 // Module handlers
-const shapeShifterHandler = handleShapeShifter;
+const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
+  const { handleGetComponentProperties, handleBuildComponent } = await import(
+    "./plugins/ds-explorer/logic"
+  );
 
-const textMasterHandler = handleTextMaster;
+  switch (action) {
+    case "get-component-properties":
+      return await handleGetComponentProperties(payload, figma);
+    case "build-component":
+      return await handleBuildComponent(payload, figma);
+    default:
+      throw new Error(`Unknown action: ${action}`);
+  }
+};
 
-const colorLabHandler = async (action: string, payload: any, figma: any) => {
-  // Color lab logic
+const tokenTrackerHandler = async (
+  action: string,
+  payload: any,
+  figma: any,
+) => {
+  const { tokenTrackerHandler: handler } = await import(
+    "./plugins/token-tracker/logic"
+  );
+  return await handler(action, payload, figma);
+};
+
+const componentLabelsHandler = async (
+  action: string,
+  payload: any,
+  figma: any,
+) => {
+  const { componentLabelsHandler: handler } = await import(
+    "./plugins/component-labels/logic"
+  );
+  return await handler(action, payload, figma);
 };
 
 export const moduleRegistry: ModuleRegistry = {
-  "shape-shifter": {
-    id: "shape-shifter",
-    label: "Shape Shifter",
-    icon: IconShape,
-    ui: ShapeShifterUI,
-    handler: shapeShifterHandler,
+  "ds-explorer": {
+    id: "ds-explorer",
+    label: "DS Explorer",
+    icon: IconComponents,
+    ui: DSExplorerUI,
+    handler: dsExplorerHandler,
     permissionRequirements: ["activeselection"],
   },
-  "text-master": {
-    id: "text-master",
-    label: "Text Master",
-    icon: IconTypography,
-    ui: TextMasterUI,
-    handler: textMasterHandler,
-    permissionRequirements: ["activeselection"],
-  },
-  "color-lab": {
-    id: "color-lab",
-    label: "Color Lab",
+  "token-tracker": {
+    id: "token-tracker",
+    label: "Token Tracker",
     icon: IconPalette,
-    ui: ColorLabComponent,
-    handler: colorLabHandler,
-    permissionRequirements: ["activeselection"],
+    ui: TokenTrackerUI,
+    handler: tokenTrackerHandler,
+    permissionRequirements: [],
+  },
+  "component-labels": {
+    id: "component-labels",
+    label: "Component Labels",
+    icon: IconTag,
+    ui: ComponentLabelsUI,
+    handler: componentLabelsHandler,
+    permissionRequirements: [],
   },
 };

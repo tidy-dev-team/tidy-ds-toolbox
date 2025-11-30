@@ -1,9 +1,9 @@
 // Shared types for the plugin system
 
 export type PluginID =
-  | "shape-shifter"
-  | "text-master"
-  | "color-lab"
+  | "ds-explorer"
+  | "token-tracker"
+  | "component-labels"
   | (string & {});
 
 export interface PluginMessage {
@@ -27,15 +27,6 @@ export interface ShellMessage {
 }
 
 // Specific message types for type safety
-export interface ShapeShifterMessage extends PluginMessage {
-  target: "shape-shifter";
-  action: "create-rects" | "get-selection";
-}
-
-export interface TextMasterMessage extends PluginMessage {
-  target: "text-master";
-  action: "insert-text" | "load-fonts";
-}
 
 export interface ModuleManifest {
   id: PluginID;
