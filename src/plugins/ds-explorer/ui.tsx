@@ -21,45 +21,45 @@ export function DSExplorerUI() {
   );
 
   // Filter groups based on search
-  const filteredGroups = componentGroups.map(group => 
+  const filteredGroups = componentGroups.map(group =>
     group.filter(([name]) => name.toLowerCase().includes(searchTerm.toLowerCase()))
   ).filter(group => group.length > 0);
 
   // Handle component selection
   const handleComponentSelect = useCallback((name: string) => {
     console.log("🎯 UI: Component selected:", name);
-    
+
     const component = componentRegistry[name];
     if (!component) {
       console.log("❌ UI: Component not found in registry:", name);
       return;
     }
-    
+
     console.log("📋 UI: Component data:", {
       name: component.name,
       key: component.key
     });
-    
+
     setSelectedComponent(name);
     setIsLoading(true);
     setComponentData(null);
     setPropertyStates({});
 
     const requestId = `get-props-${Date.now()}`;
-    
-    const messagePayload = { 
-      key: component.key, 
-      name: component.name, 
-      requestId 
+
+    const messagePayload = {
+      key: component.key,
+      name: component.name,
+      requestId
     };
-    
+
     console.log("📤 UI: Sending message:", {
       target: "ds-explorer",
       action: "get-component-properties",
       payload: messagePayload,
       requestId
     });
-    
+
     postToFigma({
       target: "ds-explorer",
       action: "get-component-properties",
@@ -81,7 +81,7 @@ export function DSExplorerUI() {
     if (!selectedComponent) return;
 
     const requestId = `build-${Date.now()}`;
-    
+
     postToFigma({
       target: "ds-explorer",
       action: "build-component",
@@ -100,7 +100,7 @@ export function DSExplorerUI() {
       // Unwrap pluginMessage from Figma
       const message = event.data.pluginMessage || event.data;
       console.log("📨 UI received message:", message);
-      
+
       if (
         message.type === "response" &&
         message.requestId?.startsWith("get-props-")
@@ -112,7 +112,7 @@ export function DSExplorerUI() {
             hasImage: !!message.result.image,
             hasDescription: !!message.result.description
           });
-          
+
           setComponentData(message.result);
           // Initialize all properties as enabled
           const initialStates: PropertyStates = {};
@@ -145,6 +145,7 @@ export function DSExplorerUI() {
     <div style={{ display: "flex", height: "100%", gap: "16px" }}>
       {/* Left Panel - Preview */}
       <div
+        className="main-view"
         style={{
           flex: 1,
           display: "flex",
@@ -198,7 +199,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-              componentData.properties.length > 0 ? (
+                componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -313,6 +314,7 @@ export function DSExplorerUI() {
 
       {/* Right Panel - Component List */}
       <div
+        className="right-menu"
         style={{
           width: "240px",
           backgroundColor: "#fafafa",
@@ -345,16 +347,16 @@ export function DSExplorerUI() {
           {filteredGroups.map((group, groupIndex) => {
             // Get group names for headers
             const groupNames = [
-              "Avatar", "Badge", "Navigation & Buttons", "Form Controls", 
+              "Avatar", "Badge", "Navigation & Buttons", "Form Controls",
               "Inputs", "Radio & Other Controls", "Link", "Slider", "Search",
               "Tabs", "Tooltip", "Toggle", "Molecules", "Banner", "Dropdown",
               "List", "Pagination", "Progress Bar", "Snackbar", "Toast",
               "Organisms", "Cards", "Date picker", "Modal", "Progress Indicator", "Table"
             ];
-            
+
             const originalGroup = componentGroups[groupIndex];
             const groupName = groupNames[groupIndex] || `Group ${groupIndex + 1}`;
-            
+
             return (
               <div key={groupIndex} style={{ marginBottom: "16px" }}>
                 {/* Group Header */}
@@ -372,7 +374,7 @@ export function DSExplorerUI() {
                 >
                   {groupName}
                 </div>
-                
+
                 {/* Group Items */}
                 {group.map(([name, key]) => (
                   <div
@@ -407,7 +409,7 @@ export function DSExplorerUI() {
               </div>
             );
           })}
-          
+
           {filteredGroups.length === 0 && (
             <div
               style={{

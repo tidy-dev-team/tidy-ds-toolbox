@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { postToFigma } from "@shared/bridge";
 import { RESIZE_THROTTLE_MS, clampSize } from "@shared/resize";
 import { useShell } from "../ShellContext";
+import { IconArrowsDiagonal } from "@tabler/icons-react";
 
 interface DragSnapshot {
   startX: number;
@@ -116,7 +117,7 @@ export function ResizeHandle() {
       aria-label="Resize plugin window"
       onPointerDown={handlePointerDown}
     >
-      <span className="resize-handle__glyph" aria-hidden="true" />
+      <IconArrowsDiagonal size={16} />
     </button>
   );
 }

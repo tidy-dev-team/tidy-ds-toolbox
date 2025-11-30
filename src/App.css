@@ -94,7 +94,6 @@ body {
 }
 
 .viewport-content {
-  max-width: 720px;
   margin: 0 auto;
 }
 
@@ -241,25 +240,38 @@ button:not(.nav-item):disabled {
   color: #991b1b;
 }
 
-.resize-handle {
-  position: absolute;
+.main-view {
+  padding-right: 256px;
+  margin-bottom: 16px;
+}
+
+.right-menu {
+  position: fixed;
+  height: calc(100% - 96px);
+  right: 24px;
+}
+
+.viewport button.resize-handle {
+  position: fixed;
   bottom: 12px;
   right: 12px;
-  width: 20px;
-  height: 20px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #ffffff;
-  cursor: nwse-resize;
-  padding: 3px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: nwse-resize;
   z-index: 10;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
   transition: border-color 0.15s ease,
     box-shadow 0.15s ease,
-    background 0.15s ease;
+    background-color 0.15s ease;
+}
+
+button.resize-handle svg {
+  transform: scale(-1, 1);
 }
 
 .resize-handle:hover {
