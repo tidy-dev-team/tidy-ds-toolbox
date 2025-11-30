@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
+import { debugLog } from "@shared/logging";
 import {
   ColorVariable,
   VariableCollection,
@@ -15,7 +16,7 @@ export function TokenTrackerUI() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedVariables, setSelectedVariables] = useState<Set<string>>(
-    new Set(),
+    new Set()
   );
   const [collections, setCollections] = useState<VariableCollection[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<
@@ -24,10 +25,10 @@ export function TokenTrackerUI() {
   const [pages, setPages] = useState<Page[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [searchProgress, setSearchProgress] = useState<SearchProgress | null>(
-    null,
+    null
   );
   const [streamingResults, setStreamingResults] = useState<StreamingResult[]>(
-    [],
+    []
   );
 
   // Load collections and pages on mount
@@ -51,22 +52,22 @@ export function TokenTrackerUI() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data.pluginMessage || event.data;
-      console.log("📨 Token Tracker UI received message:", message);
+      debugLog("📨 Token Tracker UI received message:", message);
 
       if (message.type === "collections-result") {
-        console.log("📋 Setting collections:", message.collections);
+        debugLog("📋 Setting collections:", message.collections);
         setCollections(message.collections);
         if (message.collections.length > 0 && selectedCollectionId === null) {
           setSelectedCollectionId(message.collections[0].id);
         }
       } else if (message.type === "pages-result") {
-        console.log("📄 Setting pages:", message.pages);
+        debugLog("📄 Setting pages:", message.pages);
         setPages(message.pages);
         if (message.currentPageId && selectedPageId === null) {
           setSelectedPageId(message.currentPageId);
         }
       } else if (message.type === "variables-result") {
-        console.log("🎨 Setting variables:", message.variables);
+        debugLog("🎨 Setting variables:", message.variables);
         setColorVariables(message.variables);
         setIsLoading(false);
       } else if (message.type === "search-progress") {
@@ -98,13 +99,13 @@ export function TokenTrackerUI() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchQuery(e.target.value);
     },
-    [],
+    []
   );
 
   // Filter variables based on search query and sort alphabetically
   const filteredVariables = colorVariables
     .filter((variable) =>
-      variable.name.toLowerCase().includes(searchQuery.toLowerCase()),
+      variable.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -120,7 +121,7 @@ export function TokenTrackerUI() {
         return newSet;
       });
     },
-    [],
+    []
   );
 
   const handleSelectAll = useCallback(() => {
@@ -134,8 +135,8 @@ export function TokenTrackerUI() {
   const handleFindBoundNodes = useCallback(() => {
     const selectedVariableIds = Array.from(selectedVariables);
     if (selectedVariableIds.length > 0) {
-      console.log(
-        `🚀 Finding bound nodes for ${selectedVariableIds.length} selected variables...`,
+      debugLog(
+        `🚀 Finding bound nodes for ${selectedVariableIds.length} selected variables...`
       );
       setIsSearching(true);
       setSearchProgress(null);
@@ -165,14 +166,14 @@ export function TokenTrackerUI() {
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       setSelectedCollectionId(e.target.value || null);
     },
-    [],
+    []
   );
 
   const handlePageChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       setSelectedPageId(e.target.value || null);
     },
-    [],
+    []
   );
 
   const formatColor = (rgba: {
@@ -188,7 +189,7 @@ export function TokenTrackerUI() {
   };
 
   const getColorPreview = (
-    variable: ColorVariable,
+    variable: ColorVariable
   ): { color: string; hexValue: string } => {
     const defaultModeValue = variable.valuesByMode[variable.defaultModeId];
 

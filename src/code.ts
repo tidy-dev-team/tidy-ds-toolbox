@@ -87,7 +87,7 @@ figma.ui.onmessage = async (msg: any) => {
   const message = msg?.pluginMessage || msg;
 
   if (!message?.target || !message?.action) {
-    console.log("⚠️ [Main] Invalid message format:", msg);
+    console.warn("⚠️ [Main] Invalid message format:", msg);
     return;
   }
 

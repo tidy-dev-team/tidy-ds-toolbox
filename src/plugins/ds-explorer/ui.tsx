@@ -21,24 +21,20 @@ export function DSExplorerUI() {
   );
 
   // Filter groups based on search
-  const filteredGroups = componentGroups.map(group =>
-    group.filter(([name]) => name.toLowerCase().includes(searchTerm.toLowerCase()))
-  ).filter(group => group.length > 0);
+  const filteredGroups = componentGroups
+    .map((group) =>
+      group.filter(([name]) =>
+        name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    )
+    .filter((group) => group.length > 0);
 
   // Handle component selection
   const handleComponentSelect = useCallback((name: string) => {
-    console.log("🎯 UI: Component selected:", name);
-
     const component = componentRegistry[name];
     if (!component) {
-      console.log("❌ UI: Component not found in registry:", name);
       return;
     }
-
-    console.log("📋 UI: Component data:", {
-      name: component.name,
-      key: component.key
-    });
 
     setSelectedComponent(name);
     setIsLoading(true);
@@ -50,15 +46,8 @@ export function DSExplorerUI() {
     const messagePayload = {
       key: component.key,
       name: component.name,
-      requestId
+      requestId,
     };
-
-    console.log("📤 UI: Sending message:", {
-      target: "ds-explorer",
-      action: "get-component-properties",
-      payload: messagePayload,
-      requestId
-    });
 
     postToFigma({
       target: "ds-explorer",
@@ -99,20 +88,12 @@ export function DSExplorerUI() {
     const handleMessage = (event: MessageEvent) => {
       // Unwrap pluginMessage from Figma
       const message = event.data.pluginMessage || event.data;
-      console.log("📨 UI received message:", message);
 
       if (
         message.type === "response" &&
         message.requestId?.startsWith("get-props-")
       ) {
-        console.log("✅ UI processing component data response");
         if (message.result) {
-          console.log("📋 Component data received:", {
-            hasProperties: message.result.properties?.length > 0,
-            hasImage: !!message.result.image,
-            hasDescription: !!message.result.description
-          });
-
           setComponentData(message.result);
           // Initialize all properties as enabled
           const initialStates: PropertyStates = {};
@@ -126,13 +107,9 @@ export function DSExplorerUI() {
             }
           });
           setPropertyStates(initialStates);
-          console.log("🔄 Property states initialized:", Object.keys(initialStates));
-        } else {
-          console.log("⚠️ No result data in response");
         }
         setIsLoading(false);
       } else if (message.type === "error") {
-        console.log("❌ UI received error response:", message.error);
         setIsLoading(false);
       }
     };
@@ -199,7 +176,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-                componentData.properties.length > 0 ? (
+              componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -347,15 +324,37 @@ export function DSExplorerUI() {
           {filteredGroups.map((group, groupIndex) => {
             // Get group names for headers
             const groupNames = [
-              "Avatar", "Badge", "Navigation & Buttons", "Form Controls",
-              "Inputs", "Radio & Other Controls", "Link", "Slider", "Search",
-              "Tabs", "Tooltip", "Toggle", "Molecules", "Banner", "Dropdown",
-              "List", "Pagination", "Progress Bar", "Snackbar", "Toast",
-              "Organisms", "Cards", "Date picker", "Modal", "Progress Indicator", "Table"
+              "Avatar",
+              "Badge",
+              "Navigation & Buttons",
+              "Form Controls",
+              "Inputs",
+              "Radio & Other Controls",
+              "Link",
+              "Slider",
+              "Search",
+              "Tabs",
+              "Tooltip",
+              "Toggle",
+              "Molecules",
+              "Banner",
+              "Dropdown",
+              "List",
+              "Pagination",
+              "Progress Bar",
+              "Snackbar",
+              "Toast",
+              "Organisms",
+              "Cards",
+              "Date picker",
+              "Modal",
+              "Progress Indicator",
+              "Table",
             ];
 
             const originalGroup = componentGroups[groupIndex];
-            const groupName = groupNames[groupIndex] || `Group ${groupIndex + 1}`;
+            const groupName =
+              groupNames[groupIndex] || `Group ${groupIndex + 1}`;
 
             return (
               <div key={groupIndex} style={{ marginBottom: "16px" }}>

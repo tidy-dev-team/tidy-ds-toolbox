@@ -38,7 +38,6 @@ export function ComponentLabelsUI() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data.pluginMessage || event.data;
-      console.log("📨 Component Labels UI received message:", message);
 
       if (message.type === "settings") {
         // Load saved settings
@@ -79,9 +78,6 @@ export function ComponentLabelsUI() {
         setHasSelection(false);
       } else if (message.type === "error") {
         setHasSelection(false);
-      } else if (message.type === "labels-built") {
-        // Labels were successfully built
-        console.log("✓ Labels built successfully");
       }
     };
 
