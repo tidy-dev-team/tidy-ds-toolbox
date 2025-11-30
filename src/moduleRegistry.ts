@@ -1,9 +1,15 @@
 import React from "react";
 import { ModuleRegistry, ModuleManifest } from "@shared/types";
-import { IconComponents, IconPalette, IconTag } from "@tabler/icons-react";
+import {
+  IconApps,
+  IconComponents,
+  IconPalette,
+  IconTag,
+} from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { TokenTrackerUI } from "./plugins/token-tracker/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
+import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
 
 // Module handlers
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -24,7 +30,7 @@ const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
 const tokenTrackerHandler = async (
   action: string,
   payload: any,
-  figma: any,
+  figma: any
 ) => {
   const { tokenTrackerHandler: handler } = await import(
     "./plugins/token-tracker/logic"
@@ -35,10 +41,21 @@ const tokenTrackerHandler = async (
 const componentLabelsHandler = async (
   action: string,
   payload: any,
-  figma: any,
+  figma: any
 ) => {
   const { componentLabelsHandler: handler } = await import(
     "./plugins/component-labels/logic"
+  );
+  return await handler(action, payload, figma);
+};
+
+const tidyIconCareHandler = async (
+  action: string,
+  payload: any,
+  figma: any
+) => {
+  const { tidyIconCareHandler: handler } = await import(
+    "./plugins/tidy-icon-care/logic"
   );
   return await handler(action, payload, figma);
 };
@@ -67,5 +84,13 @@ export const moduleRegistry: ModuleRegistry = {
     ui: ComponentLabelsUI,
     handler: componentLabelsHandler,
     permissionRequirements: [],
+  },
+  "tidy-icon-care": {
+    id: "tidy-icon-care",
+    label: "Tidy Icon Care",
+    icon: IconApps,
+    ui: TidyIconCareUI,
+    handler: tidyIconCareHandler,
+    permissionRequirements: ["activeselection"],
   },
 };
