@@ -4,6 +4,7 @@ export type PluginID =
   | "ds-explorer"
   | "token-tracker"
   | "component-labels"
+  | "tidy-icon-care"
   | (string & {});
 
 export interface PluginMessage {

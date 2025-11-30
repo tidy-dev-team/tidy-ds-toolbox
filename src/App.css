@@ -90,13 +90,23 @@ body {
   flex: 1;
   background: #ffffff;
   padding: 24px;
-  overflow: auto;
   position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.viewport-scroll {
+  flex: 1;
+  overflow: auto;
+  width: 100%;
 }
 
 .viewport-content {
   max-width: 720px;
+  width: 100%;
   margin: 0 auto;
+  padding-bottom: 72px;
+  box-sizing: border-box;
 }
 
 .viewport-content h2 {
