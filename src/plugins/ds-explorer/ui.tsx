@@ -150,7 +150,6 @@ export function DSExplorerUI() {
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          gap: "16px",
         }}
       >
         {selectedComponent ? (
