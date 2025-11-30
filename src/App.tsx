@@ -1,6 +1,6 @@
 import React from "react";
 import { ShellProvider, useShell } from "./ShellContext";
-import { ErrorBoundary } from "./components";
+import { ErrorBoundary, ResizeHandle } from "./components";
 import { moduleRegistry } from "./moduleRegistry";
 import "./App.css";
 
@@ -61,6 +61,7 @@ function AppContent() {
         </aside>
         <main className="viewport">
           <Viewport />
+          <ResizeHandle />
         </main>
       </div>
     </div>

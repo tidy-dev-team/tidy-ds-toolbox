@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { PluginID, ShellMessage } from "@shared/types";
 import { postToFigma } from "@shared/bridge";
+import { RESIZE_DEFAULT } from "@shared/resize";
 
 interface ShellState {
   activeModule: PluginID;
@@ -23,7 +24,7 @@ type ShellAction =
 
 const initialState: ShellState = {
   activeModule: "ds-explorer",
-  windowSize: { width: 800, height: 600 },
+  windowSize: { ...RESIZE_DEFAULT },
   theme: "light",
   settings: {},
 };
