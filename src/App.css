@@ -33,7 +33,6 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
-  margin-bottom: 16px;
 }
 
 .sidebar {
