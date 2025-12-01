@@ -40,7 +40,10 @@ function getComponentDescription(
     if (node.description?.trim()) {
       return node.description.trim();
     }
-    if (node.type === "COMPONENT_SET" && node.defaultVariant?.description?.trim()) {
+    if (
+      node.type === "COMPONENT_SET" &&
+      node.defaultVariant?.description?.trim()
+    ) {
       return node.defaultVariant.description.trim();
     }
     return "No description available";
@@ -54,9 +57,8 @@ async function getComponentImage(
   node: ComponentSetNode | ComponentNode
 ): Promise<string | null> {
   try {
-    const nodeToRender = node.type === "COMPONENT_SET" 
-      ? node.defaultVariant 
-      : node;
+    const nodeToRender =
+      node.type === "COMPONENT_SET" ? node.defaultVariant : node;
 
     if (!nodeToRender) return null;
 
@@ -81,7 +83,10 @@ function findExposedInstances(
 
   try {
     node.findAll((child: SceneNode) => {
-      if (child.type === "INSTANCE" && (child as InstanceNode).exposedInstances) {
+      if (
+        child.type === "INSTANCE" &&
+        (child as InstanceNode).exposedInstances
+      ) {
         const instance = child as InstanceNode;
         instances.push({
           name: instance.name,
@@ -99,14 +104,18 @@ function findExposedInstances(
 }
 
 // Helper to import component (tries component set first, then regular component)
-async function importComponent(key: string, figma: any): Promise<ComponentSetNode | ComponentNode> {
+async function importComponent(
+  key: string,
+  figma: any
+): Promise<ComponentSetNode | ComponentNode> {
   try {
     return await figma.importComponentSetByKeyAsync(key);
   } catch (error) {
     try {
       return await figma.importComponentByKeyAsync(key);
     } catch (innerError) {
-      const errorMsg = innerError instanceof Error ? innerError.message : String(innerError);
+      const errorMsg =
+        innerError instanceof Error ? innerError.message : String(innerError);
       throw new Error(`Failed to import component: ${errorMsg}`);
     }
   }
@@ -123,13 +132,14 @@ export async function handleGetComponentProperties(
 
   try {
     const node = await importComponent(payload.key, figma);
-    
+
     const properties = getComponentPropertyInfo(node);
     const description = getComponentDescription(node);
     const image = await getComponentImage(node);
-    const nestedInstances = node.type === "COMPONENT_SET"
-      ? findExposedInstances(node.defaultVariant)
-      : findExposedInstances(node);
+    const nestedInstances =
+      node.type === "COMPONENT_SET"
+        ? findExposedInstances(node.defaultVariant)
+        : findExposedInstances(node);
 
     const componentData = {
       properties,
@@ -198,45 +208,73 @@ export async function handleBuildComponent(
     const node = await importComponent(componentKey, figma);
     const clone = node.clone();
     clone.name = `${node.name} (Built)`;
+    const blockedVariantProps = new Set<string>();
+
+    const handlePropertyDeletion = (
+      target: ComponentNode | ComponentSetNode,
+      propName: string,
+      propDef: ComponentPropertyDefinitions[string]
+    ) => {
+      if (propDef.type === "VARIANT") {
+        blockedVariantProps.add(propName);
+        return;
+      }
+      target.deleteComponentProperty(propName);
+    };
 
     // Process properties for component sets
     if (clone.type === "COMPONENT_SET") {
-      const propertyDefs = clone.componentPropertyDefinitions as ComponentPropertyDefinitions;
+      const propertyDefs =
+        clone.componentPropertyDefinitions as ComponentPropertyDefinitions;
 
       for (const [propName, propDef] of Object.entries(propertyDefs)) {
         // Remove disabled properties
         if (properties[propName] === false) {
-          clone.deleteComponentProperty(propName);
+          handlePropertyDeletion(
+            clone,
+            propName,
+            propDef as ComponentPropertyDefinition
+          );
           continue;
         }
 
         // Filter variant options
         if (propDef.type === "VARIANT" && propDef.variantOptions) {
-          const enabledOptions = propDef.variantOptions.filter((option: string) => {
-            const optionKey = `${propName}#${option}`;
-            return properties[optionKey] !== false;
-          });
+          const enabledOptions = propDef.variantOptions.filter(
+            (option: string) => {
+              const optionKey = `${propName}#${option}`;
+              return properties[optionKey] !== false;
+            }
+          );
 
           // Remove variants that don't match enabled options
           const variants = [...clone.children];
           for (const variant of variants) {
             if (variant.type === "COMPONENT") {
               const variantProps = parseVariantName(variant.name);
-              if (variantProps[propName] && !enabledOptions.includes(variantProps[propName])) {
+              if (
+                variantProps[propName] &&
+                !enabledOptions.includes(variantProps[propName])
+              ) {
                 variant.remove();
               }
             }
           }
         }
       }
-    } 
+    }
     // Process properties for regular components
     else if (clone.type === "COMPONENT") {
-      const propertyDefs = clone.componentPropertyDefinitions as ComponentPropertyDefinitions;
+      const propertyDefs =
+        clone.componentPropertyDefinitions as ComponentPropertyDefinitions;
 
-      for (const propName of Object.keys(propertyDefs)) {
+      for (const [propName, propDef] of Object.entries(propertyDefs)) {
         if (properties[propName] === false) {
-          clone.deleteComponentProperty(propName);
+          handlePropertyDeletion(
+            clone,
+            propName,
+            propDef as ComponentPropertyDefinition
+          );
         }
       }
     }
@@ -245,6 +283,13 @@ export async function handleBuildComponent(
     figma.currentPage.appendChild(clone);
     figma.currentPage.selection = [clone];
     figma.viewport.scrollAndZoomIntoView([clone]);
+
+    if (blockedVariantProps.size > 0) {
+      const ignoredList = [...blockedVariantProps].join(", ");
+      const warningMessage = `Variant properties cannot be removed automatically (${ignoredList}). Disable specific variant options instead.`;
+      console.warn(warningMessage);
+      figma.notify(warningMessage, { timeout: 5000 });
+    }
 
     figma.notify(`✓ Component built successfully!`);
 

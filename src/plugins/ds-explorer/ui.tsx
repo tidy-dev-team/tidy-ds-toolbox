@@ -172,7 +172,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-                componentData.properties.length > 0 ? (
+              componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -180,71 +180,103 @@ export function DSExplorerUI() {
                     gap: "12px",
                   }}
                 >
-                  {componentData.properties.map((prop) => (
-                    <div key={prop.name}>
-                      <label
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          fontSize: "13px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={propertyStates[prop.name] ?? true}
-                          onChange={() => handlePropertyToggle(prop.name)}
-                        />
-                        <span style={{ fontWeight: 500 }}>{prop.name}</span>
-                        <span style={{ color: "#9ca3af", fontSize: "12px" }}>
-                          ({prop.type})
-                        </span>
-                      </label>
-
-                      {/* Variant options */}
-                      {prop.type === "VARIANT" &&
-                        prop.variantOptions &&
-                        propertyStates[prop.name] && (
+                  {componentData.properties.map((prop) => {
+                    const isVariantProperty = prop.type === "VARIANT";
+                    const isPropertyEnabled = isVariantProperty
+                      ? true
+                      : (propertyStates[prop.name] ?? true);
+                    return (
+                      <div key={prop.name}>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "13px",
+                            cursor: isVariantProperty ? "default" : "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isPropertyEnabled}
+                            disabled={isVariantProperty}
+                            title={
+                              isVariantProperty
+                                ? "Variant properties stay enabled. Disable individual variant values instead."
+                                : undefined
+                            }
+                            onChange={() => {
+                              if (!isVariantProperty) {
+                                handlePropertyToggle(prop.name);
+                              }
+                            }}
+                          />
+                          <span style={{ fontWeight: 500 }}>{prop.name}</span>
+                          <span style={{ color: "#9ca3af", fontSize: "12px" }}>
+                            ({prop.type})
+                          </span>
+                        </label>
+                        {isVariantProperty && (
                           <div
                             style={{
                               marginLeft: "28px",
-                              marginTop: "8px",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "6px",
+                              marginTop: "6px",
+                              color: "#6b7280",
+                              fontSize: "11px",
+                              lineHeight: 1.4,
                             }}
                           >
-                            {prop.variantOptions.map((option) => (
-                              <label
-                                key={option}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "8px",
-                                  fontSize: "12px",
-                                  cursor: "pointer",
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    propertyStates[`${prop.name}#${option}`] ??
-                                    true
-                                  }
-                                  onChange={() =>
-                                    handlePropertyToggle(
-                                      `${prop.name}#${option}`
-                                    )
-                                  }
-                                />
-                                <span>{option}</span>
-                              </label>
-                            ))}
+                            Variant properties are structural and remain
+                            enabled. Use the options below to filter the
+                            variants that are included when building.
                           </div>
                         )}
-                    </div>
-                  ))}
+
+                        {/* Variant options */}
+                        {isVariantProperty &&
+                          prop.variantOptions &&
+                          isPropertyEnabled && (
+                            <div
+                              style={{
+                                marginLeft: "28px",
+                                marginTop: "8px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "6px",
+                              }}
+                            >
+                              {prop.variantOptions.map((option) => (
+                                <label
+                                  key={option}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    fontSize: "12px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      propertyStates[
+                                        `${prop.name}#${option}`
+                                      ] ?? true
+                                    }
+                                    onChange={() =>
+                                      handlePropertyToggle(
+                                        `${prop.name}#${option}`
+                                      )
+                                    }
+                                  />
+                                  <span>{option}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div
@@ -335,7 +367,8 @@ export function DSExplorerUI() {
         {/* Search */}
         <div
           className="search-wrapper"
-          style={{ padding: "12px", borderBottom: "1px solid #e5e7eb" }}>
+          style={{ padding: "12px", borderBottom: "1px solid #e5e7eb" }}
+        >
           <input
             type="text"
             placeholder="Search components..."
@@ -455,6 +488,6 @@ export function DSExplorerUI() {
           )}
         </div>
       </div>
-    </div >
+    </div>
   );
 }
