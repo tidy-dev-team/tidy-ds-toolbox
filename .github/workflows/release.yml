@@ -27,7 +27,6 @@ jobs:
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
 
           echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
           echo "tag-version=$TAG_VERSION" >> $GITHUB_OUTPUT
@@ -35,25 +34,18 @@ jobs:
           echo "📦 Versions:"
           echo "  Tag: v$TAG_VERSION"
           echo "  package.json: $PACKAGE_VERSION"
-          echo "  manifest.json: $MANIFEST_VERSION"
 
       - name: Validate version consistency
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
 
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "❌ Tag version ($TAG_VERSION) doesn't match package.json ($PACKAGE_VERSION)"
             exit 1
           fi
 
-          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
-            echo "❌ Tag version ($TAG_VERSION) doesn't match manifest.json ($MANIFEST_VERSION)"
-            exit 1
-          fi
-
-          echo "✅ All versions match: $TAG_VERSION"
+          echo "✅ Version matches: $TAG_VERSION"
 
       # TODO: Add automated changelog generation
       # - name: Check changelog entry

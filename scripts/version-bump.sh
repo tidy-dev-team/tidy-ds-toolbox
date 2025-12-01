@@ -56,23 +56,12 @@ npm version $BUMP_TYPE --no-git-tag-version
 NEW_VERSION=$(node -p "require('./package.json').version")
 echo -e "${GREEN}New version: $NEW_VERSION${NC}"
 
-# Update manifest.json
-echo "Updating manifest.json..."
-if command -v jq &> /dev/null; then
-  jq --arg version "$NEW_VERSION" '.version = $version' manifest.json > tmp.json && mv tmp.json manifest.json
-else
-  # Fallback to node if jq is not available
-  node -e "
-    const fs = require('fs');
-    const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
-    manifest.version = '$NEW_VERSION';
-    fs.writeFileSync('manifest.json', JSON.stringify(manifest, null, 2) + '\n');
-  "
-fi
+# Note: manifest.json doesn't need version field for Figma plugins
+# Version is tracked in package.json and git tags only
 
 # Stage changes
 echo "Staging changes..."
-git add package.json manifest.json
+git add package.json
 
 # Create commit
 echo "Creating commit..."
