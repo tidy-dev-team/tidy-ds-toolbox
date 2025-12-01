@@ -131,14 +131,30 @@ jobs:
         run: |
           VERSION="${{ needs.validate-release.outputs.tag-version }}"
 
-          # Extract the section for this version from CHANGELOG.md
-          awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 > release-notes.md
+          # Create installation instructions header
+          cat > release-notes.md <<'HEADER'
+          ## 📦 Installation Instructions
 
-          if [ ! -s release-notes.md ]; then
-            echo "No specific changelog entry found, using generic message"
-            echo "Release v$VERSION" > release-notes.md
+          **⚠️ IMPORTANT: Download `plugin-bundle.zip` from the Assets section below, NOT the source code archives!**
+
+          ### To install this plugin in Figma:
+          1. Download **`plugin-bundle.zip`** from the Assets section below
+          2. Extract the ZIP file
+          3. In Figma: Menu → Plugins → Development → Import plugin from manifest...
+          4. Select the `manifest.json` file from the extracted folder
+
+          ---
+
+          ## 📝 Changes in this Release
+
+          HEADER
+
+          # Extract the section for this version from CHANGELOG.md
+          awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 >> release-notes.md
+
+          if ! grep -q "^### " release-notes.md && ! grep -q "^- " release-notes.md; then
             echo "" >> release-notes.md
-            echo "See CHANGELOG.md for details." >> release-notes.md
+            echo "See CHANGELOG.md for full details." >> release-notes.md
           fi
 
       - name: Create GitHub Release
@@ -188,8 +204,9 @@ jobs:
           $(cat changes.txt | head -n 10)
 
           📦 Installation:
-          Download from GitHub Releases and import manually to Figma:
-          https://github.com/${{ github.repository }}/releases/tag/v$VERSION
+          1. Go to: https://github.com/${{ github.repository }}/releases/tag/v$VERSION
+          2. Download plugin-bundle.zip (NOT the source code archives!)
+          3. Extract and import to Figma via: Plugins → Development → Import plugin from manifest
 
           📖 Full Changelog: https://github.com/${{ github.repository }}/releases/tag/v$VERSION
           EOF
@@ -221,7 +238,13 @@ jobs:
           - [Download Plugin Bundle](https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.tag-version }}/plugin-bundle.zip)
 
           ## Next Steps
-          - Download plugin-bundle.zip from the release
-          - Share with team for manual Figma import
-          - Or use ./scripts/deploy-to-dropbox.sh to deploy automatically
+          - Download **plugin-bundle.zip** (not the source code archives!)
+          - Extract and share with team for Figma import
+          - Or use \`./scripts/deploy-to-dropbox.sh\` to deploy automatically
+
+          ## Installation Instructions for Users
+          1. Download **plugin-bundle.zip** from the release assets
+          2. Extract the ZIP file
+          3. In Figma: Plugins → Development → Import plugin from manifest...
+          4. Select the \`manifest.json\` file from the extracted folder
           EOF
