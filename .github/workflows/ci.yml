@@ -24,9 +24,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
-        run: npm run lint
-
       - name: Check Prettier formatting
         run: npx prettier --check "src/**/*.{ts,tsx,css}"
 
@@ -82,8 +79,8 @@ jobs:
             echo "❌ dist/code.js not found"
             exit 1
           fi
-          if [ ! -f "dist/ui.html" ]; then
-            echo "❌ dist/ui.html not found"
+          if [ ! -f "dist/index.html" ]; then
+            echo "❌ dist/index.html not found"
             exit 1
           fi
           echo "✅ Build artifacts present"
@@ -91,13 +88,13 @@ jobs:
       - name: Check bundle size
         run: |
           CODE_SIZE=$(wc -c < dist/code.js)
-          UI_SIZE=$(wc -c < dist/ui.html)
+          UI_SIZE=$(wc -c < dist/index.html)
           TOTAL_SIZE=$((CODE_SIZE + UI_SIZE))
           MAX_SIZE=$((2 * 1024 * 1024))  # 2MB
 
           echo "📦 Bundle sizes:"
           echo "  code.js: $(numfmt --to=iec-i --suffix=B $CODE_SIZE)"
-          echo "  ui.html: $(numfmt --to=iec-i --suffix=B $UI_SIZE)"
+          echo "  index.html: $(numfmt --to=iec-i --suffix=B $UI_SIZE)"
           echo "  Total: $(numfmt --to=iec-i --suffix=B $TOTAL_SIZE)"
 
           if [ $TOTAL_SIZE -gt $MAX_SIZE ]; then

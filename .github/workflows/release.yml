@@ -99,7 +99,7 @@ jobs:
         run: |
           sha256sum plugin-bundle.zip > plugin-bundle.zip.sha256
           sha256sum dist/code.js > dist-code.js.sha256
-          sha256sum dist/ui.html > dist-ui.html.sha256
+          sha256sum dist/index.html > dist-index.html.sha256
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -109,7 +109,7 @@ jobs:
             plugin-bundle.zip
             plugin-bundle.zip.sha256
             dist-code.js.sha256
-            dist-ui.html.sha256
+            dist-index.html.sha256
 
   create-github-release:
     name: Create GitHub Release
