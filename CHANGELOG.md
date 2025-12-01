@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [1.0.7] - 2025-12-01
 
-- Initial CI/CD pipeline setup
-- Automated versioning and release workflow
-- Conventional commits support
+### Fixed
+
+- DS Explorer: Clean property names by removing #ID suffix from display
+- CI/CD: Fix release workflow to properly attach plugin-bundle.zip
+- CI/CD: Update build validation to use index.html instead of ui.html
+- CI/CD: Remove ESLint check (no config present)
+- CI/CD: Make CI workflow reusable for release pipeline
+
+### Changed
+
+- Release bundle now only contains manifest.json and dist/ folder
+- Enhanced release notes with clear installation instructions
 
 ## [1.0.0] - 2025-12-01
 
