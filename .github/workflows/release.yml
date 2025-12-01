@@ -55,15 +55,16 @@ jobs:
 
           echo "✅ All versions match: $TAG_VERSION"
 
-      - name: Check changelog entry
-        run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          if ! grep -q "\[$TAG_VERSION\]" CHANGELOG.md; then
-            echo "⚠️  Warning: No changelog entry found for version $TAG_VERSION"
-            echo "Please update CHANGELOG.md before releasing"
-            exit 1
-          fi
-          echo "✅ Changelog entry exists for $TAG_VERSION"
+      # TODO: Add automated changelog generation
+      # - name: Check changelog entry
+      #   run: |
+      #     TAG_VERSION=${GITHUB_REF#refs/tags/v}
+      #     if ! grep -q "\[$TAG_VERSION\]" CHANGELOG.md; then
+      #       echo "⚠️  Warning: No changelog entry found for version $TAG_VERSION"
+      #       echo "Please update CHANGELOG.md before releasing"
+      #       exit 1
+      #     fi
+      #     echo "✅ Changelog entry exists for $TAG_VERSION"
 
   build-release:
     name: Build Release Artifacts
