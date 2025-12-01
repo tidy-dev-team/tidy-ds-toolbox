@@ -103,7 +103,12 @@ h3 {
   overflow: auto;
   width: 100%;
   max-width: calc(100% - 256px);
+  margin: 0 auto;
   scrollbar-color: lightgray transparent;
+}
+
+main:has(.right-menu) .viewport-scroll {
+  margin: unset;
 }
 
 .viewport-content {
@@ -242,6 +247,7 @@ button:not(.nav-item):active {
 button:not(.nav-item):disabled {
   background: #9ca3af;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Status messages */
