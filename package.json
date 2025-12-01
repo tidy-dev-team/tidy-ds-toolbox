@@ -1,6 +1,6 @@
 {
   "name": "tidy-ds-toolbox",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -8,6 +8,8 @@
     "build:main": "node esbuild.config.js",
     "build": "npm run build:ui && npm run build:main",
     "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"

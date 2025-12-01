@@ -5,6 +5,12 @@ import { componentRegistry, componentGroups } from "./utils/componentData";
 import { PropertyInfo, PropertyStates, ComponentData } from "./types";
 import { IconSearch } from "@tabler/icons-react";
 
+// Helper function to clean property name by removing #ID suffix
+function cleanPropertyName(name: string): string {
+  // Remove #ID suffix (e.g., "label#259:52" -> "label")
+  return name.replace(/#\d+:\d+$/, "");
+}
+
 export function DSExplorerUI() {
   const [selectedComponent, setSelectedComponent] = useState<string | null>(
     null
@@ -211,7 +217,9 @@ export function DSExplorerUI() {
                               }
                             }}
                           />
-                          <span style={{ fontWeight: 500 }}>{prop.name}</span>
+                          <span style={{ fontWeight: 500 }}>
+                            {cleanPropertyName(prop.name)}
+                          </span>
                           <span style={{ color: "#9ca3af", fontSize: "12px" }}>
                             ({prop.type})
                           </span>
