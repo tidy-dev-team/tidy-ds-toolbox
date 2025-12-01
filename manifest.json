@@ -4,10 +4,6 @@
   "api": "1.0.0",
   "main": "dist/code.js",
   "ui": "dist/index.html",
-  "editorType": [
-    "figma"
-  ],
-  "permissions": [
-    "currentuser"
-  ]
+  "editorType": ["figma"],
+  "permissions": ["currentuser"]
 }
