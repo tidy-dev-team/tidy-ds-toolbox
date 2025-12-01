@@ -1,5 +1,5 @@
 export function getComponentProps(
-  mainComponent: ComponentNode | ComponentSetNode
+  mainComponent: ComponentNode | ComponentSetNode,
 ) {
   const componentProps: {
     variant: Record<string, any>;

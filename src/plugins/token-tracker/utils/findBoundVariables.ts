@@ -15,7 +15,7 @@ export async function findNodesWithBoundVariable(
   variable: Variable,
   instancesOnly: boolean = false,
   pageId?: string | null,
-  callbacks?: SearchCallbacks
+  callbacks?: SearchCallbacks,
 ): Promise<BoundNodeInfo[]> {
   const boundNodes: BoundNodeInfo[] = [];
   const variableId = variable.id;
@@ -129,7 +129,7 @@ export async function findNodesWithBoundVariable(
         callbacks.onProgress(
           Math.min(nodesProcessed, totalNodes),
           totalNodes,
-          boundNodes.length
+          boundNodes.length,
         );
 
         // Yield to UI thread every 10 nodes to allow progress updates to render
@@ -266,13 +266,13 @@ export async function findNodesWithBoundVariable(
                 ) {
                   boundProperties.push(`componentProperties.${propName}`);
                 }
-              }
+              },
             );
           }
         } catch (error) {
           console.warn(
             `Skipping node ${node.id} due to component property error:`,
-            error
+            error,
           );
         }
       }
@@ -330,7 +330,7 @@ export async function findNodesWithBoundVariable(
     } catch (error) {
       console.warn(
         `Skipping node ${node.id} (${node.name}) due to error:`,
-        error
+        error,
       );
     }
 
@@ -381,7 +381,7 @@ export async function findNodesWithBoundVariable(
   debugLog(
     `🔍 Searching in ${pagesToSearch.length} page(s)${
       pageId ? ` (filtered by pageId: ${pageId})` : " (all pages)"
-    }`
+    }`,
   );
 
   if (pageId && pagesToSearch.length === 0) {
@@ -439,7 +439,7 @@ export async function findNodesWithBoundVariable(
       if (instancesOnly) {
         // When instancesOnly is true, only start from instances
         const findInstancesInNode = async (
-          node: SceneNode
+          node: SceneNode,
         ): Promise<boolean> => {
           if (node.type === "INSTANCE") {
             const shouldContinue = await checkNode(node);
@@ -490,16 +490,16 @@ export async function findNodesWithBoundVariable(
 
   if (cancelled) {
     debugLog(
-      `⚠️ Search cancelled by user after ${searchTime}ms. Found ${boundNodes.length} nodes so far.`
+      `⚠️ Search cancelled by user after ${searchTime}ms. Found ${boundNodes.length} nodes so far.`,
     );
   } else {
     debugLog(
-      `✅ Search completed in ${searchTime}ms. Found ${boundNodes.length} nodes.`
+      `✅ Search completed in ${searchTime}ms. Found ${boundNodes.length} nodes.`,
     );
   }
 
   debugLog(
-    `   📊 Performance: Cached ${variableCache.size} variables, ${variableKeyCache.size} keys, ${targetVariableIds.size} target IDs, ${processedInstanceNames.size} unique components`
+    `   📊 Performance: Cached ${variableCache.size} variables, ${variableKeyCache.size} keys, ${targetVariableIds.size} target IDs, ${processedInstanceNames.size} unique components`,
   );
 
   return boundNodes;
@@ -511,12 +511,12 @@ export async function findNodesWithBoundVariable(
 export async function getVariableUsageSummary(
   variable: Variable,
   instancesOnly: boolean = false,
-  pageId?: string | null
+  pageId?: string | null,
 ) {
   const boundNodes = await findNodesWithBoundVariable(
     variable,
     instancesOnly,
-    pageId
+    pageId,
   );
 
   const summary = {

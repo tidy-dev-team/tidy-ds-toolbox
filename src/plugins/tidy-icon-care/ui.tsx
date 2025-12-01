@@ -17,7 +17,7 @@ interface PendingRequest {
 
 export function TidyIconCareUI() {
   const [settings, setSettings] = useState<TidyIconCareSettings>(
-    DEFAULT_TIDY_ICON_CARE_SETTINGS
+    DEFAULT_TIDY_ICON_CARE_SETTINGS,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isBuilding, setIsBuilding] = useState(false);
@@ -38,7 +38,7 @@ export function TidyIconCareUI() {
       });
       return requestId;
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export function TidyIconCareUI() {
         },
         onError: (error) => setErrorMessage(error),
         onFinally: () => setIsLoading(false),
-      }
+      },
     );
   }, [sendRequest]);
 
@@ -86,14 +86,14 @@ export function TidyIconCareUI() {
         setSettings((prev) => ({ ...prev, [key]: numericValue }));
       }
     },
-    []
+    [],
   );
 
   const updateBoolean = useCallback(
     (key: keyof TidyIconCareSettings, value: boolean) => {
       setSettings((prev) => ({ ...prev, [key]: value }));
     },
-    []
+    [],
   );
 
   const handleColorChange = useCallback((value: string) => {
@@ -105,12 +105,12 @@ export function TidyIconCareUI() {
     (value: TidyIconCareSettings["labelCase"]) => {
       setSettings((prev) => ({ ...prev, labelCase: value }));
     },
-    []
+    [],
   );
 
   const preparedSettings = useMemo(
     () => serializeSettings(settings),
-    [settings]
+    [settings],
   );
 
   const handleBuild = useCallback(() => {
@@ -133,7 +133,7 @@ export function TidyIconCareUI() {
           setErrorMessage(error);
         },
         onFinally: () => setIsBuilding(false),
-      }
+      },
     );
   }, [isLoading, isBuilding, preparedSettings, sendRequest]);
 
@@ -346,7 +346,7 @@ const inputStyle: React.CSSProperties = {
 };
 
 function serializeSettings(
-  settings: TidyIconCareSettings
+  settings: TidyIconCareSettings,
 ): TidyIconCareSettings {
   return {
     ...settings,

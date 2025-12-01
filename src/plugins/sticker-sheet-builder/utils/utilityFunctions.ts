@@ -9,7 +9,7 @@ export async function findMasterComponent(node: InstanceNode) {
 export function setVariantProps(
   node: InstanceNode,
   name: string,
-  value: string
+  value: string,
 ) {
   const propList = node.componentProperties;
   for (const property in propList) {
@@ -20,7 +20,7 @@ export function setVariantProps(
         node.setProperties(newProps);
       } catch (error) {
         console.warn(
-          `Failed to set variant property ${property}=${value} on node ${node.name}`
+          `Failed to set variant property ${property}=${value} on node ${node.name}`,
         );
       }
     }
@@ -30,7 +30,7 @@ export function setVariantProps(
 export function setBooleanProps(
   element: InstanceNode,
   name: string,
-  value: boolean
+  value: boolean,
 ) {
   const propList = element.componentProperties;
   for (const property in propList) {
@@ -41,7 +41,7 @@ export function setBooleanProps(
         element.setProperties(newProps);
       } catch (error) {
         console.warn(
-          `Failed to set boolean property ${property}=${value} on node ${element.name}`
+          `Failed to set boolean property ${property}=${value} on node ${element.name}`,
         );
       }
     }
@@ -53,7 +53,7 @@ export function buildAutoLayoutFrame(
   direction: "NONE" | "HORIZONTAL" | "VERTICAL",
   paddingHorizontal = 20,
   paddingVertical = 20,
-  itemSpacing = 10
+  itemSpacing = 10,
 ): FrameNode {
   const frame = figma.createFrame();
   frame.layoutMode = direction;
@@ -69,7 +69,7 @@ export function buildAutoLayoutFrame(
 
 export function placeResultTopRight(
   resultFrame: FrameNode,
-  page: PageNode = figma.currentPage
+  page: PageNode = figma.currentPage,
 ) {
   const bounds = computePageBounds(Array.from(page.children));
   page.appendChild(resultFrame);

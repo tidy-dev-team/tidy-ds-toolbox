@@ -32,7 +32,7 @@ const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
 const tokenTrackerHandler = async (
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ) => {
   const { tokenTrackerHandler: handler } = await import(
     "./plugins/token-tracker/logic"
@@ -43,7 +43,7 @@ const tokenTrackerHandler = async (
 const componentLabelsHandler = async (
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ) => {
   const { componentLabelsHandler: handler } = await import(
     "./plugins/component-labels/logic"
@@ -54,7 +54,7 @@ const componentLabelsHandler = async (
 const tidyIconCareHandler = async (
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ) => {
   const { tidyIconCareHandler: handler } = await import(
     "./plugins/tidy-icon-care/logic"
@@ -65,7 +65,7 @@ const tidyIconCareHandler = async (
 const stickerSheetBuilderHandler = async (
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ) => {
   const { stickerSheetBuilderHandler: handler } = await import(
     "./plugins/sticker-sheet-builder/logic"

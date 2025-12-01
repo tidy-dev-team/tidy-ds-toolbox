@@ -3,7 +3,7 @@ import { ComponentDescription } from "./parseDescription";
 export function findDescriptionSection(
   emoji: string,
   description: ComponentDescription,
-  fallback: string
+  fallback: string,
 ) {
   const sections = description.sections;
   for (const section of sections) {

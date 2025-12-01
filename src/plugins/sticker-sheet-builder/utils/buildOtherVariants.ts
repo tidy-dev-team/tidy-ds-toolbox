@@ -3,14 +3,14 @@ import { createSectionSetTitle, createSectionTitle } from "./textUtils";
 import { setVariantProps } from "./utilityFunctions";
 export default function buildOtherVariants(
   basicGrid: FrameNode,
-  otherProps: any[]
+  otherProps: any[],
 ) {
   const allVariantsFrame = createNormalizedFrame(
     "all-variants-frame",
     "VERTICAL",
     0,
     0,
-    60
+    60,
   );
   for (const [sizePropName, { variantOptions }] of otherProps) {
     const sectionSetTitle = createSectionSetTitle(sizePropName);
@@ -19,7 +19,7 @@ export default function buildOtherVariants(
       "VERTICAL",
       0,
       0,
-      60
+      60,
     );
     oneVariantFrame.appendChild(sectionSetTitle);
     for (const option of variantOptions) {
@@ -28,7 +28,7 @@ export default function buildOtherVariants(
         "VERTICAL",
         0,
         0,
-        12
+        12,
       );
       const sectionTitle = createSectionTitle(option);
       const workingGrid = basicGrid.clone();

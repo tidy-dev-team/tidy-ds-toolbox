@@ -16,7 +16,7 @@ export function TokenTrackerUI() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedVariables, setSelectedVariables] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [collections, setCollections] = useState<VariableCollection[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<
@@ -25,10 +25,10 @@ export function TokenTrackerUI() {
   const [pages, setPages] = useState<Page[]>([]);
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [searchProgress, setSearchProgress] = useState<SearchProgress | null>(
-    null
+    null,
   );
   const [streamingResults, setStreamingResults] = useState<StreamingResult[]>(
-    []
+    [],
   );
 
   // Load collections and pages on mount
@@ -99,13 +99,13 @@ export function TokenTrackerUI() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       setSearchQuery(e.target.value);
     },
-    []
+    [],
   );
 
   // Filter variables based on search query and sort alphabetically
   const filteredVariables = colorVariables
     .filter((variable) =>
-      variable.name.toLowerCase().includes(searchQuery.toLowerCase())
+      variable.name.toLowerCase().includes(searchQuery.toLowerCase()),
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -121,7 +121,7 @@ export function TokenTrackerUI() {
         return newSet;
       });
     },
-    []
+    [],
   );
 
   const handleSelectAll = useCallback(() => {
@@ -136,7 +136,7 @@ export function TokenTrackerUI() {
     const selectedVariableIds = Array.from(selectedVariables);
     if (selectedVariableIds.length > 0) {
       debugLog(
-        `🚀 Finding bound nodes for ${selectedVariableIds.length} selected variables...`
+        `🚀 Finding bound nodes for ${selectedVariableIds.length} selected variables...`,
       );
       setIsSearching(true);
       setSearchProgress(null);
@@ -166,14 +166,14 @@ export function TokenTrackerUI() {
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       setSelectedCollectionId(e.target.value || null);
     },
-    []
+    [],
   );
 
   const handlePageChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       setSelectedPageId(e.target.value || null);
     },
-    []
+    [],
   );
 
   const formatColor = (rgba: {
@@ -189,7 +189,7 @@ export function TokenTrackerUI() {
   };
 
   const getColorPreview = (
-    variable: ColorVariable
+    variable: ColorVariable,
   ): { color: string; hexValue: string } => {
     const defaultModeValue = variable.valuesByMode[variable.defaultModeId];
 

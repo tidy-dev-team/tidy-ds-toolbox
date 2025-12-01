@@ -20,7 +20,7 @@ let listenersRegistered = false;
 export async function stickerSheetBuilderHandler(
   action: StickerSheetBuilderAction,
   _payload?: any,
-  _figma?: PluginAPI
+  _figma?: PluginAPI,
 ): Promise<StickerSheetBuilderResponse> {
   ensureEventListeners();
 
@@ -83,7 +83,7 @@ function isSelectionValid(): boolean {
 }
 
 function isStickerEligible(
-  node: SceneNode
+  node: SceneNode,
 ): node is InstanceNode | ComponentNode | ComponentSetNode {
   return (
     node.type === "INSTANCE" ||
@@ -98,7 +98,7 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
   const validNodes = figma.currentPage.selection.filter(isStickerEligible);
   if (!validNodes.length) {
     throw new Error(
-      "Select an instance, component, or component set to build a sticker."
+      "Select an instance, component, or component set to build a sticker.",
     );
   }
 
@@ -133,7 +133,7 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
   }
 
   const sectionsFrame = stickerSheetPage.findChild(
-    (node) => node.type === "FRAME" && node.name === "Sections"
+    (node) => node.type === "FRAME" && node.name === "Sections",
   ) as FrameNode | null;
   if (sectionsFrame) {
     lockStickers(sectionsFrame);

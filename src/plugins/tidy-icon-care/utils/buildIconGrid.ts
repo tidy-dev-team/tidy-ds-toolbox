@@ -16,7 +16,7 @@ export async function buildIconGrid(settings: TidyIconCareSettings) {
   const labelComponent = createLabelComponent();
   const parent = selection[0].parent;
   const sortedNodes = [...selection].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );
 
   const columns = chunk(sortedNodes, Math.max(settings.rows, 1));
@@ -29,7 +29,7 @@ export async function buildIconGrid(settings: TidyIconCareSettings) {
         node,
         settings.iconSpacing,
         labelComponent,
-        settings.labelCase
+        settings.labelCase,
       );
       iconPlusLabel.name = "icon+label";
       column.appendChild(iconPlusLabel);
@@ -60,7 +60,7 @@ export async function buildIconGrid(settings: TidyIconCareSettings) {
       const fixedSet = handleComponentSet(
         workingNode,
         settings,
-        hexWithOpacity
+        hexWithOpacity,
       );
       if (container) {
         container.insertChild(0, fixedSet);
@@ -71,7 +71,7 @@ export async function buildIconGrid(settings: TidyIconCareSettings) {
     const fixedNode = iconCoreFix(
       workingNode,
       settings.iconSize,
-      settings.scaleIconContent
+      settings.scaleIconContent,
     );
 
     if (settings.addMetaData) {
@@ -150,7 +150,7 @@ function addOpacityToHex(hex: string, opacity: number) {
 function handleComponentSet(
   node: ComponentSetNode,
   settings: TidyIconCareSettings,
-  hexWithOpacity: string
+  hexWithOpacity: string,
 ) {
   const property = Object.keys(node.componentPropertyDefinitions)[0];
   const variants = node.children;
@@ -160,7 +160,7 @@ function handleComponentSet(
     const fixedVariant = iconCoreFix(
       variant,
       settings.iconSize,
-      settings.scaleIconContent
+      settings.scaleIconContent,
     );
     if (!settings.preserveColors) {
       recolorNodes(fixedVariant, hexWithOpacity);
@@ -202,7 +202,7 @@ function recolorNodes(node: ComponentNode | SceneNode, hexWithOpacity: string) {
       applyVectorColor(
         current as RectangleNode | VectorNode,
         "fills",
-        hexWithOpacity
+        hexWithOpacity,
       );
     }
     if (
@@ -213,7 +213,7 @@ function recolorNodes(node: ComponentNode | SceneNode, hexWithOpacity: string) {
       applyVectorColor(
         current as RectangleNode | VectorNode,
         "strokes",
-        hexWithOpacity
+        hexWithOpacity,
       );
     }
 
@@ -230,7 +230,7 @@ function recolorNodes(node: ComponentNode | SceneNode, hexWithOpacity: string) {
 function applyVectorColor(
   node: RectangleNode | VectorNode,
   property: "fills" | "strokes",
-  hexWithOpacity: string
+  hexWithOpacity: string,
 ) {
   const paints = (node as any)[property] as Paint[];
   if (!paints || !paints.length || paints[0].type !== "SOLID") {

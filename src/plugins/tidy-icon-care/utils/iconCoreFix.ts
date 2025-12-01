@@ -8,7 +8,7 @@ import { vectorToOutline } from "./vectorToOutline";
 export function iconCoreFix(
   node: SceneNode,
   iconSize: number,
-  scaleIconContent: boolean
+  scaleIconContent: boolean,
 ): ComponentNode {
   let workingNode: ComponentNode;
 
@@ -108,7 +108,7 @@ function groupToComponent(node: SceneNode, iconSize: number): ComponentNode {
       child.y = y;
     });
     ungroupNode(
-      node as FrameNode | GroupNode | ComponentNode | ComponentSetNode
+      node as FrameNode | GroupNode | ComponentNode | ComponentSetNode,
     );
   } else {
     wrapper.appendChild(node);
@@ -123,7 +123,7 @@ function groupToComponent(node: SceneNode, iconSize: number): ComponentNode {
 }
 
 function ungroupNode(
-  node: FrameNode | GroupNode | ComponentNode | ComponentSetNode
+  node: FrameNode | GroupNode | ComponentNode | ComponentSetNode,
 ) {
   if (!node || node.removed) return;
   if (!node.parent) return;
@@ -138,7 +138,7 @@ function ungroupNode(
 function resizeIconContent(
   node: ComponentNode,
   iconSize: number,
-  scaleIconContent: boolean
+  scaleIconContent: boolean,
 ) {
   const content = node.children[0];
   if (
@@ -187,7 +187,7 @@ function getScaleFactor(iconSize: number) {
 
 function setErrorBackground(
   node: ComponentNode,
-  type: "outline" | "unite" | "flatten"
+  type: "outline" | "unite" | "flatten",
 ) {
   if (type === "outline") {
     node.fills = [{ type: "SOLID", color: OUTLINE_ERROR_COLOR }];

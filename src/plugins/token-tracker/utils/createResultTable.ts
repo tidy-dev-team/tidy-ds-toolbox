@@ -109,7 +109,7 @@ function getFriendlyPropertyName(propertyPath: string): string {
 function resolveVariableAlias(
   variableId: string,
   modeId: string,
-  depth: number = 0
+  depth: number = 0,
 ): { r: number; g: number; b: number; a: number } | null {
   if (depth > 10) {
     console.warn("Maximum alias resolution depth reached");
@@ -124,7 +124,7 @@ function resolveVariableAlias(
 
     if (!aliasedValue) {
       const collection = figma.variables.getVariableCollectionById(
-        aliasedVariable.variableCollectionId
+        aliasedVariable.variableCollectionId,
       );
       if (collection) {
         const defaultModeId = collection.defaultModeId;
@@ -164,7 +164,7 @@ function getVariableColors(variable: Variable): Array<{
   }> = [];
 
   const collection = figma.variables.getVariableCollectionById(
-    variable.variableCollectionId
+    variable.variableCollectionId,
   );
 
   if (collection) {
@@ -335,7 +335,7 @@ function createColorSamples(variable: Variable): FrameNode {
     hexText.characters = rgbToHex(
       modeColor.color.r,
       modeColor.color.g,
-      modeColor.color.b
+      modeColor.color.b,
     );
     hexText.fontSize = 10;
     hexText.fontName = getFontName("Regular");
@@ -401,7 +401,7 @@ function createNodesList(boundNodes: VariableResult["boundNodes"]): FrameNode {
       // Properties
       const propsText = figma.createText();
       const friendlyProps = nodeInfo.boundProperties.map((p) =>
-        getFriendlyPropertyName(p)
+        getFriendlyPropertyName(p),
       );
       propsText.characters = `Properties: ${friendlyProps.join(", ")}`;
       propsText.fontSize = 10;

@@ -255,7 +255,7 @@ export const componentGroups = [
 // Generate component registry from groups
 export const componentRegistry: ComponentRegistry = {};
 
-componentGroups.forEach(group => {
+componentGroups.forEach((group) => {
   group.forEach(([name, key, type = "component"]) => {
     componentRegistry[name] = {
       key,

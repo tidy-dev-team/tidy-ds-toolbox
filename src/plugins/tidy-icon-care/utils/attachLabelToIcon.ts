@@ -5,7 +5,7 @@ export function attachLabelToIcon(
   icon: SceneNode,
   spacing: number,
   labelComponent: ComponentNode,
-  labelCase: LabelCase
+  labelCase: LabelCase,
 ): FrameNode {
   if (icon.type !== "COMPONENT_SET") {
     const labelInstance = labelComponent.createInstance();
@@ -80,7 +80,7 @@ function formatIconText(value: string, labelCase: LabelCase) {
 function composeIconWithLabel(
   icon: SceneNode,
   label: InstanceNode,
-  spacing: number
+  spacing: number,
 ): FrameNode {
   const frame = figma.createFrame();
   frame.layoutMode = "HORIZONTAL";

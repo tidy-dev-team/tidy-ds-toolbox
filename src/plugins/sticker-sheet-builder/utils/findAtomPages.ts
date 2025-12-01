@@ -1,10 +1,10 @@
 export function findAtomPages() {
   const pages = figma.root.children;
   const atomsTitleIndex = pages.findIndex((page) =>
-    page.name.startsWith("⚛️ Atoms")
+    page.name.startsWith("⚛️ Atoms"),
   );
   const moleculesTitleIndex = pages.findIndex((page) =>
-    page.name.startsWith("🧬 Molecules")
+    page.name.startsWith("🧬 Molecules"),
   );
   const atomPages = pages.slice(atomsTitleIndex + 1, moleculesTitleIndex);
   return atomPages;

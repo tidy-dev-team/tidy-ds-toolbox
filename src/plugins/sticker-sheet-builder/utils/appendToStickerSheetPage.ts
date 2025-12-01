@@ -10,7 +10,7 @@ export function appendToStickerSheetPage(
   stickerFrame: FrameNode,
   element: ComponentNode | ComponentSetNode,
   raster: FrameNode,
-  description: ComponentDescription
+  description: ComponentDescription,
 ) {
   figma.currentPage = stickerSheetPage;
 
@@ -19,7 +19,7 @@ export function appendToStickerSheetPage(
   const currentSectionName = findDescriptionSection(
     "🗂️",
     description,
-    "Unknown section"
+    "Unknown section",
   );
   const currentSectionFrame =
     findOrCreateCurrentSectionFrame(currentSectionName);
@@ -30,7 +30,7 @@ export function appendToStickerSheetPage(
 
 function findOrCreateAllSectionsFrame() {
   let allSectionsFrame = figma.currentPage.findChild(
-    (frame) => frame.name === "Sections"
+    (frame) => frame.name === "Sections",
   );
   if (!allSectionsFrame) {
     allSectionsFrame = buildAutoLayoutFrame("Sections", "VERTICAL", 24, 24, 24);
@@ -46,7 +46,7 @@ function findOrCreateCurrentSectionFrame(sectionName: string): FrameNode {
 
   const foundSection = figma.currentPage.findOne(
     (node): node is FrameNode =>
-      node.type === "FRAME" && node.name === sectionName
+      node.type === "FRAME" && node.name === sectionName,
   );
 
   if (foundSection && foundSection.type === "FRAME") {
@@ -61,7 +61,7 @@ function findOrCreateCurrentSectionFrame(sectionName: string): FrameNode {
     "VERTICAL",
     24,
     24,
-    24
+    24,
   );
   sectionWithTitle.fills = [];
   sectionWithTitle.appendChild(sectonTitle);
@@ -78,7 +78,7 @@ function buildSectionContent(sectionName: string) {
     "HORIZONTAL",
     24,
     24,
-    24
+    24,
   );
   newSection.name = sectionName;
   newSection.fills = SECTION_FILL;

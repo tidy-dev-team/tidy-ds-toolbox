@@ -8,7 +8,7 @@ export interface ComponentDescription {
 }
 
 export function parseComponentDescription(
-  description: string
+  description: string,
 ): ComponentDescription {
   if (description.length === 0) {
     return {

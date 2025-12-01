@@ -14,11 +14,11 @@ export function getProps(componentProps: any) {
   for (const prop in variantProps) {
     const lowerProp = prop.toLowerCase();
     const variantOptions = variantProps[prop].variantOptions.map(
-      (option: any) => option.toLowerCase()
+      (option: any) => option.toLowerCase(),
     );
 
     if (lowerProp === "size") {
-      sizeProps.push(prop), sizeProps.push(variantProps[prop]);
+      (sizeProps.push(prop), sizeProps.push(variantProps[prop]));
     } else if (
       variantOptions.length === 2 &&
       (binaryOptions.includes(variantOptions[0]) ||
@@ -26,15 +26,15 @@ export function getProps(componentProps: any) {
     ) {
       binaryProps.push([prop, variantProps[prop]]);
     } else if (lowerProp === "state") {
-      stateProps.push(prop), stateProps.push(variantProps[prop]);
+      (stateProps.push(prop), stateProps.push(variantProps[prop]));
     } else if (
       variantOptions.some((option: string) => stateOptions.includes(option))
     ) {
-      stateProps.push(prop), stateProps.push(variantProps[prop]);
+      (stateProps.push(prop), stateProps.push(variantProps[prop]));
     } else if (
       variantOptions.some((option: string) => typeOptions.includes(option))
     ) {
-      typeProps.push(prop), typeProps.push(variantProps[prop]);
+      (typeProps.push(prop), typeProps.push(variantProps[prop]));
     } else {
       allOtherProps.push([prop, variantProps[prop]]);
     }

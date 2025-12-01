@@ -16,7 +16,7 @@ const handlers: Record<string, Function> = {
       case "get-component-properties":
         return await dsExplorerLogic.handleGetComponentProperties(
           payload,
-          figma
+          figma,
         );
       case "build-component":
         return await dsExplorerLogic.handleBuildComponent(payload, figma);
@@ -34,7 +34,7 @@ const handlers: Record<string, Function> = {
 async function handleShellCommand(
   action: string,
   payload: any,
-  requestId?: string
+  requestId?: string,
 ) {
   switch (action) {
     case "save-storage": {
@@ -72,7 +72,7 @@ async function handleShellCommand(
 function sendResponse(
   requestId: string | undefined,
   result: any,
-  error?: string
+  error?: string,
 ) {
   if (!requestId) return;
 
@@ -112,7 +112,7 @@ figma.ui.onmessage = async (msg: any) => {
   } catch (error: any) {
     console.error(
       `❌ [Main] Error handling ${target}:${action}:`,
-      error.message
+      error.message,
     );
     sendResponse(requestId, null, error?.message || String(error));
   }

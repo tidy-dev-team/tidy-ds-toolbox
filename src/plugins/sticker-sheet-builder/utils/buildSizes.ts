@@ -4,7 +4,7 @@ import { createSubSectionTitle, createElementLabelText } from "./textUtils";
 
 export default function buildSizes(
   node: ComponentNode,
-  [sizePropName, { variantOptions: sizeOptions }]: any
+  [sizePropName, { variantOptions: sizeOptions }]: any,
 ) {
   const workingNode = node.createInstance();
   const sizeFrame = createNormalizedFrame("size-frame", "VERTICAL", 0, 0, 20);
@@ -15,7 +15,7 @@ export default function buildSizes(
     "HORIZONTAL",
     0,
     0,
-    16
+    16,
   );
   elementsFrame.counterAxisAlignItems = "MAX";
   for (const prop of sizeOptions) {
@@ -24,7 +24,7 @@ export default function buildSizes(
       "VERTICAL",
       0,
       0,
-      8
+      8,
     );
     const cloNode = workingNode.clone();
     setVariantProps(cloNode, sizePropName, prop);

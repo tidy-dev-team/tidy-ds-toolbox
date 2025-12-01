@@ -12,7 +12,7 @@ export default function buildBinariesGrids(node: any, binaryProps: any[]) {
       "VERTICAL",
       0,
       0,
-      20
+      20,
     );
     const title = createSubSectionTitle(propName);
     binaryFrame.appendChild(title);
@@ -21,7 +21,7 @@ export default function buildBinariesGrids(node: any, binaryProps: any[]) {
       "HORIZONTAL",
       0,
       0,
-      16
+      16,
     );
 
     for (const option of binaryOptions) {
@@ -30,7 +30,7 @@ export default function buildBinariesGrids(node: any, binaryProps: any[]) {
         "VERTICAL",
         0,
         0,
-        8
+        8,
       );
       const cloNode = workingNode.clone();
       setVariantProps(cloNode, propName, option);

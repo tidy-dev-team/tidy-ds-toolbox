@@ -34,7 +34,7 @@ const collectionCache = new Map<
 function resolveVariableValue(
   value: any,
   modeId: string,
-  depth: number = 0
+  depth: number = 0,
 ): RGBA | string {
   if (depth > 10) {
     return "Circular reference";
@@ -55,7 +55,7 @@ function resolveVariableValue(
 
         if (!referencedValue) {
           const collection = figma.variables.getVariableCollectionById(
-            referencedVariable.variableCollectionId
+            referencedVariable.variableCollectionId,
           );
           if (collection) {
             const defaultModeId = collection.defaultModeId;
@@ -93,7 +93,7 @@ function resolveVariableValue(
 export async function tokenTrackerHandler(
   action: string,
   payload: any,
-  figma: any
+  figma: any,
 ): Promise<any> {
   debugLog(`📥 Token Tracker: ${action}`, payload);
 
@@ -120,7 +120,7 @@ export async function tokenTrackerHandler(
       debugLog(
         "📤 Token Tracker sending variables-result:",
         variables?.length || 0,
-        "variables"
+        "variables",
       );
       figma.ui.postMessage({
         type: "variables-result",
@@ -145,7 +145,7 @@ export async function tokenTrackerHandler(
  * Get all variable collections
  */
 function handleGetCollections(
-  _payload: GetCollectionsPayload
+  _payload: GetCollectionsPayload,
 ): VariableCollection[] {
   try {
     const localCollections = figma.variables.getLocalVariableCollections();
@@ -153,7 +153,7 @@ function handleGetCollections(
       (collection) => ({
         id: collection.id,
         name: collection.name,
-      })
+      }),
     );
     return collections;
   } catch (error) {
@@ -186,7 +186,7 @@ function handleGetPages(_payload: GetPagesPayload): {
  * Get color variables from selected collection
  */
 function handleGetColorVariables(
-  payload: GetColorVariablesPayload
+  payload: GetColorVariablesPayload,
 ): ColorVariable[] {
   const { collectionId } = payload;
   debugLog("🔍 Getting color variables for collection:", collectionId);
@@ -210,7 +210,7 @@ function handleGetColorVariables(
         let collectionInfo = collectionCache.get(variable.variableCollectionId);
         if (!collectionInfo) {
           const collection = figma.variables.getVariableCollectionById(
-            variable.variableCollectionId
+            variable.variableCollectionId,
           );
           if (collection) {
             collectionInfo = {
@@ -261,7 +261,7 @@ function handleGetColorVariables(
  * Find bound nodes for selected variables
  */
 async function handleFindBoundNodes(
-  payload: FindBoundNodesPayload
+  payload: FindBoundNodesPayload,
 ): Promise<void> {
   try {
     const { variableIds, pageId } = payload;
@@ -272,7 +272,7 @@ async function handleFindBoundNodes(
         pageId
           ? ` on page ${figma.getNodeById(pageId)?.name || pageId}`
           : " on all pages"
-      }...`
+      }...`,
     );
 
     // Load fonts with better error handling
@@ -323,7 +323,7 @@ async function handleFindBoundNodes(
                 });
               },
               shouldCancel: () => searchCancelled,
-            }
+            },
           );
 
           const summary = await getVariableUsageSummary(variable, true, pageId);
@@ -350,8 +350,8 @@ async function handleFindBoundNodes(
         debugLog(
           `📊 Successfully created visual result table with ${results.reduce(
             (total, r) => total + r.boundNodes.length,
-            0
-          )} total bound nodes across ${results.length} variables`
+            0,
+          )} total bound nodes across ${results.length} variables`,
         );
       } catch (tableError) {
         console.error("❌ Error creating result table:", tableError);
@@ -361,7 +361,7 @@ async function handleFindBoundNodes(
           debugLog(
             `${index + 1}. Variable: ${result.variable.name} - ${
               result.boundNodes.length
-            } nodes found`
+            } nodes found`,
           );
         });
       }

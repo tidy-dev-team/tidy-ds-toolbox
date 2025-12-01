@@ -7,7 +7,7 @@ type ComponentPropertyDefinition = ComponentPropertyDefinitions[string];
 
 // Helper to get property info from component or component set
 function getComponentPropertyInfo(
-  node: ComponentSetNode | ComponentNode
+  node: ComponentSetNode | ComponentNode,
 ): PropertyInfo[] {
   const properties: PropertyInfo[] = [];
 
@@ -37,7 +37,7 @@ function getComponentPropertyInfo(
 
 // Helper to get component description
 function getComponentDescription(
-  node: ComponentSetNode | ComponentNode
+  node: ComponentSetNode | ComponentNode,
 ): string {
   try {
     if (node.description?.trim()) {
@@ -57,7 +57,7 @@ function getComponentDescription(
 
 // Helper to generate component image
 async function getComponentImage(
-  node: ComponentSetNode | ComponentNode
+  node: ComponentSetNode | ComponentNode,
 ): Promise<string | null> {
   try {
     const nodeToRender =
@@ -80,7 +80,7 @@ async function getComponentImage(
 
 // Helper to find exposed instances
 function findExposedInstances(
-  node: ComponentNode
+  node: ComponentNode,
 ): { name: string; id: string; key: string }[] {
   const instances: { name: string; id: string; key: string }[] = [];
 
@@ -109,7 +109,7 @@ function findExposedInstances(
 // Helper to import component (tries component set first, then regular component)
 async function importComponent(
   key: string,
-  figma: any
+  figma: any,
 ): Promise<ComponentSetNode | ComponentNode> {
   try {
     return await figma.importComponentSetByKeyAsync(key);
@@ -127,7 +127,7 @@ async function importComponent(
 // Handler for getting component properties
 export async function handleGetComponentProperties(
   payload: { key: string; name: string; requestId?: string },
-  figma: any
+  figma: any,
 ): Promise<ComponentData> {
   if (!payload.key || !payload.name) {
     throw new Error("Invalid payload: missing key or name");
@@ -193,7 +193,7 @@ function parseVariantName(name: string): Record<string, string> {
 // Handler for building component
 export async function handleBuildComponent(
   buildData: BuildData & { requestId?: string },
-  figma: any
+  figma: any,
 ): Promise<void> {
   const {
     componentKey: rawComponentKey,
@@ -216,7 +216,7 @@ export async function handleBuildComponent(
     const handlePropertyDeletion = (
       target: ComponentNode | ComponentSetNode,
       propName: string,
-      propDef: ComponentPropertyDefinitions[string]
+      propDef: ComponentPropertyDefinitions[string],
     ) => {
       if (propDef.type === "VARIANT") {
         blockedVariantProps.add(propName);
@@ -236,7 +236,7 @@ export async function handleBuildComponent(
           handlePropertyDeletion(
             clone,
             propName,
-            propDef as ComponentPropertyDefinition
+            propDef as ComponentPropertyDefinition,
           );
           continue;
         }
@@ -247,7 +247,7 @@ export async function handleBuildComponent(
             (option: string) => {
               const optionKey = `${propName}#${option}`;
               return properties[optionKey] !== false;
-            }
+            },
           );
 
           // Remove variants that don't match enabled options
@@ -276,7 +276,7 @@ export async function handleBuildComponent(
           handlePropertyDeletion(
             clone,
             propName,
-            propDef as ComponentPropertyDefinition
+            propDef as ComponentPropertyDefinition,
           );
         }
       }

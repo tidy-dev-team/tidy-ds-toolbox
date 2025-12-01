@@ -5,7 +5,7 @@ import { findDescriptionSection } from "./findDescriptionSection";
 
 export default function buildHeader(
   name: string,
-  description: ComponentDescription
+  description: ComponentDescription,
 ) {
   const headerFrame = buildHeaderFrame();
 
@@ -42,7 +42,7 @@ function buildInfoFrame(parent: FrameNode, description: ComponentDescription) {
   const elementDescription = findDescriptionSection(
     "ℹ️",
     description,
-    "Add element description"
+    "Add element description",
   );
   buildText(elementDescription);
   buildLink();
@@ -159,7 +159,7 @@ function buildBackToIndexFrame(parent: FrameNode) {
     "HORIZONTAL",
     0,
     0,
-    0
+    0,
   );
   parent.appendChild(frame);
   frame.layoutSizingHorizontal = "FILL";
@@ -170,7 +170,7 @@ function buildBackToIndexFrame(parent: FrameNode) {
     "HORIZONTAL",
     8,
     4,
-    4
+    4,
   );
   button.cornerRadius = 8;
   button.counterAxisAlignItems = "CENTER";

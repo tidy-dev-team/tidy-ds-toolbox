@@ -4,7 +4,7 @@ import { setBooleanProps } from "./utilityFunctions";
 export function buildBooleans(
   mainComponent: ComponentNode | ComponentSetNode,
   defaultVariant: ComponentNode,
-  booleanProps: any
+  booleanProps: any,
 ) {
   if (!Object.keys(booleanProps).length) return;
 
@@ -15,7 +15,7 @@ export function buildBooleans(
     "VERTICAL",
     0,
     0,
-    60
+    60,
   );
 
   for (const prop in booleanProps) {
@@ -41,7 +41,7 @@ export function buildBooleans(
       "VERTICAL",
       0,
       0,
-      60
+      60,
     );
     const title = createSubSectionTitle(cleanPropName);
     oneBooleanFrame.appendChild(title);
@@ -50,7 +50,7 @@ export function buildBooleans(
       "HORIZONTAL",
       0,
       0,
-      16
+      16,
     );
     oneBooleanFrame.appendChild(elementsFrame);
     elementsFrame.counterAxisAlignItems = "MAX";
@@ -59,14 +59,14 @@ export function buildBooleans(
       workingNode,
       prop,
       false,
-      "off"
+      "off",
     );
     elementsFrame.appendChild(nodeWithLabelFalse);
     const nodeWithLabelTrue = buildBooleanStateFrame(
       workingNode,
       prop,
       true,
-      "on"
+      "on",
     );
     elementsFrame.appendChild(nodeWithLabelTrue);
     allBooleansFrame.appendChild(oneBooleanFrame);
@@ -78,7 +78,7 @@ export function buildBooleans(
 
 function isPropertyOnThisVariant(
   propertyName: string,
-  node: InstanceNode | ComponentNode | FrameNode
+  node: InstanceNode | ComponentNode | FrameNode,
 ) {
   for (const element of node.children) {
     if (element.componentPropertyReferences?.visible === propertyName) {
@@ -91,14 +91,14 @@ function buildBooleanStateFrame(
   workingNode: InstanceNode,
   prop: string,
   booleanState: boolean,
-  booleanStateLabel: string
+  booleanStateLabel: string,
 ) {
   const nodeWithLabel = createNormalizedFrame(
     "one-state-frame",
     "VERTICAL",
     0,
     0,
-    8
+    8,
   );
   const cloNode = workingNode.clone();
   setBooleanProps(cloNode, prop, booleanState);

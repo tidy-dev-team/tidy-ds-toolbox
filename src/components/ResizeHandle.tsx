@@ -53,7 +53,7 @@ export function ResizeHandle() {
 
       return nextSize;
     },
-    [dispatch]
+    [dispatch],
   );
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export function ResizeHandle() {
       sendResizeRequest(
         latestSizeRef.current.width,
         latestSizeRef.current.height,
-        { force: true }
+        { force: true },
       );
     };
 
@@ -107,7 +107,7 @@ export function ResizeHandle() {
 
       setIsDragging(true);
     },
-    [state.windowSize.height, state.windowSize.width]
+    [state.windowSize.height, state.windowSize.width],
   );
 
   return (

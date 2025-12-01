@@ -3,7 +3,7 @@ import { buildAutoLayoutFrame, setVariantProps } from "./utilityFunctions";
 export default function buildBasicGrid(
   node: any,
   firstProps: any[] | null,
-  secondProps: any[] | null
+  secondProps: any[] | null,
 ) {
   if (firstProps?.length && secondProps?.length) {
     const [firstPropName, { variantOptions: firstOptions }] = firstProps;
@@ -15,7 +15,7 @@ export default function buildBasicGrid(
       firstOptions,
       secondPropName,
       secondOptions,
-      node
+      node,
     );
     return basicGrid;
   } else {
@@ -28,7 +28,7 @@ export default function buildBasicGrid(
       currentPropName,
       currentPropName,
       variantOptions,
-      workingNode
+      workingNode,
     );
     workingNode.remove();
     return basicGrid;
@@ -45,7 +45,7 @@ function buildGrid(
   firstOptions: string[],
   secondPropName: string,
   secondOptions: string[],
-  node: any
+  node: any,
 ) {
   const workingNode = node.createInstance();
   const typeFrame = createNormalizedFrame("type-frame", "VERTICAL", 0, 0, 36);
@@ -55,7 +55,7 @@ function buildGrid(
       type,
       secondPropName,
       secondOptions,
-      workingNode
+      workingNode,
     );
     typeFrame.appendChild(stateFrame);
   }
@@ -68,7 +68,7 @@ function buildStates(
   currentFirstProp: string | null,
   secondPropName: string,
   secondOptions: string[],
-  node: any
+  node: any,
 ) {
   if (firstPropName && currentFirstProp)
     setVariantProps(node, firstPropName, currentFirstProp);
@@ -77,7 +77,7 @@ function buildStates(
     "VERTICAL",
     0,
     0,
-    20
+    20,
   );
   const titleLabel = firstPropName + " - " + currentFirstProp;
   const title = currentFirstProp ? createSubSectionTitle(titleLabel) : null;
@@ -87,7 +87,7 @@ function buildStates(
     "HORIZONTAL",
     0,
     0,
-    16
+    16,
   );
   stateWithTitle.appendChild(elementsFrame);
   for (const state of secondOptions) {
@@ -96,7 +96,7 @@ function buildStates(
       "VERTICAL",
       0,
       0,
-      8
+      8,
     );
     const cloNode = node.clone();
     setVariantProps(cloNode, secondPropName, state ?? secondOptions[0]);
@@ -119,14 +119,14 @@ export function createNormalizedFrame(
   direction: "VERTICAL" | "HORIZONTAL",
   paddingHorizontal: number,
   paddingVertical: number,
-  spacing: number
+  spacing: number,
 ): FrameNode {
   const frame = buildAutoLayoutFrame(
     name,
     direction,
     paddingHorizontal,
     paddingVertical,
-    spacing
+    spacing,
   );
   normalizeFrame(frame);
   return frame;

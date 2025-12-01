@@ -2,7 +2,7 @@ import { buildAutoLayoutFrame } from "./utilityFunctions";
 
 export function checkOrAddIndex(page: PageNode): FrameNode {
   let indexFrame = page.findChild(
-    (node) => node.name.toLowerCase() === "index" && node.type === "FRAME"
+    (node) => node.name.toLowerCase() === "index" && node.type === "FRAME",
   );
   if (!indexFrame) {
     indexFrame = buildAutoLayoutFrame("index", "VERTICAL", 60, 60, 24);

@@ -8,7 +8,7 @@ import { buildIconGrid } from "./utils/buildIconGrid";
 export async function tidyIconCareHandler(
   action: string,
   payload: any,
-  _figma?: PluginAPI
+  _figma?: PluginAPI,
 ) {
   switch (action) {
     case "load-params": {
@@ -33,13 +33,13 @@ export async function tidyIconCareHandler(
 
 async function loadSettings(): Promise<TidyIconCareSettings> {
   const stored = (await figma.clientStorage.getAsync(
-    TIDY_ICON_CARE_STORAGE_KEY
+    TIDY_ICON_CARE_STORAGE_KEY,
   )) as Partial<TidyIconCareSettings> | null;
   return normalizeSettings(stored ?? DEFAULT_TIDY_ICON_CARE_SETTINGS);
 }
 
 function normalizeSettings(
-  input?: Partial<TidyIconCareSettings>
+  input?: Partial<TidyIconCareSettings>,
 ): TidyIconCareSettings {
   const base = input ?? {};
 
@@ -47,41 +47,41 @@ function normalizeSettings(
     base.rows,
     1,
     999,
-    DEFAULT_TIDY_ICON_CARE_SETTINGS.rows
+    DEFAULT_TIDY_ICON_CARE_SETTINGS.rows,
   );
   const iconSpacing = clampNumber(
     base.iconSpacing,
     0,
     500,
-    DEFAULT_TIDY_ICON_CARE_SETTINGS.iconSpacing
+    DEFAULT_TIDY_ICON_CARE_SETTINGS.iconSpacing,
   );
   const rowSpacing = clampNumber(
     base.rowSpacing,
     0,
     500,
-    DEFAULT_TIDY_ICON_CARE_SETTINGS.rowSpacing
+    DEFAULT_TIDY_ICON_CARE_SETTINGS.rowSpacing,
   );
   const columnSpacing = clampNumber(
     base.columnSpacing,
     0,
     500,
-    DEFAULT_TIDY_ICON_CARE_SETTINGS.columnSpacing
+    DEFAULT_TIDY_ICON_CARE_SETTINGS.columnSpacing,
   );
   const iconSize = clampNumber(
     base.iconSize,
     8,
     512,
-    DEFAULT_TIDY_ICON_CARE_SETTINGS.iconSize
+    DEFAULT_TIDY_ICON_CARE_SETTINGS.iconSize,
   );
   const opacity = clampNumber(
     base.opacity,
     0,
     100,
-    DEFAULT_TIDY_ICON_CARE_SETTINGS.opacity
+    DEFAULT_TIDY_ICON_CARE_SETTINGS.opacity,
   );
 
   const hexColor = sanitizeHex(
-    base.hexColor ?? DEFAULT_TIDY_ICON_CARE_SETTINGS.hexColor
+    base.hexColor ?? DEFAULT_TIDY_ICON_CARE_SETTINGS.hexColor,
   );
   const addMetaData = Boolean(base.addMetaData);
   const scaleIconContent = Boolean(base.scaleIconContent);
@@ -121,7 +121,7 @@ function clampNumber(
   value: unknown,
   min: number,
   max: number,
-  fallback: number
+  fallback: number,
 ) {
   const num = Number(value);
   if (Number.isFinite(num)) {

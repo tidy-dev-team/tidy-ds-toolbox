@@ -1,7 +1,7 @@
 export function getBaseProps(
   typeProps: any[],
   stateProps: any[],
-  otherProps: any[]
+  otherProps: any[],
 ) {
   interface BaseProps {
     firstProp: any[] | null;

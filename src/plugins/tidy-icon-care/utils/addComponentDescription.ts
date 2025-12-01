@@ -18,7 +18,7 @@ export function addComponentDescription(
     includeGuidelines?: boolean;
     mode?: "add" | "replace";
     hexColor: string;
-  }
+  },
 ) {
   const {
     includeStatus = true,
@@ -68,7 +68,7 @@ function applyDescription(
     mode: "add" | "replace";
     guidelines: string;
     misprint: string;
-  }
+  },
 ) {
   const {
     includeStatus,
@@ -89,7 +89,7 @@ function applyDescription(
 
   if (includeStatus && status) {
     const existingStatus = descriptionLines.find((line) =>
-      STATUSES.includes(line)
+      STATUSES.includes(line),
     );
     if (existingStatus) {
       const idx = descriptionLines.indexOf(existingStatus);
@@ -101,7 +101,7 @@ function applyDescription(
 
   if (includeGuidelines && guidelines) {
     const hasGuidelines = descriptionLines.some((line) =>
-      line.startsWith("📝")
+      line.startsWith("📝"),
     );
     if (!hasGuidelines) {
       descriptionLines.push(guidelines);
@@ -110,7 +110,7 @@ function applyDescription(
 
   if (includeMisprint && misprint) {
     const misprintIndex = descriptionLines.findIndex((line) =>
-      line.startsWith("-")
+      line.startsWith("-"),
     );
     if (misprintIndex >= 0) {
       descriptionLines.splice(misprintIndex, 1, misprint);

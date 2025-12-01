@@ -1,7 +1,7 @@
 import { findMasterComponent } from "./utilityFunctions";
 
 export async function getMainComponent(
-  node: InstanceNode | ComponentNode | ComponentSetNode
+  node: InstanceNode | ComponentNode | ComponentSetNode,
 ) {
   let mainComponent = null;
   switch (node.type) {

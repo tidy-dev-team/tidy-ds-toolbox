@@ -18,11 +18,11 @@ export function clampSize(width: number, height: number) {
 
   const nextWidth = Math.min(
     Math.max(roundedWidth, RESIZE_LIMITS.MIN_WIDTH),
-    RESIZE_LIMITS.MAX_WIDTH
+    RESIZE_LIMITS.MAX_WIDTH,
   );
   const nextHeight = Math.min(
     Math.max(roundedHeight, RESIZE_LIMITS.MIN_HEIGHT),
-    RESIZE_LIMITS.MAX_HEIGHT
+    RESIZE_LIMITS.MAX_HEIGHT,
   );
 
   return { width: nextWidth, height: nextHeight };

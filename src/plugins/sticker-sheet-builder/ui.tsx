@@ -16,7 +16,7 @@ interface PendingRequest {
 
 export function StickerSheetBuilderUI() {
   const [context, setContext] = useState<StickerSheetBuilderContext>(
-    DEFAULT_STICKER_SHEET_CONTEXT
+    DEFAULT_STICKER_SHEET_CONTEXT,
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isBuilding, setIsBuilding] = useState(false);
@@ -37,7 +37,7 @@ export function StickerSheetBuilderUI() {
       });
       return requestId;
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export function StickerSheetBuilderUI() {
         },
         onError: (error) => setErrorMessage(error),
         onFinally: () => setIsLoading(false),
-      }
+      },
     );
   }, [sendRequest]);
 
@@ -103,7 +103,7 @@ export function StickerSheetBuilderUI() {
         },
         onError: (error) => setErrorMessage(error),
         onFinally: () => setIsBuilding(false),
-      }
+      },
     );
   }, [isLoading, isBuilding, sendRequest]);
 
@@ -124,7 +124,7 @@ export function StickerSheetBuilderUI() {
         },
         onError: (error) => setErrorMessage(error),
         onFinally: () => setIsBuilding(false),
-      }
+      },
     );
   }, [isLoading, isBuilding, sendRequest]);
 
@@ -159,7 +159,7 @@ export function StickerSheetBuilderUI() {
             onClick={handleBuildOne}
             disabled={isLoading || isBuilding || !context.selectionValid}
             style={getButtonStyle(
-              context.selectionValid && !isBuilding && !isLoading
+              context.selectionValid && !isBuilding && !isLoading,
             )}
           >
             {isBuilding ? "Working..." : "Build one sticker"}
@@ -243,7 +243,7 @@ const messageStyle: React.CSSProperties = {
 
 function getButtonStyle(
   enabled: boolean,
-  secondary = false
+  secondary = false,
 ): React.CSSProperties {
   const baseColor = secondary ? "#0ea5e9" : "#6366f1";
   return {

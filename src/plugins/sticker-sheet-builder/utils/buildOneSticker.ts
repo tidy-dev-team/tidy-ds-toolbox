@@ -16,7 +16,7 @@ import { appendToStickerSheetPage } from "./appendToStickerSheetPage";
 import { parseComponentDescription } from "./parseDescription";
 
 export default async function buildOneSticker(
-  node: InstanceNode | ComponentNode | ComponentSetNode
+  node: InstanceNode | ComponentNode | ComponentSetNode,
 ) {
   const stickerSheetPage = getStickerSheetPage();
 
@@ -63,14 +63,14 @@ export default async function buildOneSticker(
   const booleansFrame = buildBooleans(
     mainComponent,
     defaultVariant,
-    booleanProps
+    booleanProps,
   );
 
   const basicGrid = baseProps
     ? buildBasicGrid(
         defaultVariant,
         baseProps?.firstProp,
-        baseProps?.secondProp
+        baseProps?.secondProp,
       )
     : null;
 
@@ -101,7 +101,7 @@ export default async function buildOneSticker(
     stickerFrame,
     mainComponent,
     raster,
-    description
+    description,
   );
 }
 
@@ -109,7 +109,7 @@ export function addToIndex(
   stickerSheetPage: PageNode,
   elementName: string,
   stickerFrame: FrameNode,
-  raster: FrameNode
+  raster: FrameNode,
 ) {
   const indexFrame = checkOrAddIndex(stickerSheetPage);
   const indexEntry = figma.createText();
@@ -118,7 +118,7 @@ export function addToIndex(
     "VERTICAL",
     24,
     24,
-    12
+    12,
   );
   indexEntryFrame.fills = [
     {
@@ -146,7 +146,7 @@ export function addToIndex(
   indexEntry.fontSize = 20;
   indexEntry.hyperlink = { type: "NODE", value: stickerFrame.id };
   const backToIndex = stickerFrame.findOne(
-    (node) => node.name === "Back to index"
+    (node) => node.name === "Back to index",
   );
   if (backToIndex && backToIndex.type === "TEXT") {
     backToIndex.hyperlink = { type: "NODE", value: indexFrame.id };
