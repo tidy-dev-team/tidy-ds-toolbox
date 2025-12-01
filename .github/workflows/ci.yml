@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-format:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check Prettier formatting
+        run: npx prettier --check "src/**/*.{ts,tsx,css}"
+
+  typecheck:
+    name: Type Safety Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript compiler
+        run: npm run typecheck
+
+  build-validation:
+    name: Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Validate manifest.json
+        run: |
+          if ! jq empty manifest.json; then
+            echo "❌ Invalid manifest.json"
+            exit 1
+          fi
+          echo "✅ manifest.json is valid"
+
+      - name: Check build artifacts
+        run: |
+          if [ ! -f "dist/code.js" ]; then
+            echo "❌ dist/code.js not found"
+            exit 1
+          fi
+          if [ ! -f "dist/ui.html" ]; then
+            echo "❌ dist/ui.html not found"
+            exit 1
+          fi
+          echo "✅ Build artifacts present"
+
+      - name: Check bundle size
+        run: |
+          CODE_SIZE=$(wc -c < dist/code.js)
+          UI_SIZE=$(wc -c < dist/ui.html)
+          TOTAL_SIZE=$((CODE_SIZE + UI_SIZE))
+          MAX_SIZE=$((2 * 1024 * 1024))  # 2MB
+
+          echo "📦 Bundle sizes:"
+          echo "  code.js: $(numfmt --to=iec-i --suffix=B $CODE_SIZE)"
+          echo "  ui.html: $(numfmt --to=iec-i --suffix=B $UI_SIZE)"
+          echo "  Total: $(numfmt --to=iec-i --suffix=B $TOTAL_SIZE)"
+
+          if [ $TOTAL_SIZE -gt $MAX_SIZE ]; then
+            echo "❌ Bundle size exceeds 2MB limit"
+            exit 1
+          fi
+          echo "✅ Bundle size within limits"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-build-${{ github.sha }}
+          path: |
+            dist/
+            manifest.json
+          retention-days: 7

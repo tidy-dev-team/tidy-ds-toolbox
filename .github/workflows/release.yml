@@ -1,0 +1,289 @@
+name: Release & Deploy
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  # Reuse CI checks
+  ci-checks:
+    name: CI Checks
+    uses: ./.github/workflows/ci.yml
+
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    needs: ci-checks
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      tag-version: ${{ steps.get-version.outputs.tag-version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get versions
+        id: get-version
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
+
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+          echo "tag-version=$TAG_VERSION" >> $GITHUB_OUTPUT
+
+          echo "📦 Versions:"
+          echo "  Tag: v$TAG_VERSION"
+          echo "  package.json: $PACKAGE_VERSION"
+          echo "  manifest.json: $MANIFEST_VERSION"
+
+      - name: Validate version consistency
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          MANIFEST_VERSION=$(node -p "require('./manifest.json').version")
+
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "❌ Tag version ($TAG_VERSION) doesn't match package.json ($PACKAGE_VERSION)"
+            exit 1
+          fi
+
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "❌ Tag version ($TAG_VERSION) doesn't match manifest.json ($MANIFEST_VERSION)"
+            exit 1
+          fi
+
+          echo "✅ All versions match: $TAG_VERSION"
+
+      - name: Check changelog entry
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          if ! grep -q "\[$TAG_VERSION\]" CHANGELOG.md; then
+            echo "⚠️  Warning: No changelog entry found for version $TAG_VERSION"
+            echo "Please update CHANGELOG.md before releasing"
+            exit 1
+          fi
+          echo "✅ Changelog entry exists for $TAG_VERSION"
+
+  build-release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: validate-release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Create release bundle
+        run: |
+          mkdir -p release
+          cp manifest.json release/
+          cp -r dist release/
+          cp CHANGELOG.md release/
+          cp README.md release/ 2>/dev/null || echo "No README.md found"
+
+          cd release
+          zip -r ../plugin-bundle.zip .
+          cd ..
+
+      - name: Generate checksums
+        run: |
+          sha256sum plugin-bundle.zip > plugin-bundle.zip.sha256
+          sha256sum dist/code.js > dist-code.js.sha256
+          sha256sum dist/ui.html > dist-ui.html.sha256
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            plugin-bundle.zip
+            plugin-bundle.zip.sha256
+            dist-code.js.sha256
+            dist-ui.html.sha256
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-release]
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ needs.validate-release.outputs.tag-version }}"
+
+          # Extract the section for this version from CHANGELOG.md
+          awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            echo "No specific changelog entry found, using generic message"
+            echo "Release v$VERSION" > release-notes.md
+            echo "" >> release-notes.md
+            echo "See CHANGELOG.md for details." >> release-notes.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release v${{ needs.validate-release.outputs.tag-version }}
+          body_path: release-notes.md
+          files: |
+            plugin-bundle.zip
+            plugin-bundle.zip.sha256
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-dropbox:
+    name: Deploy to Dropbox
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-github-release]
+    if: ${{ secrets.DROPBOX_ACCESS_TOKEN != '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+
+      - name: Unzip bundle
+        run: |
+          mkdir -p deployment
+          unzip plugin-bundle.zip -d deployment
+
+      - name: Install rclone
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+
+      - name: Configure rclone for Dropbox
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf <<EOF
+          [dropbox]
+          type = dropbox
+          token = {"access_token":"${{ secrets.DROPBOX_ACCESS_TOKEN }}"}
+          EOF
+
+      - name: Deploy to Dropbox
+        run: |
+          VERSION="${{ needs.validate-release.outputs.tag-version }}"
+          BASE_PATH="Figma Plugins/Tidy DS Toolbox"
+
+          # Upload to versioned folder
+          echo "📤 Uploading to dropbox:$BASE_PATH/releases/v$VERSION/"
+          rclone copy deployment "dropbox:$BASE_PATH/releases/v$VERSION/" -v
+
+          # Upload to latest folder
+          echo "📤 Updating dropbox:$BASE_PATH/latest/"
+          rclone sync deployment "dropbox:$BASE_PATH/latest/" -v
+
+          echo "✅ Deployment complete"
+
+      - name: Cleanup old releases
+        run: |
+          BASE_PATH="Figma Plugins/Tidy DS Toolbox"
+
+          # List all release folders and keep only the last 5
+          rclone lsf "dropbox:$BASE_PATH/releases/" | sort -V | head -n -5 | while read folder; do
+            if [ ! -z "$folder" ]; then
+              echo "🗑️  Archiving old release: $folder"
+              rclone move "dropbox:$BASE_PATH/releases/$folder" "dropbox:$BASE_PATH/archive/$folder" -v
+            fi
+          done
+
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [validate-release, deploy-to-dropbox]
+    if: always() && needs.validate-release.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare notification message
+        id: message
+        run: |
+          VERSION="${{ needs.validate-release.outputs.tag-version }}"
+          STATUS="${{ needs.deploy-to-dropbox.result }}"
+
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="🚀"
+            STATUS_TEXT="Successfully deployed"
+          elif [ "$STATUS" == "skipped" ]; then
+            EMOJI="📦"
+            STATUS_TEXT="Released (Dropbox deployment skipped)"
+          else
+            EMOJI="⚠️"
+            STATUS_TEXT="Released but deployment failed"
+          fi
+
+          # Extract recent changes from changelog
+          awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 | tail -n +2 > changes.txt
+
+          cat > notification.txt <<EOF
+          $EMOJI New Tidy DS Toolbox Release: v$VERSION
+
+          $STATUS_TEXT
+
+          📝 Changes:
+          $(cat changes.txt | head -n 10)
+
+          📦 Installation:
+          Figma will auto-update on next launch, or manually re-import from:
+          Dropbox > Company Shared > Figma Plugins > Tidy DS Toolbox > latest
+
+          📖 Full Changelog: https://github.com/${{ github.repository }}/releases/tag/v$VERSION
+          EOF
+
+          cat notification.txt
+
+      - name: Post to Slack
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d "{\"text\":\"$(cat notification.txt | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')\"}"
+
+      - name: Create deployment summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          # 🚀 Release v${{ needs.validate-release.outputs.tag-version }} Deployed
+
+          ## Status
+          - ✅ CI Checks Passed
+          - ✅ Release Created
+          - $([ "${{ needs.deploy-to-dropbox.result }}" == "success" ] && echo "✅" || echo "⚠️") Dropbox Deployment
+
+          ## Quick Links
+          - [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.validate-release.outputs.tag-version }})
+          - [View Changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+
+          ## Next Steps
+          - Team has been notified
+          - Plugin will auto-update in Figma
+          - Monitor for any issues
+          EOF
