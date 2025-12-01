@@ -2,6 +2,9 @@
 
 import { PropertyInfo, ComponentData, BuildData } from "./types";
 
+// Figma typings do not export ComponentPropertyDefinition directly, so define it here:
+type ComponentPropertyDefinition = ComponentPropertyDefinitions[string];
+
 // Helper to get property info from component or component set
 function getComponentPropertyInfo(
   node: ComponentSetNode | ComponentNode
