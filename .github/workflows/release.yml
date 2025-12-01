@@ -156,71 +156,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy-to-dropbox:
-    name: Deploy to Dropbox
-    runs-on: ubuntu-latest
-    needs: [validate-release, create-github-release]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download release artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-artifacts
-
-      - name: Unzip bundle
-        run: |
-          mkdir -p deployment
-          unzip plugin-bundle.zip -d deployment
-
-      - name: Install rclone
-        run: |
-          curl https://rclone.org/install.sh | sudo bash
-
-      - name: Configure rclone for Dropbox
-        if: ${{ secrets.DROPBOX_ACCESS_TOKEN != '' }}
-        run: |
-          mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf <<EOF
-          [dropbox]
-          type = dropbox
-          token = {"access_token":"${{ secrets.DROPBOX_ACCESS_TOKEN }}"}
-          EOF
-
-      - name: Deploy to Dropbox
-        if: ${{ secrets.DROPBOX_ACCESS_TOKEN != '' }}
-        run: |
-          VERSION="${{ needs.validate-release.outputs.tag-version }}"
-          BASE_PATH="Figma Plugins/Tidy DS Toolbox"
-
-          # Upload to versioned folder
-          echo "📤 Uploading to dropbox:$BASE_PATH/releases/v$VERSION/"
-          rclone copy deployment "dropbox:$BASE_PATH/releases/v$VERSION/" -v
-
-          # Upload to latest folder
-          echo "📤 Updating dropbox:$BASE_PATH/latest/"
-          rclone sync deployment "dropbox:$BASE_PATH/latest/" -v
-
-          echo "✅ Deployment complete"
-
-      - name: Cleanup old releases
-        if: ${{ secrets.DROPBOX_ACCESS_TOKEN != '' }}
-        run: |
-          BASE_PATH="Figma Plugins/Tidy DS Toolbox"
-
-          # List all release folders and keep only the last 5
-          rclone lsf "dropbox:$BASE_PATH/releases/" | sort -V | head -n -5 | while read folder; do
-            if [ ! -z "$folder" ]; then
-              echo "🗑️  Archiving old release: $folder"
-              rclone move "dropbox:$BASE_PATH/releases/$folder" "dropbox:$BASE_PATH/archive/$folder" -v
-            fi
-          done
+  # Dropbox deployment disabled for now - use manual deployment script if needed
+  # See scripts/deploy-to-dropbox.sh for manual deployment
+  # deploy-to-dropbox:
+  #   ...
 
   notify:
     name: Send Notifications
     runs-on: ubuntu-latest
-    needs: [validate-release, deploy-to-dropbox]
+    needs: [validate-release, create-github-release]
     if: always() && needs.validate-release.result == 'success'
     steps:
       - name: Checkout code
@@ -230,18 +174,9 @@ jobs:
         id: message
         run: |
           VERSION="${{ needs.validate-release.outputs.tag-version }}"
-          STATUS="${{ needs.deploy-to-dropbox.result }}"
-
-          if [ "$STATUS" == "success" ]; then
-            EMOJI="🚀"
-            STATUS_TEXT="Successfully deployed"
-          elif [ "$STATUS" == "skipped" ]; then
-            EMOJI="📦"
-            STATUS_TEXT="Released (Dropbox deployment skipped)"
-          else
-            EMOJI="⚠️"
-            STATUS_TEXT="Released but deployment failed"
-          fi
+          STATUS="success"
+          EMOJI="🚀"
+          STATUS_TEXT="Successfully released"
 
           # Extract recent changes from changelog
           awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 | tail -n +2 > changes.txt
@@ -255,8 +190,8 @@ jobs:
           $(cat changes.txt | head -n 10)
 
           📦 Installation:
-          Figma will auto-update on next launch, or manually re-import from:
-          Dropbox > Company Shared > Figma Plugins > Tidy DS Toolbox > latest
+          Download from GitHub Releases and import manually to Figma:
+          https://github.com/${{ github.repository }}/releases/tag/v$VERSION
 
           📖 Full Changelog: https://github.com/${{ github.repository }}/releases/tag/v$VERSION
           EOF
@@ -275,19 +210,20 @@ jobs:
       - name: Create deployment summary
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<EOF
-          # 🚀 Release v${{ needs.validate-release.outputs.tag-version }} Deployed
+          # 🚀 Release v${{ needs.validate-release.outputs.tag-version }} Complete
 
           ## Status
           - ✅ CI Checks Passed
-          - ✅ Release Created
-          - $([ "${{ needs.deploy-to-dropbox.result }}" == "success" ] && echo "✅" || echo "⚠️") Dropbox Deployment
+          - ✅ GitHub Release Created
+          - 📦 Manual deployment available via scripts/deploy-to-dropbox.sh
 
           ## Quick Links
           - [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.validate-release.outputs.tag-version }})
           - [View Changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+          - [Download Plugin Bundle](https://github.com/${{ github.repository }}/releases/download/v${{ needs.validate-release.outputs.tag-version }}/plugin-bundle.zip)
 
           ## Next Steps
-          - Team has been notified
-          - Plugin will auto-update in Figma
-          - Monitor for any issues
+          - Download plugin-bundle.zip from the release
+          - Share with team for manual Figma import
+          - Or use ./scripts/deploy-to-dropbox.sh to deploy automatically
           EOF
