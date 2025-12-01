@@ -90,8 +90,6 @@ jobs:
           mkdir -p release
           cp manifest.json release/
           cp -r dist release/
-          cp CHANGELOG.md release/
-          cp README.md release/ 2>/dev/null || echo "No README.md found"
 
           cd release
           zip -r ../plugin-bundle.zip .
