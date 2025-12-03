@@ -103,11 +103,13 @@ h3 {
   overflow: auto;
   width: 100%;
   max-width: calc(100% - 256px);
+  min-width: 320px;
   margin: 0 auto;
   scrollbar-color: lightgray transparent;
 }
 
 main:has(.right-menu) .viewport-scroll {
+  min-width: unset;
   margin: unset;
 }
 
@@ -169,6 +171,11 @@ main:has(.right-menu) .viewport-scroll {
   border-radius: 8px;
   margin-bottom: 16px;
   overflow: hidden;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border-radius: 6px !important;
+  border: none !important;
 }
 
 .panel-header {
