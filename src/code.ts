@@ -126,7 +126,7 @@ figma.ui.onmessage = async (msg: unknown) => {
     const result = await withTimeout(
       handlers[target](action, payload, figma),
       DEFAULT_TIMEOUT_MS,
-      operationName,
+      operationName
     );
 
     logger.debug(`Success: ${operationName}`, { result });

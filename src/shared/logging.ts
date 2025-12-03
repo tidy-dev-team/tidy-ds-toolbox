@@ -51,7 +51,7 @@ export function disableLogging(): void {
 function formatMessage(
   level: string,
   module: string | undefined,
-  message: string,
+  message: string
 ): string {
   const parts: string[] = [];
 
@@ -78,7 +78,7 @@ function log(
   levelName: string,
   module: string | undefined,
   message: string,
-  data?: unknown,
+  data?: unknown
 ): void {
   if (config.level > level) {
     return;
