@@ -306,7 +306,7 @@ export function TidyIconCareUI() {
             border: "none",
             fontWeight: 600,
             fontSize: "14px",
-            backgroundColor: isLoading || isBuilding ? "#9ca3af" : "#4f46e5",
+            backgroundColor: isLoading || isBuilding ? "#9ca3af" : "#2563eb",
             color: "white",
             cursor: isLoading || isBuilding ? "not-allowed" : "pointer",
           }}

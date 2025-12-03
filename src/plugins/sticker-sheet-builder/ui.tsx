@@ -245,7 +245,7 @@ function getButtonStyle(
   enabled: boolean,
   secondary = false,
 ): React.CSSProperties {
-  const baseColor = secondary ? "#0ea5e9" : "#6366f1";
+  const baseColor = secondary ? "#2563eb" : "#2563eb";
   return {
     padding: "12px 16px",
     borderRadius: 8,
