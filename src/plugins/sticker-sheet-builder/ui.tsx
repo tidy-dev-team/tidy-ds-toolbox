@@ -133,7 +133,7 @@ export function StickerSheetBuilderUI() {
     : "Build sticker sheet";
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} className={context.selectionValid ? "selection-ready" : "selection-empty"}>
       <Card title="Context">
         <div style={statusGridStyle}>
           <StatusRow
@@ -146,7 +146,7 @@ export function StickerSheetBuilderUI() {
             value={
               context.selectionValid
                 ? "Ready"
-                : "Select a single component/instance"
+                : "Nothing is selected"
             }
             tone={context.selectionValid ? "success" : "warning"}
           />
@@ -202,6 +202,7 @@ function StatusRow({ label, value, tone }: StatusRowProps) {
     <div style={statusRowStyle}>
       <span style={{ color: "#6b7280", fontSize: 12 }}>{label}</span>
       <span
+        className={`selection-${tone}`}
         style={{
           padding: "2px 8px",
           borderRadius: 999,
