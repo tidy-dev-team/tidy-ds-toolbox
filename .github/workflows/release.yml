@@ -156,7 +156,8 @@ jobs:
           HEADER
 
           # Extract the section for this version from CHANGELOG.md
-          awk "/## \[$VERSION\]/,/## \[/" CHANGELOG.md | head -n -1 >> release-notes.md
+          # Find the version header, skip it, then get everything until the next version header
+          awk "/## \[$VERSION\]/ {flag=1; next} /## \[/ {flag=0} flag" CHANGELOG.md >> release-notes.md
 
           if ! grep -q "^### " release-notes.md && ! grep -q "^- " release-notes.md; then
             echo "" >> release-notes.md
