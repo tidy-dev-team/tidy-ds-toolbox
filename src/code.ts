@@ -7,7 +7,7 @@ import {
   formatErrorMessage,
   isRecoverableError,
 } from "./shared/error-handler";
-import { createLogger, enableDebugLogging } from "./shared/logging";
+import { createLogger } from "./shared/logging";
 
 // Configuration
 const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
@@ -15,9 +15,9 @@ const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
 // Create logger for main thread
 const logger = createLogger("Main");
 
-// Debug logging is disabled by default (warnings and errors only)
-// To enable debug logs, uncomment the line below:
-// enableDebugLogging();
+// Debug logging is disabled by default (warnings and errors only).
+// To temporarily enable verbose logging during development, call
+// createLogger().debug() within targeted code paths.
 
 figma.showUI(__html__, RESIZE_DEFAULT);
 
