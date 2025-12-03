@@ -13,12 +13,18 @@ import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
 import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 
-// Module handlers
-const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
-  const { handleGetComponentProperties, handleBuildComponent } = await import(
-    "./plugins/ds-explorer/logic"
-  );
+// Import all handlers statically
+import {
+  handleGetComponentProperties,
+  handleBuildComponent,
+} from "./plugins/ds-explorer/logic";
+import { tokenTrackerHandler as tokenTrackerLogic } from "./plugins/token-tracker/logic";
+import { componentLabelsHandler as componentLabelsLogic } from "./plugins/component-labels/logic";
+import { tidyIconCareHandler as tidyIconCareLogic } from "./plugins/tidy-icon-care/logic";
+import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugins/sticker-sheet-builder/logic";
 
+// Module handlers - now using static imports
+const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
   switch (action) {
     case "get-component-properties":
       return await handleGetComponentProperties(payload, figma);
@@ -34,10 +40,7 @@ const tokenTrackerHandler = async (
   payload: any,
   figma: any,
 ) => {
-  const { tokenTrackerHandler: handler } = await import(
-    "./plugins/token-tracker/logic"
-  );
-  return await handler(action, payload, figma);
+  return await tokenTrackerLogic(action, payload, figma);
 };
 
 const componentLabelsHandler = async (
@@ -45,10 +48,7 @@ const componentLabelsHandler = async (
   payload: any,
   figma: any,
 ) => {
-  const { componentLabelsHandler: handler } = await import(
-    "./plugins/component-labels/logic"
-  );
-  return await handler(action, payload, figma);
+  return await componentLabelsLogic(action, payload, figma);
 };
 
 const tidyIconCareHandler = async (
@@ -56,10 +56,7 @@ const tidyIconCareHandler = async (
   payload: any,
   figma: any,
 ) => {
-  const { tidyIconCareHandler: handler } = await import(
-    "./plugins/tidy-icon-care/logic"
-  );
-  return await handler(action, payload, figma);
+  return await tidyIconCareLogic(action, payload, figma);
 };
 
 const stickerSheetBuilderHandler = async (
@@ -67,10 +64,11 @@ const stickerSheetBuilderHandler = async (
   payload: any,
   figma: any,
 ) => {
-  const { stickerSheetBuilderHandler: handler } = await import(
-    "./plugins/sticker-sheet-builder/logic"
+  return await stickerSheetBuilderLogic(
+    action as StickerSheetBuilderAction,
+    payload,
+    figma,
   );
-  return await handler(action as StickerSheetBuilderAction, payload, figma);
 };
 
 export const moduleRegistry: ModuleRegistry = {

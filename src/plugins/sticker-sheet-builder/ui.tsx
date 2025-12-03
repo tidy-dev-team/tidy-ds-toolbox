@@ -133,7 +133,10 @@ export function StickerSheetBuilderUI() {
     : "Build sticker sheet";
 
   return (
-    <div style={containerStyle} className={context.selectionValid ? "selection-ready" : "selection-empty"}>
+    <div
+      style={containerStyle}
+      className={context.selectionValid ? "selection-ready" : "selection-empty"}
+    >
       <Card title="Context">
         <div style={statusGridStyle}>
           <StatusRow
@@ -143,11 +146,7 @@ export function StickerSheetBuilderUI() {
           />
           <StatusRow
             label="Selection"
-            value={
-              context.selectionValid
-                ? "Ready"
-                : "Nothing is selected"
-            }
+            value={context.selectionValid ? "Ready" : "Nothing is selected"}
             tone={context.selectionValid ? "success" : "warning"}
           />
         </div>
