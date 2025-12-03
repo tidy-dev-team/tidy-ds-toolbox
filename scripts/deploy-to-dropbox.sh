@@ -13,9 +13,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-# Optionally override via GOOGLE_DRIVE_PATH env var
-DEFAULT_DRIVE_ROOT="$HOME/Library/CloudStorage"
-GOOGLE_DRIVE_PATH="${GOOGLE_DRIVE_PATH:-}"
+# Google Drive path - update this to match your actual mounted path
+GOOGLE_DRIVE_PATH="$HOME/Library/CloudStorage/GoogleDrive-*/Shared drives/shared kido/Tidy/plugins"
 MAX_RELEASES=5
 
 # Get version from argument or package.json
@@ -31,47 +30,20 @@ echo ""
 
 # Find Google Drive mount point
 echo -e "${BLUE}🔍 Locating Google Drive...${NC}"
-
-ACTUAL_PATH=""
-
-# Helper to validate candidate path
-use_candidate() {
-  local candidate="$1"
-  if [ -d "$candidate" ]; then
-    ACTUAL_PATH="$candidate"
-    return 0
-  fi
-  return 1
-}
-
-# 1) Explicit env var wins
-if [ -n "$GOOGLE_DRIVE_PATH" ]; then
-  use_candidate "$GOOGLE_DRIVE_PATH"
-fi
-
-# 2) Scan standard Google Drive mounts
-if [ -z "$ACTUAL_PATH" ] && [ -d "$DEFAULT_DRIVE_ROOT" ]; then
-  for account_dir in "$DEFAULT_DRIVE_ROOT"/GoogleDrive-*; do
-    [ -d "$account_dir" ] || continue
-    potential="$account_dir/Shared drives/shared kido/Tidy/plugins"
-    if use_candidate "$potential"; then
-      break
-    fi
-  done
-fi
+ACTUAL_PATH=$(ls -d $GOOGLE_DRIVE_PATH 2>/dev/null | head -1)
 
 if [ -z "$ACTUAL_PATH" ]; then
   echo -e "${RED}Error: Google Drive not found${NC}"
   echo ""
   echo "Google Drive must be mounted at one of these locations:"
-  echo "  $DEFAULT_DRIVE_ROOT/GoogleDrive-*/Shared drives/shared kido/Tidy/plugins"
-  echo ""
-  echo "Set GOOGLE_DRIVE_PATH env var if your mount path differs."
+  echo "  ~/Library/CloudStorage/GoogleDrive-*/Shared drives/shared kido/Tidy/plugins"
   echo ""
   echo "Make sure:"
   echo "  1. You have Google Drive installed and mounted"
   echo "  2. You have access to 'Shared drives/shared kido'"
   echo "  3. The 'Tidy' folder exists in the shared drive"
+  echo ""
+  echo "If the path is different, update GOOGLE_DRIVE_PATH in this script."
   exit 1
 fi
 
