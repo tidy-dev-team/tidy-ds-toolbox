@@ -15,14 +15,9 @@ const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
 // Create logger for main thread
 const logger = createLogger("Main");
 
-// Enable debug logging in development (check for dev mode indicators)
-if (
-  process.env.NODE_ENV === "development" ||
-  figma.currentPage.name.toLowerCase().includes("dev")
-) {
-  enableDebugLogging();
-  logger.info("Debug logging enabled");
-}
+// Debug logging is disabled by default (warnings and errors only)
+// To enable debug logs, uncomment the line below:
+// enableDebugLogging();
 
 figma.showUI(__html__, RESIZE_DEFAULT);
 
