@@ -6,7 +6,7 @@ export class PluginError extends Error {
     message: string,
     public code: string,
     public module: string,
-    public recoverable: boolean = true
+    public recoverable: boolean = true,
   ) {
     super(message);
     this.name = "PluginError";
@@ -19,7 +19,7 @@ export class TimeoutError extends PluginError {
       `Operation '${operation}' timed out after ${timeoutMs}ms`,
       "TIMEOUT",
       "system",
-      true
+      true,
     );
     this.name = "TimeoutError";
   }
@@ -35,7 +35,7 @@ export class TimeoutError extends PluginError {
 export async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  operation: string
+  operation: string,
 ): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout>;
 
@@ -65,7 +65,7 @@ export async function withTimeout<T>(
 export async function withRetry<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
-  delayMs: number = 1000
+  delayMs: number = 1000,
 ): Promise<T> {
   let lastError: Error | null = null;
 
