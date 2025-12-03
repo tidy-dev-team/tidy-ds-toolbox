@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.14] - 2025-12-03
+
+### Added
+
+- Comprehensive README covering installation, release workflow, and Google Drive deployment
+
+### Changed
+
+- Release workflow now validates tag vs package.json, bundles only `manifest.json` + `dist/`, and generates clearer release notes
+- CI build validation and checksum steps now target `dist/index.html`, matching the Vite output
+- Manual Dropbox deploy script replaced with a Google Drive script that auto-detects each contributor's mount path
+- Version management relies on `package.json` + git tags (removed manifest `version` field and simplified bump script)
+
+### Fixed
+
+- Ensured release artifacts attach correctly and documentation warns users to download `plugin-bundle.zip`
+
 ## [1.0.7] - 2025-12-01
 
 ### Fixed
