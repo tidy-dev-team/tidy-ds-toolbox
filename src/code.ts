@@ -1,40 +1,37 @@
 /// <reference types="@figma/plugin-typings" />
 
-import * as dsExplorerLogic from "./plugins/ds-explorer/logic";
-import { tokenTrackerHandler } from "./plugins/token-tracker/logic";
-import { componentLabelsHandler } from "./plugins/component-labels/logic";
-import { tidyIconCareHandler } from "./plugins/tidy-icon-care/logic";
-import { stickerSheetBuilderHandler } from "./plugins/sticker-sheet-builder/logic";
+import { moduleRegistry } from "./moduleRegistry";
 import { RESIZE_DEFAULT, clampSize } from "./shared/resize";
+import {
+  withTimeout,
+  formatErrorMessage,
+  isRecoverableError,
+} from "./shared/error-handler";
+import { createLogger, enableDebugLogging } from "./shared/logging";
+
+// Configuration
+const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
+
+// Create logger for main thread
+const logger = createLogger("Main");
+
+// Debug logging is disabled by default (warnings and errors only)
+// To enable debug logs, uncomment the line below:
+// enableDebugLogging();
 
 figma.showUI(__html__, RESIZE_DEFAULT);
 
-// Module handlers map
-const handlers: Record<string, Function> = {
-  "ds-explorer": async (action: string, payload: any) => {
-    switch (action) {
-      case "get-component-properties":
-        return await dsExplorerLogic.handleGetComponentProperties(
-          payload,
-          figma,
-        );
-      case "build-component":
-        return await dsExplorerLogic.handleBuildComponent(payload, figma);
-      default:
-        throw new Error(`Unknown DS Explorer action: ${action}`);
-    }
-  },
-  "token-tracker": tokenTrackerHandler,
-  "component-labels": componentLabelsHandler,
-  "tidy-icon-care": tidyIconCareHandler,
-  "sticker-sheet-builder": stickerSheetBuilderHandler,
-};
+// Build handlers map from module registry
+const handlers: Record<string, Function> = {};
+Object.values(moduleRegistry).forEach((manifest) => {
+  handlers[manifest.id] = manifest.handler;
+});
 
 // Handle shell-level commands coming from the UI shell
 async function handleShellCommand(
   action: string,
   payload: any,
-  requestId?: string,
+  requestId?: string
 ) {
   switch (action) {
     case "save-storage": {
@@ -72,7 +69,7 @@ async function handleShellCommand(
 function sendResponse(
   requestId: string | undefined,
   result: any,
-  error?: string,
+  error?: string
 ) {
   if (!requestId) return;
 
@@ -85,15 +82,27 @@ function sendResponse(
 }
 
 // Message routing
-figma.ui.onmessage = async (msg: any) => {
-  const message = msg?.pluginMessage || msg;
+figma.ui.onmessage = async (msg: unknown) => {
+  const message = (msg as Record<string, unknown>)?.pluginMessage || msg;
 
-  if (!message?.target || !message?.action) {
-    console.warn("⚠️ [Main] Invalid message format:", msg);
+  if (
+    !message ||
+    typeof message !== "object" ||
+    !("target" in message) ||
+    !("action" in message)
+  ) {
+    logger.warn("Invalid message format", msg);
     return;
   }
 
-  const { target, action, payload, requestId } = message;
+  const { target, action, payload, requestId } = message as {
+    target: string;
+    action: string;
+    payload?: unknown;
+    requestId?: string;
+  };
+
+  logger.debug(`Received message: ${target}:${action}`, { payload, requestId });
 
   try {
     // Handle shell-specific actions
@@ -107,13 +116,31 @@ figma.ui.onmessage = async (msg: any) => {
       throw new Error(`Unknown module: ${target}`);
     }
 
-    const result = await handlers[target](action, payload, figma);
-    sendResponse(requestId, result);
-  } catch (error: any) {
-    console.error(
-      `❌ [Main] Error handling ${target}:${action}:`,
-      error.message,
+    // Wrap handler execution with timeout
+    const operationName = `${target}:${action}`;
+    const result = await withTimeout(
+      handlers[target](action, payload, figma),
+      DEFAULT_TIMEOUT_MS,
+      operationName
     );
-    sendResponse(requestId, null, error?.message || String(error));
+
+    logger.debug(`Success: ${operationName}`, { result });
+    sendResponse(requestId, result);
+  } catch (error: unknown) {
+    const errorMessage = formatErrorMessage(error);
+    const recoverable = isRecoverableError(error);
+
+    logger.error(`Error handling ${target}:${action}`, {
+      error: errorMessage,
+      recoverable,
+    });
+
+    // Send error response with recovery information
+    sendResponse(requestId, null, errorMessage);
+
+    // Notify user if error is not recoverable
+    if (!recoverable) {
+      figma.notify(`⚠️ ${errorMessage}`, { error: true });
+    }
   }
 };

@@ -8,4 +8,8 @@ esbuild.build({
   target: 'es2017',
   format: 'iife',
   logLevel: 'info',
+  minify: true,
+  define: {
+    'process.env.NODE_ENV': '"production"',
+  },
 }).catch(() => process.exit(1));

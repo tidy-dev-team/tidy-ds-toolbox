@@ -27,6 +27,9 @@ jobs:
       - name: Check Prettier formatting
         run: npx prettier --check "src/**/*.{ts,tsx,css}"
 
+      - name: Run ESLint
+        run: npm run lint
+
   typecheck:
     name: Type Safety Check
     runs-on: ubuntu-latest
