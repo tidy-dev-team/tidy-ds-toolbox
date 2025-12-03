@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.17] - 2025-12-03
+
+### Added
+
+- Comprehensive error handling system with `PluginError` and `TimeoutError` classes
+- Request timeout protection (30-second default) for all async operations
+- Retry logic utility (`withRetry`) for handling transient failures
+- Structured logging system with configurable log levels (DEBUG, INFO, WARN, ERROR, NONE)
+- Module-specific loggers with automatic prefixes and timestamps
+- ESLint configuration with TypeScript and React rules for code quality enforcement
+- ESLint integration in CI workflow to catch issues automatically
+
+### Changed
+
+- Consolidated duplicate module handler systems into single source of truth from `moduleRegistry`
+- Improved error messages with better formatting and user-friendly display
+- Enhanced message handler with structured logging and better type safety
+- Logging now auto-enables in development mode for easier debugging
+- Error responses now distinguish between recoverable and non-recoverable errors
+
+### Fixed
+
+- Plugin will no longer hang indefinitely on long-running operations
+- Eliminated code duplication in module registration reducing maintenance burden
+- Better type safety in message handling (replaced `any` with `unknown`)
+- Consistent error handling across all plugin modules
+
+### Technical
+
+- ESLint reports 0 errors, 123 warnings (documenting existing technical debt)
+- Foundation laid for future improvements in type safety and code quality
+- Backward compatible logging API maintained for existing code
+
 ## [1.0.16] - 2025-12-03
 
 ### Fixed
