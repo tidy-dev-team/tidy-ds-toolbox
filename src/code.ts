@@ -2,6 +2,14 @@
 
 import { moduleRegistry } from "./moduleRegistry";
 import { RESIZE_DEFAULT, clampSize } from "./shared/resize";
+import {
+  withTimeout,
+  formatErrorMessage,
+  isRecoverableError,
+} from "./shared/error-handler";
+
+// Configuration
+const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
 
 figma.showUI(__html__, RESIZE_DEFAULT);
 
@@ -88,13 +96,30 @@ figma.ui.onmessage = async (msg: any) => {
       throw new Error(`Unknown module: ${target}`);
     }
 
-    const result = await handlers[target](action, payload, figma);
+    // Wrap handler execution with timeout
+    const operationName = `${target}:${action}`;
+    const result = await withTimeout(
+      handlers[target](action, payload, figma),
+      DEFAULT_TIMEOUT_MS,
+      operationName,
+    );
+
     sendResponse(requestId, result);
   } catch (error: any) {
+    const errorMessage = formatErrorMessage(error);
+    const recoverable = isRecoverableError(error);
+
     console.error(
       `❌ [Main] Error handling ${target}:${action}:`,
-      error.message,
+      errorMessage,
     );
-    sendResponse(requestId, null, error?.message || String(error));
+
+    // Send error response with recovery information
+    sendResponse(requestId, null, errorMessage);
+
+    // Notify user if error is not recoverable
+    if (!recoverable) {
+      figma.notify(`⚠️ ${errorMessage}`, { error: true });
+    }
   }
 };
