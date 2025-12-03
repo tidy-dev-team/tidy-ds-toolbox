@@ -7,9 +7,22 @@ import {
   formatErrorMessage,
   isRecoverableError,
 } from "./shared/error-handler";
+import { createLogger, enableDebugLogging } from "./shared/logging";
 
 // Configuration
 const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
+
+// Create logger for main thread
+const logger = createLogger("Main");
+
+// Enable debug logging in development (check for dev mode indicators)
+if (
+  process.env.NODE_ENV === "development" ||
+  figma.currentPage.name.toLowerCase().includes("dev")
+) {
+  enableDebugLogging();
+  logger.info("Debug logging enabled");
+}
 
 figma.showUI(__html__, RESIZE_DEFAULT);
 
@@ -74,15 +87,27 @@ function sendResponse(
 }
 
 // Message routing
-figma.ui.onmessage = async (msg: any) => {
-  const message = msg?.pluginMessage || msg;
+figma.ui.onmessage = async (msg: unknown) => {
+  const message = (msg as Record<string, unknown>)?.pluginMessage || msg;
 
-  if (!message?.target || !message?.action) {
-    console.warn("⚠️ [Main] Invalid message format:", msg);
+  if (
+    !message ||
+    typeof message !== "object" ||
+    !("target" in message) ||
+    !("action" in message)
+  ) {
+    logger.warn("Invalid message format", msg);
     return;
   }
 
-  const { target, action, payload, requestId } = message;
+  const { target, action, payload, requestId } = message as {
+    target: string;
+    action: string;
+    payload?: unknown;
+    requestId?: string;
+  };
+
+  logger.debug(`Received message: ${target}:${action}`, { payload, requestId });
 
   try {
     // Handle shell-specific actions
@@ -101,18 +126,19 @@ figma.ui.onmessage = async (msg: any) => {
     const result = await withTimeout(
       handlers[target](action, payload, figma),
       DEFAULT_TIMEOUT_MS,
-      operationName
+      operationName,
     );
 
+    logger.debug(`Success: ${operationName}`, { result });
     sendResponse(requestId, result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     const errorMessage = formatErrorMessage(error);
     const recoverable = isRecoverableError(error);
 
-    console.error(
-      `❌ [Main] Error handling ${target}:${action}:`,
-      errorMessage
-    );
+    logger.error(`Error handling ${target}:${action}`, {
+      error: errorMessage,
+      recoverable,
+    });
 
     // Send error response with recovery information
     sendResponse(requestId, null, errorMessage);
