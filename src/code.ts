@@ -23,7 +23,7 @@ Object.values(moduleRegistry).forEach((manifest) => {
 async function handleShellCommand(
   action: string,
   payload: any,
-  requestId?: string,
+  requestId?: string
 ) {
   switch (action) {
     case "save-storage": {
@@ -61,7 +61,7 @@ async function handleShellCommand(
 function sendResponse(
   requestId: string | undefined,
   result: any,
-  error?: string,
+  error?: string
 ) {
   if (!requestId) return;
 
@@ -101,7 +101,7 @@ figma.ui.onmessage = async (msg: any) => {
     const result = await withTimeout(
       handlers[target](action, payload, figma),
       DEFAULT_TIMEOUT_MS,
-      operationName,
+      operationName
     );
 
     sendResponse(requestId, result);
@@ -111,7 +111,7 @@ figma.ui.onmessage = async (msg: any) => {
 
     console.error(
       `❌ [Main] Error handling ${target}:${action}:`,
-      errorMessage,
+      errorMessage
     );
 
     // Send error response with recovery information
