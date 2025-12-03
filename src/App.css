@@ -110,6 +110,7 @@ h3 {
 }
 
 main:has(.right-menu) .viewport-scroll {
+  max-width: calc(100% - 256px);
   min-width: unset;
   margin: unset;
 }
