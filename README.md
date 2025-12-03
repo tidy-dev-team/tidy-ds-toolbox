@@ -77,7 +77,7 @@ npm run format:check  # Check code formatting
 The script automatically:
 
 - Updates version in `package.json`
-- Updates version in `manifest.json`
+- Stages `package.json`, `CHANGELOG.md`, and `README.md` (if present)
 - Creates a git commit
 - Creates a git tag (e.g., `v1.2.3`)
 

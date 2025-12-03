@@ -59,9 +59,15 @@ echo -e "${GREEN}New version: $NEW_VERSION${NC}"
 # Note: manifest.json doesn't need version field for Figma plugins
 # Version is tracked in package.json and git tags only
 
-# Stage changes
+# Stage changes (always include README/CHANGELOG so release notes stay in sync)
 echo "Staging changes..."
-git add package.json
+FILES_TO_STAGE=(package.json CHANGELOG.md README.md)
+
+for file in "${FILES_TO_STAGE[@]}"; do
+  if [ -f "$file" ]; then
+    git add "$file"
+  fi
+done
 
 # Create commit
 echo "Creating commit..."
