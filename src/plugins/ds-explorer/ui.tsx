@@ -135,6 +135,22 @@ export function DSExplorerUI() {
       >
         {selectedComponent ? (
           <>
+            {/* Build Button (Fixed at bottom) */}
+            {selectedComponent && (
+              <div className="button-wrapper">
+                <button
+                  className="build-button"
+                  onClick={handleBuild}
+                  disabled={isLoading}
+                  style={{
+                    backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
+                    cursor: isLoading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Build Component
+                </button>
+              </div>
+            )}
             <Card title={selectedComponent}>
               {componentData?.image ? (
                 <img
@@ -178,7 +194,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-              componentData.properties.length > 0 ? (
+                componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -262,7 +278,7 @@ export function DSExplorerUI() {
                                     type="checkbox"
                                     checked={
                                       propertyStates[
-                                        `${prop.name}#${option}`
+                                      `${prop.name}#${option}`
                                       ] ?? true
                                     }
                                     onChange={() =>
@@ -317,38 +333,6 @@ export function DSExplorerUI() {
             <div style={{ fontSize: "12px" }}>
               Choose from the list to preview and configure
             </div>
-          </div>
-        )}
-
-        {/* Build Button (Fixed at bottom) */}
-        {selectedComponent && (
-          <div
-            style={{
-              position: "static",
-              display: "flex",
-              justifyContent: "flex-end",
-              width: "100%",
-              zIndex: 1000,
-            }}
-          >
-            <button
-              onClick={handleBuild}
-              disabled={isLoading}
-              style={{
-                padding: "12px 32px",
-                backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                fontSize: "14px",
-                fontWeight: 500,
-                cursor: isLoading ? "not-allowed" : "pointer",
-                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                transition: "all 0.15s ease",
-              }}
-            >
-              Build Component
-            </button>
           </div>
         )}
       </div>
