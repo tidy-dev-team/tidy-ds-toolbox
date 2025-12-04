@@ -43,6 +43,10 @@ npm run build:main    # Build plugin code (esbuild)
 npm run typecheck     # Run TypeScript type checking
 npm run format        # Format code with Prettier
 npm run format:check  # Check code formatting
+npm run release:patch # Version bump (patch)
+npm run release:minor # Version bump (minor)
+npm run release:major # Version bump (major)
+npm run release:push  # Push commits and tags
 ```
 
 ## 📝 Creating a New Release
@@ -54,15 +58,17 @@ npm run format:check  # Check code formatting
 2. **Run the version bump script:**
 
    ```bash
-   ./scripts/version-bump.sh patch   # for bug fixes (1.0.0 → 1.0.1)
-   ./scripts/version-bump.sh minor   # for new features (1.0.0 → 1.1.0)
-   ./scripts/version-bump.sh major   # for breaking changes (1.0.0 → 2.0.0)
+   npm run release:patch   # for bug fixes (1.0.0 → 1.0.1)
+   npm run release:minor   # for new features (1.0.0 → 1.1.0)
+   npm run release:major   # for breaking changes (1.0.0 → 2.0.0)
    ```
+
+   > Prefer the npm scripts so the repo stays shell-agnostic. They wrap `./scripts/version-bump.sh <type>` if you need to call it directly.
 
 3. **Push with tags:**
 
    ```bash
-   git push && git push --tags
+   npm run release:push
    ```
 
 4. **Done!** GitHub Actions will automatically:

@@ -148,14 +148,15 @@ Based on commit types:
 To create a new release:
 
 1. Make your changes and commit with conventional commits
-2. Run the version bump script:
+2. Run the version bump script (via npm helper or directly):
    ```bash
-   ./scripts/version-bump.sh patch   # for bug fixes
-   ./scripts/version-bump.sh minor   # for new features
-   ./scripts/version-bump.sh major   # for breaking changes
+   npm run release:patch   # for bug fixes
+   npm run release:minor   # for new features
+   npm run release:major   # for breaking changes
    ```
+   > These commands wrap `./scripts/version-bump.sh <type>` if you prefer calling the shell script directly.
 3. Review the changes: `git show`
-4. Push to trigger the release: `git push && git push --tags`
+4. Push to trigger the release: `npm run release:push`
 
 ## Tools
 
