@@ -188,9 +188,7 @@ export function DSExplorerUI() {
                 >
                   {componentData.properties.map((prop) => {
                     const isVariantProperty = prop.type === "VARIANT";
-                    const isPropertyEnabled = isVariantProperty
-                      ? true
-                      : (propertyStates[prop.name] ?? true);
+                    const isPropertyEnabled = propertyStates[prop.name] ?? true;
                     return (
                       <div key={prop.name}>
                         <label
@@ -199,23 +197,18 @@ export function DSExplorerUI() {
                             alignItems: "center",
                             gap: "8px",
                             fontSize: "13px",
-                            cursor: isVariantProperty ? "default" : "pointer",
+                            cursor: "pointer",
                           }}
                         >
                           <input
                             type="checkbox"
                             checked={isPropertyEnabled}
-                            disabled={isVariantProperty}
                             title={
                               isVariantProperty
-                                ? "Variant properties stay enabled. Disable individual variant values instead."
+                                ? "Disable to remove this variant property (same as deselecting every option)."
                                 : undefined
                             }
-                            onChange={() => {
-                              if (!isVariantProperty) {
-                                handlePropertyToggle(prop.name);
-                              }
-                            }}
+                            onChange={() => handlePropertyToggle(prop.name)}
                           />
                           <span style={{ fontWeight: 500 }}>
                             {cleanPropertyName(prop.name)}
@@ -234,9 +227,10 @@ export function DSExplorerUI() {
                               lineHeight: 1.4,
                             }}
                           >
-                            Variant properties are structural and remain
-                            enabled. Use the options below to filter the
-                            variants that are included when building.
+                            Toggle the checkbox to keep or drop this variant
+                            property altogether. While enabled, use the options
+                            below to limit the variants that are included when
+                            building.
                           </div>
                         )}
 

@@ -255,31 +255,44 @@ export async function handleBuildComponent(
 
       for (const [propName, propDef] of Object.entries(propertyDefs)) {
         const typedPropDef = propDef as ComponentPropertyDefinition;
+        const propertyDisabled = properties[propName] === false;
 
-        // Remove disabled properties (non-variant)
-        if (properties[propName] === false) {
-          handlePropertyDeletion(clone, propName, typedPropDef);
+        if (typedPropDef.type !== "VARIANT") {
+          if (propertyDisabled) {
+            handlePropertyDeletion(clone, propName, typedPropDef);
+          }
           continue;
         }
 
-        if (typedPropDef.type !== "VARIANT" || !typedPropDef.variantOptions) {
+        const variantOptions = typedPropDef.variantOptions;
+        if (!variantOptions || variantOptions.length === 0) {
+          if (propertyDisabled) {
+            try {
+              clone.deleteComponentProperty(propName);
+            } catch (error) {
+              console.warn(
+                `Unable to delete variant property "${propName}":`,
+                error,
+              );
+              blockedVariantProps.add(propName);
+            }
+          }
           continue;
         }
 
-        const allOptions = typedPropDef.variantOptions;
-        if (allOptions.length === 0) {
-          continue;
-        }
+        const enabledOptions = propertyDisabled
+          ? []
+          : variantOptions.filter((option) => {
+              const optionKey = `${propName}#${option}`;
+              return properties[optionKey] !== false;
+            });
 
-        const enabledOptions = allOptions.filter((option) => {
-          const optionKey = `${propName}#${option}`;
-          return properties[optionKey] !== false;
-        });
+        const allOptionsDisabled =
+          propertyDisabled || enabledOptions.length === 0;
+        const optionsChanged =
+          allOptionsDisabled || enabledOptions.length !== variantOptions.length;
 
-        const allOptionsDisabled = enabledOptions.length === 0;
-        const optionsChanged = enabledOptions.length !== allOptions.length;
-
-        if (!optionsChanged && !allOptionsDisabled) {
+        if (!optionsChanged) {
           continue;
         }
 
