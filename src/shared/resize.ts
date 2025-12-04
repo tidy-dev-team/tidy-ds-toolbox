@@ -1,12 +1,12 @@
 export const RESIZE_DEFAULT = {
-  width: 840,
-  height: 648,
+  width: 1024,
+  height: 768,
 };
 
 export const RESIZE_LIMITS = {
-  MIN_WIDTH: 640,
+  MIN_WIDTH: 800,
   MAX_WIDTH: 1280,
-  MIN_HEIGHT: 480,
+  MIN_HEIGHT: 400,
   MAX_HEIGHT: 1000,
 };
 
