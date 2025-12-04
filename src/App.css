@@ -54,19 +54,24 @@ h3 {
   align-items: center;
   width: 100%;
   padding: 8px 12px;
+  margin-bottom: 2px;
   border: none;
   background: transparent;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
   color: #6b7280;
   font-size: 14px;
   text-align: left;
+  border: 1px solid transparent;
 }
 
 .nav-item:hover {
-  background: #f3f4f6;
   color: #111827;
+  border: 1px solid;
+}
+
+.nav-item:active {
+  background: #f3f4f6;
 }
 
 .nav-item.active {

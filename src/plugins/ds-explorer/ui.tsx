@@ -439,7 +439,7 @@ export function DSExplorerUI() {
                       backgroundColor:
                         selectedComponent === name ? "#eff6ff" : "transparent",
                       color: selectedComponent === name ? "#2563eb" : "#374151",
-                      fontWeight: selectedComponent === name ? 500 : 400,
+                      fontWeight: "400",
                       transition: "all 0.15s ease",
                     }}
                     onMouseEnter={(e) => {
