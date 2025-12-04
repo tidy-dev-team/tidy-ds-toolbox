@@ -332,10 +332,10 @@ const labelCases: {
   label: string;
   value: TidyIconCareSettings["labelCase"];
 }[] = [
-  { label: "lowercase", value: "lowercase" },
-  { label: "Sentence case", value: "sentence" },
-  { label: "UPPERCASE", value: "uppercase" },
-];
+    { label: "lowercase", value: "lowercase" },
+    { label: "Sentence case", value: "sentence" },
+    { label: "UPPERCASE", value: "uppercase" },
+  ];
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
