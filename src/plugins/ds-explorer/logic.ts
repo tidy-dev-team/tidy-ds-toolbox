@@ -190,6 +190,29 @@ function parseVariantName(name: string): Record<string, string> {
   return properties;
 }
 
+function getDefaultVariantValue(
+  propName: string,
+  propDef: ComponentPropertyDefinition,
+  componentSet: ComponentSetNode,
+): string | null {
+  if (typeof propDef.defaultValue === "string" && propDef.defaultValue) {
+    return propDef.defaultValue;
+  }
+
+  if (componentSet.defaultVariant?.name) {
+    const variantProps = parseVariantName(componentSet.defaultVariant.name);
+    if (variantProps[propName]) {
+      return variantProps[propName];
+    }
+  }
+
+  if (propDef.variantOptions && propDef.variantOptions.length > 0) {
+    return propDef.variantOptions[0];
+  }
+
+  return null;
+}
+
 // Handler for building component
 export async function handleBuildComponent(
   buildData: BuildData & { requestId?: string },
@@ -231,37 +254,92 @@ export async function handleBuildComponent(
         clone.componentPropertyDefinitions as ComponentPropertyDefinitions;
 
       for (const [propName, propDef] of Object.entries(propertyDefs)) {
-        // Remove disabled properties
+        const typedPropDef = propDef as ComponentPropertyDefinition;
+
+        // Remove disabled properties (non-variant)
         if (properties[propName] === false) {
-          handlePropertyDeletion(
-            clone,
-            propName,
-            propDef as ComponentPropertyDefinition,
-          );
+          handlePropertyDeletion(clone, propName, typedPropDef);
           continue;
         }
 
-        // Filter variant options
-        if (propDef.type === "VARIANT" && propDef.variantOptions) {
-          const enabledOptions = propDef.variantOptions.filter(
-            (option: string) => {
-              const optionKey = `${propName}#${option}`;
-              return properties[optionKey] !== false;
-            },
-          );
+        if (typedPropDef.type !== "VARIANT" || !typedPropDef.variantOptions) {
+          continue;
+        }
 
-          // Remove variants that don't match enabled options
-          const variants = [...clone.children];
-          for (const variant of variants) {
-            if (variant.type === "COMPONENT") {
-              const variantProps = parseVariantName(variant.name);
-              if (
-                variantProps[propName] &&
-                !enabledOptions.includes(variantProps[propName])
-              ) {
-                variant.remove();
-              }
-            }
+        const allOptions = typedPropDef.variantOptions;
+        if (allOptions.length === 0) {
+          continue;
+        }
+
+        const enabledOptions = allOptions.filter((option) => {
+          const optionKey = `${propName}#${option}`;
+          return properties[optionKey] !== false;
+        });
+
+        const allOptionsDisabled = enabledOptions.length === 0;
+        const optionsChanged = enabledOptions.length !== allOptions.length;
+
+        if (!optionsChanged && !allOptionsDisabled) {
+          continue;
+        }
+
+        const targetValues = new Set<string>();
+        if (allOptionsDisabled) {
+          const defaultValue = getDefaultVariantValue(
+            propName,
+            typedPropDef,
+            clone,
+          );
+          if (defaultValue) {
+            targetValues.add(defaultValue);
+          }
+        } else {
+          enabledOptions.forEach((option) => targetValues.add(option));
+        }
+
+        const variants = [...clone.children].filter(
+          (child): child is ComponentNode => child.type === "COMPONENT",
+        );
+        const removalTargets: ComponentNode[] = [];
+        const keepSet = new Set<ComponentNode>();
+
+        for (const variant of variants) {
+          const variantProps = parseVariantName(variant.name);
+          const variantValue = variantProps[propName];
+
+          const shouldKeep =
+            targetValues.size === 0
+              ? true
+              : variantValue && targetValues.has(variantValue);
+
+          if (shouldKeep) {
+            keepSet.add(variant);
+          } else {
+            removalTargets.push(variant);
+          }
+        }
+
+        if (keepSet.size === 0 && variants.length > 0) {
+          // Ensure at least one variant remains to avoid empty component sets
+          const fallbackVariant = variants[0];
+          keepSet.add(fallbackVariant);
+          const index = removalTargets.indexOf(fallbackVariant);
+          if (index >= 0) {
+            removalTargets.splice(index, 1);
+          }
+        }
+
+        removalTargets.forEach((variant) => variant.remove());
+
+        if (allOptionsDisabled) {
+          try {
+            clone.deleteComponentProperty(propName);
+          } catch (error) {
+            console.warn(
+              `Unable to delete variant property "${propName}":`,
+              error,
+            );
+            blockedVariantProps.add(propName);
           }
         }
       }
