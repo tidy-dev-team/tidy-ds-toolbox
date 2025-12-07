@@ -13,11 +13,11 @@ function cleanPropertyName(name: string): string {
 
 export function DSExplorerUI() {
   const [selectedComponent, setSelectedComponent] = useState<string | null>(
-    null,
+    null
   );
   const [searchTerm, setSearchTerm] = useState("");
   const [componentData, setComponentData] = useState<ComponentData | null>(
-    null,
+    null
   );
   const [propertyStates, setPropertyStates] = useState<PropertyStates>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -28,8 +28,8 @@ export function DSExplorerUI() {
   const filteredGroups = componentGroups
     .map((group) =>
       group.filter(([name]) =>
-        name.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
+        name.toLowerCase().includes(searchTerm.toLowerCase())
+      )
     )
     .filter((group) => group.length > 0);
 
@@ -192,7 +192,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-                componentData.properties.length > 0 ? (
+              componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -276,12 +276,12 @@ export function DSExplorerUI() {
                                     type="checkbox"
                                     checked={
                                       propertyStates[
-                                      `${prop.name}#${option}`
+                                        `${prop.name}#${option}`
                                       ] ?? true
                                     }
                                     onChange={() =>
                                       handlePropertyToggle(
-                                        `${prop.name}#${option}`,
+                                        `${prop.name}#${option}`
                                       )
                                     }
                                   />
