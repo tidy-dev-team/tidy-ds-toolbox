@@ -192,7 +192,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-                componentData.properties.length > 0 ? (
+              componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -276,7 +276,7 @@ export function DSExplorerUI() {
                                     type="checkbox"
                                     checked={
                                       propertyStates[
-                                      `${prop.name}#${option}`
+                                        `${prop.name}#${option}`
                                       ] ?? true
                                     }
                                     onChange={() =>
