@@ -10,6 +10,8 @@ export interface LabelConfig {
   left: string;
   secondTop: string;
   secondLeft: string;
+  groupSecondTop: boolean;
+  groupSecondLeft: boolean;
 }
 
 // Plugin settings

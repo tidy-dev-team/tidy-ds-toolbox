@@ -12,6 +12,8 @@ export function ComponentLabelsUI() {
   const [secondTopValue, setSecondTopValue] = useState<string>(DEFAULT_OPTION);
   const [secondLeftValue, setSecondLeftValue] =
     useState<string>(DEFAULT_OPTION);
+  const [groupSecondTop, setGroupSecondTop] = useState<boolean>(true);
+  const [groupSecondLeft, setGroupSecondLeft] = useState<boolean>(true);
   const [properties, setProperties] = useState<string[]>([DEFAULT_OPTION]);
   const [spacing, setSpacing] = useState<number>(16);
   const [fontSize, setFontSize] = useState<number>(12);
@@ -92,6 +94,8 @@ export function ComponentLabelsUI() {
       left: leftValue === DEFAULT_OPTION ? "" : leftValue,
       secondTop: secondTopValue === DEFAULT_OPTION ? "" : secondTopValue,
       secondLeft: secondLeftValue === DEFAULT_OPTION ? "" : secondLeftValue,
+      groupSecondTop,
+      groupSecondLeft,
     };
 
     postToFigma({
@@ -109,6 +113,8 @@ export function ComponentLabelsUI() {
     leftValue,
     secondTopValue,
     secondLeftValue,
+    groupSecondTop,
+    groupSecondLeft,
     spacing,
     fontSize,
     extractElement,
@@ -120,6 +126,8 @@ export function ComponentLabelsUI() {
     setLeftValue(DEFAULT_OPTION);
     setSecondTopValue(DEFAULT_OPTION);
     setSecondLeftValue(DEFAULT_OPTION);
+    setGroupSecondTop(true);
+    setGroupSecondLeft(true);
     setProperties([DEFAULT_OPTION]);
     setFontSize(12);
   }, []);
@@ -226,6 +234,23 @@ export function ComponentLabelsUI() {
                     </option>
                   ))}
                 </select>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "12px",
+                    marginTop: "8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={groupSecondTop}
+                    onChange={(e) => setGroupSecondTop(e.target.checked)}
+                  />
+                  Group labels
+                </label>
               </FormControl>
 
               {/* Left Labels (Level 2) */}
@@ -248,6 +273,23 @@ export function ComponentLabelsUI() {
                     </option>
                   ))}
                 </select>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "12px",
+                    marginTop: "8px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={groupSecondLeft}
+                    onChange={(e) => setGroupSecondLeft(e.target.checked)}
+                  />
+                  Group labels
+                </label>
               </FormControl>
             </div>
           </Card>
