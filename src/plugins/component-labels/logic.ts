@@ -19,7 +19,7 @@ let listenersRegistered = false;
 export async function componentLabelsHandler(
   action: string,
   payload: any,
-  _figma?: PluginAPI
+  _figma?: PluginAPI,
 ): Promise<any> {
   ensureListeners();
 
@@ -80,7 +80,7 @@ type SelectionChangeOptions = {
 };
 
 function handleSelectionChange(
-  options: SelectionChangeOptions = {}
+  options: SelectionChangeOptions = {},
 ): Record<string, VariantProperty> | null {
   const { silent } = options;
   const selection = figma.currentPage.selection;
@@ -157,7 +157,7 @@ async function handleBuildLabels(payload: BuildLabelsPayload): Promise<void> {
 function savePluginData(
   spacing?: number,
   fontSize?: number,
-  extractElement?: boolean
+  extractElement?: boolean,
 ): void {
   if (spacing !== undefined) {
     figma.root.setPluginData("spacing", JSON.stringify(spacing));
@@ -188,7 +188,7 @@ async function createLabel(
   propertyName: string,
   parent: BaseNode,
   fontSize: number,
-  position: { x: number; y: number }
+  position: { x: number; y: number },
 ): Promise<TextNode | null> {
   const arr = node.name.split(",");
   const found = arr.find((item) => item.includes(propertyName));
@@ -218,7 +218,7 @@ async function createLabelsForRow(
   element: ComponentSetNode,
   _spacing: number,
   fontSize: number,
-  positionFn: (node: SceneNode, label: TextNode) => { x: number; y: number }
+  positionFn: (node: SceneNode, label: TextNode) => { x: number; y: number },
 ): Promise<TextNode[]> {
   const labels: TextNode[] = [];
 
@@ -233,7 +233,7 @@ async function createLabelsForRow(
       propertyName,
       parent,
       fontSize,
-      { x: 0, y: 0 } // Temporary position
+      { x: 0, y: 0 }, // Temporary position
     );
 
     if (label) {
@@ -294,7 +294,7 @@ function processLabelGroups(labels: TextNode[]): void {
  * Compute maximum bounds for an array of nodes
  */
 function computeMaximumBounds(
-  nodes: TextNode[]
+  nodes: TextNode[],
 ): [{ x: number; y: number }, { x: number; y: number }] {
   if (nodes.length === 0) {
     return [
@@ -329,7 +329,7 @@ async function buildLabelElements(
   labels: LabelConfig,
   element: ComponentSetNode,
   spacing: number,
-  fontSize: number
+  fontSize: number,
 ): Promise<void> {
   const { leftRow, topRow } = getTopAndLeftElements(nodes);
 
@@ -343,7 +343,7 @@ async function buildLabelElements(
     (node, label) => ({
       x: element.x + node.x + node.width / 2 - label.width / 2,
       y: element.y - label.height - spacing,
-    })
+    }),
   );
 
   const leftLabels = await createLabelsForRow(
@@ -355,7 +355,7 @@ async function buildLabelElements(
     (node, label) => ({
       x: element.x - label.width - spacing,
       y: element.y + node.y + node.height / 2 - label.height / 2,
-    })
+    }),
   );
 
   // Calculate bounds for positioning second-level labels
@@ -374,7 +374,7 @@ async function buildLabelElements(
       y: topLabels.length
         ? topLabels[0].y - label.height - spacing
         : element.y - label.height - spacing * 2,
-    })
+    }),
   );
 
   const secondLevelLeftLabels = await createLabelsForRow(
@@ -386,10 +386,14 @@ async function buildLabelElements(
     (node, label) => ({
       x: element.x - (leftWidth + label.width + spacing * 2),
       y: element.y + node.y + node.height / 2 - label.height / 2,
-    })
+    }),
   );
 
-  // Process and optimize label groups
-  processLabelGroups(secondLevelLeftLabels);
-  processLabelGroups(secondLevelTopLabels);
+  // Process and optimize label groups (optional per axis)
+  if (labels.groupSecondLeft) {
+    processLabelGroups(secondLevelLeftLabels);
+  }
+  if (labels.groupSecondTop) {
+    processLabelGroups(secondLevelTopLabels);
+  }
 }
