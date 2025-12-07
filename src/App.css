@@ -256,6 +256,10 @@ input[type="color"]::-webkit-color-swatch {
   background: #ffffff;
 }
 
+.form-control input[type="checkbox"] {
+  width: auto;
+}
+
 .form-control input:focus,
 .form-control textarea:focus {
   outline: none;
