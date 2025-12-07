@@ -137,19 +137,17 @@ export function DSExplorerUI() {
           <>
             {/* Build Button (Fixed at bottom) */}
             {selectedComponent && (
-              <div className="button-wrapper">
-                <button
-                  className="build-button"
-                  onClick={handleBuild}
-                  disabled={isLoading}
-                  style={{
-                    backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
-                    cursor: isLoading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Build Component
-                </button>
-              </div>
+              <button
+                className="build-button"
+                onClick={handleBuild}
+                disabled={isLoading}
+                style={{
+                  backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
+                  cursor: isLoading ? "not-allowed" : "pointer",
+                }}
+              >
+                Build Component
+              </button>
             )}
             <Card title={selectedComponent}>
               {componentData?.image ? (
@@ -194,7 +192,7 @@ export function DSExplorerUI() {
 
             <Card title="Properties">
               {componentData?.properties &&
-              componentData.properties.length > 0 ? (
+                componentData.properties.length > 0 ? (
                 <div
                   style={{
                     display: "flex",
@@ -278,7 +276,7 @@ export function DSExplorerUI() {
                                     type="checkbox"
                                     checked={
                                       propertyStates[
-                                        `${prop.name}#${option}`
+                                      `${prop.name}#${option}`
                                       ] ?? true
                                     }
                                     onChange={() =>
