@@ -14,11 +14,15 @@ import {
 /**
  * Component Labels handler - processes messages from the UI
  */
+let listenersRegistered = false;
+
 export async function componentLabelsHandler(
   action: string,
   payload: any,
   _figma?: PluginAPI,
 ): Promise<any> {
+  ensureListeners();
+
   switch (action) {
     case "init":
       return handleInit();
@@ -60,7 +64,25 @@ function handleInit(): SettingsPayload {
 /**
  * Handle selection change - extract variant props from selected component set
  */
-function handleSelectionChange(): Record<string, VariantProperty> | null {
+function ensureListeners() {
+  if (listenersRegistered) {
+    return;
+  }
+  listenersRegistered = true;
+
+  figma.on("selectionchange", () => handleSelectionChange({ silent: true }));
+  figma.on("currentpagechange", () => handleSelectionChange({ silent: true }));
+  figma.on("run", () => handleSelectionChange({ silent: true }));
+}
+
+type SelectionChangeOptions = {
+  silent?: boolean;
+};
+
+function handleSelectionChange(
+  options: SelectionChangeOptions = {},
+): Record<string, VariantProperty> | null {
+  const { silent } = options;
   const selection = figma.currentPage.selection;
 
   if (selection.length === 0) {
@@ -72,11 +94,17 @@ function handleSelectionChange(): Record<string, VariantProperty> | null {
 
   const element = selection[0];
   if (element.type !== "COMPONENT_SET") {
-    figma.notify("Please select a component set");
-    figma.ui.postMessage({
-      type: "error",
-      payload: { message: "Please select a component set" },
-    });
+    if (!silent) {
+      figma.notify("Please select a component set");
+      figma.ui.postMessage({
+        type: "error",
+        payload: { message: "Please select a component set" },
+      });
+    } else {
+      figma.ui.postMessage({
+        type: "selection-cleared",
+      });
+    }
     return null;
   }
 
