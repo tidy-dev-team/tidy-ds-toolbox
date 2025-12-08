@@ -342,7 +342,9 @@ button:not(.nav-item):disabled {
   right: 24px;
 }
 
-.viewport button.resize-handle {
+button.resize-handle {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
   position: fixed;
   bottom: 12px;
   right: 12px;
@@ -364,14 +366,15 @@ button:not(.nav-item):disabled {
 
 button.resize-handle svg {
   transform: scale(-1, 1);
+  filter: invert(100%);
 }
 
-.resize-handle:hover {
+button.resize-handle:hover {
   border-color: #94a3b8;
   background: #f9fafb;
 }
 
-.resize-handle.dragging {
+button.resize-handle.dragging {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
