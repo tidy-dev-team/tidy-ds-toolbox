@@ -25,10 +25,7 @@ import { tokenTrackerHandler as tokenTrackerLogic } from "./plugins/token-tracke
 import { componentLabelsHandler as componentLabelsLogic } from "./plugins/component-labels/logic";
 import { tidyIconCareHandler as tidyIconCareLogic } from "./plugins/tidy-icon-care/logic";
 import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugins/sticker-sheet-builder/logic";
-import {
-  tidyMapperHandler as tidyMapperLogic,
-  initializePlugin,
-} from "./plugins/tidy-mapper/logic";
+import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {

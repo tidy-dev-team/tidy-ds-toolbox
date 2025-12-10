@@ -22,6 +22,7 @@ import {
 
 // Module state - current slice name for auto-naming
 let currentSliceName = "Avatar";
+let listenersRegistered = false;
 
 /**
  * Tidy Mapper handler - processes messages from the UI
@@ -31,12 +32,14 @@ export async function tidyMapperHandler(
   payload: any,
   figma: any,
 ): Promise<any> {
+  ensureListeners(figma);
+  
   switch (action) {
     case "grab-slices":
       return await handleGrabSlices(figma);
 
     case "set-slice-name":
-      return handleSetSliceName(payload as SetSliceNamePayload, figma);
+      return handleSetSliceName(payload as SetSliceNamePayload);
 
     case "show-trails":
       return handleShowTrails(payload as ShowTrailsPayload, figma);
@@ -110,12 +113,11 @@ async function handleGrabSlices(figma: any): Promise<GrabSlicesResult> {
  */
 function handleSetSliceName(
   payload: SetSliceNamePayload,
-  figma: any,
 ): CurrentNameResult {
   currentSliceName = payload.name;
 
-  // Clear selection after naming
-  figma.currentPage.selection = [];
+  // Rename any currently selected slices to the new name
+  renameSelection(currentSliceName);
 
   return { name: currentSliceName };
 }
@@ -159,9 +161,14 @@ function handleGetCurrentName(): CurrentNameResult {
 
 /**
  * Sets up event listeners for selection changes
- * Called when the module is initialized
+ * Called when the module is first used
  */
-export function setupSelectionListener(figma: any): void {
+function ensureListeners(figma: any): void {
+  if (listenersRegistered) {
+    return;
+  }
+  listenersRegistered = true;
+
   figma.on("selectionchange", () => {
     // Auto-name new slices with current name
     renameSelection(currentSliceName);
@@ -177,15 +184,4 @@ export function setupSelectionListener(figma: any): void {
       }
     }
   });
-}
-
-/**
- * Initialize the plugin - called on first load
- */
-export function initializePlugin(figma: any): void {
-  // Set up selection listener
-  setupSelectionListener(figma);
-
-  // Auto-name slices on run
-  renameSelection(currentSliceName);
 }
