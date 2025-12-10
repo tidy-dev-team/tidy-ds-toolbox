@@ -1,3 +1,22 @@
+:root {
+  /* colors */
+  --primary-color: #2563eb;
+  --primary-hover: #1d4ed8;
+  --light-color: #ffffff;
+  --light-hover: #d1d5db;
+  --border-light: #e5e7eb;
+  /* spacings */
+  --pixel-1: 1px;
+  --pixel-4: 4px;
+  --pixel-6: 6px;
+  --pixel-8: 8px;
+  --pixel-12: 12px;
+  --pixel-16: 16px;
+  --pixel-20: 20px;
+  --pixel-24: 24px;
+  --pixel-32: 32px;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -12,7 +31,7 @@ body {
   flex-direction: column;
   height: 100vh;
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", sans-serif;
-  background: #ffffff;
+  background: var(--light-color);
 }
 
 h3 {
@@ -20,9 +39,9 @@ h3 {
 }
 
 .header {
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 16px 20px;
+  background: var(--light-color);
+  border-bottom: var(--pixel-1) solid var(--border-light);
+  padding: var(--pixel-16) var(--pixel-20);
 }
 
 .header h1 {
@@ -42,18 +61,18 @@ h3 {
 .sidebar {
   width: 200px;
   background: #fafafa;
-  border-right: 1px solid #e5e7eb;
-  padding: 12px 8px;
+  border-right: var(--pixel-1) solid var(--border-light);
+  padding: var(--pixel-12) var(--pixel-8);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--pixel-4);
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   width: 100%;
-  padding: 8px 12px;
+  padding: var(--pixel-8) var(--pixel-12);
   margin-bottom: 2px;
   border: none;
   background: transparent;
@@ -62,12 +81,12 @@ h3 {
   color: #6b7280;
   font-size: 14px;
   text-align: left;
-  border: 1px solid transparent;
+  border: var(--pixel-1) solid transparent;
 }
 
 .nav-item:hover {
   color: #111827;
-  border: 1px solid;
+  border: var(--pixel-1) solid;
 }
 
 .nav-item:active {
@@ -76,7 +95,7 @@ h3 {
 
 .nav-item.active {
   background: #eff6ff;
-  color: #2563eb;
+  color: var(--primary-color);
   font-weight: 500;
 }
 
@@ -99,14 +118,13 @@ button.build-button {
   right: 288px;
   top: 84px;
   width: fit-content;
-  padding: 10px 32px !important;
-  border: 1px solid #ffffff !important;
-  /* box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); */
+  padding: var(--pixel-12) var(--pixel-32) !important;
+  border: var(--pixel-1) solid var(--light-color) !important;
 }
 
 .viewport {
   flex: 1;
-  background: #ffffff;
+  background: var(--light-color);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -122,13 +140,13 @@ button.build-button {
   flex: 1;
   overflow: auto;
   width: 100%;
-  padding: 24px;
+  padding: var(--pixel-24);
   margin: 0 auto;
   scrollbar-color: lightgray transparent;
 }
 
 main:has(.right-menu).viewport {
-  padding: 24px;
+  padding: var(--pixel-24);
 }
 
 main:has(.right-menu) .viewport-content {
@@ -153,7 +171,7 @@ main:has(.right-menu) .viewport-scroll {
   font-size: 20px;
   font-weight: 600;
   color: #111827;
-  margin: 0 0 24px 0;
+  margin: 0 0 var(--pixel-24) 0;
   letter-spacing: -0.02em;
 }
 
@@ -170,21 +188,21 @@ main:has(.right-menu) .viewport-scroll {
 
 /* Component styles */
 .card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 20px;
+  background: var(--light-color);
+  border: var(--pixel-1) solid var(--border-light);
+  border-radius: var(--pixel-8);
+  padding: var(--pixel-20);
   transition: border-color 0.15s ease;
 }
 
 .card:hover {
-  border-color: #d1d5db;
+  border-color: var(--light-hover);
 }
 
 .card-title {
   font-size: 15px;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: var(--pixel-16);
   color: #111827;
   letter-spacing: -0.01em;
 }
@@ -195,38 +213,38 @@ main:has(.right-menu) .viewport-scroll {
 
 .panel {
   background: #fafafa;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--pixel-8);
+  margin-bottom: var(--pixel-16);
   overflow: hidden;
 }
 
 input[type="color"]::-webkit-color-swatch {
-  border-radius: 6px !important;
+  border-radius: var(--pixel-6) !important;
   border: none !important;
 }
 
 .panel-header {
   background: #f9fafb;
-  padding: 10px 16px;
+  padding: var(--pixel-12) var(--pixel-16);
   font-weight: 600;
   font-size: 13px;
   color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: var(--pixel-1) solid var(--border-light);
   letter-spacing: -0.01em;
 }
 
 .panel-content {
-  padding: 16px;
+  padding: var(--pixel-16);
 }
 
 .form-control {
-  margin-bottom: 20px;
+  margin-bottom: var(--pixel-20);
 }
 
 .form-label {
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: var(--pixel-6);
   font-size: 13px;
   font-weight: 500;
   color: #374151;
@@ -236,13 +254,13 @@ input[type="color"]::-webkit-color-swatch {
 .form-control input,
 .form-control textarea {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  padding: var(--pixel-8) var(--pixel-12);
+  border: var(--pixel-1) solid var(--light-hover);
+  border-radius: var(--pixel-6);
   font-size: 14px;
   font-family: inherit;
   transition: all 0.15s ease;
-  background: #ffffff;
+  background: var(--light-color);
 }
 
 .form-control input[type="checkbox"] {
@@ -252,22 +270,22 @@ input[type="color"]::-webkit-color-swatch {
 .form-control input:focus,
   .form-control textarea:focus {
   outline: none;
-  border-color: #2563eb;
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .form-error {
-  margin-top: 6px;
-  font-size: 12px;
+  margin-top: var(--pixel-6);
+  font-size: var(--pixel-12);
   color: #dc2626;
 }
 
 button:not(.nav-item) {
-  padding: 8px 16px;
-  background: #2563eb;
-  color: #ffffff;
+  padding: var(--pixel-8) var(--pixel-16);
+  background: var(--primary-color);
+  color: var(--light-color);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--pixel-6);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -275,11 +293,11 @@ button:not(.nav-item) {
 }
 
 button:not(.nav-item):hover {
-  background: #1d4ed8;
+  background: var(--primary-hover);
 }
 
 button:not(.nav-item):active {
-  transform: translateY(1px);
+  transform: translateY(var(--pixel-1));
 }
 
 button:not(.nav-item):disabled {
@@ -289,23 +307,29 @@ button:not(.nav-item):disabled {
 }
 
 button:not(.nav-item).secondary {
-  background-color: #ffffff;
-  color: #2563eb;
+  background-color: var(--light-color);
+  color: var(--primary-color);
   transition: unset;
-  box-shadow: 0 0 0 1px #2563eb inset;
+  box-shadow: 0 0 0 var(--pixel-1) var(--primary-color) inset;
 }
 
 button:not(.nav-item).secondary:hover {
   opacity: .8;
 }
 
+button:not(.nav-item).secondary:disabled {
+  opacity: .3;
+  color: #000000;
+  box-shadow: 0 0 0 1px #333333 inset;
+}
+
 /* Status messages */
 .status-message {
-  margin-top: 12px;
-  padding: 10px 14px;
+  margin-top: var(--pixel-12);
+  padding: var(--pixel-12) var(--pixel-16);
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 6px;
+  border: var(--pixel-1) solid #bae6fd;
+  border-radius: var(--pixel-6);
   font-size: 13px;
   color: #0c4a6e;
 }
@@ -332,9 +356,9 @@ button:not(.nav-item).secondary:hover {
   content: "Select a single component/ instance";
   position: absolute;
   background-color: #333333;
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 8px;
+  color: var(--light-color);
+  padding: var(--pixel-8) var(--pixel-16);
+  border-radius: var(--pixel-8);
   top: calc(100% + 4px);
   right: -12px;
   white-space: nowrap;
@@ -342,7 +366,7 @@ button:not(.nav-item).secondary:hover {
 
 .main-view {
   position: relative;
-  gap: 16px;
+  gap: var(--pixel-16);
 }
 
 .right-menu {
@@ -352,8 +376,8 @@ button:not(.nav-item).secondary:hover {
 }
 
 button.resize-handle {
-  background-color: #ffffff;
-  border: 1px solid #d1d5db;
+  background-color: var(--light-color);
+  border: 1px solid var(--light-hover);
   position: fixed;
   bottom: 12px;
   right: 12px;
@@ -363,10 +387,10 @@ button.resize-handle {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: var(--pixel-6);
   cursor: nwse-resize;
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 var(--pixel-4) var(--pixel-4) rgba(15, 23, 42, 0.08);
   transition: border-color 0.15s ease,
     box-shadow 0.15s ease,
     background-color 0.15s ease;
@@ -383,20 +407,6 @@ button.resize-handle:hover {
 }
 
 button.resize-handle.dragging {
-  border-color: #2563eb;
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-}
-
-.resize-handle__glyph {
-  width: 100%;
-  height: 100%;
-  border-radius: 4px;
-  background-image: repeating-linear-gradient(
-  135deg,
-  #cbd5f5,
-  #cbd5f5 2px,
-  transparent 2px,
-  transparent 6px
-  );
-  pointer-events: none;
 }
