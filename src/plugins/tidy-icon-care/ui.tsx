@@ -302,13 +302,6 @@ export function TidyIconCareUI() {
           disabled={isLoading || isBuilding}
           style={{
             padding: "12px 16px",
-            borderRadius: "8px",
-            border: "none",
-            fontWeight: 600,
-            fontSize: "14px",
-            backgroundColor: isLoading || isBuilding ? "#9ca3af" : "#2563eb",
-            color: "white",
-            cursor: isLoading || isBuilding ? "not-allowed" : "pointer",
           }}
         >
           {isBuilding ? "Building..." : "Build icon grid"}
