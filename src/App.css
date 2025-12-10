@@ -5,9 +5,11 @@
   --light-color: #ffffff;
   --light-hover: #d1d5db;
   --border-light: #e5e7eb;
+  --disabled-color: #9ca3af;
   /*
   spacings */
   --pixel-1: 1px;
+  --pixel-2: 2px;
   --pixel-4: 4px;
   --pixel-6: 6px;
   --pixel-8: 8px;
@@ -302,7 +304,7 @@ button:not(.nav-item):active {
 }
 
 button:not(.nav-item):disabled {
-  background: #9ca3af;
+  background: var(--disabled-color);
   cursor: not-allowed;
   pointer-events: none;
 }

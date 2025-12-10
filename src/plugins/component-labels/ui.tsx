@@ -138,8 +138,8 @@ export function ComponentLabelsUI() {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        gap: "16px",
-        padding: "16px",
+        gap: "var(--pixel-16, 16px)",
+        padding: "var(--pixel-16, 16px)",
       }}
     >
       {!hasSelection ? (
@@ -150,8 +150,8 @@ export function ComponentLabelsUI() {
             alignItems: "center",
             justifyContent: "center",
             flexDirection: "column",
-            gap: "12px",
-            color: "#9ca3af",
+            gap: "var(--pixel-12, 12px)",
+            color: "var(--disabled-color)",
           }}
         >
           <div style={{ fontSize: "32px", opacity: 0.3 }}>❦</div>
@@ -168,7 +168,11 @@ export function ComponentLabelsUI() {
         <>
           <Card title="Label Configuration">
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--pixel-16, 16px)",
+              }}
             >
               {/* Top Labels (Level 1) */}
               <FormControl label="⬆︎ Top labels (Level 1)">
@@ -177,11 +181,11 @@ export function ComponentLabelsUI() {
                   onChange={(e) => setTopValue(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
                     fontSize: "13px",
-                    backgroundColor: "#ffffff",
+                    backgroundColor: "var(--light-color)",
                   }}
                 >
                   {properties.map((prop) => (
@@ -199,11 +203,11 @@ export function ComponentLabelsUI() {
                   onChange={(e) => setLeftValue(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
                     fontSize: "13px",
-                    backgroundColor: "#ffffff",
+                    backgroundColor: "var(--light-color)",
                   }}
                 >
                   {properties.map((prop) => (
@@ -221,11 +225,11 @@ export function ComponentLabelsUI() {
                   onChange={(e) => setSecondTopValue(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
                     fontSize: "13px",
-                    backgroundColor: "#ffffff",
+                    backgroundColor: "var(--light-color)",
                   }}
                 >
                   {properties.map((prop) => (
@@ -238,9 +242,9 @@ export function ComponentLabelsUI() {
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "8px",
+                    gap: "var(--pixel-8, 8px)",
                     fontSize: "12px",
-                    marginTop: "8px",
+                    marginTop: "var(--pixel-8, 8px)",
                     cursor: "pointer",
                   }}
                 >
@@ -260,11 +264,11 @@ export function ComponentLabelsUI() {
                   onChange={(e) => setSecondLeftValue(e.target.value)}
                   style={{
                     width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
                     fontSize: "13px",
-                    backgroundColor: "#ffffff",
+                    backgroundColor: "var(--light-color)",
                   }}
                 >
                   {properties.map((prop) => (
@@ -279,7 +283,7 @@ export function ComponentLabelsUI() {
                     alignItems: "center",
                     gap: "8px",
                     fontSize: "12px",
-                    marginTop: "8px",
+                    marginTop: "var(--pixel-8, 8px)",
                     cursor: "pointer",
                   }}
                 >
@@ -296,7 +300,11 @@ export function ComponentLabelsUI() {
 
           <Card title="Settings">
             <div
-              style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "var(--pixel-16, 16px)",
+              }}
             >
               {/* Spacing */}
               <FormControl label="📏 Spacing">
@@ -306,9 +314,9 @@ export function ComponentLabelsUI() {
                   onChange={(e) => setSpacing(Number(e.target.value))}
                   style={{
                     width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
                     fontSize: "13px",
                   }}
                 />
@@ -322,9 +330,9 @@ export function ComponentLabelsUI() {
                   onChange={(e) => setFontSize(Number(e.target.value))}
                   style={{
                     width: "100%",
-                    padding: "8px 12px",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "6px",
+                    padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
                     fontSize: "13px",
                   }}
                 />
@@ -335,7 +343,7 @@ export function ComponentLabelsUI() {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  gap: "var(--pixel-8, 8px)",
                   fontSize: "13px",
                   cursor: "pointer",
                 }}
@@ -355,8 +363,9 @@ export function ComponentLabelsUI() {
             onClick={handleBuildLabels}
             disabled={properties.length === 1}
             style={{
-              padding: "12px 16px",
-              backgroundColor: properties.length === 1 ? "#9ca3af" : "",
+              padding: "var(--pixel-12, 12px) var(--pixel-16, 16px)",
+              backgroundColor:
+                properties.length === 1 ? "var(--disabled-color)" : "",
             }}
           >
             Add Labels

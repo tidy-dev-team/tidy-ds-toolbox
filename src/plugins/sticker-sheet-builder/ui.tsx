@@ -204,7 +204,7 @@ function StatusRow({ label, value, tone }: StatusRowProps) {
       <span
         className={`selection-${tone}`}
         style={{
-          padding: "2px 8px",
+          padding: "var(--pixel-2, 2px) var(--pixel-8, 8px)",
           borderRadius: 999,
           fontSize: 12,
           fontWeight: 600,
@@ -221,14 +221,14 @@ function StatusRow({ label, value, tone }: StatusRowProps) {
 const containerStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: "12px",
-  padding: "16px",
+  gap: "var(--pixel-12, 12px)",
+  padding: "var(--pixel-16, 16px)",
 };
 
 const statusGridStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: "8px",
+  gap: "var(--pixel-8, 8px)",
 };
 
 const statusRowStyle: React.CSSProperties = {
@@ -238,13 +238,13 @@ const statusRowStyle: React.CSSProperties = {
 };
 
 const messageStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
+  fontSize: "12px",
+  fontWeight: "500",
 };
 
 function getButtonStyle(enabled: boolean): React.CSSProperties {
   return {
-    padding: "12px 16px",
-    backgroundColor: enabled ? "" : "#9ca3af",
+    padding: "var(--pixel-12, 12px) var(--pixel-16, 16px)",
+    backgroundColor: enabled ? "" : "var(--disabled-color)",
   };
 }

@@ -156,8 +156,8 @@ export function TidyIconCareUI() {
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "16px",
-        padding: "16px",
+        gap: "var(--pixel-16, 16px)",
+        padding: "var(--pixel-16, 16px)",
       }}
     >
       <Card title="Grid">
@@ -165,7 +165,7 @@ export function TidyIconCareUI() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2, 1fr)",
-            gap: "12px",
+            gap: "var(--pixel-12, 12px)",
           }}
         >
           <FormControl label="Rows">
@@ -214,7 +214,13 @@ export function TidyIconCareUI() {
       </Card>
 
       <Card title="Icon properties">
-        <div style={{ display: "flex", gap: "12px", flexDirection: "column" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "var(--pixel-12, 12px)",
+            flexDirection: "column",
+          }}
+        >
           <FormControl label="Color">
             <input
               type="color"
@@ -223,9 +229,9 @@ export function TidyIconCareUI() {
               style={{
                 width: "100%",
                 height: "40px",
-                borderRadius: "8px",
-                border: "1px solid #d1d5db",
-                padding: "0 4px",
+                borderRadius: "var(--pixel-8, 8px)",
+                border: "var(--pixel-1, 1px) solid var(--border-light)",
+                padding: "0 var(--pixel-4, 4px)",
               }}
               disabled={settings.preserveColors}
             />
@@ -257,7 +263,13 @@ export function TidyIconCareUI() {
       </Card>
 
       <Card title="Content">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--pixel-8, 8px)",
+          }}
+        >
           <Checkbox
             label="Scale icon content"
             checked={settings.scaleIconContent}
@@ -277,11 +289,21 @@ export function TidyIconCareUI() {
       </Card>
 
       <Card title="Label case">
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--pixel-6, 6px)",
+          }}
+        >
           {labelCases.map((option) => (
             <label
               key={option.value}
-              style={{ display: "flex", gap: "8px", fontSize: "13px" }}
+              style={{
+                display: "flex",
+                gap: "var(--pixel-8, 8px)",
+                fontSize: "13px",
+              }}
             >
               <input
                 type="radio"
@@ -296,12 +318,18 @@ export function TidyIconCareUI() {
         </div>
       </Card>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--pixel-8, 8px)",
+        }}
+      >
         <button
           onClick={handleBuild}
           disabled={isLoading || isBuilding}
           style={{
-            padding: "12px 16px",
+            padding: "var(--pixel-16, 12px) var(--pixel-16, 16px)",
           }}
         >
           {isBuilding ? "Building..." : "Build icon grid"}

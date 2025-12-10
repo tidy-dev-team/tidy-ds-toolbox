@@ -226,8 +226,8 @@ export function TokenTrackerUI() {
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        gap: "16px",
-        padding: "16px",
+        gap: "var(--pixel-16, 16px)",
+        padding: "var(--pixel-16, 16px)",
       }}
     >
       {/* Collection Selector */}
@@ -238,9 +238,9 @@ export function TokenTrackerUI() {
             onChange={handleCollectionChange}
             style={{
               width: "100%",
-              padding: "8px 12px",
+              padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
               border: "1px solid #d1d5db",
-              borderRadius: "6px",
+              borderRadius: "var(--pixel-6, 6px)",
               fontSize: "13px",
               backgroundColor: "#ffffff",
             }}
@@ -260,8 +260,8 @@ export function TokenTrackerUI() {
         onClick={handleGetColorVariables}
         disabled={isLoading}
         style={{
-          padding: "10px 16px",
-          backgroundColor: isLoading ? "#9ca3af" : "",
+          padding: "var(--pixel-12, 12px) var(--pixel-12, 12px)",
+          backgroundColor: isLoading ? "var(--disabled-color)" : "",
         }}
       >
         {isLoading ? "Loading..." : "Get Color Variables"}
@@ -273,7 +273,7 @@ export function TokenTrackerUI() {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "12px",
+            gap: "var(--pixel-12, 12px)",
             flex: 1,
             minHeight: 0,
           }}
@@ -287,11 +287,11 @@ export function TokenTrackerUI() {
               onChange={handleSearchChange}
               style={{
                 width: "100%",
-                padding: "8px 12px",
-                border: "1px solid #d1d5db",
-                borderRadius: "6px",
+                padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                border: "var(--pixel-1, 1px) solid var(--border-light)",
+                borderRadius: "var(--pixel-6, 6px)",
                 fontSize: "13px",
-                marginBottom: "12px",
+                marginBottom: "var(--pixel-12, 12px)",
               }}
             />
 
@@ -300,18 +300,18 @@ export function TokenTrackerUI() {
               <div
                 style={{
                   display: "flex",
-                  gap: "8px",
-                  marginBottom: "12px",
+                  gap: "var(--pixel-8, 8px)",
+                  marginBottom: "var(--pixel-12, 12px)",
                 }}
               >
                 <button
                   onClick={handleSelectAll}
                   style={{
                     flex: 1,
-                    padding: "6px 12px",
+                    padding: "var(--pixel-6, 6px) var(--pixel-12, 12px)",
                     backgroundColor: "#f3f4f6",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "4px",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel4, 4px)",
                     fontSize: "12px",
                     cursor: "pointer",
                   }}
@@ -322,10 +322,10 @@ export function TokenTrackerUI() {
                   onClick={handleSelectNone}
                   style={{
                     flex: 1,
-                    padding: "6px 12px",
+                    padding: "var(--pixel-6, 6px) var(--pixel-12, 12px)",
                     backgroundColor: "#f3f4f6",
-                    border: "1px solid #d1d5db",
-                    borderRadius: "4px",
+                    border: "var(--pixel-1, 1px) solid var(--border-light)",
+                    borderRadius: "var(--pixel4, 4px)",
                     fontSize: "12px",
                     cursor: "pointer",
                   }}
@@ -340,10 +340,10 @@ export function TokenTrackerUI() {
               style={{
                 maxHeight: "300px",
                 overflowY: "auto",
-                border: "1px solid #e5e7eb",
-                borderRadius: "6px",
-                padding: "8px",
-                backgroundColor: "#fafafa",
+                border: "var(--pixel-1, 1px) solid var(--border-light)",
+                borderRadius: "var(--pixel-6, 6px)",
+                padding: "var(--pixel-8, 8px)",
+                backgroundColor: "var(--panel-color)",
               }}
             >
               {filteredVariables.length > 0 ? (
@@ -359,13 +359,15 @@ export function TokenTrackerUI() {
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        marginBottom: "6px",
-                        padding: "10px 12px",
-                        borderRadius: "6px",
-                        backgroundColor: isSelected ? "#e3f2fd" : "white",
+                        marginBottom: "var(--pixel-6, 6px)",
+                        padding: "var(--pixel-8, 8px), vasr(--pixel-12, 12px)",
+                        borderRadius: "var(--pixel-6, 6px)",
+                        backgroundColor: isSelected
+                          ? "#e3f2fd"
+                          : "var(--light-color)",
                         border: isSelected
-                          ? "2px solid #2196f3"
-                          : "1px solid #e0e0e0",
+                          ? "var(--pixel-2, 2px) solid #2196f3"
+                          : "var(--pixel-1, 1px) solid #e0e0e0",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
                       }}
@@ -384,21 +386,21 @@ export function TokenTrackerUI() {
                           width: "32px",
                           height: "32px",
                           backgroundColor: preview.color,
-                          borderRadius: "4px",
-                          marginRight: "12px",
-                          border: "1px solid rgba(0,0,0,0.1)",
+                          borderRadius: "var(--pixel-4, 4px)",
+                          marginRight: "var(--pixel-12, 12px)",
+                          border: "var(--pixel-12, 12px) solid rgba(0,0,0,0.1)",
                           flexShrink: 0,
                         }}
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
                           style={{
-                            fontSize: "12px",
+                            fontSize: "var(--pixel-12, 12px)",
                             fontWeight: 600,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                            marginBottom: "2px",
+                            marginBottom: "var(--pixel-2, 2px)",
                           }}
                         >
                           {variable.name}
@@ -419,9 +421,9 @@ export function TokenTrackerUI() {
               ) : (
                 <div
                   style={{
-                    padding: "20px",
+                    padding: "var(--pixel-20, 20px)",
                     textAlign: "center",
-                    color: "#9ca3af",
+                    color: "var(--disabled-color)",
                     fontSize: "13px",
                   }}
                 >
@@ -441,11 +443,11 @@ export function TokenTrackerUI() {
                 onChange={handlePageChange}
                 style={{
                   width: "100%",
-                  padding: "8px 12px",
+                  padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
                   border: "1px solid #d1d5db",
-                  borderRadius: "6px",
+                  borderRadius: "var(--pixel-6, 6px)",
                   fontSize: "13px",
-                  backgroundColor: "#ffffff",
+                  backgroundColor: "var(--light-color)",
                 }}
               >
                 <option value="">All pages</option>
@@ -463,14 +465,14 @@ export function TokenTrackerUI() {
             onClick={handleFindBoundNodes}
             disabled={selectedVariables.size === 0 || isSearching}
             style={{
-              padding: "12px 16px",
+              padding: "var(--pixel-12, 12px) var(--pixel-16, 16px)",
               backgroundColor:
                 selectedVariables.size === 0 || isSearching
-                  ? "#9ca3af"
+                  ? "var(--disabled-color)"
                   : "#10b981",
-              color: "#ffffff",
+              color: "var(--light-color)",
               border: "none",
-              borderRadius: "6px",
+              borderRadius: "var(--pixel-6, 6px)",
               fontSize: "14px",
               fontWeight: 500,
               cursor:
@@ -492,18 +494,18 @@ export function TokenTrackerUI() {
               <div
                 style={{
                   width: "100%",
-                  height: "8px",
+                  height: "var(--pixel-8, 8px)",
                   backgroundColor: "#e0e0e0",
-                  borderRadius: "4px",
+                  borderRadius: "var(--pixel-4, 4px)",
                   overflow: "hidden",
-                  marginBottom: "8px",
+                  marginBottom: "var(--pixel-8, 8px)",
                 }}
               >
                 <div
                   style={{
                     width: `${searchProgress?.percentage || 0}%`,
                     height: "100%",
-                    backgroundColor: "#2196f3",
+                    backgroundColor: "var(--primary-color)",
                     transition: "width 0.2s ease",
                   }}
                 />
@@ -511,7 +513,11 @@ export function TokenTrackerUI() {
 
               {/* Progress Text */}
               <div
-                style={{ fontSize: "12px", color: "#666", marginBottom: "8px" }}
+                style={{
+                  fontSize: "12px",
+                  color: "#666",
+                  marginBottom: "var(--pixel-8, 8px)",
+                }}
               >
                 {searchProgress
                   ? `${searchProgress.percentage}% (${searchProgress.current}/${searchProgress.total} nodes) - Found: ${searchProgress.nodesFound}`
@@ -524,7 +530,7 @@ export function TokenTrackerUI() {
                     fontSize: "11px",
                     color: "#666",
                     fontStyle: "italic",
-                    marginBottom: "12px",
+                    marginBottom: "var(--pixel-12, 12px)",
                   }}
                 >
                   Searching for: {searchProgress.currentVariableName} (
@@ -542,12 +548,15 @@ export function TokenTrackerUI() {
                     fontSize: "11px",
                     padding: "8px",
                     backgroundColor: "#f5f5f5",
-                    borderRadius: "4px",
-                    marginBottom: "12px",
+                    borderRadius: "var(--pixel-4, 4px)",
+                    marginBottom: "var(--pixel-12, 12px)",
                   }}
                 >
                   {streamingResults.slice(-5).map((result, idx) => (
-                    <div key={idx} style={{ marginBottom: "4px" }}>
+                    <div
+                      key={idx}
+                      style={{ marginBottom: "var(--pixel-4, 4px)" }}
+                    >
                       ✓ {result.instanceNode.name} (
                       {result.instanceNode.pageName})
                     </div>
@@ -560,11 +569,11 @@ export function TokenTrackerUI() {
                 onClick={handleCancelSearch}
                 style={{
                   width: "100%",
-                  padding: "8px 16px",
+                  padding: "var(--pixel-8, 8px) var(--pixel-16, 16px)",
                   backgroundColor: "#ef4444",
-                  color: "#ffffff",
+                  color: "var(--light-color)",
                   border: "none",
-                  borderRadius: "6px",
+                  borderRadius: "var(--pixel-6, 6px)",
                   fontSize: "13px",
                   fontWeight: 500,
                   cursor: "pointer",
@@ -586,8 +595,8 @@ export function TokenTrackerUI() {
             alignItems: "center",
             justifyContent: "center",
             flexDirection: "column",
-            gap: "12px",
-            color: "#9ca3af",
+            gap: "var(--pixel-12, 12px)",
+            color: "var(--disabled-color)",
           }}
         >
           <div style={{ fontSize: "32px", opacity: 0.3 }}>🎨</div>

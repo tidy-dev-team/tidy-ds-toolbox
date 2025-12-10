@@ -142,7 +142,7 @@ export function DSExplorerUI() {
                 onClick={handleBuild}
                 disabled={isLoading}
                 style={{
-                  backgroundColor: isLoading ? "#9ca3af" : "",
+                  backgroundColor: isLoading ? "var(--disabled-color)" : "",
                   cursor: isLoading ? "not-allowed" : "pointer",
                 }}
               >
@@ -167,7 +167,7 @@ export function DSExplorerUI() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#9ca3af",
+                    color: "var(--disabled-color)",
                     fontSize: "13px",
                   }}
                 >
@@ -227,7 +227,12 @@ export function DSExplorerUI() {
                           <span style={{ fontWeight: 500 }}>
                             {cleanPropertyName(prop.name)}
                           </span>
-                          <span style={{ color: "#9ca3af", fontSize: "12px" }}>
+                          <span
+                            style={{
+                              color: "var(--disabled-color)",
+                              fontSize: "12px",
+                            }}
+                          >
                             ({prop.type})
                           </span>
                         </label>
@@ -298,7 +303,7 @@ export function DSExplorerUI() {
                 <div
                   style={{
                     textAlign: "center",
-                    color: "#9ca3af",
+                    color: "var(--disabled-color)",
                     fontSize: "13px",
                     padding: "20px",
                   }}
@@ -321,7 +326,7 @@ export function DSExplorerUI() {
               gap: "12px",
               overflow: "hidden",
               maxHeight: "calc(100% - 4px)",
-              color: "#9ca3af",
+              color: "var(--disabled-color)",
             }}
           >
             <div style={{ fontSize: "32px", opacity: 0.3 }}>✦</div>
@@ -463,7 +468,7 @@ export function DSExplorerUI() {
               style={{
                 padding: "40px 20px",
                 textAlign: "center",
-                color: "#9ca3af",
+                color: "var(--disabled-color)",
                 fontSize: "13px",
               }}
             >
