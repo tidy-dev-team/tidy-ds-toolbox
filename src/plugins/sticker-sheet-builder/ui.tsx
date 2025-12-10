@@ -242,20 +242,9 @@ const messageStyle: React.CSSProperties = {
   fontWeight: 500,
 };
 
-function getButtonStyle(
-  enabled: boolean,
-  secondary = false,
-): React.CSSProperties {
-  const baseColor = secondary ? "#2563eb" : "#ffffffff";
-  const baseBorder = secondary ? "transparent" : "#2563eb";
-  const baseText = secondary ? "" : "#2563eb";
+function getButtonStyle(enabled: boolean): React.CSSProperties {
   return {
     padding: "12px 16px",
-    backgroundColor: enabled ? baseColor : "#9ca3af",
-    color: baseText,
-    border: "1px solid",
-    borderColor: baseBorder,
-    cursor: enabled ? "pointer" : "not-allowed",
-    transition: "unset",
+    backgroundColor: enabled ? "" : "#9ca3af",
   };
 }

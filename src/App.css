@@ -11,8 +11,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", sans-serif;
   background: #ffffff;
 }
 
@@ -251,7 +250,7 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .form-control input:focus,
-.form-control textarea:focus {
+  .form-control textarea:focus {
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
@@ -272,7 +271,6 @@ button:not(.nav-item) {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
   font-family: inherit;
 }
 
@@ -288,6 +286,17 @@ button:not(.nav-item):disabled {
   background: #9ca3af;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+button:not(.nav-item).secondary {
+  background-color: #ffffff;
+  color: #2563eb;
+  border: 1px solid #2563eb;
+  transition: unset;
+}
+
+button:not(.nav-item).secondary:hover {
+  opacity: .8;
 }
 
 /* Status messages */
@@ -358,8 +367,7 @@ button.resize-handle {
   cursor: nwse-resize;
   z-index: 10;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08);
-  transition:
-    border-color 0.15s ease,
+  transition: border-color 0.15s ease,
     box-shadow 0.15s ease,
     background-color 0.15s ease;
 }
@@ -384,11 +392,11 @@ button.resize-handle.dragging {
   height: 100%;
   border-radius: 4px;
   background-image: repeating-linear-gradient(
-    135deg,
-    #cbd5f5,
-    #cbd5f5 2px,
-    transparent 2px,
-    transparent 6px
+  135deg,
+  #cbd5f5,
+  #cbd5f5 2px,
+  transparent 2px,
+  transparent 6px
   );
   pointer-events: none;
 }
