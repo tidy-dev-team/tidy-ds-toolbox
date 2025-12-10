@@ -33,7 +33,7 @@ export async function tidyMapperHandler(
   figma: any,
 ): Promise<any> {
   ensureListeners(figma);
-  
+
   switch (action) {
     case "grab-slices":
       return await handleGrabSlices(figma);
@@ -111,9 +111,7 @@ async function handleGrabSlices(figma: any): Promise<GrabSlicesResult> {
 /**
  * Sets the current slice name and applies it to selected slices
  */
-function handleSetSliceName(
-  payload: SetSliceNamePayload,
-): CurrentNameResult {
+function handleSetSliceName(payload: SetSliceNamePayload): CurrentNameResult {
   currentSliceName = payload.name;
 
   // Rename any currently selected slices to the new name

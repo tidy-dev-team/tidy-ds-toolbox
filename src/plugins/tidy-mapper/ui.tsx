@@ -80,10 +80,14 @@ export function TidyMapperUI() {
   const handleGrabSlices = useCallback(() => {
     setIsProcessing(true);
     setLastResult("");
+
+    const requestId = `grab-slices-${Date.now()}`;
+
     postToFigma({
       target: "tidy-mapper",
       action: "grab-slices",
       payload: {},
+      requestId,
     });
   }, []);
 
