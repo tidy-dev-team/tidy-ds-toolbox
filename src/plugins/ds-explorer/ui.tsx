@@ -142,7 +142,7 @@ export function DSExplorerUI() {
                 onClick={handleBuild}
                 disabled={isLoading}
                 style={{
-                  backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
+                  backgroundColor: isLoading ? "#9ca3af" : "",
                   cursor: isLoading ? "not-allowed" : "pointer",
                 }}
               >
