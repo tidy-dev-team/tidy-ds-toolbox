@@ -250,7 +250,7 @@ export function TidyIconCareUI() {
             <select
               value={settings.iconSize}
               onChange={(event) => updateNumber("iconSize", event.target.value)}
-              style={{ ...inputStyle, appearance: "auto" }}
+              style={{ ...inputStyle }}
             >
               {[16, 24, 32, 48].map((size) => (
                 <option value={size} key={size}>
