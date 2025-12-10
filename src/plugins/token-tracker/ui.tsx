@@ -261,14 +261,7 @@ export function TokenTrackerUI() {
         disabled={isLoading}
         style={{
           padding: "10px 16px",
-          backgroundColor: isLoading ? "#9ca3af" : "#2563eb",
-          color: "#ffffff",
-          border: "none",
-          borderRadius: "6px",
-          fontSize: "13px",
-          fontWeight: 500,
-          cursor: isLoading ? "not-allowed" : "pointer",
-          transition: "background-color 0.15s ease",
+          backgroundColor: isLoading ? "#9ca3af" : "",
         }}
       >
         {isLoading ? "Loading..." : "Get Color Variables"}

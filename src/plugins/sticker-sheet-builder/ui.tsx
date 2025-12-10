@@ -156,6 +156,7 @@ export function StickerSheetBuilderUI() {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <button
             onClick={handleBuildOne}
+            className="secondary"
             disabled={isLoading || isBuilding || !context.selectionValid}
             style={getButtonStyle(
               context.selectionValid && !isBuilding && !isLoading,
@@ -245,16 +246,16 @@ function getButtonStyle(
   enabled: boolean,
   secondary = false,
 ): React.CSSProperties {
-  const baseColor = secondary ? "#2563eb" : "#2563eb";
+  const baseColor = secondary ? "#2563eb" : "#ffffffff";
+  const baseBorder = secondary ? "transparent" : "#2563eb";
+  const baseText = secondary ? "" : "#2563eb";
   return {
     padding: "12px 16px",
-    borderRadius: 8,
-    border: "none",
-    fontWeight: 600,
-    fontSize: 14,
-    color: "#ffffff",
     backgroundColor: enabled ? baseColor : "#9ca3af",
+    color: baseText,
+    border: "1px solid",
+    borderColor: baseBorder,
     cursor: enabled ? "pointer" : "not-allowed",
-    transition: "background-color 0.15s ease",
+    transition: "unset",
   };
 }

@@ -356,14 +356,7 @@ export function ComponentLabelsUI() {
             disabled={properties.length === 1}
             style={{
               padding: "12px 16px",
-              backgroundColor: properties.length === 1 ? "#9ca3af" : "#2563eb",
-              color: "#ffffff",
-              border: "none",
-              borderRadius: "6px",
-              fontSize: "14px",
-              fontWeight: 500,
-              cursor: properties.length === 1 ? "not-allowed" : "pointer",
-              transition: "background-color 0.15s ease",
+              backgroundColor: properties.length === 1 ? "#9ca3af" : "",
             }}
           >
             Add Labels
