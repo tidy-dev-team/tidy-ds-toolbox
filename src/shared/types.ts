@@ -6,6 +6,7 @@ export type PluginID =
   | "component-labels"
   | "tidy-icon-care"
   | "sticker-sheet-builder"
+  | "tidy-mapper"
   | (string & {});
 
 export interface PluginMessage {

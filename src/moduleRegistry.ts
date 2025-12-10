@@ -5,13 +5,16 @@ import {
   IconLayoutGrid,
   IconPalette,
   IconTag,
+  IconSlice,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { TokenTrackerUI } from "./plugins/token-tracker/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
 import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
 import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
+import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
+import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
 
 // Import all handlers statically
 import {
@@ -22,6 +25,10 @@ import { tokenTrackerHandler as tokenTrackerLogic } from "./plugins/token-tracke
 import { componentLabelsHandler as componentLabelsLogic } from "./plugins/component-labels/logic";
 import { tidyIconCareHandler as tidyIconCareLogic } from "./plugins/tidy-icon-care/logic";
 import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugins/sticker-sheet-builder/logic";
+import {
+  tidyMapperHandler as tidyMapperLogic,
+  initializePlugin,
+} from "./plugins/tidy-mapper/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -71,6 +78,10 @@ const stickerSheetBuilderHandler = async (
   );
 };
 
+const tidyMapperHandler = async (action: string, payload: any, figma: any) => {
+  return await tidyMapperLogic(action as TidyMapperAction, payload, figma);
+};
+
 export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
     id: "ds-explorer",
@@ -111,5 +122,13 @@ export const moduleRegistry: ModuleRegistry = {
     ui: StickerSheetBuilderUI,
     handler: stickerSheetBuilderHandler,
     permissionRequirements: ["activeselection"],
+  },
+  "tidy-mapper": {
+    id: "tidy-mapper",
+    label: "Tidy Mapper",
+    icon: IconSlice,
+    ui: TidyMapperUI,
+    handler: tidyMapperHandler,
+    permissionRequirements: [],
   },
 };
