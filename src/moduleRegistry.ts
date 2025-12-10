@@ -1,11 +1,11 @@
 import { ModuleRegistry } from "@shared/types";
 import {
-  IconApps,
+  IconIcons,
   IconComponents,
-  IconLayoutGrid,
+  IconSticker,
   IconPalette,
   IconTag,
-  IconSlice,
+  IconMap,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { TokenTrackerUI } from "./plugins/token-tracker/ui";
@@ -107,7 +107,7 @@ export const moduleRegistry: ModuleRegistry = {
   "tidy-icon-care": {
     id: "tidy-icon-care",
     label: "Tidy Icon Care",
-    icon: IconApps,
+    icon: IconIcons,
     ui: TidyIconCareUI,
     handler: tidyIconCareHandler,
     permissionRequirements: ["activeselection"],
@@ -115,7 +115,7 @@ export const moduleRegistry: ModuleRegistry = {
   "sticker-sheet-builder": {
     id: "sticker-sheet-builder",
     label: "Sticker Sheet Builder",
-    icon: IconLayoutGrid,
+    icon: IconSticker,
     ui: StickerSheetBuilderUI,
     handler: stickerSheetBuilderHandler,
     permissionRequirements: ["activeselection"],
@@ -123,7 +123,7 @@ export const moduleRegistry: ModuleRegistry = {
   "tidy-mapper": {
     id: "tidy-mapper",
     label: "Tidy Mapper",
-    icon: IconSlice,
+    icon: IconMap,
     ui: TidyMapperUI,
     handler: tidyMapperHandler,
     permissionRequirements: [],
