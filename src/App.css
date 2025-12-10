@@ -291,8 +291,8 @@ button:not(.nav-item):disabled {
 button:not(.nav-item).secondary {
   background-color: #ffffff;
   color: #2563eb;
-  border: 1px solid #2563eb;
   transition: unset;
+  box-shadow: 0 0 0 1px #2563eb inset;
 }
 
 button:not(.nav-item).secondary:hover {

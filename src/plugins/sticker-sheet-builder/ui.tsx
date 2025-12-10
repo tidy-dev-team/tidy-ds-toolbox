@@ -167,7 +167,7 @@ export function StickerSheetBuilderUI() {
           <button
             onClick={handleBuildAll}
             disabled={isLoading || isBuilding}
-            style={getButtonStyle(!(isLoading || isBuilding), true)}
+            style={getButtonStyle(!(isLoading || isBuilding))}
           >
             {isBuilding ? "Working..." : buildAllLabel}
           </button>
