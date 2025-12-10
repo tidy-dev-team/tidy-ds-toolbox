@@ -362,8 +362,8 @@ export function ComponentLabelsUI() {
           <button
             onClick={handleBuildLabels}
             disabled={properties.length === 1}
+            className="morePadding"
             style={{
-              padding: "var(--pixel-12, 12px) var(--pixel-16, 16px)",
               backgroundColor:
                 properties.length === 1 ? "var(--disabled-color)" : "",
             }}

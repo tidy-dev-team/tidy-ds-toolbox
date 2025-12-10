@@ -156,7 +156,7 @@ export function StickerSheetBuilderUI() {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <button
             onClick={handleBuildOne}
-            className="secondary"
+            className="morePadding secondary"
             disabled={isLoading || isBuilding || !context.selectionValid}
             style={getButtonStyle(
               context.selectionValid && !isBuilding && !isLoading,
@@ -167,6 +167,7 @@ export function StickerSheetBuilderUI() {
           <button
             onClick={handleBuildAll}
             disabled={isLoading || isBuilding}
+            className="morePadding"
             style={getButtonStyle(!(isLoading || isBuilding))}
           >
             {isBuilding ? "Working..." : buildAllLabel}
@@ -244,7 +245,6 @@ const messageStyle: React.CSSProperties = {
 
 function getButtonStyle(enabled: boolean): React.CSSProperties {
   return {
-    padding: "var(--pixel-12, 12px) var(--pixel-16, 16px)",
     backgroundColor: enabled ? "" : "var(--disabled-color)",
   };
 }

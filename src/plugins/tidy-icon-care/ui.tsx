@@ -328,9 +328,7 @@ export function TidyIconCareUI() {
         <button
           onClick={handleBuild}
           disabled={isLoading || isBuilding}
-          style={{
-            padding: "var(--pixel-16, 12px) var(--pixel-16, 16px)",
-          }}
+          className="morePadding"
         >
           {isBuilding ? "Building..." : "Build icon grid"}
         </button>

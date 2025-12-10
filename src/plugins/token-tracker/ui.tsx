@@ -258,9 +258,9 @@ export function TokenTrackerUI() {
       {/* Load Variables Button */}
       <button
         onClick={handleGetColorVariables}
+        className="morePadding"
         disabled={isLoading}
         style={{
-          padding: "var(--pixel-12, 12px) var(--pixel-12, 12px)",
           backgroundColor: isLoading ? "var(--disabled-color)" : "",
         }}
       >
@@ -308,7 +308,6 @@ export function TokenTrackerUI() {
                   onClick={handleSelectAll}
                   style={{
                     flex: 1,
-                    padding: "var(--pixel-6, 6px) var(--pixel-12, 12px)",
                     backgroundColor: "#f3f4f6",
                     border: "var(--pixel-1, 1px) solid var(--border-light)",
                     borderRadius: "var(--pixel4, 4px)",
@@ -322,7 +321,6 @@ export function TokenTrackerUI() {
                   onClick={handleSelectNone}
                   style={{
                     flex: 1,
-                    padding: "var(--pixel-6, 6px) var(--pixel-12, 12px)",
                     backgroundColor: "#f3f4f6",
                     border: "var(--pixel-1, 1px) solid var(--border-light)",
                     borderRadius: "var(--pixel4, 4px)",
@@ -464,8 +462,8 @@ export function TokenTrackerUI() {
           <button
             onClick={handleFindBoundNodes}
             disabled={selectedVariables.size === 0 || isSearching}
+            className="morePadding"
             style={{
-              padding: "var(--pixel-12, 12px) var(--pixel-16, 16px)",
               backgroundColor:
                 selectedVariables.size === 0 || isSearching
                   ? "var(--disabled-color)"
@@ -566,10 +564,10 @@ export function TokenTrackerUI() {
 
               {/* Cancel Button */}
               <button
+                className="morePadding"
                 onClick={handleCancelSearch}
                 style={{
                   width: "100%",
-                  padding: "var(--pixel-8, 8px) var(--pixel-16, 16px)",
                   backgroundColor: "#ef4444",
                   color: "var(--light-color)",
                   border: "none",

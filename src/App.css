@@ -6,6 +6,7 @@
   --light-hover: #d1d5db;
   --border-light: #e5e7eb;
   --disabled-color: #9ca3af;
+  --panel-color: #fafafa;
   /*
   spacings */
   --pixel-1: 1px;
@@ -63,7 +64,7 @@ h3 {
 
 .sidebar {
   width: 200px;
-  background: #fafafa;
+  background: var(--panel-color);
   border-right: var(--pixel-1) solid var(--border-light);
   padding: var(--pixel-12) var(--pixel-8);
   display: flex;
@@ -215,7 +216,7 @@ main:has(.right-menu) .viewport-scroll {
 }
 
 .panel {
-  background: #fafafa;
+  background: var(--panel-color);
   border: 1px solid var(--border-light);
   border-radius: var(--pixel-8);
   margin-bottom: var(--pixel-16);
@@ -314,6 +315,10 @@ button:not(.nav-item).secondary {
   color: var(--primary-color);
   transition: unset;
   box-shadow: 0 0 0 var(--pixel-1) var(--primary-color) inset;
+}
+
+button:not(.nav-item).morePadding {
+  padding: var(--pixel-12, 12px) var(--pixel-16, 16px);
 }
 
 button:not(.nav-item).secondary:hover {
