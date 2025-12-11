@@ -341,22 +341,14 @@ export function DSExplorerUI() {
       </div>
 
       {/* Right Panel - Component List */}
-      <div
-        className="right-menu"
-        style={{
-          width: "240px",
-          backgroundColor: "#fafafa",
-          border: "1px solid #e5e7eb",
-          borderRadius: "8px",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
+      <div className="right-menu">
         {/* Search */}
         <div
           className="search-wrapper"
-          style={{ padding: "12px", borderBottom: "1px solid #e5e7eb" }}
+          style={{
+            padding: "var(--pixel-12, 12px)",
+            borderBottom: "var(--pixel-1, 1px) solid var(--border-light)",
+          }}
         >
           <input
             type="text"
@@ -365,9 +357,9 @@ export function DSExplorerUI() {
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
               width: "100%",
-              padding: "8px 12px",
-              border: "1px solid #d1d5db",
-              borderRadius: "6px",
+              padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+              border: "var(--pixel-1, 1px) solid var(--light-hover)",
+              borderRadius: "var(--pixel-6, 6px)",
               fontSize: "13px",
             }}
           />
@@ -375,7 +367,9 @@ export function DSExplorerUI() {
         </div>
 
         {/* Component List */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
+        <div
+          style={{ flex: 1, overflowY: "auto", padding: "var(--pixel-8, 8px)" }}
+        >
           {filteredGroups.map((group, groupIndex) => {
             // Get group names for headers
             const groupNames = [
@@ -415,14 +409,15 @@ export function DSExplorerUI() {
                 {/* Group Header */}
                 <div
                   style={{
-                    padding: "6px 12px",
+                    padding: "var(--pixel-6, 6px) var(--pixel-12, 12px)",
                     fontSize: "11px",
                     fontWeight: 600,
                     color: "#6b7280",
                     textTransform: "uppercase",
                     letterSpacing: "0.5px",
-                    borderBottom: "1px solid #e5e7eb",
-                    marginBottom: "4px",
+                    borderBottom:
+                      "var(--pixel-1, 1px) solid var(--border-light)",
+                    marginBottom: "var(--pixel-4, 4px)",
                   }}
                 >
                   {groupName}
@@ -434,14 +429,17 @@ export function DSExplorerUI() {
                     key={name}
                     onClick={() => handleComponentSelect(name)}
                     style={{
-                      padding: "8px 12px",
-                      marginBottom: "2px",
-                      borderRadius: "6px",
+                      padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
+                      marginBottom: "var(--pixel-2, 2px)",
+                      borderRadius: "var(--pixel-6, 6px)",
                       cursor: "pointer",
                       fontSize: "13px",
                       backgroundColor:
                         selectedComponent === name ? "#eff6ff" : "transparent",
-                      color: selectedComponent === name ? "#2563eb" : "#374151",
+                      color:
+                        selectedComponent === name
+                          ? "var(--primary-color)"
+                          : "#374151",
                       fontWeight: "400",
                       transition: "all 0.15s ease",
                     }}
@@ -466,7 +464,7 @@ export function DSExplorerUI() {
           {filteredGroups.length === 0 && (
             <div
               style={{
-                padding: "40px 20px",
+                padding: "var(--pixel-40, 40px) var(--pixel-20, 20px)",
                 textAlign: "center",
                 color: "var(--disabled-color)",
                 fontSize: "13px",
