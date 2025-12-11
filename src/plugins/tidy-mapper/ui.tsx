@@ -342,18 +342,6 @@ export function TidyMapperUI() {
               </div>
             </FormControl>
           )}
-
-          {trailNames.length === 0 && (
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#9ca3af",
-                fontStyle: "italic",
-              }}
-            >
-              No trail markers found on this page
-            </div>
-          )}
         </div>
       </Card>
     </div>
