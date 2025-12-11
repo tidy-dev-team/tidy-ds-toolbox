@@ -19,6 +19,7 @@
   --pixel-20: 20px;
   --pixel-24: 24px;
   --pixel-32: 32px;
+  --pixel-40: 40px;
 }
 
 * {
@@ -75,12 +76,60 @@ h3 {
 
 .sidebar.small {
   width: 62px;
+  transition: width 300ms ease-in-out 0s;
 }
+
 .sidebar.small .label {
   display: none;
 }
 
+.sidebar.small .nav-item::after {
+  content: attr(aria-label);
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  top: 2px;
+  left: calc(100% + 4px);
+  background-color: #333333;
+  color: var(--light-color);
+  padding: var(--pixel-8) var(--pixel-16);
+  border-radius: var(--pixel-8);
+  white-space: nowrap;
+  z-index: 99;
+  transition:
+    opacity 150ms linear 0s,
+    visibility 150ms linear 0s allow-discrete;
+}
+
+.sidebar.small .nav-item:hover::after {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 150ms linear 500ms,
+    visibility 150ms linear 500ms allow-discrete;
+}
+
+body:has(.sidebar.small) .right-menu {
+  border-radius: var(--pixel-8) 0 0 var(--pixel-8);
+  transform: translateX(256px);
+  transition: transform 300ms ease-in-out 0s;
+}
+
+body:has(.sidebar.small) .right-menu:hover {
+  transform: translateX(24px);
+}
+
+body:has(.sidebar.small) .viewport-scroll,
+body:has(.sidebar.small) .viewport-content {
+  max-width: 100%;
+}
+
+body:has(.sidebar.small) button.build-button {
+  right: 32px;
+}
+
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
@@ -152,7 +201,7 @@ button.build-button {
   flex: 1;
   overflow: auto;
   width: 100%;
-  padding: var(--pixel-24);
+  padding: var(--pixel-24) 0;
   margin: 0 auto;
   scrollbar-color: lightgray transparent;
 }
@@ -403,8 +452,15 @@ select {
 
 .right-menu {
   position: fixed;
+  display: flex;
+  flex-direction: column;
   height: calc(100% - 100px);
+  width: 240px;
   right: 24px;
+  border-radius: var(--pixel-8, 8px);
+  background-color: var(--panel-color);
+  border: var(--pixel-1, 1px) solid var(--border-light);
+  overflow: hidden;
 }
 
 button.resize-handle {

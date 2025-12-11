@@ -32,6 +32,18 @@ export function ResizeHandle() {
     latestSizeRef.current = state.windowSize;
   }, [state.windowSize]);
 
+  // Add/remove "small" class based on width
+  useEffect(() => {
+    const sidebar = document.querySelector(".sidebar");
+    if (sidebar) {
+      if (state.windowSize.width < 700) {
+        sidebar.classList.add("small");
+      } else {
+        sidebar.classList.remove("small");
+      }
+    }
+  }, [state.windowSize.width]);
+
   const sendResizeRequest = useCallback(
     (width: number, height: number, options?: ResizeOptions) => {
       const nextSize = clampSize(width, height);

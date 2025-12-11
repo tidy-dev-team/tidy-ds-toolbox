@@ -14,6 +14,7 @@ function Navigation() {
         return (
           <button
             key={module.id}
+            aria-label={module.label}
             className={`nav-item ${state.activeModule === module.id ? "active" : ""}`}
             onClick={() =>
               dispatch({ type: "SET_ACTIVE_MODULE", payload: module.id })
