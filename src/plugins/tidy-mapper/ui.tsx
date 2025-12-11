@@ -137,8 +137,7 @@ export function TidyMapperUI() {
   const Instructions = () => {
     const instructionsStyle = {
       display: "flex",
-      flexDirection: "column" as const,
-      justifyContent: "flex-start",
+      justifyContent: "center",
       alignItems: "center",
       gap: "10px",
     };
@@ -149,7 +148,7 @@ export function TidyMapperUI() {
       color: "#b3b3b3",
       padding: "0px",
       margin: "0px",
-      textAlign: "center" as const,
+      textAlign: "left" as const,
     };
 
     const proTextStyle = {
@@ -181,18 +180,20 @@ export function TidyMapperUI() {
     const DefaultInstructions = (
       <div style={instructionsStyle}>
         <svg
-          width="70"
-          viewBox="0 0 28 17"
+          width="26"
+          height="23"
+          viewBox="0 0 26 23"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M16.6465 0.146447C16.8417 -0.0488155 17.1583 -0.0488155 17.3536 0.146447L19.3536 2.14645C19.5488 2.34171 19.5488 2.65829 19.3536 2.85355L9.50001 12.7071V16.5C9.50001 16.7761 9.27616 17 9.00001 17H1.00001C0.797783 17 0.615465 16.8782 0.538075 16.6913C0.460684 16.5045 0.503462 16.2894 0.646461 16.1464L16.6465 0.146447ZM9.50001 11.2929L18.2929 2.5L17 1.20711L9.50001 8.70711V11.2929ZM8.50001 9.70711L2.20712 16H8.50001V9.70711ZM23.6465 11.3536L20.6465 8.35355L21.3536 7.64645L24 10.2929L26.6465 7.64645L27.3536 8.35355L24.3536 11.3536C24.1583 11.5488 23.8417 11.5488 23.6465 11.3536Z"
-            fill="#b3b3b3"
+            fill-rule="evenodd"
+            clip-rule="evenodd"
+            d="M22.0952 0.198134C22.3623 -0.0660447 22.7956 -0.0660447 23.0628 0.198134L25.7997 2.90402C26.0668 3.1682 26.0668 3.59651 25.7997 3.86068L12.3158 17.192V22.3235C12.3158 22.6971 12.0095 23 11.6316 23H0.684224C0.407493 23 0.158005 22.8352 0.0521028 22.5823C-0.0538006 22.3296 0.00473774 22.0386 0.200421 21.8451L22.0952 0.198134ZM12.3158 15.2786L24.3482 3.38235L22.5789 1.63315L12.3158 11.7802V15.2786ZM10.9474 13.1331L2.33606 21.6471H10.9474V13.1331Z"
+            fill="#B3B3B3"
           />
         </svg>
+
         <div>
           <p style={textStyle}>Select Slice tool ("S" key)</p>
           <p style={textStyle}>and start mapping</p>
