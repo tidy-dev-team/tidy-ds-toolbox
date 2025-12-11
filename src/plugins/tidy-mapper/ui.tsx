@@ -253,10 +253,10 @@ export function TidyMapperUI() {
       </Card>
 
       {/* Export Slices */}
-      <Card title="Export">
+      <Card title="Build">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <button onClick={handleGrabSlices} disabled={isProcessing}>
-            {isProcessing ? "Processing..." : "Export slices"}
+            {isProcessing ? "Processing..." : "Build slices"}
           </button>
 
           {lastResult && (
@@ -288,6 +288,7 @@ export function TidyMapperUI() {
             style={{
               display: "flex",
               gap: "8px",
+              flexWrap: "wrap",
             }}
           >
             <button
@@ -306,7 +307,7 @@ export function TidyMapperUI() {
               className="secondary fill-button"
               onClick={() => handleFilterTrails(sliceName)}
             >
-              Selected trails only
+              Component trails
             </button>
           </div>
 
