@@ -291,19 +291,19 @@ export function TidyMapperUI() {
             }}
           >
             <button
-              className="secondary"
+              className="secondary fill-button"
               onClick={() => handleToggleTrails(true)}
             >
               Show trails
             </button>
             <button
-              className="secondary"
+              className="secondary fill-button"
               onClick={() => handleToggleTrails(false)}
             >
               Hide trails
             </button>
             <button
-              className="secondary"
+              className="secondary fill-button"
               onClick={() => handleFilterTrails(sliceName)}
             >
               Selected trails only

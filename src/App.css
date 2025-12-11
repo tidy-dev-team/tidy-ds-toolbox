@@ -318,6 +318,11 @@ button:not(.nav-item).secondary {
   box-shadow: 0 0 0 var(--pixel-1) var(--primary-color) inset;
 }
 
+button:not(.nav-item).fill-button {
+  width: 100%;
+  white-space: nowrap;
+}
+
 button:not(.nav-item).morePadding {
   padding: var(--pixel-12, 12px) var(--pixel-16, 16px);
 }
