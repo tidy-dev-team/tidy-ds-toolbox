@@ -319,7 +319,7 @@ button:not(.nav-item).secondary {
 }
 
 button:not(.nav-item).fill-button {
-  width: 100%;
+  flex-grow: 1;
   white-space: nowrap;
 }
 
