@@ -73,6 +73,13 @@ h3 {
   gap: var(--pixel-4);
 }
 
+.sidebar.small {
+  width: 62px;
+}
+.sidebar.small .label {
+  display: none;
+}
+
 .nav-item {
   display: flex;
   align-items: center;
@@ -293,6 +300,7 @@ button:not(.nav-item) {
   border-radius: var(--pixel-6);
   font-size: 14px;
   font-weight: 500;
+  padding: var(--pixel-12, 12px) var(--pixel-16, 16px);
   cursor: pointer;
   font-family: inherit;
 }
