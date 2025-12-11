@@ -108,7 +108,7 @@ cp -r deployment/* "$VERSIONED_PATH/"
 
 # Deploy to latest folder
 echo -e "${BLUE}📤 Updating latest version...${NC}"
-LATEST_PATH="$ACTUAL_PATH/latest"
+LATEST_PATH="$ACTUAL_PATH/Tidy-DS-Toolbox-latest"
 rm -rf "$LATEST_PATH"
 mkdir -p "$LATEST_PATH"
 cp -r deployment/* "$LATEST_PATH/"
