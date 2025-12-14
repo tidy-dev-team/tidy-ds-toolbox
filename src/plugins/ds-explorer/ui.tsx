@@ -333,7 +333,7 @@ export function DSExplorerUI() {
             <div style={{ fontSize: "14px", fontWeight: 500 }}>
               Select a component
             </div>
-            <div style={{ fontSize: "12px" }}>
+            <div style={{ fontSize: "12px", marginBottom: "8px" }}>
               Choose from the list to preview and configure
             </div>
           </div>
