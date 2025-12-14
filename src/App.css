@@ -113,11 +113,13 @@ h3 {
 body:has(.sidebar.small) .right-menu {
   border-radius: var(--pixel-8) 0 0 var(--pixel-8);
   transform: translateX(256px);
+  animation: peakOut 1500ms ease-in-out infinite;
   transition: transform 300ms ease-in-out 0s;
 }
 
 body:has(.sidebar.small) .right-menu:hover {
   transform: translateX(24px);
+  animation: none;
 }
 
 body:has(.sidebar.small) .viewport-scroll,
