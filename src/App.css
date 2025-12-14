@@ -113,13 +113,38 @@ h3 {
 body:has(.sidebar.small) .right-menu {
   border-radius: var(--pixel-8) 0 0 var(--pixel-8);
   transform: translateX(256px);
-  animation: peakOut 1500ms ease-in-out infinite;
+  animation: peakOut 3000ms ease-in-out infinite;
   transition: transform 300ms ease-in-out 0s;
 }
 
 body:has(.sidebar.small) .right-menu:hover {
   transform: translateX(24px);
   animation: none;
+}
+
+@keyframes peakOut {
+  0% {
+    width: 240px;
+    box-shadow: 0 0 0 0 var(--primary-color);
+  }
+  80% {
+    width: 240px;
+    box-shadow: 0 0 0 0 var(--primary-color);
+  }
+  82% {
+    width: 238px;
+  }
+  90% {
+    width: 245px;
+    box-shadow: 40px 0 40px 0 var(--primary-color);
+  }
+  98% {
+    width: 238px;
+  }
+  100% {
+    width: 240px;
+    box-shadow: 0 0 0 0 var(--primary-color);
+  }
 }
 
 body:has(.sidebar.small) .viewport-scroll,
