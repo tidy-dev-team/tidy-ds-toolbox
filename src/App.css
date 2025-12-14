@@ -95,6 +95,7 @@ h3 {
   padding: var(--pixel-8) var(--pixel-16);
   border-radius: var(--pixel-8);
   white-space: nowrap;
+  pointer-events: none;
   z-index: 99;
   transition:
     opacity 150ms linear 0s,
