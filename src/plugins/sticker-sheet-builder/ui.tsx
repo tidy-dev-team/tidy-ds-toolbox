@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
+import Loader from "./assets/loader.svg";
 import {
   DEFAULT_STICKER_SHEET_CONTEXT,
   STICKER_SHEET_CONTEXT_EVENT,
   STICKER_SHEET_MODULE_ID,
   StickerSheetBuilderContext,
 } from "./types";
-import { Loader } from "./../../../loader.svg";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
