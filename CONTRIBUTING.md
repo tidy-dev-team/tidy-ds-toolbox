@@ -36,7 +36,6 @@ The scope provides additional context about which part of the codebase is affect
 - **ds-explorer**: DS Explorer module
 - **sticker-sheet**: Sticker Sheet Builder module
 - **icon-care**: Tidy Icon Care module
-- **token-tracker**: Token Tracker module
 - **ui**: UI components or styling
 - **build**: Build configuration
 - **deps**: Dependency updates

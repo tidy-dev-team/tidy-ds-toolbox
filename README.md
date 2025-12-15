@@ -8,7 +8,6 @@ A modular Figma plugin suite for design system management and component workflow
 - **Component Labels** - Manage component property labels
 - **Sticker Sheet Builder** - Generate component sticker sheets
 - **Tidy Icon Care** - Icon management and organization
-- **Token Tracker** - Track and analyze design tokens
 
 ## 🚀 Installation
 

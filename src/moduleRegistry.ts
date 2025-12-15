@@ -3,12 +3,10 @@ import {
   IconIcons,
   IconComponents,
   IconSticker,
-  IconPalette,
   IconTag,
   IconMap,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
-import { TokenTrackerUI } from "./plugins/token-tracker/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
 import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
 import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
@@ -21,7 +19,6 @@ import {
   handleGetComponentProperties,
   handleBuildComponent,
 } from "./plugins/ds-explorer/logic";
-import { tokenTrackerHandler as tokenTrackerLogic } from "./plugins/token-tracker/logic";
 import { componentLabelsHandler as componentLabelsLogic } from "./plugins/component-labels/logic";
 import { tidyIconCareHandler as tidyIconCareLogic } from "./plugins/tidy-icon-care/logic";
 import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugins/sticker-sheet-builder/logic";
@@ -37,14 +34,6 @@ const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
     default:
       throw new Error(`Unknown action: ${action}`);
   }
-};
-
-const tokenTrackerHandler = async (
-  action: string,
-  payload: any,
-  figma: any,
-) => {
-  return await tokenTrackerLogic(action, payload, figma);
 };
 
 const componentLabelsHandler = async (
@@ -87,14 +76,6 @@ export const moduleRegistry: ModuleRegistry = {
     ui: DSExplorerUI,
     handler: dsExplorerHandler,
     permissionRequirements: ["activeselection"],
-  },
-  "token-tracker": {
-    id: "token-tracker",
-    label: "Token Tracker",
-    icon: IconPalette,
-    ui: TokenTrackerUI,
-    handler: tokenTrackerHandler,
-    permissionRequirements: [],
   },
   "component-labels": {
     id: "component-labels",

@@ -2,7 +2,6 @@
 
 export type PluginID =
   | "ds-explorer"
-  | "token-tracker"
   | "component-labels"
   | "tidy-icon-care"
   | "sticker-sheet-builder"

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Token Tracker plugin (development paused in current form)
+
 ## [1.0.17] - 2025-12-03
 
 ### Added
