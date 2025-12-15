@@ -11,11 +11,36 @@ import {
   StickerSheetBuilderAction,
   StickerSheetBuilderContext,
   StickerSheetBuilderResponse,
+  BuildProgress,
   STICKER_SHEET_CONTEXT_EVENT,
+  STICKER_SHEET_PROGRESS_EVENT,
 } from "./types";
 
 let fontsLoaded = false;
 let listenersRegistered = false;
+let cancelRequested = false;
+
+// Yield control back to the event loop to keep UI responsive
+function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+// Broadcast build progress to the UI
+function broadcastProgress(
+  current: number,
+  total: number,
+  componentName: string,
+): void {
+  const progress: BuildProgress = {
+    current,
+    total,
+    currentComponentName: componentName,
+  };
+  figma.ui?.postMessage({
+    type: STICKER_SHEET_PROGRESS_EVENT,
+    payload: progress,
+  });
+}
 
 export async function stickerSheetBuilderHandler(
   action: StickerSheetBuilderAction,
@@ -39,6 +64,10 @@ export async function stickerSheetBuilderHandler(
     }
     case "build-all": {
       return await handleBuildAll();
+    }
+    case "cancel-build": {
+      cancelRequested = true;
+      return { cancelled: true };
     }
     default:
       throw new Error(`Unknown sticker-sheet-builder action: ${action}`);
@@ -93,6 +122,7 @@ function isStickerEligible(
 }
 
 async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
+  cancelRequested = false;
   await ensureFontsLoaded();
 
   const validNodes = figma.currentPage.selection.filter(isStickerEligible);
@@ -102,10 +132,21 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
     );
   }
 
+  const total = validNodes.length;
   let builtCount = 0;
+
   for (const node of validNodes) {
+    if (cancelRequested) {
+      const context = broadcastContext();
+      return { builtCount, context, cancelled: true };
+    }
+
+    broadcastProgress(builtCount + 1, total, node.name);
     await buildOneSticker(node);
     builtCount += 1;
+
+    // Yield to keep UI responsive
+    await yieldToMain();
   }
 
   const context = broadcastContext();
@@ -113,6 +154,7 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
 }
 
 async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
+  cancelRequested = false;
   await ensureFontsLoaded();
 
   const stickerSheetPage = getStickerSheetPage();
@@ -126,10 +168,21 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
     | ComponentSetNode
   )[];
 
+  const total = components.length;
   let builtCount = 0;
+
   for (const component of components) {
+    if (cancelRequested) {
+      const context = broadcastContext();
+      return { builtCount, context, cancelled: true };
+    }
+
+    broadcastProgress(builtCount + 1, total, component.name);
     await buildOneSticker(component);
     builtCount += 1;
+
+    // Yield to keep UI responsive
+    await yieldToMain();
   }
 
   const sectionsFrame = stickerSheetPage.findChild(

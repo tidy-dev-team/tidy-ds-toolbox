@@ -5,8 +5,10 @@ import Loader from "./assets/loader.svg";
 import {
   DEFAULT_STICKER_SHEET_CONTEXT,
   STICKER_SHEET_CONTEXT_EVENT,
+  STICKER_SHEET_PROGRESS_EVENT,
   STICKER_SHEET_MODULE_ID,
   StickerSheetBuilderContext,
+  BuildProgress,
 } from "./types";
 
 interface PendingRequest {
@@ -23,6 +25,7 @@ export function StickerSheetBuilderUI() {
   const [isBuilding, setIsBuilding] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState<BuildProgress | null>(null);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
 
@@ -51,6 +54,11 @@ export function StickerSheetBuilderUI() {
           setContext(message.payload as StickerSheetBuilderContext);
           setIsLoading(false);
         }
+        return;
+      }
+
+      if (message.type === STICKER_SHEET_PROGRESS_EVENT) {
+        setProgress(message.payload as BuildProgress);
         return;
       }
 
@@ -92,6 +100,7 @@ export function StickerSheetBuilderUI() {
     setIsBuilding(true);
     setStatusMessage(null);
     setErrorMessage(null);
+    setProgress(null);
 
     sendRequest(
       "build-one",
@@ -100,10 +109,17 @@ export function StickerSheetBuilderUI() {
         onSuccess: (result) => {
           const builtCount = Number(result?.builtCount ?? 0);
           const label = builtCount === 1 ? "sticker" : "stickers";
-          setStatusMessage(`Built ${builtCount} ${label}`);
+          if (result?.cancelled) {
+            setStatusMessage(`Cancelled after building ${builtCount} ${label}`);
+          } else {
+            setStatusMessage(`Built ${builtCount} ${label}`);
+          }
         },
         onError: (error) => setErrorMessage(error),
-        onFinally: () => setIsBuilding(false),
+        onFinally: () => {
+          setIsBuilding(false);
+          setProgress(null);
+        },
       },
     );
   }, [isLoading, isBuilding, sendRequest]);
@@ -113,6 +129,7 @@ export function StickerSheetBuilderUI() {
     setIsBuilding(true);
     setStatusMessage(null);
     setErrorMessage(null);
+    setProgress(null);
 
     sendRequest(
       "build-all",
@@ -121,13 +138,26 @@ export function StickerSheetBuilderUI() {
         onSuccess: (result) => {
           const builtCount = Number(result?.builtCount ?? 0);
           const label = builtCount === 1 ? "component" : "components";
-          setStatusMessage(`Sticker sheet updated from ${builtCount} ${label}`);
+          if (result?.cancelled) {
+            setStatusMessage(`Cancelled after building ${builtCount} ${label}`);
+          } else {
+            setStatusMessage(
+              `Sticker sheet updated from ${builtCount} ${label}`,
+            );
+          }
         },
         onError: (error) => setErrorMessage(error),
-        onFinally: () => setIsBuilding(false),
+        onFinally: () => {
+          setIsBuilding(false);
+          setProgress(null);
+        },
       },
     );
   }, [isLoading, isBuilding, sendRequest]);
+
+  const handleCancel = useCallback(() => {
+    sendRequest("cancel-build");
+  }, [sendRequest]);
 
   const buildAllLabel = context.stickerSheetExists
     ? "↻ Rebuild sticker sheet"
@@ -177,6 +207,21 @@ export function StickerSheetBuilderUI() {
           >
             {isBuilding ? "" : buildAllLabel}
           </button>
+          {isBuilding && (
+            <button
+              onClick={handleCancel}
+              className="morePadding secondary"
+              style={cancelButtonStyle}
+            >
+              Cancel
+            </button>
+          )}
+          {isBuilding && progress && (
+            <div style={progressStyle}>
+              Building "{progress.currentComponentName}" ({progress.current} of{" "}
+              {progress.total})
+            </div>
+          )}
           {statusMessage && (
             <div style={{ ...messageStyle, color: "#059669" }}>
               {statusMessage}
@@ -246,6 +291,18 @@ const statusRowStyle: React.CSSProperties = {
 const messageStyle: React.CSSProperties = {
   fontSize: "12px",
   fontWeight: "500",
+};
+
+const progressStyle: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: "500",
+  color: "#6b7280",
+  padding: "4px 0",
+};
+
+const cancelButtonStyle: React.CSSProperties = {
+  backgroundColor: "var(--figma-color-bg-danger, #dc2626)",
+  color: "white",
 };
 
 function getButtonStyle(enabled: boolean): React.CSSProperties {

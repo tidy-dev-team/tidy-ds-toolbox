@@ -12,6 +12,12 @@ import { createLogger } from "./shared/logging";
 // Configuration
 const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
 
+// Actions that can take a long time and should not be timed out
+const LONG_RUNNING_ACTIONS = new Set([
+  "sticker-sheet-builder:build-all",
+  "sticker-sheet-builder:build-one",
+]);
+
 // Create logger for main thread
 const logger = createLogger("Main");
 
@@ -116,13 +122,13 @@ figma.ui.onmessage = async (msg: unknown) => {
       throw new Error(`Unknown module: ${target}`);
     }
 
-    // Wrap handler execution with timeout
+    // Execute handler - skip timeout for long-running operations
     const operationName = `${target}:${action}`;
-    const result = await withTimeout(
-      handlers[target](action, payload, figma),
-      DEFAULT_TIMEOUT_MS,
-      operationName,
-    );
+    const handlerPromise = handlers[target](action, payload, figma);
+
+    const result = LONG_RUNNING_ACTIONS.has(operationName)
+      ? await handlerPromise
+      : await withTimeout(handlerPromise, DEFAULT_TIMEOUT_MS, operationName);
 
     logger.debug(`Success: ${operationName}`, { result });
     sendResponse(requestId, result);
