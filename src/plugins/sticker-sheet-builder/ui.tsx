@@ -7,6 +7,7 @@ import {
   STICKER_SHEET_MODULE_ID,
   StickerSheetBuilderContext,
 } from "./types";
+import { Loader } from "./../../../loader.svg";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -166,7 +167,7 @@ export function StickerSheetBuilderUI() {
               context.selectionValid && !isBuilding && !isLoading,
             )}
           >
-            {isBuilding ? "" : "Build one sticker"}
+            {isBuilding ? <Loader></Loader> : "Build one sticker"}
           </button>
           <button
             onClick={handleBuildAll}
