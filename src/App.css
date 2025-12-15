@@ -397,6 +397,9 @@ button:not(.nav-item):disabled {
   pointer-events: none;
 }
 
+button:not(.nav-item).working {
+}
+
 button:not(.nav-item).secondary {
   background-color: var(--light-color);
   color: var(--primary-color);

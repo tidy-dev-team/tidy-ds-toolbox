@@ -156,7 +156,11 @@ export function StickerSheetBuilderUI() {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <button
             onClick={handleBuildOne}
-            className="morePadding secondary"
+            className={
+              isBuilding
+                ? "morePadding secondary working"
+                : "morePadding secondary"
+            }
             disabled={isLoading || isBuilding || !context.selectionValid}
             style={getButtonStyle(
               context.selectionValid && !isBuilding && !isLoading,
@@ -167,7 +171,7 @@ export function StickerSheetBuilderUI() {
           <button
             onClick={handleBuildAll}
             disabled={isLoading || isBuilding}
-            className="morePadding"
+            className={isBuilding ? "morePadding working" : "morePadding"}
             style={getButtonStyle(!(isLoading || isBuilding))}
           >
             {isBuilding ? "Working..." : buildAllLabel}
