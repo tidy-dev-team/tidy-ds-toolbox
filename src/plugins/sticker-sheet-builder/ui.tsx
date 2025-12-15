@@ -167,7 +167,7 @@ export function StickerSheetBuilderUI() {
               context.selectionValid && !isBuilding && !isLoading,
             )}
           >
-            {isBuilding ? <Loader></Loader> : "Build one sticker"}
+            {isBuilding ? <img src={Loader} /> : "Build one sticker"}
           </button>
           <button
             onClick={handleBuildAll}
