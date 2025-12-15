@@ -166,7 +166,7 @@ export function StickerSheetBuilderUI() {
               context.selectionValid && !isBuilding && !isLoading,
             )}
           >
-            {isBuilding ? "Working..." : "Build one sticker"}
+            {isBuilding ? "" : "Build one sticker"}
           </button>
           <button
             onClick={handleBuildAll}
@@ -174,7 +174,7 @@ export function StickerSheetBuilderUI() {
             className={isBuilding ? "morePadding working" : "morePadding"}
             style={getButtonStyle(!(isLoading || isBuilding))}
           >
-            {isBuilding ? "Working..." : buildAllLabel}
+            {isBuilding ? "" : buildAllLabel}
           </button>
           {statusMessage && (
             <div style={{ ...messageStyle, color: "#059669" }}>

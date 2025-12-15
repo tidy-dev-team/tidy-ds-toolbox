@@ -397,7 +397,9 @@ button:not(.nav-item):disabled {
   pointer-events: none;
 }
 
-button:not(.nav-item).working {
+button:not(.nav-item).working::after {
+  content: "O";
+  color: red;
 }
 
 button:not(.nav-item).secondary {
