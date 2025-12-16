@@ -397,9 +397,19 @@ button:not(.nav-item):disabled {
   pointer-events: none;
 }
 
+button:not(.nav-item).working {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+button:not(.nav-item).secondary.working {
+  display: none;
+}
+
 button:not(.nav-item).working img {
-  width: 16px;
-  height: 16px;
+  width: 64px;
+  height: 64px;
 }
 
 button:not(.nav-item).secondary {

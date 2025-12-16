@@ -14,6 +14,7 @@
     .circle {
         animation: circleAnim 1000ms ease-in-out infinite;
         transform-origin: center;
+        transform-box: fill-box;
     }
     @keyframes circleAnim {
         0% {
@@ -43,12 +44,12 @@
         animation-delay: -600ms;
     }
 </style>
-    <circle class="circle" id="circle-1" cx="200" cy="70" r="30" fill="#ffffff"/>
-    <circle class="circle" id="circle-2" cx="291.924" cy="108.076" r="30" transform="rotate(45 291.924 108.076)" fill="#ffffff"/>
-    <circle class="circle" id="circle-3" cx="330" cy="200" r="30" transform="rotate(90 330 200)" fill="#ffffff"/>
-    <circle class="circle" id="circle-4" cx="291.923" cy="291.924" r="30" transform="rotate(135 291.923 291.924)" fill="#ffffff"/>
-    <circle class="circle" id="circle-5" cx="200" cy="330" r="30" fill="#ffffff"/>
-    <circle class="circle" id="circle-6" cx="108.076" cy="291.924" r="30" transform="rotate(45 108.076 291.924)" fill="#ffffff"/>
-    <circle class="circle" id="circle-7" cx="70" cy="200" r="30" transform="rotate(90 70 200)" fill="#ffffff"/>
-    <circle class="circle" id="circle-8" cx="108.076" cy="108.077" r="30" transform="rotate(135 108.076 108.077)" fill="#ffffff"/>
+    <circle class="circle" id="circle-1" cx="200" cy="70" r="30" fill="#9ca3af"/>
+    <circle class="circle" id="circle-2" cx="291.924" cy="108.076" r="30" transform="rotate(45 291.924 108.076)" fill="#9ca3af"/>
+    <circle class="circle" id="circle-3" cx="330" cy="200" r="30" transform="rotate(90 330 200)" fill="#9ca3af"/>
+    <circle class="circle" id="circle-4" cx="291.923" cy="291.924" r="30" transform="rotate(135 291.923 291.924)" fill="#9ca3af"/>
+    <circle class="circle" id="circle-5" cx="200" cy="330" r="30" fill="#9ca3af"/>
+    <circle class="circle" id="circle-6" cx="108.076" cy="291.924" r="30" transform="rotate(45 108.076 291.924)" fill="#9ca3af"/>
+    <circle class="circle" id="circle-7" cx="70" cy="200" r="30" transform="rotate(90 70 200)" fill="#9ca3af"/>
+    <circle class="circle" id="circle-8" cx="108.076" cy="108.077" r="30" transform="rotate(135 108.076 108.077)" fill="#9ca3af"/>
 </svg>

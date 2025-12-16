@@ -197,7 +197,7 @@ export function StickerSheetBuilderUI() {
               context.selectionValid && !isBuilding && !isLoading,
             )}
           >
-            {isBuilding ? <img src={Loader} /> : "Build one sticker"}
+            {isBuilding ? "" : "Build one sticker"}
           </button>
           <button
             onClick={handleBuildAll}
@@ -205,12 +205,12 @@ export function StickerSheetBuilderUI() {
             className={isBuilding ? "morePadding working" : "morePadding"}
             style={getButtonStyle(!(isLoading || isBuilding))}
           >
-            {isBuilding ? "" : buildAllLabel}
+            {isBuilding ? <img src={Loader} /> : buildAllLabel}
           </button>
           {isBuilding && (
             <button
               onClick={handleCancel}
-              className="morePadding secondary"
+              className="morePadding"
               style={cancelButtonStyle}
             >
               Cancel
