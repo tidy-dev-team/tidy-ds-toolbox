@@ -35,11 +35,14 @@ export function ResizeHandle() {
   // Add/remove "small" class based on width
   useEffect(() => {
     const sidebar = document.querySelector(".sidebar");
+    const menubtn = document.querySelector(".menuBtn");
     if (sidebar) {
       if (state.windowSize.width < 700) {
-        sidebar.classList.add("small");
+        sidebar.classList.add("small-width");
+        menubtn.classList.add("none");
       } else {
-        sidebar.classList.remove("small");
+        sidebar.classList.remove("small-width");
+        menubtn.classList.remove("none");
       }
     }
   }, [state.windowSize.width]);

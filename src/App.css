@@ -47,11 +47,11 @@ h3 {
 
 .header {
   display: flex;
-  gap: var(--pixel-12);
+  gap: var(--pixel-6);
   align-items: center;
   background: var(--light-color);
   border-bottom: var(--pixel-1) solid var(--border-light);
-  padding: var(--pixel-8) var(--pixel-12);
+  padding: var(--pixel-8) var(--pixel-16);
 }
 
 .header .menuBtn {
@@ -75,8 +75,14 @@ h3 {
   background-color: var(--panel-color);
   border-color: var(--border-light);
 }
+
 .header .menuBtn:active {
   transform: translateX(var(--pixel-1));
+}
+
+.header .menuBtn.none {
+  visibility: hidden;
+  width: 0;
 }
 
 .header h1 {
@@ -104,16 +110,19 @@ h3 {
   gap: var(--pixel-4);
 }
 
-.sidebar.small {
+.sidebar.small,
+.sidebar.small-width {
   width: 62px;
   transition: width 300ms ease-in-out 0s;
 }
 
-.sidebar.small .label {
+.sidebar.small .label,
+.sidebar.small-width .label {
   display: none;
 }
 
-.sidebar.small .nav-item::after {
+.sidebar.small .nav-item::after,
+.sidebar.small-width .nav-item::after {
   content: attr(aria-label);
   visibility: hidden;
   opacity: 0;
@@ -132,7 +141,8 @@ h3 {
     visibility 150ms linear 0s allow-discrete;
 }
 
-.sidebar.small .nav-item:hover::after {
+.sidebar.small .nav-item:hover::after,
+.sidebar.small-width .nav-item:hover::after {
   visibility: visible;
   opacity: 1;
   transition:
@@ -140,14 +150,16 @@ h3 {
     visibility 150ms linear 500ms allow-discrete;
 }
 
-body:has(.sidebar.small) .right-menu {
+body:has(.sidebar.small) .right-menu,
+body:has(.sidebar.small-width) .right-menu {
   border-radius: var(--pixel-8) 0 0 var(--pixel-8);
   transform: translateX(256px);
   animation: peakOut 5000ms ease-in-out infinite;
   transition: transform 300ms ease-in-out 0s;
 }
 
-body:has(.sidebar.small) .right-menu:hover {
+body:has(.sidebar.small) .right-menu:hover,
+body:has(.sidebar.small-width) .right-menu:hover {
   transform: translateX(24px);
   animation: none;
 }
@@ -178,11 +190,14 @@ body:has(.sidebar.small) .right-menu:hover {
 }
 
 body:has(.sidebar.small) .viewport-scroll,
-body:has(.sidebar.small) .viewport-content {
+body:has(.sidebar.small) .viewport-content,
+body:has(.sidebar.small-width) .viewport-scroll,
+body:has(.sidebar.small-width) .viewport-content {
   max-width: 100%;
 }
 
-body:has(.sidebar.small) button.build-button {
+body:has(.sidebar.small) button.build-button,
+body:has(.sidebar.small-width) button.build-button {
   right: 32px;
 }
 
