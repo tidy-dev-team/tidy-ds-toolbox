@@ -51,14 +51,25 @@ function Viewport() {
   );
 }
 
+import { useState } from "react";
+
 function AppContent() {
+  const [sidebarSmall, setSidebarSmall] = useState(false);
+
+  const handleMenuClick = () => {
+    setSidebarSmall((prev) => !prev);
+  };
+
   return (
     <div className="app">
       <header className="header">
+        <button className="menuBtn" onClick={handleMenuClick}>
+          III
+        </button>
         <h1>Tidy DS Toolbox</h1>
       </header>
       <div className="main">
-        <aside className="sidebar">
+        <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
           <Navigation />
         </aside>
         <main className="viewport">
