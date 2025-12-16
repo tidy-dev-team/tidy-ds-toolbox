@@ -36,7 +36,7 @@ export function ResizeHandle() {
   useEffect(() => {
     const sidebar = document.querySelector(".sidebar");
     const menubtn = document.querySelector(".menuBtn");
-    if (sidebar) {
+    if (sidebar && menubtn) {
       if (state.windowSize.width < 700) {
         sidebar.classList.add("small-width");
         menubtn.classList.add("none");

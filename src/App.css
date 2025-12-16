@@ -47,7 +47,7 @@ h3 {
 
 .header {
   display: flex;
-  gap: var(--pixel-6);
+  gap: var(--pixel-4);
   align-items: center;
   background: var(--light-color);
   border-bottom: var(--pixel-1) solid var(--border-light);
@@ -155,7 +155,6 @@ body:has(.sidebar.small-width) .right-menu {
   border-radius: var(--pixel-8) 0 0 var(--pixel-8);
   transform: translateX(256px);
   animation: peakOut 5000ms ease-in-out infinite;
-  transition: transform 300ms ease-in-out 0s;
 }
 
 body:has(.sidebar.small) .right-menu:hover,
@@ -549,6 +548,7 @@ select {
   background-color: var(--panel-color);
   border: var(--pixel-1, 1px) solid var(--border-light);
   overflow: hidden;
+  transition: transform 300ms ease-in-out 0s;
 }
 
 button.resize-handle {
