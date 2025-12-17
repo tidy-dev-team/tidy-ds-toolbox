@@ -108,17 +108,23 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: var(--pixel-4);
+  transition: width 300ms ease-in-out 0s;
+}
+
+.sidebar .label {
+  white-space: pre;
+  opacity: 1;
+  transition: opacity 300ms linear 0s;
 }
 
 .sidebar.small,
 .sidebar.small-width {
   width: 62px;
-  transition: width 300ms ease-in-out 0s;
 }
 
 .sidebar.small .label,
 .sidebar.small-width .label {
-  display: none;
+  opacity: 0;
 }
 
 .sidebar.small .nav-item::after,
@@ -253,6 +259,7 @@ button.build-button {
   width: fit-content;
   padding: var(--pixel-12) var(--pixel-32) !important;
   border: var(--pixel-1) solid var(--light-color) !important;
+  transition: right 300ms ease-in-out 0s;
 }
 
 .viewport {
@@ -276,6 +283,7 @@ button.build-button {
   padding: var(--pixel-24) 0;
   margin: 0 auto;
   scrollbar-color: lightgray transparent;
+  transition: max-width 300ms ease-in-out 0s;
 }
 
 main:has(.right-menu).viewport {
@@ -298,6 +306,7 @@ main:has(.right-menu) .viewport-scroll {
   margin: 0 auto;
   box-sizing: border-box;
   height: fit-content;
+  transition: max-width 300ms ease-in-out 0s;
 }
 
 .viewport-content h2 {
