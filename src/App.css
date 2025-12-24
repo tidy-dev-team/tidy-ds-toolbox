@@ -76,6 +76,18 @@ h3 {
   width: 0;
 }
 
+.header .menuBtn .side-filled-icon {
+  display: none;
+}
+
+body:has(.sidebar.small) .header .menuBtn .side-icon {
+  display: none;
+}
+
+body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
+  display: block;
+}
+
 .header h1 {
   margin: 0;
   font-size: 16px;

@@ -2,7 +2,10 @@ import { ShellProvider, useShell } from "./ShellContext";
 import { ErrorBoundary, ResizeHandle } from "./components";
 import { moduleRegistry } from "./moduleRegistry";
 import "./App.css";
-import { IconLayoutSidebar } from "@tabler/icons-react";
+import {
+  IconLayoutSidebar,
+  IconLayoutSidebarFilled,
+} from "@tabler/icons-react";
 
 function Navigation() {
   const { state, dispatch } = useShell();
@@ -65,7 +68,8 @@ function AppContent() {
     <div className="app">
       <header className="header">
         <button className="menuBtn" onClick={handleMenuClick}>
-          <IconLayoutSidebar />
+          <IconLayoutSidebar className="side-icon" />
+          <IconLayoutSidebarFilled className="side-filled-icon" />
         </button>
         <h1>Tidy DS Toolbox</h1>
       </header>
