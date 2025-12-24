@@ -5,14 +5,17 @@ import {
   IconSticker,
   IconTag,
   IconMap,
+  IconTool,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
 import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
 import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
 import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
+import { UtilitiesUI } from "./plugins/utilities/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
+import type { UtilitiesAction } from "./plugins/utilities/types";
 
 // Import all handlers statically
 import {
@@ -23,6 +26,7 @@ import { componentLabelsHandler as componentLabelsLogic } from "./plugins/compon
 import { tidyIconCareHandler as tidyIconCareLogic } from "./plugins/tidy-icon-care/logic";
 import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugins/sticker-sheet-builder/logic";
 import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logic";
+import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -68,6 +72,10 @@ const tidyMapperHandler = async (action: string, payload: any, figma: any) => {
   return await tidyMapperLogic(action as TidyMapperAction, payload, figma);
 };
 
+const utilitiesHandler = async (action: string, payload: any, figma: any) => {
+  return await utilitiesLogic(action as UtilitiesAction, payload, figma);
+};
+
 export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
     id: "ds-explorer",
@@ -107,6 +115,14 @@ export const moduleRegistry: ModuleRegistry = {
     icon: IconMap,
     ui: TidyMapperUI,
     handler: tidyMapperHandler,
+    permissionRequirements: [],
+  },
+  utilities: {
+    id: "utilities",
+    label: "Utilities",
+    icon: IconTool,
+    ui: UtilitiesUI,
+    handler: utilitiesHandler,
     permissionRequirements: [],
   },
 };
