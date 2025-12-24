@@ -6,6 +6,7 @@ import {
   IconTag,
   IconMap,
   IconTool,
+  IconZoomCheck,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -13,9 +14,11 @@ import { TidyIconCareUI } from "./plugins/tidy-icon-care/ui";
 import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
 import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
 import { UtilitiesUI } from "./plugins/utilities/ui";
+import { AuditUI } from "./plugins/audit/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
 import type { UtilitiesAction } from "./plugins/utilities/types";
+import type { AuditAction } from "./plugins/audit/types";
 
 // Import all handlers statically
 import {
@@ -27,6 +30,7 @@ import { tidyIconCareHandler as tidyIconCareLogic } from "./plugins/tidy-icon-ca
 import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugins/sticker-sheet-builder/logic";
 import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logic";
 import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
+import { auditHandler as auditLogic } from "./plugins/audit/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -74,6 +78,10 @@ const tidyMapperHandler = async (action: string, payload: any, figma: any) => {
 
 const utilitiesHandler = async (action: string, payload: any, figma: any) => {
   return await utilitiesLogic(action as UtilitiesAction, payload, figma);
+};
+
+const auditHandler = async (action: string, payload: any, figma: any) => {
+  return await auditLogic(action as AuditAction, payload, figma);
 };
 
 export const moduleRegistry: ModuleRegistry = {
@@ -124,5 +132,13 @@ export const moduleRegistry: ModuleRegistry = {
     ui: UtilitiesUI,
     handler: utilitiesHandler,
     permissionRequirements: [],
+  },
+  audit: {
+    id: "audit",
+    label: "Audit",
+    icon: IconZoomCheck,
+    ui: AuditUI,
+    handler: auditHandler,
+    permissionRequirements: ["activeselection"],
   },
 };

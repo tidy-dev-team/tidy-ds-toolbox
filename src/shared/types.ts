@@ -7,6 +7,7 @@ export type PluginID =
   | "sticker-sheet-builder"
   | "tidy-mapper"
   | "utilities"
+  | "audit"
   | (string & {});
 
 export interface PluginMessage {

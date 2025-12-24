@@ -16,6 +16,7 @@ const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
 const LONG_RUNNING_ACTIONS = new Set([
   "sticker-sheet-builder:build-all",
   "sticker-sheet-builder:build-one",
+  "audit:generate-report",
 ]);
 
 // Create logger for main thread
