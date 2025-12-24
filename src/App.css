@@ -64,10 +64,6 @@ h3 {
   display: flex;
   justify-content: center;
   align-items: center;
-  text-align: center;
-  font-size: 18px;
-  font-weight: 300;
-  letter-spacing: 0.5px;
 }
 
 .header .menuBtn:hover {
