@@ -64,7 +64,6 @@ h3 {
   display: flex;
   justify-content: center;
   align-items: center;
-  rotate: 90deg;
   text-align: center;
   font-size: 18px;
   font-weight: 300;
@@ -74,10 +73,6 @@ h3 {
 .header .menuBtn:hover {
   background-color: var(--panel-color);
   border-color: var(--border-light);
-}
-
-.header .menuBtn:active {
-  transform: translateX(var(--pixel-1));
 }
 
 .header .menuBtn.none {
