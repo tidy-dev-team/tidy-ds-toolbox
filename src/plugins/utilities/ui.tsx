@@ -128,18 +128,19 @@ export function UtilitiesUI() {
                 key={utility.id}
                 onClick={() => handleRunUtility(utility.id)}
                 disabled={isRunning !== null}
+                className="utility-btn"
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "var(--pixel-12, 12px)",
-                  padding: "var(--pixel-12, 12px)",
-                  width: "50%",
-                  textAlign: "left",
                   opacity: isRunning && !isActive ? 0.5 : 1,
                 }}
               >
-                <IconComponent size={20} stroke={1.5} />
-                <div style={{ flex: 1 }}>
+                <IconComponent size={40} stroke={1} />
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "var(--pixel-6, 6px)",
+                  }}
+                >
                   <div style={{ fontWeight: 500, fontSize: "13px" }}>
                     {isActive ? "Running..." : utility.label}
                   </div>
