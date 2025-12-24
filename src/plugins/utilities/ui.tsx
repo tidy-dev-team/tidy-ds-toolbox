@@ -116,7 +116,6 @@ export function UtilitiesUI() {
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
             gap: "var(--pixel-12, 12px)",
           }}
         >
@@ -134,6 +133,7 @@ export function UtilitiesUI() {
                   alignItems: "center",
                   gap: "var(--pixel-12, 12px)",
                   padding: "var(--pixel-12, 12px)",
+                  width: "50%",
                   textAlign: "left",
                   opacity: isRunning && !isActive ? 0.5 : 1,
                 }}
