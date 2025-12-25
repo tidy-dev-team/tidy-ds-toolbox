@@ -387,6 +387,10 @@ input[type="color"]::-webkit-color-swatch {
   margin-bottom: var(--pixel-20);
 }
 
+div .form-control:last-of-type {
+  margin-bottom: 0;
+}
+
 .form-label {
   display: block;
   margin-bottom: var(--pixel-6);
@@ -528,6 +532,7 @@ select {
   overflow: hidden !important;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 /* Status messages */
