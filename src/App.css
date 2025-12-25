@@ -429,6 +429,51 @@ div .form-control:last-of-type {
   color: #dc2626;
 }
 
+.severity-card {
+  position: relative;
+}
+
+.severity-card button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.severity-card button::before {
+  content: "MI";
+  background-color: var(--btnColor);
+  min-width: 16px;
+  min-height: 16px;
+  margin-right: 8px;
+  color: transparent;
+  border-radius: 50%;
+  transform: scale(0.5);
+}
+
+.severity-card .win-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0;
+  width: 32px !important;
+  height: 32px !important;
+  justify-content: center;
+  background-color: transparent;
+}
+
+.severity-card .win-button::before {
+  display: none;
+}
+
+.severity-card .win-button:hover {
+  background-color: var(--panel-color);
+}
+
+.severity-card button:hover {
+  filter: brightness(95%);
+}
+
 button:not(.nav-item) {
   padding: var(--pixel-8) var(--pixel-16);
   background: var(--primary-color);
