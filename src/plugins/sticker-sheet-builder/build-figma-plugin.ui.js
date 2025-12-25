@@ -1,4 +1,5 @@
 // build-figma-plugin.ui.js
+/* eslint-disable no-undef */
 
 module.exports = function (buildOptions) {
   return {
