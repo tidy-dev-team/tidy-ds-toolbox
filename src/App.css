@@ -438,6 +438,7 @@ div .form-control:last-of-type {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  transition: border 300ms ease-in-out 0s;
 }
 
 .severity-card button::before {
@@ -467,11 +468,11 @@ div .form-control:last-of-type {
 }
 
 .severity-card .win-button:hover {
-  background-color: var(--panel-color);
+  background-color: var(--border-light);
 }
 
 .severity-card button:hover {
-  filter: brightness(95%);
+  border-left-width: 8px !important;
 }
 
 button:not(.nav-item) {
