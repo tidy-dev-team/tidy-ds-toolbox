@@ -346,12 +346,6 @@ export function AuditUI() {
 
   const inputStyle = {
     width: "100%",
-    padding: "8px 12px",
-    border: "1px solid var(--figma-color-border)",
-    borderRadius: "6px",
-    fontSize: "13px",
-    backgroundColor: "var(--figma-color-bg)",
-    color: "var(--figma-color-text)",
   };
 
   const buttonStyle = (bgColor: string) => ({

@@ -519,6 +519,11 @@ select {
   background-position: calc(100% - 10px) 50%;
   background-repeat: no-repeat;
   background-size: 10px;
+  padding: var(--pixel-8) var(--pixel-12);
+  border-radius: var(--pixel-6);
+  font-size: 14px;
+  background-color: var(--light-color);
+  border: var(--pixel-1) solid var(--light-hover);
 }
 
 /* Status messages */
