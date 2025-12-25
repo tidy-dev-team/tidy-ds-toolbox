@@ -417,9 +417,7 @@ export function AuditUI() {
                 <option value="">Select note...</option>
                 {predefinedNotes.map((noteOption) => (
                   <option key={noteOption.id} value={noteOption.id}>
-                    {noteOption.name.length > 60
-                      ? noteOption.name.substring(0, 60) + "..."
-                      : noteOption.name}
+                    {noteOption.name}
                   </option>
                 ))}
               </select>

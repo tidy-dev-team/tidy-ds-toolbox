@@ -520,10 +520,14 @@ select {
   background-repeat: no-repeat;
   background-size: 10px;
   padding: var(--pixel-8) var(--pixel-12);
+  padding-right: var(--pixel-24);
   border-radius: var(--pixel-6);
   font-size: 14px;
   background-color: var(--light-color);
   border: var(--pixel-1) solid var(--light-hover);
+  overflow: hidden !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Status messages */
