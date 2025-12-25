@@ -18,7 +18,9 @@ export async function createMultiPagePdf(
 
   const mergedPdfBytes = await mergedPdf.save();
 
-  const blob = new Blob([mergedPdfBytes as BlobPart], { type: "application/pdf" });
+  const blob = new Blob([mergedPdfBytes as BlobPart], {
+    type: "application/pdf",
+  });
   const downloadLink = document.createElement("a");
   downloadLink.href = URL.createObjectURL(blob);
   downloadLink.download = "Audit result.pdf";
