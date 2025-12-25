@@ -23,10 +23,10 @@ const SEVERITY_BUTTONS: {
   label: string;
   bgColor: string;
 }[] = [
-  { severity: "low", label: "Low", bgColor: "#C4FA8E" },
-  { severity: "medium", label: "Medium", bgColor: "#FFFF02" },
-  { severity: "high", label: "High", bgColor: "#FFBF01" },
-  { severity: "critical", label: "Critical", bgColor: "#FD8181" },
+  { severity: "low", label: "Low", bgColor: "#82cf35" },
+  { severity: "medium", label: "Medium", bgColor: "#ffc704" },
+  { severity: "high", label: "High", bgColor: "#ff8d3c" },
+  { severity: "critical", label: "Critical", bgColor: "#f0353b" },
 ];
 
 export function AuditUI() {
@@ -346,36 +346,19 @@ export function AuditUI() {
 
   const inputStyle = {
     width: "100%",
-    padding: "8px 12px",
-    border: "1px solid var(--figma-color-border)",
-    borderRadius: "6px",
-    fontSize: "13px",
-    backgroundColor: "var(--figma-color-bg)",
-    color: "var(--figma-color-text)",
   };
 
   const buttonStyle = (bgColor: string) => ({
-    flex: 1,
-    padding: "10px 8px",
-    backgroundColor: bgColor,
-    color: "#515151",
-    border: "none",
-    borderRadius: "6px",
-    fontSize: "12px",
-    fontWeight: 500,
-    cursor: "pointer",
+    backgroundColor: "#ffffff",
+    ["--btnColor" as any]: bgColor,
+    border: "var(--pixel-1) solid var(--btnColor)",
+    color: "#111827",
   });
 
   const actionButtonStyle = (bgColor: string) => ({
     width: "100%",
-    padding: "10px 16px",
     backgroundColor: bgColor,
     color: "#fff",
-    border: "none",
-    borderRadius: "6px",
-    fontSize: "13px",
-    fontWeight: 500,
-    cursor: "pointer",
   });
 
   return (
@@ -423,9 +406,7 @@ export function AuditUI() {
                 <option value="">Select note...</option>
                 {predefinedNotes.map((noteOption) => (
                   <option key={noteOption.id} value={noteOption.id}>
-                    {noteOption.name.length > 60
-                      ? noteOption.name.substring(0, 60) + "..."
-                      : noteOption.name}
+                    {noteOption.name}
                   </option>
                 ))}
               </select>
@@ -448,7 +429,15 @@ export function AuditUI() {
       </Card>
 
       {/* Severity Buttons Card */}
-      <Card title="Severity">
+      <Card title="Severity" className="severity-card">
+        <button
+          className="win-button"
+          onClick={handleQuickWin}
+          disabled={isProcessing !== null}
+        >
+          {isProcessing === "quick-win" ? "Processing..." : "🏆"}
+        </button>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ display: "flex", gap: "8px" }}>
             {SEVERITY_BUTTONS.map(({ severity, label, bgColor }) => (
@@ -465,17 +454,6 @@ export function AuditUI() {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={handleQuickWin}
-            disabled={isProcessing !== null}
-            style={{
-              ...actionButtonStyle("#ffcc84"),
-              color: "#2d2d2d",
-            }}
-          >
-            {isProcessing === "quick-win" ? "Processing..." : "Quick Win 🏆"}
-          </button>
         </div>
       </Card>
 
