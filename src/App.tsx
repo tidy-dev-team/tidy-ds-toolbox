@@ -9,7 +9,9 @@ import {
 
 function Navigation() {
   const { state, dispatch } = useShell();
-  const modules = Object.values(moduleRegistry) as any[];
+  const modules = Object.values(moduleRegistry).sort((a, b) =>
+    a.label.localeCompare(b.label),
+  ) as any[];
 
   return (
     <nav>
