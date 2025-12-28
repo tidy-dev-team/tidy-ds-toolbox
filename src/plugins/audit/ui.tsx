@@ -529,20 +529,20 @@ export function AuditUI() {
       </Card>
 
       {/* Cleanup Actions Card */}
-      <Card title="Manage">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <button
+      <Card title="Manage" className="flex-card">
+        <div className="flex">
+          {/* <button
             onClick={handleUpdateFromCanvas}
             disabled={isProcessing !== null}
             style={actionButtonStyle("#800582")}
           >
             {isProcessing === "update" ? "Updating..." : "Update from Canvas ↑"}
-          </button>
+          </button> */}
 
           <button
             onClick={handleEraseNotesOnCanvas}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#c15400")}
+            className="secondary"
           >
             {isProcessing === "erase-notes"
               ? "Erasing..."
@@ -552,12 +552,12 @@ export function AuditUI() {
           <button
             onDoubleClick={handleEraseReport}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#C11700")}
+            className="secondary"
             title="Double-click to erase all report data"
           >
             {isProcessing === "erase-report"
               ? "Erasing..."
-              : "Erase Report Data (Double-click)"}
+              : "Erase Report Data"}
           </button>
         </div>
       </Card>
