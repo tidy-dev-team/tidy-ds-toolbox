@@ -377,7 +377,14 @@ export function AuditUI() {
             <select
               value={selectedSection?.id ?? ""}
               onChange={(e) => {
-                const id = parseInt(e.target.value);
+                if (e.target.value === "") {
+                  setSelectedSection(null);
+                  setPredefinedNotes([]);
+                  setSelectedNote(null);
+                  return;
+                }
+
+                const id = parseInt(e.target.value, 10);
                 const section = sections.find((s) => s.id === id);
                 setSelectedSection(section || null);
               }}
