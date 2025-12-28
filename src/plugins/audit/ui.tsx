@@ -563,7 +563,7 @@ export function AuditUI() {
       {showPdfDialog && (
         <div className="dialog" onClick={() => setShowPdfDialog(false)}>
           <div className="inner-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: "0 0 16px 0", fontSize: "18px" }}>
+            <h3 className="card-title" style={{ margin: "0 0 16px 0" }}>
               Export PDF
             </h3>
             <div
