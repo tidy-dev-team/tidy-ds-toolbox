@@ -41,8 +41,24 @@ export function AuditUI() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPdfDialog, setShowPdfDialog] = useState<boolean>(false);
+  const [hasReport, setHasReport] = useState<boolean>(false);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
+
+  // Check if report exists on mount
+  useEffect(() => {
+    sendRequest(
+      "check-report-exists" as AuditAction,
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.exists !== undefined) {
+            setHasReport(result.exists);
+          }
+        },
+      },
+    );
+  }, []);
 
   // Handle Esc key to close dialog
   useEffect(() => {
@@ -204,6 +220,7 @@ export function AuditUI() {
       {
         onSuccess: (result) => {
           if (result?.success) {
+            setHasReport(true);
             showStatus(result.message);
           } else {
             showError(result?.message ?? "Failed to generate report");
@@ -348,6 +365,7 @@ export function AuditUI() {
       {
         onSuccess: (result) => {
           if (result?.success) {
+            setHasReport(false);
             showStatus(result.message);
           } else {
             showError(result?.message ?? "Failed to erase report");
@@ -493,7 +511,8 @@ export function AuditUI() {
           <button
             className="secondary"
             onClick={() => setShowPdfDialog(true)}
-            disabled={isProcessing !== null}
+            disabled={isProcessing !== null || !hasReport}
+            title={!hasReport ? "Generate a report first" : ""}
           >
             Export PDF
           </button>
@@ -501,7 +520,8 @@ export function AuditUI() {
           <button
             className="secondary"
             onClick={handleExportCsv}
-            disabled={isProcessing !== null}
+            disabled={isProcessing !== null || !hasReport}
+            title={!hasReport ? "Generate a report first" : ""}
           >
             {isProcessing === "export-csv" ? "Exporting..." : "Export CSV"}
           </button>
