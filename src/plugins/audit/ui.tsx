@@ -41,6 +41,7 @@ export function AuditUI() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showPdfDialog, setShowPdfDialog] = useState<boolean>(false);
+  const [showEraseDialog, setShowEraseDialog] = useState<boolean>(false);
   const [hasReport, setHasReport] = useState<boolean>(false);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
@@ -60,17 +61,18 @@ export function AuditUI() {
     );
   }, []);
 
-  // Handle Esc key to close dialog
+  // Handle Esc key to close dialogs
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && showPdfDialog) {
-        setShowPdfDialog(false);
+      if (event.key === "Escape") {
+        if (showPdfDialog) setShowPdfDialog(false);
+        if (showEraseDialog) setShowEraseDialog(false);
       }
     };
 
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [showPdfDialog]);
+  }, [showPdfDialog, showEraseDialog]);
 
   // Build section options from dropdown options
   const sections: DropdownOption[] = dropdownOptions.map((options, index) => {
@@ -353,11 +355,12 @@ export function AuditUI() {
     );
   }, [isProcessing, sendRequest]);
 
-  // Handle erase report (double-click)
+  // Handle erase report (with confirmation)
   const handleEraseReport = useCallback(() => {
     if (isProcessing) return;
 
     setIsProcessing("erase-report");
+    setShowEraseDialog(false);
 
     sendRequest(
       "erase-report",
@@ -526,6 +529,24 @@ export function AuditUI() {
             {isProcessing === "export-csv" ? "Exporting..." : "Export CSV"}
           </button>
         </div>
+
+        {/* Status Messages */}
+        {(statusMessage || errorMessage) && (
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              marginTop: "12px",
+              fontSize: "12px",
+              backgroundColor: statusMessage
+                ? "rgba(5, 150, 105, 0.1)"
+                : "rgba(220, 38, 38, 0.1)",
+              color: statusMessage ? "#059669" : "#dc2626",
+            }}
+          >
+            {statusMessage || errorMessage}
+          </div>
+        )}
       </Card>
 
       {/* Cleanup Actions Card */}
@@ -550,10 +571,9 @@ export function AuditUI() {
           </button>
 
           <button
-            onDoubleClick={handleEraseReport}
+            onClick={() => setShowEraseDialog(true)}
             disabled={isProcessing !== null}
             className="secondary"
-            title="Double-click to erase all report data"
           >
             {isProcessing === "erase-report"
               ? "Erasing..."
@@ -561,23 +581,6 @@ export function AuditUI() {
           </button>
         </div>
       </Card>
-
-      {/* Status Messages */}
-      {(statusMessage || errorMessage) && (
-        <div
-          style={{
-            padding: "12px",
-            borderRadius: "8px",
-            fontSize: "12px",
-            backgroundColor: statusMessage
-              ? "rgba(5, 150, 105, 0.1)"
-              : "rgba(220, 38, 38, 0.1)",
-            color: statusMessage ? "#059669" : "#dc2626",
-          }}
-        >
-          {statusMessage || errorMessage}
-        </div>
-      )}
 
       {/* PDF Export Dialog */}
       {showPdfDialog && (
@@ -607,6 +610,38 @@ export function AuditUI() {
               </button>
               <button
                 onClick={() => setShowPdfDialog(false)}
+                disabled={isProcessing !== null}
+                className="secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Erase Report Confirmation Dialog */}
+      {showEraseDialog && (
+        <div className="dialog" onClick={() => setShowEraseDialog(false)}>
+          <div className="inner-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3 className="card-title" style={{ margin: "0 0 16px 0" }}>
+              Confirm Erase
+            </h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: "14px" }}>
+              Are you sure you want to erase all report data? This action cannot
+              be undone.
+            </p>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <button
+                onClick={handleEraseReport}
+                disabled={isProcessing !== null}
+              >
+                {isProcessing === "erase-report" ? "Erasing..." : "OK"}
+              </button>
+              <button
+                onClick={() => setShowEraseDialog(false)}
                 disabled={isProcessing !== null}
                 className="secondary"
               >
