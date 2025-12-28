@@ -429,14 +429,69 @@ div .form-control:last-of-type {
   color: #dc2626;
 }
 
+.dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: dialogAnim 150ms linear forwards;
+}
+
+@keyframes dialogAnim {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.inner-dialog {
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 300px;
+  max-width: 400px;
+  animation: innerAnim 300ms ease-out forwards;
+  animation-delay: 100ms;
+  transform: translateY(60px);
+  opacity: 0;
+}
+
+@keyframes innerAnim {
+  0% {
+    transform: translateY(60px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.flex-card .flex {
+  display: flex;
+  gap: 8px;
+}
+
+.flex-card button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .severity-card {
   position: relative;
 }
 
 .severity-card button {
-  width: 100%;
-  display: flex;
-  align-items: center;
   justify-content: flex-start;
   transition: border 300ms ease-in-out 0s;
 }

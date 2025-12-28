@@ -40,8 +40,21 @@ export function AuditUI() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPdfDialog, setShowPdfDialog] = useState<boolean>(false);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
+
+  // Handle Esc key to close dialog
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && showPdfDialog) {
+        setShowPdfDialog(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [showPdfDialog]);
 
   // Build section options from dropdown options
   const sections: DropdownOption[] = dropdownOptions.map((options, index) => {
@@ -207,6 +220,7 @@ export function AuditUI() {
     if (isProcessing) return;
 
     setIsProcessing("export-pdf");
+    setShowPdfDialog(false);
 
     sendRequest(
       "export-pdf",
@@ -231,6 +245,7 @@ export function AuditUI() {
     if (isProcessing) return;
 
     setIsProcessing("export-multipage-pdf");
+    setShowPdfDialog(false);
 
     sendRequest(
       "export-multipage-pdf",
@@ -436,7 +451,7 @@ export function AuditUI() {
       </Card>
 
       {/* Severity Buttons Card */}
-      <Card title="Severity" className="severity-card">
+      <Card title="Severity" className="flex-card severity-card">
         <button
           className="win-button"
           onClick={handleQuickWin}
@@ -446,7 +461,7 @@ export function AuditUI() {
         </button>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div className="flex">
             {SEVERITY_BUTTONS.map(({ severity, label, bgColor }) => (
               <button
                 key={severity}
@@ -465,40 +480,28 @@ export function AuditUI() {
       </Card>
 
       {/* Report Actions Card */}
-      <Card title="Report">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <Card title="Report" className="flex-card">
+        <div className="flex">
           <button
+            className="secondary"
             onClick={handleGenerateReport}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#374151")}
           >
             {isProcessing === "report" ? "Generating..." : "Generate Report"}
           </button>
 
           <button
-            onClick={handleExportPdf}
+            className="secondary"
+            onClick={() => setShowPdfDialog(true)}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#468079")}
           >
-            {isProcessing === "export-pdf"
-              ? "Exporting..."
-              : "Export PDF (Single Page)"}
+            Export PDF
           </button>
 
           <button
-            onClick={handleExportMultipagePdf}
-            disabled={isProcessing !== null}
-            style={actionButtonStyle("#417EAA")}
-          >
-            {isProcessing === "export-multipage-pdf"
-              ? "Exporting..."
-              : "Export PDF (Multi-Page)"}
-          </button>
-
-          <button
+            className="secondary"
             onClick={handleExportCsv}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#1f1ab5")}
           >
             {isProcessing === "export-csv" ? "Exporting..." : "Export CSV"}
           </button>
@@ -553,6 +556,44 @@ export function AuditUI() {
           }}
         >
           {statusMessage || errorMessage}
+        </div>
+      )}
+
+      {/* PDF Export Dialog */}
+      {showPdfDialog && (
+        <div className="dialog" onClick={() => setShowPdfDialog(false)}>
+          <div className="inner-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 16px 0", fontSize: "18px" }}>
+              Export PDF
+            </h3>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <button
+                onClick={handleExportPdf}
+                disabled={isProcessing !== null}
+              >
+                {isProcessing === "export-pdf"
+                  ? "Exporting..."
+                  : "Export Single Page"}
+              </button>
+              <button
+                onClick={handleExportMultipagePdf}
+                disabled={isProcessing !== null}
+              >
+                {isProcessing === "export-multipage-pdf"
+                  ? "Exporting..."
+                  : "Export Multi-Page"}
+              </button>
+              <button
+                onClick={() => setShowPdfDialog(false)}
+                disabled={isProcessing !== null}
+                className="secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
