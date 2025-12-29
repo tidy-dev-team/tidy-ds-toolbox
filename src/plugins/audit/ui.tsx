@@ -40,8 +40,39 @@ export function AuditUI() {
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPdfDialog, setShowPdfDialog] = useState<boolean>(false);
+  const [showEraseDialog, setShowEraseDialog] = useState<boolean>(false);
+  const [hasReport, setHasReport] = useState<boolean>(false);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
+
+  // Check if report exists on mount
+  useEffect(() => {
+    sendRequest(
+      "check-report-exists" as AuditAction,
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.exists !== undefined) {
+            setHasReport(result.exists);
+          }
+        },
+      },
+    );
+  }, []);
+
+  // Handle Esc key to close dialogs
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (showPdfDialog) setShowPdfDialog(false);
+        if (showEraseDialog) setShowEraseDialog(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [showPdfDialog, showEraseDialog]);
 
   // Build section options from dropdown options
   const sections: DropdownOption[] = dropdownOptions.map((options, index) => {
@@ -191,6 +222,7 @@ export function AuditUI() {
       {
         onSuccess: (result) => {
           if (result?.success) {
+            setHasReport(true);
             showStatus(result.message);
           } else {
             showError(result?.message ?? "Failed to generate report");
@@ -207,6 +239,7 @@ export function AuditUI() {
     if (isProcessing) return;
 
     setIsProcessing("export-pdf");
+    setShowPdfDialog(false);
 
     sendRequest(
       "export-pdf",
@@ -231,6 +264,7 @@ export function AuditUI() {
     if (isProcessing) return;
 
     setIsProcessing("export-multipage-pdf");
+    setShowPdfDialog(false);
 
     sendRequest(
       "export-multipage-pdf",
@@ -321,11 +355,12 @@ export function AuditUI() {
     );
   }, [isProcessing, sendRequest]);
 
-  // Handle erase report (double-click)
+  // Handle erase report (with confirmation)
   const handleEraseReport = useCallback(() => {
     if (isProcessing) return;
 
     setIsProcessing("erase-report");
+    setShowEraseDialog(false);
 
     sendRequest(
       "erase-report",
@@ -333,6 +368,7 @@ export function AuditUI() {
       {
         onSuccess: (result) => {
           if (result?.success) {
+            setHasReport(false);
             showStatus(result.message);
           } else {
             showError(result?.message ?? "Failed to erase report");
@@ -377,7 +413,14 @@ export function AuditUI() {
             <select
               value={selectedSection?.id ?? ""}
               onChange={(e) => {
-                const id = parseInt(e.target.value);
+                if (e.target.value === "") {
+                  setSelectedSection(null);
+                  setPredefinedNotes([]);
+                  setSelectedNote(null);
+                  return;
+                }
+
+                const id = parseInt(e.target.value, 10);
                 const section = sections.find((s) => s.id === id);
                 setSelectedSection(section || null);
               }}
@@ -429,7 +472,7 @@ export function AuditUI() {
       </Card>
 
       {/* Severity Buttons Card */}
-      <Card title="Severity" className="severity-card">
+      <Card title="Severity" className="flex-card severity-card">
         <button
           className="win-button"
           onClick={handleQuickWin}
@@ -439,7 +482,7 @@ export function AuditUI() {
         </button>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div className="flex">
             {SEVERITY_BUTTONS.map(({ severity, label, bgColor }) => (
               <button
                 key={severity}
@@ -458,61 +501,69 @@ export function AuditUI() {
       </Card>
 
       {/* Report Actions Card */}
-      <Card title="Report">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <Card title="Report" className="flex-card">
+        <div className="flex">
           <button
+            className="secondary"
             onClick={handleGenerateReport}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#374151")}
           >
             {isProcessing === "report" ? "Generating..." : "Generate Report"}
           </button>
 
           <button
-            onClick={handleExportPdf}
-            disabled={isProcessing !== null}
-            style={actionButtonStyle("#468079")}
+            className="secondary"
+            onClick={() => setShowPdfDialog(true)}
+            disabled={isProcessing !== null || !hasReport}
+            title={!hasReport ? "Generate a report first" : ""}
           >
-            {isProcessing === "export-pdf"
-              ? "Exporting..."
-              : "Export PDF (Single Page)"}
+            Export PDF
           </button>
 
           <button
-            onClick={handleExportMultipagePdf}
-            disabled={isProcessing !== null}
-            style={actionButtonStyle("#417EAA")}
-          >
-            {isProcessing === "export-multipage-pdf"
-              ? "Exporting..."
-              : "Export PDF (Multi-Page)"}
-          </button>
-
-          <button
+            className="secondary"
             onClick={handleExportCsv}
-            disabled={isProcessing !== null}
-            style={actionButtonStyle("#1f1ab5")}
+            disabled={isProcessing !== null || !hasReport}
+            title={!hasReport ? "Generate a report first" : ""}
           >
             {isProcessing === "export-csv" ? "Exporting..." : "Export CSV"}
           </button>
         </div>
+
+        {/* Status Messages */}
+        {(statusMessage || errorMessage) && (
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              marginTop: "12px",
+              fontSize: "12px",
+              backgroundColor: statusMessage
+                ? "rgba(5, 150, 105, 0.1)"
+                : "rgba(220, 38, 38, 0.1)",
+              color: statusMessage ? "#059669" : "#dc2626",
+            }}
+          >
+            {statusMessage || errorMessage}
+          </div>
+        )}
       </Card>
 
       {/* Cleanup Actions Card */}
-      <Card title="Manage">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <button
+      <Card title="Manage" className="flex-card">
+        <div className="flex">
+          {/* <button
             onClick={handleUpdateFromCanvas}
             disabled={isProcessing !== null}
             style={actionButtonStyle("#800582")}
           >
             {isProcessing === "update" ? "Updating..." : "Update from Canvas ↑"}
-          </button>
+          </button> */}
 
           <button
             onClick={handleEraseNotesOnCanvas}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#c15400")}
+            className="secondary"
           >
             {isProcessing === "erase-notes"
               ? "Erasing..."
@@ -520,32 +571,84 @@ export function AuditUI() {
           </button>
 
           <button
-            onDoubleClick={handleEraseReport}
+            onClick={() => setShowEraseDialog(true)}
             disabled={isProcessing !== null}
-            style={actionButtonStyle("#C11700")}
-            title="Double-click to erase all report data"
+            className="secondary"
           >
             {isProcessing === "erase-report"
               ? "Erasing..."
-              : "Erase Report Data (Double-click)"}
+              : "Erase Report Data"}
           </button>
         </div>
       </Card>
 
-      {/* Status Messages */}
-      {(statusMessage || errorMessage) && (
-        <div
-          style={{
-            padding: "12px",
-            borderRadius: "8px",
-            fontSize: "12px",
-            backgroundColor: statusMessage
-              ? "rgba(5, 150, 105, 0.1)"
-              : "rgba(220, 38, 38, 0.1)",
-            color: statusMessage ? "#059669" : "#dc2626",
-          }}
-        >
-          {statusMessage || errorMessage}
+      {/* PDF Export Dialog */}
+      {showPdfDialog && (
+        <div className="dialog" onClick={() => setShowPdfDialog(false)}>
+          <div className="inner-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3 className="card-title" style={{ margin: "0 0 16px 0" }}>
+              Export PDF
+            </h3>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <button
+                onClick={handleExportPdf}
+                disabled={isProcessing !== null}
+              >
+                {isProcessing === "export-pdf"
+                  ? "Exporting..."
+                  : "Export Single Page"}
+              </button>
+              <button
+                onClick={handleExportMultipagePdf}
+                disabled={isProcessing !== null}
+              >
+                {isProcessing === "export-multipage-pdf"
+                  ? "Exporting..."
+                  : "Export Multi-Page"}
+              </button>
+              <button
+                onClick={() => setShowPdfDialog(false)}
+                disabled={isProcessing !== null}
+                className="secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Erase Report Confirmation Dialog */}
+      {showEraseDialog && (
+        <div className="dialog" onClick={() => setShowEraseDialog(false)}>
+          <div className="inner-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3 className="card-title" style={{ margin: "0 0 16px 0" }}>
+              Confirm Erase
+            </h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: "14px" }}>
+              Are you sure you want to erase all report data? This action cannot
+              be undone.
+            </p>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
+              <button
+                onClick={handleEraseReport}
+                disabled={isProcessing !== null}
+              >
+                {isProcessing === "erase-report" ? "Erasing..." : "OK"}
+              </button>
+              <button
+                onClick={() => setShowEraseDialog(false)}
+                disabled={isProcessing !== null}
+                className="secondary"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
