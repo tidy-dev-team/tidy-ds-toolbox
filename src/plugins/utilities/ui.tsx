@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { UtilitiesAction } from "./types";
-import { IconNote, IconFrame } from "@tabler/icons-react";
+import { IconNote, IconFrame, IconLetterCase } from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -29,6 +29,12 @@ const UTILITIES: UtilityConfig[] = [
     label: "Image Wrapper",
     description: "Wrap selected items in individual frames",
     icon: IconFrame,
+  },
+  {
+    id: "misprint",
+    label: "Misprint",
+    description: "Add scrambled Hebrew text to component descriptions",
+    icon: IconLetterCase,
   },
 ];
 

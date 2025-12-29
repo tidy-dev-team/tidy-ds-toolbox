@@ -3,6 +3,7 @@
 import { UtilitiesAction, UtilityResult } from "./types";
 import { runAddressNote } from "./utils/addressNote";
 import { runImageWrapper } from "./utils/imageWrapper";
+import { runMisprint } from "./utils/misprint";
 
 /**
  * Utilities handler - processes messages from the UI
@@ -19,6 +20,9 @@ export async function utilitiesHandler(
 
     case "image-wrapper":
       return await runImageWrapper();
+
+    case "misprint":
+      return await runMisprint();
 
     default:
       return {

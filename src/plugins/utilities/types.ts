@@ -3,7 +3,7 @@
  * Contains miscellaneous small utilities with no complex UI
  */
 
-export type UtilitiesAction = "address-note" | "image-wrapper";
+export type UtilitiesAction = "address-note" | "image-wrapper" | "misprint";
 
 export interface UtilityResult {
   success: boolean;
