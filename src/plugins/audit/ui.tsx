@@ -153,7 +153,7 @@ export function AuditUI() {
   const showError = (message: string) => {
     setErrorMessage(message);
     setStatusMessage(null);
-    setTimeout(() => setErrorMessage(null), 5000);
+    setTimeout(() => setErrorMessage(null), 3000);
   };
 
   // Handle adding a severity note
@@ -391,12 +391,6 @@ export function AuditUI() {
     color: "#111827",
   });
 
-  const actionButtonStyle = (bgColor: string) => ({
-    width: "100%",
-    backgroundColor: bgColor,
-    color: "#fff",
-  });
-
   return (
     <div
       style={{
@@ -411,9 +405,7 @@ export function AuditUI() {
         <div
           className="status-pill"
           style={{
-            backgroundColor: statusMessage ? "#059669" : "#dc2626",
-            color: statusMessage ? "#059669" : "#dc2626",
-            borderColor: statusMessage ? "#059669" : "#dc2626",
+            ["--pillBtnColor" as any]: statusMessage ? "#059669" : "#dc2626",
           }}
         >
           {statusMessage || errorMessage}
@@ -490,9 +482,10 @@ export function AuditUI() {
         <button
           className="win-button"
           onClick={handleQuickWin}
-          disabled={isProcessing !== null}
+          // disabled={isProcessing !== null}
         >
-          {isProcessing === "quick-win" ? "Processing..." : "🏆"}
+          {"🏆"}
+          {/* {isProcessing === "quick-win" ? "Processing..." : "🏆"} */}
         </button>
 
         <div
@@ -507,13 +500,14 @@ export function AuditUI() {
               <button
                 key={severity}
                 onClick={() => handleAddNote(severity)}
-                disabled={isProcessing !== null}
+                // disabled={isProcessing !== null}
                 style={{
                   ...buttonStyle(bgColor),
-                  opacity: isProcessing && isProcessing !== severity ? 0.5 : 1,
+                  // opacity: isProcessing && isProcessing !== severity ? 0.5 : 1,
                 }}
               >
-                {isProcessing === severity ? "..." : label}
+                {label}
+                {/* {isProcessing === severity ? "..." : label} */}
               </button>
             ))}
           </div>

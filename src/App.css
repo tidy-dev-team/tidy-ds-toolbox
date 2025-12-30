@@ -496,19 +496,20 @@ div .form-control:last-of-type {
   position: absolute;
   bottom: 60px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 20px);
+  opacity: 0;
   padding: 12px;
   border: 1px solid;
+  border-color: var(--pillBtnColor, #000000);
+  background-color: var(--pillBtnColor, #000000);
+  color: var(--pillBtnColor, #000000);
   border-radius: 8px;
   font-size: 12px;
   overflow: hidden;
   isolation: isolate;
   box-shadow: 0 8px 12px 0 #00000019;
+  animation: pillBtnAnim 3000ms ease-in-out;
 }
-
-/* .status-pill:empty::after {
-  content: "Only for testing purposes.";
-} */
 
 .status-pill::before {
   content: "";
@@ -519,6 +520,25 @@ div .form-control:last-of-type {
   top: 0;
   background-color: rgba(255, 255, 255, 0.9);
   z-index: -1;
+}
+
+@keyframes pillBtnAnim {
+  0% {
+    transform: translate(-50%, 20px);
+    opacity: 0;
+  }
+  10% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  90% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, 20px);
+    opacity: 0;
+  }
 }
 
 .severity-card {
@@ -533,6 +553,16 @@ div .form-control:last-of-type {
 
 @media (max-width: 1020px) {
   .severity-card button {
+    flex: 0 0 calc(50% - 4px);
+  }
+}
+
+body:has(.sidebar.small) .severity-card button {
+  flex: 1 1 117px;
+}
+
+@media (max-width: 630px) {
+  body:has(.sidebar.small) .severity-card button {
     flex: 0 0 calc(50% - 4px);
   }
 }
@@ -565,6 +595,19 @@ div .form-control:last-of-type {
 
 .severity-card .win-button:hover {
   background-color: var(--border-light);
+}
+
+.severity-card .win-button:hover::after {
+  content: "Mark as a quick win";
+  position: absolute;
+  background-color: #333333;
+  color: var(--light-color);
+  padding: var(--pixel-8) var(--pixel-16);
+  border-radius: var(--pixel-8);
+  top: calc(100% + 4px);
+  right: -12px;
+  white-space: nowrap;
+  z-index: 10;
 }
 
 .severity-card button:hover {
