@@ -457,8 +457,7 @@ div .form-control:last-of-type {
   background-color: #ffffff;
   border-radius: 8px;
   padding: 24px;
-  min-width: 300px;
-  max-width: 400px;
+  width: 360px;
   animation: innerAnim 300ms ease-out forwards;
   animation-delay: 100ms;
   transform: translateY(60px);
