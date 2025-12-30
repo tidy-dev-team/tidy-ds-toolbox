@@ -7,6 +7,7 @@ import {
   IconMap,
   IconTool,
   IconZoomCheck,
+  IconRulerMeasure,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -15,10 +16,12 @@ import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
 import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
 import { UtilitiesUI } from "./plugins/utilities/ui";
 import { AuditUI } from "./plugins/audit/ui";
+import { TagsSpacingsUI } from "./plugins/tags-spacings/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
 import type { UtilitiesAction } from "./plugins/utilities/types";
 import type { AuditAction } from "./plugins/audit/types";
+import type { TagsSpacingsAction } from "./plugins/tags-spacings/types";
 
 // Import all handlers statically
 import {
@@ -31,6 +34,7 @@ import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugin
 import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logic";
 import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
 import { auditHandler as auditLogic } from "./plugins/audit/logic";
+import { tagsSpacingsHandler as tagsSpacingsLogic } from "./plugins/tags-spacings/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -82,6 +86,14 @@ const utilitiesHandler = async (action: string, payload: any, figma: any) => {
 
 const auditHandler = async (action: string, payload: any, figma: any) => {
   return await auditLogic(action as AuditAction, payload, figma);
+};
+
+const tagsSpacingsHandler = async (
+  action: string,
+  payload: any,
+  figma: any,
+) => {
+  return await tagsSpacingsLogic(action as TagsSpacingsAction, payload, figma);
 };
 
 export const moduleRegistry: ModuleRegistry = {
@@ -139,6 +151,14 @@ export const moduleRegistry: ModuleRegistry = {
     icon: IconZoomCheck,
     ui: AuditUI,
     handler: auditHandler,
+    permissionRequirements: ["activeselection"],
+  },
+  "tags-spacings": {
+    id: "tags-spacings",
+    label: "Tags & Spacings",
+    icon: IconRulerMeasure,
+    ui: TagsSpacingsUI,
+    handler: tagsSpacingsHandler,
     permissionRequirements: ["activeselection"],
   },
 };
