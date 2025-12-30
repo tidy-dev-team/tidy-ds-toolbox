@@ -2,7 +2,11 @@
 
 import { SpacingsConfig, SupportedContainerNode } from "../types";
 import { getMarker } from "./getMarker";
-import { setMarkerSizeProps } from "./markerHelpers";
+import {
+  setMarkerSizeProps,
+  getMarkerHandLength,
+  getMarkerShift,
+} from "./markerHelpers";
 import { researchNodesForSpacing } from "./elementResearch";
 
 /**
@@ -55,8 +59,11 @@ export async function buildItemSpacingMarks(
         if (marker) {
           marker.x = frameBounds.x;
           marker.y = gapStart;
-          marker.resize(frame.width + 40, gapSize);
+          // Set text props BEFORE resize (original plugin order)
           setMarkerSizeProps(config.rootSize, gapSize, marker, config.units);
+          // Get shift AFTER setting text
+          const shift = getMarkerShift(marker);
+          marker.resize(frame.width + shift, gapSize);
           marker.name = `.spacing-marker_v${i}`;
           markers.push(marker);
         }
@@ -69,10 +76,12 @@ export async function buildItemSpacingMarks(
       if (gapSize > 0.01) {
         const marker = getMarker("top", "spacing");
         if (marker) {
+          const markerHandLength = getMarkerHandLength(marker);
           marker.x = gapStart;
-          marker.y = frameBounds.y - 61;
-          marker.resize(gapSize, frame.height + 61);
+          marker.y = frameBounds.y - markerHandLength - 21;
+          // Set text props BEFORE resize (original plugin order)
           setMarkerSizeProps(config.rootSize, gapSize, marker, config.units);
+          marker.resize(gapSize, frame.height + markerHandLength + 21);
           marker.name = `.spacing-marker_h${i}`;
           markers.push(marker);
         }
@@ -110,10 +119,12 @@ async function buildSpacingFromChildren(
       if (gap > 1) {
         const marker = getMarker("top", "spacing");
         if (marker) {
+          const markerHandLength = getMarkerHandLength(marker);
           marker.x = current.end;
-          marker.y = frameBounds.y - 61;
-          marker.resize(gap, frame.height + 61);
+          marker.y = frameBounds.y - markerHandLength - 21;
+          // Set text props BEFORE resize
           setMarkerSizeProps(config.rootSize, gap, marker, config.units);
+          marker.resize(gap, frame.height + markerHandLength + 21);
           marker.name = `.spacing-marker_h${i}`;
           markers.push(marker);
         }
@@ -131,8 +142,11 @@ async function buildSpacingFromChildren(
         if (marker) {
           marker.x = frameBounds.x;
           marker.y = current.end;
-          marker.resize(frame.width + 40, gap);
+          // Set text props BEFORE resize
           setMarkerSizeProps(config.rootSize, gap, marker, config.units);
+          // Get shift AFTER setting text
+          const shift = getMarkerShift(marker);
+          marker.resize(frame.width + shift, gap);
           marker.name = `.spacing-marker_v${i}`;
           markers.push(marker);
         }

@@ -17,7 +17,7 @@ import {
   loadFontsFromNodes,
   findAllTextNodes,
 } from "./fontLoader";
-import { generateSmartIndexes, setTextProps, addLink } from "./tagHelpers";
+import { generateSmartIndexes, setTextProps } from "./tagHelpers";
 import { calculateOptimalTagPlacements } from "./tagPlacement";
 
 /**
@@ -111,13 +111,8 @@ function createIndexLabel(
 
   setTextProps(instance, "label", labelText);
 
-  // Set link if available
-  if (element.linkTarget) {
-    addLink(instance, element.linkTarget);
-    setTextProps(instance, "link", "see documentation");
-  } else {
-    setTextProps(instance, "link", "");
-  }
+  // Clear the link field (not used anymore)
+  setTextProps(instance, "link", "");
 
   instance.name = `.${index}_${element.name}`;
 

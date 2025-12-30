@@ -6,7 +6,11 @@ import {
   SupportedContainerNode,
 } from "../types";
 import { getMarker } from "./getMarker";
-import { setMarkerSizeProps, getMarkerHandLength } from "./markerHelpers";
+import {
+  setMarkerSizeProps,
+  getMarkerHandLength,
+  getMarkerShift,
+} from "./markerHelpers";
 
 /**
  * Calculate padding measurements for a container node
@@ -141,14 +145,16 @@ export async function buildPaddingMarks(
     if (marker) {
       marker.x = frameBounds.x;
       marker.y = paddings.topPadding.y;
-      const shift = getMarkerHandLength(marker);
-      marker.resize(frame.width + shift, paddings.topPadding.size);
+      // Set text props BEFORE resize (original plugin order)
       setMarkerSizeProps(
         config.rootSize,
         paddings.topPadding.size,
         marker,
         config.units,
       );
+      // Get shift AFTER setting text (depends on text width)
+      const shift = getMarkerShift(marker);
+      marker.resize(frame.width + shift, paddings.topPadding.size);
       marker.name = ".padding-marker_top";
       markers.push(marker);
     }
@@ -160,14 +166,16 @@ export async function buildPaddingMarks(
     if (marker) {
       marker.x = frameBounds.x;
       marker.y = paddings.bottomPadding.y;
-      const shift = getMarkerHandLength(marker);
-      marker.resize(frame.width + shift, paddings.bottomPadding.size);
+      // Set text props BEFORE resize (original plugin order)
       setMarkerSizeProps(
         config.rootSize,
         paddings.bottomPadding.size,
         marker,
         config.units,
       );
+      // Get shift AFTER setting text (depends on text width)
+      const shift = getMarkerShift(marker);
+      marker.resize(frame.width + shift, paddings.bottomPadding.size);
       marker.name = ".padding-marker_bottom";
       markers.push(marker);
     }
