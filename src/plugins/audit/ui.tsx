@@ -406,6 +406,20 @@ export function AuditUI() {
         padding: "16px",
       }}
     >
+      {/* Status Messages */}
+      {(statusMessage || errorMessage) && (
+        <div
+          className="status-pill"
+          style={{
+            backgroundColor: statusMessage ? "#059669" : "#dc2626",
+            color: statusMessage ? "#059669" : "#dc2626",
+            borderColor: statusMessage ? "#059669" : "#dc2626",
+          }}
+        >
+          {statusMessage || errorMessage}
+        </div>
+      )}
+
       {/* Note Input Card */}
       <Card title="Add Note">
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -535,24 +549,6 @@ export function AuditUI() {
             {isProcessing === "export-csv" ? "Exporting..." : "Export CSV"}
           </button>
         </div>
-
-        {/* Status Messages */}
-        {(statusMessage || errorMessage) && (
-          <div
-            style={{
-              padding: "12px",
-              borderRadius: "8px",
-              marginTop: "12px",
-              fontSize: "12px",
-              backgroundColor: statusMessage
-                ? "rgba(5, 150, 105, 0.1)"
-                : "rgba(220, 38, 38, 0.1)",
-              color: statusMessage ? "#059669" : "#dc2626",
-            }}
-          >
-            {statusMessage || errorMessage}
-          </div>
-        )}
       </Card>
 
       {/* Cleanup Actions Card */}
