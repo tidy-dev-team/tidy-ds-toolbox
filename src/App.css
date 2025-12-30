@@ -257,7 +257,7 @@ body:has(.sidebar.small-width) button.build-button {
 
 button.build-button {
   position: fixed;
-  right: 288px;
+  margin-right: 12px;
   top: 84px;
   width: fit-content;
   padding: var(--pixel-12) var(--pixel-32) !important;
@@ -333,6 +333,7 @@ main:has(.right-menu) .viewport-scroll {
 
 /* Component styles */
 .card {
+  width: 100%;
   background: var(--light-color);
   border: var(--pixel-1) solid var(--border-light);
   border-radius: var(--pixel-8);
@@ -680,6 +681,10 @@ select {
 .main-view {
   position: relative;
   gap: var(--pixel-16);
+}
+
+.main-view:has(.build-button) {
+  align-items: flex-end;
 }
 
 .right-menu {
