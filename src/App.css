@@ -481,6 +481,10 @@ div .form-control:last-of-type {
   gap: 8px;
 }
 
+.flex-card .wrap {
+  flex-wrap: wrap;
+}
+
 .flex-card button {
   width: 100%;
   display: flex;
@@ -494,7 +498,14 @@ div .form-control:last-of-type {
 
 .severity-card button {
   justify-content: flex-start;
+  flex: 1 1 117px;
   transition: border 300ms ease-in-out 0s;
+}
+
+@media (max-width: 1020px) {
+  .severity-card button {
+    flex: 0 0 calc(50% - 4px);
+  }
 }
 
 .severity-card button::before {
@@ -511,7 +522,7 @@ div .form-control:last-of-type {
 .severity-card .win-button {
   position: absolute;
   top: 8px;
-  right: 8px;
+  right: 20px;
   padding: 0;
   width: 32px !important;
   height: 32px !important;
@@ -706,7 +717,7 @@ button.resize-handle {
   border: 1px solid var(--light-hover);
   position: fixed;
   bottom: 12px;
-  right: 12px;
+  right: 16px;
   width: 32px;
   height: 32px;
   padding: 0;

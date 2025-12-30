@@ -481,8 +481,14 @@ export function AuditUI() {
           {isProcessing === "quick-win" ? "Processing..." : "🏆"}
         </button>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div className="flex">
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <div className="flex wrap">
             {SEVERITY_BUTTONS.map(({ severity, label, bgColor }) => (
               <button
                 key={severity}
