@@ -13,7 +13,8 @@ export type AuditAction =
   | "update-from-canvas"
   | "erase-notes-on-canvas"
   | "erase-report"
-  | "get-selection-state";
+  | "get-selection-state"
+  | "check-report-exists";
 
 export type SeverityLevel = "critical" | "high" | "medium" | "low";
 
@@ -68,6 +69,12 @@ export interface CsvData {
     severity: string;
     quickWin: boolean;
   };
+}
+
+export interface CheckReportExistsResult {
+  success: boolean;
+  exists: boolean;
+  entryCount?: number;
 }
 
 export interface SeverityConfig {

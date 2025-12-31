@@ -72,6 +72,9 @@ export async function auditHandler(
     case "get-selection-state":
       return getSelectionState();
 
+    case "check-report-exists":
+      return handleCheckReportExists();
+
     default:
       return {
         success: false,
@@ -356,6 +359,26 @@ function handleEraseReport(): AuditResult {
   return {
     success: true,
     message: `Erased ${keys.length} entries from report data`,
+  };
+}
+
+/**
+ * Check if report exists
+ */
+function handleCheckReportExists(): {
+  success: boolean;
+  exists: boolean;
+  entryCount?: number;
+} {
+  const reportFrame = findReportFrame();
+  const keys = figma.root.getSharedPluginDataKeys(PLUGIN_DATA_NAMESPACE);
+
+  const exists = reportFrame !== null && keys.length > 0;
+
+  return {
+    success: true,
+    exists,
+    entryCount: keys.length,
   };
 }
 
