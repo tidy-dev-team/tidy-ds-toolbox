@@ -8,6 +8,7 @@ import {
   IconTool,
   IconZoomCheck,
   IconRulerMeasure,
+  IconFileText,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -17,11 +18,13 @@ import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
 import { UtilitiesUI } from "./plugins/utilities/ui";
 import { AuditUI } from "./plugins/audit/ui";
 import { TagsSpacingsUI } from "./plugins/tags-spacings/ui";
+import { ReleaseNotesUI } from "./plugins/release-notes/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
 import type { UtilitiesAction } from "./plugins/utilities/types";
 import type { AuditAction } from "./plugins/audit/types";
 import type { TagsSpacingsAction } from "./plugins/tags-spacings/types";
+import type { ReleaseNotesAction } from "./plugins/release-notes/types";
 
 // Import all handlers statically
 import {
@@ -35,6 +38,7 @@ import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logi
 import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
 import { auditHandler as auditLogic } from "./plugins/audit/logic";
 import { tagsSpacingsHandler as tagsSpacingsLogic } from "./plugins/tags-spacings/logic";
+import { releaseNotesHandler as releaseNotesLogic } from "./plugins/release-notes/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
@@ -96,6 +100,14 @@ const tagsSpacingsHandler = async (
   return await tagsSpacingsLogic(action as TagsSpacingsAction, payload, figma);
 };
 
+const releaseNotesHandler = async (
+  action: string,
+  payload: any,
+  figma: any,
+) => {
+  return await releaseNotesLogic(action as ReleaseNotesAction, payload, figma);
+};
+
 export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
     id: "ds-explorer",
@@ -155,10 +167,18 @@ export const moduleRegistry: ModuleRegistry = {
   },
   "tags-spacings": {
     id: "tags-spacings",
-    label: "Tags & Spacings",
+    label: "Tags & Spacings (WIP)",
     icon: IconRulerMeasure,
     ui: TagsSpacingsUI,
     handler: tagsSpacingsHandler,
     permissionRequirements: ["activeselection"],
+  },
+  "release-notes": {
+    id: "release-notes",
+    label: "Release Notes (WIP)",
+    icon: IconFileText,
+    ui: ReleaseNotesUI,
+    handler: releaseNotesHandler,
+    permissionRequirements: [],
   },
 };
