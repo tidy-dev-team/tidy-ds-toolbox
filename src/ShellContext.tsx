@@ -94,7 +94,10 @@ export function ShellProvider({ children }: { children: ReactNode }) {
           case "response":
             // Handle storage response
             if (message.requestId === "restore-module" && message.result) {
-              dispatch({ type: "RESTORE_ACTIVE_MODULE", payload: message.result });
+              dispatch({
+                type: "RESTORE_ACTIVE_MODULE",
+                payload: message.result,
+              });
             }
             break;
           case "error":
