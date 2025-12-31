@@ -18,6 +18,7 @@ interface ShellState {
 
 type ShellAction =
   | { type: "SET_ACTIVE_MODULE"; payload: PluginID }
+  | { type: "RESTORE_ACTIVE_MODULE"; payload: PluginID }
   | { type: "SET_WINDOW_SIZE"; payload: { width: number; height: number } }
   | { type: "SET_THEME"; payload: "light" | "dark" }
   | { type: "UPDATE_SETTINGS"; payload: Record<string, any> };
@@ -38,6 +39,9 @@ function shellReducer(state: ShellState, action: ShellAction): ShellState {
         action: "save-storage",
         payload: { key: "activeModule", value: action.payload },
       });
+      return { ...state, activeModule: action.payload };
+    case "RESTORE_ACTIVE_MODULE":
+      // Restore from storage without re-saving
       return { ...state, activeModule: action.payload };
     case "SET_WINDOW_SIZE":
       return { ...state, windowSize: action.payload };
@@ -71,8 +75,9 @@ export function ShellProvider({ children }: { children: ReactNode }) {
   // Message bus for handling messages from main thread
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const message: ShellMessage = event.data;
-      if (message.type) {
+      const rawData = event.data as any;
+      const message: ShellMessage = rawData?.pluginMessage ?? rawData;
+      if (message?.type) {
         switch (message.type) {
           case "resize":
             dispatch({ type: "SET_WINDOW_SIZE", payload: message.payload });
@@ -89,7 +94,7 @@ export function ShellProvider({ children }: { children: ReactNode }) {
           case "response":
             // Handle storage response
             if (message.requestId === "restore-module" && message.result) {
-              dispatch({ type: "SET_ACTIVE_MODULE", payload: message.result });
+              dispatch({ type: "RESTORE_ACTIVE_MODULE", payload: message.result });
             }
             break;
           case "error":
