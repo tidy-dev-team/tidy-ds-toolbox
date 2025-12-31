@@ -690,13 +690,33 @@ button.utility-btn {
   color: unset;
   gap: var(--pixel-12);
   padding: var(--pixel-12);
-  width: 50%;
+  width: calc(50% - 6px);
   text-align: left;
 }
 
 button.utility-btn:hover {
   background-color: var(--panel-color);
   filter: brightness(98%);
+}
+
+@media (min-width: 1020px) {
+  button.utility-btn {
+    width: calc(33.33% - 8px);
+  }
+}
+
+@media (max-width: 700px) {
+  body:has(.sidebar.small) button.utility-btn,
+  body:has(.sidebar.sidebar.small-width) button.utility-btn {
+    width: calc(33.33% - 8px);
+  }
+}
+
+@media (max-width: 500px) {
+  body:has(.sidebar.small) button.utility-btn,
+  body:has(.sidebar.sidebar.small-width) button.utility-btn {
+    width: calc(50% - 6px);
+  }
 }
 
 select {

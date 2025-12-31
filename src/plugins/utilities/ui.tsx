@@ -122,6 +122,7 @@ export function UtilitiesUI() {
         <div
           style={{
             display: "flex",
+            flexWrap: "wrap",
             gap: "var(--pixel-12, 12px)",
           }}
         >
