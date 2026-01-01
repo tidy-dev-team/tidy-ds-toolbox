@@ -1,5 +1,7 @@
 import { ShellProvider, useShell } from "./ShellContext";
 import { ErrorBoundary, ResizeHandle } from "./components";
+import { SearchDropdown } from "./components/SearchDropdown";
+import { SearchableFeature } from "./shared/searchIndex";
 import { moduleRegistry } from "./moduleRegistry";
 import "./App.css";
 import {
@@ -57,14 +59,71 @@ function Viewport() {
   );
 }
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 function AppContent() {
   const [sidebarSmall, setSidebarSmall] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { state, dispatch } = useShell();
 
   const handleMenuClick = () => {
     setSidebarSmall((prev) => !prev);
   };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setIsSearchOpen(value.trim().length > 0);
+  };
+
+  const handleSearchFocus = () => {
+    if (searchQuery.trim().length > 0) {
+      setIsSearchOpen(true);
+    }
+  };
+
+  const handleSearchClose = useCallback(() => {
+    setIsSearchOpen(false);
+  }, []);
+
+  const handleSearchSelect = useCallback(
+    (feature: SearchableFeature) => {
+      // Navigate to the feature
+      dispatch({
+        type: "SET_FEATURE_FOCUS",
+        payload: {
+          pluginId: feature.pluginId,
+          section: feature.section ?? null,
+        },
+      });
+      // Clear search
+      setSearchQuery("");
+      setIsSearchOpen(false);
+      searchInputRef.current?.blur();
+    },
+    [dispatch],
+  );
+
+  // Scroll to focused feature when it changes
+  useEffect(() => {
+    if (state.featureFocus) {
+      // Small delay to ensure the plugin UI is rendered
+      const timeout = setTimeout(() => {
+        const element = document.querySelector(state.featureFocus!);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Add highlight effect
+          element.classList.add("feature-highlight");
+          setTimeout(() => element.classList.remove("feature-highlight"), 2000);
+        }
+        // Clear focus after scrolling
+        dispatch({ type: "CLEAR_FEATURE_FOCUS" });
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+  }, [state.featureFocus, state.activeModule, dispatch]);
 
   return (
     <div className="app">
@@ -76,7 +135,22 @@ function AppContent() {
         <h1>Tidy DS Toolbox</h1>
 
         <div className="searchdiv">
-          <input type="search" placeholder="Search..." className="searchbar" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            placeholder="Search features..."
+            className="searchbar"
+            value={searchQuery}
+            onChange={handleSearchChange}
+            onFocus={handleSearchFocus}
+          />
+          <SearchDropdown
+            query={searchQuery}
+            isOpen={isSearchOpen}
+            onClose={handleSearchClose}
+            onSelect={handleSearchSelect}
+            inputRef={searchInputRef}
+          />
         </div>
       </header>
       <div className="main">

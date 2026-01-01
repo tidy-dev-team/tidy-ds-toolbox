@@ -11,6 +11,7 @@ import { RESIZE_DEFAULT } from "@shared/resize";
 
 interface ShellState {
   activeModule: PluginID;
+  featureFocus: string | null; // CSS selector for scrolling to a feature section
   windowSize: { width: number; height: number };
   theme: "light" | "dark";
   settings: Record<string, any>;
@@ -19,12 +20,18 @@ interface ShellState {
 type ShellAction =
   | { type: "SET_ACTIVE_MODULE"; payload: PluginID }
   | { type: "RESTORE_ACTIVE_MODULE"; payload: PluginID }
+  | {
+      type: "SET_FEATURE_FOCUS";
+      payload: { pluginId: PluginID; section: string | null };
+    }
+  | { type: "CLEAR_FEATURE_FOCUS" }
   | { type: "SET_WINDOW_SIZE"; payload: { width: number; height: number } }
   | { type: "SET_THEME"; payload: "light" | "dark" }
   | { type: "UPDATE_SETTINGS"; payload: Record<string, any> };
 
 const initialState: ShellState = {
   activeModule: "ds-explorer",
+  featureFocus: null,
   windowSize: { ...RESIZE_DEFAULT },
   theme: "light",
   settings: {},
@@ -39,10 +46,24 @@ function shellReducer(state: ShellState, action: ShellAction): ShellState {
         action: "save-storage",
         payload: { key: "activeModule", value: action.payload },
       });
-      return { ...state, activeModule: action.payload };
+      return { ...state, activeModule: action.payload, featureFocus: null };
     case "RESTORE_ACTIVE_MODULE":
       // Restore from storage without re-saving
       return { ...state, activeModule: action.payload };
+    case "SET_FEATURE_FOCUS":
+      // Navigate to plugin and set section focus
+      postToFigma({
+        target: "shell",
+        action: "save-storage",
+        payload: { key: "activeModule", value: action.payload.pluginId },
+      });
+      return {
+        ...state,
+        activeModule: action.payload.pluginId,
+        featureFocus: action.payload.section,
+      };
+    case "CLEAR_FEATURE_FOCUS":
+      return { ...state, featureFocus: null };
     case "SET_WINDOW_SIZE":
       return { ...state, windowSize: action.payload };
     case "SET_THEME":

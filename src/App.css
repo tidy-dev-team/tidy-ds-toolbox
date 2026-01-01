@@ -99,6 +99,7 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
   flex-grow: 1;
   display: flex;
   justify-content: flex-end;
+  position: relative;
 }
 
 .header .searchbar {
@@ -109,6 +110,120 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
   font-size: 13px;
   width: 240px;
   margin-right: 8px;
+}
+
+/* Search Dropdown */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 8px;
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--light-color);
+  border: var(--pixel-1) solid var(--border-light);
+  border-radius: var(--pixel-8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  margin-top: var(--pixel-4);
+}
+
+.search-dropdown__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--pixel-4);
+}
+
+.search-dropdown__item {
+  margin: 0;
+  padding: 0;
+}
+
+.search-dropdown__button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pixel-4);
+  padding: var(--pixel-8) var(--pixel-12);
+  background: transparent;
+  border: none;
+  border-radius: var(--pixel-6);
+  cursor: pointer;
+  text-align: left;
+  color: #374151;
+  font-size: 13px;
+}
+
+.search-dropdown__button:hover,
+.search-dropdown__button--selected {
+  background: var(--primary-alpha);
+}
+
+.search-dropdown__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.search-dropdown__label {
+  font-weight: 500;
+  color: #111827;
+}
+
+.search-dropdown__label mark {
+  background: #fef08a;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+.search-dropdown__matched-keyword {
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.search-dropdown__matched-keyword mark {
+  background: #fef08a;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+  font-style: normal;
+}
+
+.search-dropdown__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--pixel-8);
+}
+
+.search-dropdown__plugin {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.search-dropdown__badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  background: var(--primary-alpha);
+  color: var(--primary-color);
+  border-radius: 4px;
+}
+
+/* Feature highlight animation */
+.feature-highlight {
+  animation: featureHighlightPulse 2000ms ease-out;
+}
+
+@keyframes featureHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 4px var(--primary-color);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 
 .main {
