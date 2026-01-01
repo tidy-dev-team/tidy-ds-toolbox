@@ -10,6 +10,7 @@ import {
   IconNote,
   IconComponents,
   IconArrowIteration,
+  IconPlus,
 } from "@tabler/icons-react";
 import type {
   ComponentSetInfo,
@@ -809,7 +810,7 @@ export function ReleaseNotesUI() {
       </Card>
 
       {/* Release Notes Section */}
-      <Card title="Release Notes">
+      <Card title="Release Notes" className="relative-element">
         <div className="card-icon">
           <IconNote />
         </div>
@@ -817,18 +818,17 @@ export function ReleaseNotesUI() {
           style={{
             display: "flex",
             flexWrap: "wrap",
+            paddingTop: "16px",
             gap: "var(--pixel-12, 12px)",
           }}
         >
           <button
             onClick={handleOpenAddNote}
             disabled={!canAddNote}
-            className="morePadding"
-            style={{
-              width: "100%",
-            }}
+            className="secondary win-button"
+            tool-tip="Add new note"
           >
-            + Add Note
+            <IconPlus size={16} />
           </button>
 
           {!canAddNote && (
@@ -860,6 +860,7 @@ export function ReleaseNotesUI() {
         <div
           className="status-pill"
           style={{
+            cursor: "pointer",
             ["--pillBtnColor" as any]: statusMessage ? "#059669" : "#dc2626",
           }}
           onClick={() => {
