@@ -81,7 +81,10 @@ export function TagsSpacingsUI() {
   const [isRunning, setIsRunning] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [hasSelection, setHasSelection] = useState<boolean>(false);
+
+  // Internal tools state
+  const [toolsExists, setToolsExists] = useState<boolean>(false);
+  const [toolsComponentCount, setToolsComponentCount] = useState<number>(0);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
 
@@ -105,6 +108,7 @@ export function TagsSpacingsUI() {
     // Request initial state
     sendRequest("init", {});
     sendRequest("selection-change", {});
+    sendRequest("check-internal-tools", {});
 
     const handleMessage = (event: MessageEvent) => {
       const message = event.data.pluginMessage || event.data;
@@ -163,10 +167,9 @@ export function TagsSpacingsUI() {
             settings.spacings.rootSize ?? DEFAULT_SPACINGS_CONFIG.rootSize,
           );
         }
-      } else if (message.type === "selection-info") {
-        setHasSelection(message.payload?.hasValidSelection ?? false);
-      } else if (message.type === "selection-cleared") {
-        setHasSelection(false);
+      } else if (message.type === "internal-tools-status") {
+        setToolsExists(message.payload.exists);
+        setToolsComponentCount(message.payload.componentCount);
       }
     };
 
@@ -260,6 +263,68 @@ export function TagsSpacingsUI() {
     rootSize,
     sendRequest,
   ]);
+
+  // Build internal tools handler
+  const handleBuildInternalTools = useCallback(() => {
+    if (isRunning) return;
+
+    setIsRunning("tools");
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    sendRequest(
+      "build-internal-tools",
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.success) {
+            setStatusMessage(result.message);
+            setToolsExists(true);
+            setToolsComponentCount(result.componentCount || 0);
+          } else {
+            setErrorMessage(
+              result?.message ?? "Failed to build internal tools",
+            );
+          }
+        },
+        onError: (error) => {
+          setErrorMessage(error);
+        },
+        onFinally: () => setIsRunning(null),
+      },
+    );
+  }, [isRunning, sendRequest]);
+
+  // Delete internal tools handler
+  const handleDeleteInternalTools = useCallback(() => {
+    if (isRunning || !toolsExists) return;
+
+    setIsRunning("tools");
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    sendRequest(
+      "delete-internal-tools",
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.success) {
+            setStatusMessage(result.message);
+            setToolsExists(false);
+            setToolsComponentCount(0);
+          } else {
+            setErrorMessage(
+              result?.message ?? "Failed to delete internal tools",
+            );
+          }
+        },
+        onError: (error) => {
+          setErrorMessage(error);
+        },
+        onFinally: () => setIsRunning(null),
+      },
+    );
+  }, [isRunning, toolsExists, sendRequest]);
 
   const selectStyle = {
     width: "100%",
@@ -468,6 +533,48 @@ export function TagsSpacingsUI() {
             }}
           >
             {isRunning === "spacings" ? "Building..." : "Build Spacing Marks"}
+          </button>
+        </div>
+      </Card>
+
+      {/* Internal Tools Section */}
+      <Card title="⚙️ Internal Tools">
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ fontSize: "12px", color: "#666" }}>
+            {toolsExists
+              ? `✓ Internal tools page exists (${toolsComponentCount} components)`
+              : "⚠️ Internal tools page not found - build required"}
+          </div>
+          <button
+            onClick={handleBuildInternalTools}
+            disabled={isRunning !== null}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "6px",
+              backgroundColor: "#7E41D9",
+              color: "white",
+              border: "none",
+              cursor: isRunning !== null ? "not-allowed" : "pointer",
+              opacity: isRunning !== null ? 0.5 : 1,
+            }}
+          >
+            {isRunning === "tools" ? "Building..." : "Build Internal Tools"}
+          </button>
+          <button
+            onClick={handleDeleteInternalTools}
+            disabled={isRunning !== null || !toolsExists}
+            style={{
+              padding: "10px 16px",
+              borderRadius: "6px",
+              backgroundColor: "#DC2626",
+              color: "white",
+              border: "none",
+              cursor:
+                isRunning !== null || !toolsExists ? "not-allowed" : "pointer",
+              opacity: isRunning !== null || !toolsExists ? 0.5 : 1,
+            }}
+          >
+            Delete Internal Tools
           </button>
         </div>
       </Card>

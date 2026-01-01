@@ -16,7 +16,10 @@ export type TagsSpacingsAction =
   | "init"
   | "selection-change"
   | "build-tags"
-  | "build-spacings";
+  | "build-spacings"
+  | "build-internal-tools"
+  | "delete-internal-tools"
+  | "check-internal-tools";
 
 // Tag positioning direction
 export type TagDirection = "top" | "right" | "bottom" | "left" | "auto";
@@ -140,4 +143,27 @@ export interface SelectionInfo {
   hasValidSelection: boolean;
   selectionCount: number;
   selectionType: string;
+}
+
+// Internal tools result
+export interface InternalToolsResult {
+  success: boolean;
+  message: string;
+  action: "created" | "replaced" | "deleted";
+  componentCount?: number;
+}
+
+// Payload types for internal tools
+export interface BuildInternalToolsPayload {}
+
+export interface DeleteInternalToolsPayload {}
+
+export interface CheckInternalToolsPayload {}
+
+// Internal tools status sent to UI
+export interface InternalToolsStatus {
+  exists: boolean;
+  componentCount: number;
+  missingComponents: string[];
+  isHealthy: boolean;
 }

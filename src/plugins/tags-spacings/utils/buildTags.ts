@@ -9,8 +9,6 @@ import {
   ElementCoordinates,
   SupportedContainerNode,
 } from "../types";
-import { DS_ANATOMY_TAGS } from "./constants";
-import { getToolComp, validateInternalTools } from "./getToolComp";
 import { findAllTaggableNodes } from "./elementResearch";
 import {
   loadInterFont,
@@ -19,13 +17,14 @@ import {
 } from "./fontLoader";
 import { generateSmartIndexes, setTextProps } from "./tagHelpers";
 import { calculateOptimalTagPlacements } from "./tagPlacement";
+import { getOrCreateAnatomyTagsComponents } from "./buildInternalComponents";
 
 /**
  * Get a tag instance for a specific direction
  */
 function getTagInstance(
   direction: string,
-  tagComp: ComponentSetNode | ComponentNode,
+  tagComponents: Map<string, ComponentNode>,
 ): InstanceNode | null {
   // Map direction to variant name (tags point opposite to placement)
   const variantMap: Record<string, string> = {
@@ -38,10 +37,7 @@ function getTagInstance(
   const variantName = variantMap[direction];
   if (!variantName) return null;
 
-  const variant = (tagComp as ComponentSetNode).findOne(
-    (node) => node.type === "COMPONENT" && node.name === variantName,
-  ) as ComponentNode | null;
-
+  const variant = tagComponents.get(variantName);
   if (!variant) {
     console.warn(`Tag variant "${variantName}" not found`);
     return null;
@@ -77,14 +73,12 @@ function createIndexesFrame(frame: SupportedContainerNode): FrameNode {
  */
 function createIndexLabel(
   element: ElementData,
-  tagComp: ComponentSetNode | ComponentNode,
+  tagComponents: Map<string, ComponentNode>,
   index: string,
   indexesFrame: FrameNode,
 ): InstanceNode | null {
   // Find the text type variant
-  const textVariant = (tagComp as ComponentSetNode).findOne(
-    (node) => node.type === "COMPONENT" && node.name === "type=text",
-  ) as ComponentNode | null;
+  const textVariant = tagComponents.get("type=text") ?? null;
 
   if (!textVariant) {
     console.warn("Tag text variant not found");
@@ -187,21 +181,12 @@ export async function buildTags(
     };
   }
 
-  // Check for required internal tools
-  const validation = validateInternalTools([DS_ANATOMY_TAGS]);
-  if (!validation.valid) {
+  // Get or create tag components at runtime (no Internal Tools dependency)
+  const tagComponents = await getOrCreateAnatomyTagsComponents();
+  if (!tagComponents || tagComponents.size === 0) {
     return {
       success: false,
-      message: `Missing internal tools: ${validation.missing.join(", ")}. Please run "Update Internal Tools" first.`,
-    };
-  }
-
-  // Get tag component
-  const tagComp = getToolComp(DS_ANATOMY_TAGS);
-  if (!tagComp) {
-    return {
-      success: false,
-      message: "Could not find anatomy tags component in internal tools.",
+      message: "Could not create anatomy tags components.",
     };
   }
 
@@ -267,7 +252,7 @@ export async function buildTags(
         const index = indexes[i] || String(i + 1);
 
         // Create tag instance
-        const tag = getTagInstance(placement.direction, tagComp);
+        const tag = getTagInstance(placement.direction, tagComponents);
         if (tag) {
           tag.resize(placement.width, placement.height);
           tag.x = placement.x;
@@ -278,7 +263,7 @@ export async function buildTags(
         }
 
         // Create index label
-        createIndexLabel(placement.element, tagComp, index, indexesFrame);
+        createIndexLabel(placement.element, tagComponents, index, indexesFrame);
       }
 
       // Position indexes frame below all tags
