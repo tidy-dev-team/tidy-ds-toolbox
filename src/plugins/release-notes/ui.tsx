@@ -121,7 +121,7 @@ function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
             cursor: "pointer",
             color: "var(--figma-color-text, #333)",
           }}
-          title="View component"
+          tool-tip="View component"
         >
           <IconFocus2 size={16} />
         </button>
@@ -139,7 +139,7 @@ function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
             cursor: "pointer",
             color: "var(--figma-color-text, #333)",
           }}
-          title="Edit note"
+          tool-tip="Edit note"
         >
           <IconEdit size={16} />
         </button>
@@ -157,7 +157,7 @@ function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
             cursor: "pointer",
             color: "var(--figma-color-text, #333)",
           }}
-          title="Delete note"
+          tool-tip="Delete note"
         >
           <IconTrash size={16} />
         </button>

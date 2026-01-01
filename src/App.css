@@ -735,7 +735,7 @@ button[tool-tip]:hover {
   background-color: var(--border-light) !important;
 }
 
-button[tool-tip]:hover::after {
+button[tool-tip]::after {
   content: attr(tool-tip);
   font-size: 12px !important;
   position: absolute;
@@ -748,9 +748,19 @@ button[tool-tip]:hover::after {
   transform: translateX(50%);
   white-space: nowrap;
   z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 100ms linear 0s;
 }
 
-.win-button:hover::after {
+button[tool-tip]:hover::after {
+  content: attr(tool-tip);
+  opacity: 1;
+  transition-delay: 1000ms;
+}
+
+.win-button::after {
   right: -12px !important;
   transform: none !important;
 }
