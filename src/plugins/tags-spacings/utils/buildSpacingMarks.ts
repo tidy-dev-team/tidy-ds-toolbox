@@ -8,8 +8,10 @@ import {
 import { buildPaddingMarks } from "./paddingMarks";
 import { buildSizeMarks } from "./sizeMarks";
 import { buildItemSpacingMarks } from "./spacingMarks";
-import { validateInternalTools } from "./getToolComp";
-import { DS_SPACING_MARKER, DS_SIZE_MARKER } from "./constants";
+import {
+  getOrCreateSizeMarkerComponents,
+  getOrCreateSpacingMarkerComponents,
+} from "./buildInternalComponents";
 import { loadInterFont } from "./fontLoader";
 
 /**
@@ -44,21 +46,12 @@ export async function buildSpacingMarks(
     };
   }
 
-  // Check for required internal tools
-  const requiredComponents: string[] = [];
-  if (config.includeSize) requiredComponents.push(DS_SIZE_MARKER);
-  if (config.includePaddings || config.includeItemSpacing) {
-    requiredComponents.push(DS_SPACING_MARKER);
+  // Initialize runtime marker components (no Internal Tools dependency)
+  if (config.includeSize) {
+    await getOrCreateSizeMarkerComponents();
   }
-
-  if (requiredComponents.length > 0) {
-    const validation = validateInternalTools(requiredComponents);
-    if (!validation.valid) {
-      return {
-        success: false,
-        message: `Missing internal tools: ${validation.missing.join(", ")}. Please run "Update Internal Tools" first.`,
-      };
-    }
+  if (config.includePaddings || config.includeItemSpacing) {
+    await getOrCreateSpacingMarkerComponents();
   }
 
   // Load fonts for markers

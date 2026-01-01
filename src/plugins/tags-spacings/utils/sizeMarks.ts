@@ -15,7 +15,7 @@ export async function buildSizeMarks(
   const frameBounds = frame.absoluteBoundingBox!;
 
   // Height marker (on the right side)
-  const rightMarker = getMarker("right", "size");
+  const rightMarker = await getMarker("right", "size");
   if (rightMarker) {
     rightMarker.resize(rightMarker.width, frame.height);
     rightMarker.x = frameBounds.x + frame.width;
@@ -31,7 +31,7 @@ export async function buildSizeMarks(
   }
 
   // Width marker (on the bottom)
-  const bottomMarker = getMarker("bottom", "size");
+  const bottomMarker = await getMarker("bottom", "size");
   if (bottomMarker) {
     bottomMarker.resize(frame.width, bottomMarker.height);
     bottomMarker.x = frameBounds.x;

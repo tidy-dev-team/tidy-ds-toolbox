@@ -103,7 +103,7 @@ export async function buildPaddingMarks(
 
   // Left padding marker
   if (paddings.leftPadding.size > 0.01) {
-    const marker = getMarker("top", "spacing");
+    const marker = await getMarker("top", "spacing");
     if (marker) {
       const handLength = getMarkerHandLength(marker);
       marker.x = paddings.leftPadding.x;
@@ -122,7 +122,7 @@ export async function buildPaddingMarks(
 
   // Right padding marker
   if (paddings.rightPadding.size > 0.01) {
-    const marker = getMarker("top", "spacing");
+    const marker = await getMarker("top", "spacing");
     if (marker) {
       const handLength = getMarkerHandLength(marker);
       marker.x = paddings.rightPadding.x;
@@ -141,7 +141,7 @@ export async function buildPaddingMarks(
 
   // Top padding marker
   if (paddings.topPadding.size > 0.01) {
-    const marker = getMarker("right", "spacing");
+    const marker = await getMarker("right", "spacing");
     if (marker) {
       marker.x = frameBounds.x;
       marker.y = paddings.topPadding.y;
@@ -162,7 +162,7 @@ export async function buildPaddingMarks(
 
   // Bottom padding marker
   if (paddings.bottomPadding.size > 0.01) {
-    const marker = getMarker("right", "spacing");
+    const marker = await getMarker("right", "spacing");
     if (marker) {
       marker.x = frameBounds.x;
       marker.y = paddings.bottomPadding.y;

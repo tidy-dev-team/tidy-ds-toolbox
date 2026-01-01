@@ -55,7 +55,7 @@ export async function buildItemSpacingMarks(
       const gapSize = nextBounds.y - gapStart;
 
       if (gapSize > 0.01) {
-        const marker = getMarker("right", "spacing");
+        const marker = await getMarker("right", "spacing");
         if (marker) {
           marker.x = frameBounds.x;
           marker.y = gapStart;
@@ -74,7 +74,7 @@ export async function buildItemSpacingMarks(
       const gapSize = nextBounds.x - gapStart;
 
       if (gapSize > 0.01) {
-        const marker = getMarker("top", "spacing");
+        const marker = await getMarker("top", "spacing");
         if (marker) {
           const markerHandLength = getMarkerHandLength(marker);
           marker.x = gapStart;
@@ -117,7 +117,7 @@ async function buildSpacingFromChildren(
       const gap = next.start - current.end;
 
       if (gap > 1) {
-        const marker = getMarker("top", "spacing");
+        const marker = await getMarker("top", "spacing");
         if (marker) {
           const markerHandLength = getMarkerHandLength(marker);
           marker.x = current.end;
@@ -138,7 +138,7 @@ async function buildSpacingFromChildren(
       const gap = next.start - current.end;
 
       if (gap > 1) {
-        const marker = getMarker("right", "spacing");
+        const marker = await getMarker("right", "spacing");
         if (marker) {
           marker.x = frameBounds.x;
           marker.y = current.end;

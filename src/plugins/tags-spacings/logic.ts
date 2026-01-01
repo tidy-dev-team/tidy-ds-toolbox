@@ -7,10 +7,15 @@ import {
   BuildTagsPayload,
   BuildSpacingsPayload,
   SelectionInfo,
+  InternalToolsResult,
+  InternalToolsStatus,
 } from "./types";
 import { buildTags } from "./utils/buildTags";
 import { buildSpacingMarks } from "./utils/buildSpacingMarks";
 import { ACCEPTED_TYPES } from "./utils/constants";
+import { buildInternalTools } from "./utils/buildInternalTools";
+import { deleteInternalTools } from "./utils/deleteInternalTools";
+import { checkInternalTools } from "./utils/checkInternalTools";
 
 const STORAGE_KEY = "tags-spacings-settings";
 
@@ -23,7 +28,14 @@ export async function tagsSpacingsHandler(
   action: string,
   payload: any,
   _figma?: PluginAPI,
-): Promise<TagsSpacingsResult | TagsSpacingsSettings | SelectionInfo | null> {
+): Promise<
+  | TagsSpacingsResult
+  | TagsSpacingsSettings
+  | SelectionInfo
+  | InternalToolsResult
+  | InternalToolsStatus
+  | null
+> {
   ensureListeners();
 
   switch (action as TagsSpacingsAction) {
@@ -38,6 +50,15 @@ export async function tagsSpacingsHandler(
 
     case "build-spacings":
       return await handleBuildSpacings(payload as BuildSpacingsPayload);
+
+    case "build-internal-tools":
+      return await handleBuildInternalTools();
+
+    case "delete-internal-tools":
+      return await handleDeleteInternalTools();
+
+    case "check-internal-tools":
+      return handleCheckInternalTools();
 
     default:
       console.warn(`Unknown tags-spacings action: ${action}`);
@@ -188,4 +209,53 @@ async function saveSettings(
   } catch (error) {
     console.warn("Could not save settings:", error);
   }
+}
+
+/**
+ * Build internal tools page
+ */
+async function handleBuildInternalTools(): Promise<InternalToolsResult> {
+  const result = await buildInternalTools();
+
+  if (result.success) {
+    figma.notify(
+      `✓ Internal tools ${result.action} (${result.componentCount} components)`,
+    );
+  } else {
+    figma.notify(`⚠️ ${result.message}`, { error: true });
+  }
+
+  return result;
+}
+
+/**
+ * Delete internal tools page
+ */
+async function handleDeleteInternalTools(): Promise<TagsSpacingsResult> {
+  const result = await deleteInternalTools();
+
+  if (result.success) {
+    figma.notify(`✓ ${result.message}`);
+  } else {
+    figma.notify(`⚠️ ${result.message}`, { error: true });
+  }
+
+  return {
+    success: result.success,
+    message: result.message,
+  };
+}
+
+/**
+ * Check internal tools status
+ */
+function handleCheckInternalTools(): InternalToolsStatus {
+  const status = checkInternalTools();
+
+  figma.ui.postMessage({
+    type: "internal-tools-status",
+    payload: status,
+  });
+
+  return status;
 }
