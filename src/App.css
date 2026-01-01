@@ -95,6 +95,21 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
   color: #111827;
   letter-spacing: -0.01em;
 }
+.header .searchdiv {
+  flex-grow: 1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.header .searchbar {
+  width: 100%;
+  padding: var(--pixel-8, 8px) var(--pixel-12, 12px);
+  border: var(--pixel-1, 1px) solid var(--light-hover);
+  border-radius: var(--pixel-6, 6px);
+  font-size: 13px;
+  width: 240px;
+  margin-right: 8px;
+}
 
 .main {
   display: flex;

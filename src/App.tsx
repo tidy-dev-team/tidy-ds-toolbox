@@ -74,6 +74,10 @@ function AppContent() {
           <IconLayoutSidebarFilled className="side-filled-icon" />
         </button>
         <h1>Tidy DS Toolbox</h1>
+
+        <div className="searchdiv">
+          <input type="search" placeholder="Search..." className="searchbar" />
+        </div>
       </header>
       <div className="main">
         <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
