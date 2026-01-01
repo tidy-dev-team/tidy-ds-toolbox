@@ -6,6 +6,7 @@ import {
   IconEdit,
   IconTrash,
   IconTable,
+  IconRefresh,
 } from "@tabler/icons-react";
 import type {
   ComponentSetInfo,
@@ -666,7 +667,6 @@ export function ReleaseNotesUI() {
             <button
               onClick={handleCreateSprint}
               disabled={!newSprintName.trim()}
-              style={{ whiteSpace: "nowrap" }}
             >
               Create
             </button>
@@ -701,21 +701,21 @@ export function ReleaseNotesUI() {
                 onClick={handlePublishNotes}
                 disabled={isPublishing || currentSprintNotes.length === 0}
                 style={iconButtonStyle}
-                title="Publish notes to canvas"
+                tool-tip="Publish notes to canvas"
               >
                 <IconTable size={16} />
               </button>
               <button
                 onClick={handleStartRename}
                 style={iconButtonStyle}
-                title="Rename sprint"
+                tool-tip="Rename sprint"
               >
                 <IconEdit size={16} />
               </button>
               <button
                 onClick={() => setIsDeleteConfirmOpen(true)}
                 style={iconButtonStyle}
-                title="Delete sprint"
+                tool-tip="Delete sprint"
               >
                 <IconTrash size={16} />
               </button>
@@ -764,7 +764,7 @@ export function ReleaseNotesUI() {
       </Card>
 
       {/* Component Sets Section */}
-      <Card title="🧩 Component Sets">
+      <Card title="🧩 Component Sets" className="relative-element">
         <div
           style={{
             display: "flex",
@@ -772,8 +772,12 @@ export function ReleaseNotesUI() {
             gap: "var(--pixel-12, 12px)",
           }}
         >
-          <button onClick={handleScanComponents} className="morePadding">
-            Scan for new components
+          <button
+            onClick={handleScanComponents}
+            className="secondary win-button"
+            tool-tip="Scan for new components"
+          >
+            <IconRefresh size={16} />
           </button>
 
           {componentSets.length > 0 && (

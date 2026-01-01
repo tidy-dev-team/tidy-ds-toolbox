@@ -481,6 +481,7 @@ export function AuditUI() {
       <Card title="Severity" className="flex-card severity-card">
         <button
           className="win-button"
+          tool-tip="Mark as a quick win"
           onClick={handleQuickWin}
           // disabled={isProcessing !== null}
         >

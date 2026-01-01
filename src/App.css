@@ -555,7 +555,8 @@ div .form-control:last-of-type {
   }
 }
 
-.severity-card {
+.severity-card,
+.relative-element {
   position: relative;
 }
 
@@ -592,36 +593,51 @@ body:has(.sidebar.small) .severity-card button {
   transform: scale(0.5);
 }
 
-.severity-card .win-button {
-  position: absolute;
+.win-button {
+  position: absolute !important;
   top: 8px;
   right: 20px;
-  padding: 0;
+  padding: 0 !important;
   width: 32px !important;
   height: 32px !important;
-  justify-content: center;
-  background-color: transparent;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--figma-color-text, #333) !important;
 }
 
-.severity-card .win-button::before {
+.win-button::before {
   display: none;
 }
 
-.severity-card .win-button:hover {
-  background-color: var(--border-light);
+button[tool-tip] {
+  position: relative;
 }
 
-.severity-card .win-button:hover::after {
-  content: "Mark as a quick win";
+button[tool-tip]:hover {
+  opacity: 1 !important;
+  background-color: var(--border-light) !important;
+}
+
+button[tool-tip]:hover::after {
+  content: attr(tool-tip);
+  font-size: 12px !important;
   position: absolute;
-  background-color: #333333;
+  background-color: #333333 !important;
   color: var(--light-color);
   padding: var(--pixel-8) var(--pixel-16);
   border-radius: var(--pixel-8);
   top: calc(100% + 4px);
-  right: -12px;
+  right: 50%;
+  transform: translateX(50%);
   white-space: nowrap;
   z-index: 10;
+}
+
+.win-button:hover::after {
+  right: -12px !important;
+  transform: none !important;
 }
 
 .severity-card button:hover {

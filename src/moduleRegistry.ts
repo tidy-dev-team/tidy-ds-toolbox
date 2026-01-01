@@ -167,7 +167,7 @@ export const moduleRegistry: ModuleRegistry = {
   },
   "tags-spacings": {
     id: "tags-spacings",
-    label: "Tags & Spacings (WIP)",
+    label: "Tags & Spacings *",
     icon: IconRulerMeasure,
     ui: TagsSpacingsUI,
     handler: tagsSpacingsHandler,
@@ -175,7 +175,7 @@ export const moduleRegistry: ModuleRegistry = {
   },
   "release-notes": {
     id: "release-notes",
-    label: "Release Notes (WIP)",
+    label: "Release Notes *",
     icon: IconFileText,
     ui: ReleaseNotesUI,
     handler: releaseNotesHandler,
