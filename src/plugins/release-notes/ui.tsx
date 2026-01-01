@@ -61,15 +61,7 @@ function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
   const tagLabel = TAG_LABELS[note.tag];
 
   return (
-    <div
-      style={{
-        border: "1px solid var(--border-light)",
-        borderRadius: "var(--pixel-6, 6px)",
-        padding: "var(--pixel-12, 12px)",
-        marginBottom: "var(--pixel-8, 8px)",
-        backgroundColor: "var(--light-color)",
-      }}
-    >
+    <div className="note">
       {/* Tag Badge */}
       <div
         style={{
@@ -824,7 +816,7 @@ export function ReleaseNotesUI() {
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
+            flexWrap: "wrap",
             gap: "var(--pixel-12, 12px)",
           }}
         >
@@ -832,6 +824,9 @@ export function ReleaseNotesUI() {
             onClick={handleOpenAddNote}
             disabled={!canAddNote}
             className="morePadding"
+            style={{
+              width: "100%",
+            }}
           >
             + Add Note
           </button>

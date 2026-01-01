@@ -1017,3 +1017,32 @@ button.resize-handle.dragging {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
+
+.note {
+  border: var(--pixel-1) solid var(--border-light);
+  border-radius: var(--pixel-6);
+  padding: var(--pixel-12);
+  margin-bottom: var(--pixel-8);
+  width: calc(50% - 6px);
+}
+
+@media (max-width: 460px) {
+  .note {
+    width: 100%;
+  }
+
+  body:has(.sidebar.small-width) .note,
+  body:has(.sidebar.small) .note {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 870px) {
+  .note {
+    width: 100%;
+  }
+
+  body:has(.sidebar.small) .note {
+    width: calc(50% - 6px);
+  }
+}
