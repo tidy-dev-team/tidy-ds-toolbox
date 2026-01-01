@@ -8,6 +8,8 @@ export type PluginID =
   | "tidy-mapper"
   | "utilities"
   | "audit"
+  | "tags-spacings"
+  | "release-notes"
   | (string & {});
 
 export interface PluginMessage {
