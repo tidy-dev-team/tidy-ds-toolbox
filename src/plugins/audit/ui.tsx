@@ -628,12 +628,14 @@ export function AuditUI() {
               Are you sure you want to erase all report data? This action cannot
               be undone.
             </p>
-            <div
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
+            <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={handleEraseReport}
                 disabled={isProcessing !== null}
+                style={{
+                  flexGrow: 1,
+                  backgroundColor: "#dc2626",
+                }}
               >
                 {isProcessing === "erase-report" ? "Erasing..." : "OK"}
               </button>
@@ -641,6 +643,12 @@ export function AuditUI() {
                 onClick={() => setShowEraseDialog(false)}
                 disabled={isProcessing !== null}
                 className="secondary"
+                style={{
+                  flexGrow: 1,
+                  border: "1px solid var(--border-light)",
+                  color: "var(--figma-color-text, #333)",
+                  boxShadow: "none",
+                }}
               >
                 Cancel
               </button>

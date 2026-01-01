@@ -177,36 +177,9 @@ function Modal({ isOpen, title, onClose, children }: ModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1000,
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          backgroundColor: "var(--light-color)",
-          borderRadius: "var(--pixel-8, 8px)",
-          padding: "var(--pixel-16, 16px)",
-          width: "90%",
-          maxWidth: "320px",
-          maxHeight: "80%",
-          overflow: "auto",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 style={{ margin: "0 0 var(--pixel-16, 16px) 0", fontSize: "14px" }}>
-          {title}
-        </h3>
+    <div className="dialog" onMouseDown={onClose}>
+      <div className="inner-dialog" onMouseDown={(e) => e.stopPropagation()}>
+        <h3 style={{ margin: "0 0 var(--pixel-16, 16px) 0" }}>{title}</h3>
         {children}
       </div>
     </div>
