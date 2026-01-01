@@ -403,7 +403,7 @@ export function AuditUI() {
       {/* Status Messages */}
       {(statusMessage || errorMessage) && (
         <div
-          className="status-pill"
+          className="status-pill pill-anim"
           style={{
             ["--pillBtnColor" as any]: statusMessage ? "#059669" : "#dc2626",
           }}

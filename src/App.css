@@ -145,8 +145,8 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
   flex-direction: column;
   gap: var(--pixel-4);
   padding: var(--pixel-8) var(--pixel-12);
-  background: transparent;
-  border: none;
+  background: transparent !important;
+  border: none !important;
   border-radius: var(--pixel-6);
   cursor: pointer;
   text-align: left;
@@ -156,7 +156,7 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
 
 .search-dropdown__button:hover,
 .search-dropdown__button--selected {
-  background: var(--primary-alpha);
+  background: var(--primary-alpha) !important;
 }
 
 .search-dropdown__content {
@@ -173,7 +173,7 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
 .search-dropdown__label mark {
   background: #fef08a;
   color: inherit;
-  padding: 0 1px;
+  font-weight: 900;
   border-radius: 2px;
 }
 
@@ -186,9 +186,8 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
 .search-dropdown__matched-keyword mark {
   background: #fef08a;
   color: inherit;
-  padding: 0 1px;
+  font-weight: 900;
   border-radius: 2px;
-  font-style: normal;
 }
 
 .search-dropdown__meta {
@@ -483,6 +482,22 @@ main:has(.right-menu) .viewport-scroll {
   letter-spacing: -0.01em;
 }
 
+.card:has(.card-icon) {
+  position: relative;
+}
+
+.card:has(.card-icon) .card-title {
+  padding-left: var(--pixel-32);
+  padding-top: var(--pixel-2);
+  padding-bottom: var(--pixel-2);
+}
+
+.card .card-icon {
+  position: absolute;
+  top: var(--pixel-20);
+  left: var(--pixel-20);
+}
+
 .card-content {
   color: #4b5563;
 }
@@ -626,7 +641,6 @@ div .form-control:last-of-type {
   bottom: 60px;
   left: 50%;
   transform: translate(-50%, 20px);
-  opacity: 0;
   padding: 12px;
   border: 1px solid;
   border-color: var(--pillBtnColor, #000000);
@@ -637,6 +651,10 @@ div .form-control:last-of-type {
   overflow: hidden;
   isolation: isolate;
   box-shadow: 0 8px 12px 0 #00000019;
+}
+
+.pill-anim {
+  opacity: 0;
   animation: pillBtnAnim 3000ms ease-in-out;
 }
 
@@ -675,6 +693,10 @@ div .form-control:last-of-type {
   position: relative;
 }
 
+.severity-card .card-title {
+  margin-bottom: 32px;
+}
+
 .severity-card button {
   justify-content: flex-start;
   flex: 1 1 117px;
@@ -710,7 +732,7 @@ body:has(.sidebar.small) .severity-card button {
 
 .win-button {
   position: absolute !important;
-  top: 8px;
+  top: 20px;
   right: 20px;
   padding: 0 !important;
   width: 32px !important;

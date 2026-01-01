@@ -7,6 +7,9 @@ import {
   IconTrash,
   IconTable,
   IconRefresh,
+  IconNote,
+  IconComponents,
+  IconArrowIteration,
 } from "@tabler/icons-react";
 import type {
   ComponentSetInfo,
@@ -646,7 +649,8 @@ export function ReleaseNotesUI() {
       }}
     >
       {/* Sprint Management Section */}
-      <Card title="🗓️ Sprints">
+      <Card title="Sprints">
+        <IconArrowIteration className="card-icon" />
         <div
           style={{
             display: "flex",
@@ -764,7 +768,8 @@ export function ReleaseNotesUI() {
       </Card>
 
       {/* Component Sets Section */}
-      <Card title="🧩 Component Sets" className="relative-element">
+      <Card title="Component Sets" className="relative-element">
+        <IconComponents className="card-icon" />
         <div
           style={{
             display: "flex",
@@ -812,7 +817,10 @@ export function ReleaseNotesUI() {
       </Card>
 
       {/* Release Notes Section */}
-      <Card title="📝 Release Notes">
+      <Card title="Release Notes">
+        <div className="card-icon">
+          <IconNote />
+        </div>
         <div
           style={{
             display: "flex",
@@ -855,14 +863,9 @@ export function ReleaseNotesUI() {
       {/* Status Messages */}
       {(statusMessage || errorMessage) && (
         <div
+          className="status-pill"
           style={{
-            padding: "var(--pixel-12, 12px)",
-            borderRadius: "var(--pixel-8, 8px)",
-            fontSize: "12px",
-            backgroundColor: statusMessage
-              ? "rgba(5, 150, 105, 0.1)"
-              : "rgba(220, 38, 38, 0.1)",
-            color: statusMessage ? "#059669" : "#dc2626",
+            ["--pillBtnColor" as any]: statusMessage ? "#059669" : "#dc2626",
           }}
           onClick={() => {
             setStatusMessage(null);
