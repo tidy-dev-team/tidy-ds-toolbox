@@ -719,6 +719,33 @@ body:has(.sidebar.small) .severity-card button {
   }
 }
 
+@media (max-width: 968px) and (min-width: 700px) {
+  .responsive-card .card-content .flex {
+    flex-direction: column;
+  }
+  body:has(.sidebar.small) .responsive-card .card-content .flex {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 700px) {
+  .responsive-card .card-content .flex {
+    flex-direction: column;
+  }
+  body:has(.sidebar.small) .responsive-card .card-content .flex {
+    flex-direction: column;
+  }
+  body:has(.sidebar.small-width) .responsive-card .card-content .flex {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 575px) {
+  body:has(.sidebar.small-width) .responsive-card .card-content .flex {
+    flex-direction: column;
+  }
+}
+
 .severity-card button::before {
   content: "MI";
   background-color: var(--btnColor);

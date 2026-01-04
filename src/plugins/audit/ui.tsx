@@ -516,7 +516,7 @@ export function AuditUI() {
       </Card>
 
       {/* Report Actions Card */}
-      <Card title="Report" className="flex-card">
+      <Card title="Report" className="flex-card responsive-card">
         <div className="flex">
           <button
             className="secondary"
@@ -547,7 +547,7 @@ export function AuditUI() {
       </Card>
 
       {/* Cleanup Actions Card */}
-      <Card title="Manage" className="flex-card">
+      <Card title="Manage" className="flex-card responsive-card">
         <div className="flex">
           {/* <button
             onClick={handleUpdateFromCanvas}
