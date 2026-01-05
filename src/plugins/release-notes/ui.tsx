@@ -11,6 +11,7 @@ import {
   IconComponents,
   IconArrowIteration,
   IconPlus,
+  IconEraser,
 } from "@tabler/icons-react";
 import type {
   ComponentSetInfo,
@@ -223,6 +224,7 @@ export function ReleaseNotesUI() {
     null,
   );
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [isClearingCanvas, setIsClearingCanvas] = useState<boolean>(false);
 
   // ===================
   // UI State
@@ -447,6 +449,17 @@ export function ReleaseNotesUI() {
       onFinally: () => setIsPublishing(false),
     });
   }, [selectedSprintId, sendRequest]);
+
+  const handleClearCanvas = useCallback(() => {
+    setIsClearingCanvas(true);
+    sendRequest("clear-canvas", null, {
+      onSuccess: () => {
+        setStatusMessage("Release notes cleared from canvas");
+      },
+      onError: (error) => setErrorMessage(error),
+      onFinally: () => setIsClearingCanvas(false),
+    });
+  }, [sendRequest]);
 
   // ===================
   // Note Handlers
@@ -688,6 +701,14 @@ export function ReleaseNotesUI() {
                 tool-tip="Delete sprint"
               >
                 <IconTrash size={16} />
+              </button>
+              <button
+                onClick={handleClearCanvas}
+                disabled={isClearingCanvas}
+                style={iconButtonStyle}
+                tool-tip="Unpublish notes from canvas"
+              >
+                <IconEraser size={16} />
               </button>
             </div>
           )}
