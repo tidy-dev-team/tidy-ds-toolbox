@@ -12,6 +12,7 @@ import {
   DEFAULT_TAGS_CONFIG,
   DEFAULT_SPACINGS_CONFIG,
 } from "./utils/constants";
+import { IconTag, IconRulerMeasure2, IconTools } from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -361,7 +362,8 @@ export function TagsSpacingsUI() {
       }}
     >
       {/* Tags Section */}
-      <Card title="🏷️ Tags (Anatomy)">
+      <Card title="Tags (Anatomy)">
+        <IconTag className="card-icon" />
         <div
           style={{
             display: "flex",
@@ -451,7 +453,8 @@ export function TagsSpacingsUI() {
       </Card>
 
       {/* Spacings Section */}
-      <Card title="📏 Spacing Marks">
+      <Card title="Spacing Marks">
+        <IconRulerMeasure2 className="card-icon" />
         <div
           style={{
             display: "flex",
@@ -538,7 +541,8 @@ export function TagsSpacingsUI() {
       </Card>
 
       {/* Internal Tools Section */}
-      <Card title="⚙️ Internal Tools">
+      <Card title="Internal Tools">
+        <IconTools className="card-icon" />
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ fontSize: "12px", color: "#666" }}>
             {toolsExists
