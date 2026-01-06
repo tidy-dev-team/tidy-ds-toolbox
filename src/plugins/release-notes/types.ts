@@ -58,7 +58,8 @@ export type ReleaseNotesAction =
   | "edit-note"
   | "delete-note"
   | "view-component"
-  | "publish-notes";
+  | "publish-notes"
+  | "clear-canvas";
 
 // ===================
 // Payload Types
