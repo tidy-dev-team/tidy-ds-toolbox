@@ -1073,3 +1073,15 @@ button.resize-handle.dragging {
     width: calc(50% - 6px);
   }
 }
+
+.noBottom .form-control {
+  margin-bottom: 0;
+}
+
+.danger-button {
+  background-color: #dc2626 !important;
+}
+
+.danger-button:hover {
+  background-color: #cb2323 !important;
+}

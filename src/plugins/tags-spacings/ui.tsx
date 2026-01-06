@@ -12,7 +12,13 @@ import {
   DEFAULT_TAGS_CONFIG,
   DEFAULT_SPACINGS_CONFIG,
 } from "./utils/constants";
-import { IconTag, IconRulerMeasure2, IconTools } from "@tabler/icons-react";
+import {
+  IconTag,
+  IconRulerMeasure2,
+  IconTools,
+  IconCircleCheck,
+  IconAlertCircle,
+} from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -365,6 +371,7 @@ export function TagsSpacingsUI() {
       <Card title="Tags (Anatomy)">
         <IconTag className="card-icon" />
         <div
+          className="noBottom"
           style={{
             display: "flex",
             flexDirection: "column",
@@ -543,43 +550,44 @@ export function TagsSpacingsUI() {
       {/* Internal Tools Section */}
       <Card title="Internal Tools">
         <IconTools className="card-icon" />
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ fontSize: "12px", color: "#666" }}>
-            {toolsExists
-              ? `✓ Internal tools page exists (${toolsComponentCount} components)`
-              : "⚠️ Internal tools page not found - build required"}
+        <div className="flex-card">
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              alignItems: "center",
+              fontSize: "12px",
+              color: "#666",
+            }}
+          >
+            {toolsExists ? (
+              <>
+                <IconCircleCheck size="16" /> Internal tools page exists (
+                {toolsComponentCount} components)
+              </>
+            ) : (
+              <>
+                <IconAlertCircle size="16" /> Internal tools page not found –
+                build required
+              </>
+            )}
           </div>
-          <button
-            onClick={handleBuildInternalTools}
-            disabled={isRunning !== null}
-            style={{
-              padding: "10px 16px",
-              borderRadius: "6px",
-              backgroundColor: "#7E41D9",
-              color: "white",
-              border: "none",
-              cursor: isRunning !== null ? "not-allowed" : "pointer",
-              opacity: isRunning !== null ? 0.5 : 1,
-            }}
-          >
-            {isRunning === "tools" ? "Building..." : "Build Internal Tools"}
-          </button>
-          <button
-            onClick={handleDeleteInternalTools}
-            disabled={isRunning !== null || !toolsExists}
-            style={{
-              padding: "10px 16px",
-              borderRadius: "6px",
-              backgroundColor: "#DC2626",
-              color: "white",
-              border: "none",
-              cursor:
-                isRunning !== null || !toolsExists ? "not-allowed" : "pointer",
-              opacity: isRunning !== null || !toolsExists ? 0.5 : 1,
-            }}
-          >
-            Delete Internal Tools
-          </button>
+          <div className="flex" style={{ marginTop: "20px" }}>
+            <button
+              onClick={handleDeleteInternalTools}
+              disabled={isRunning !== null || !toolsExists}
+              className="danger-button"
+            >
+              Delete Internal Tools
+            </button>
+            <button
+              className="secondary"
+              onClick={handleBuildInternalTools}
+              disabled={isRunning !== null}
+            >
+              {isRunning === "tools" ? "Building..." : "Build Internal Tools"}
+            </button>
+          </div>
         </div>
       </Card>
 
