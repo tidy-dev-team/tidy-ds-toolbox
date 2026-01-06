@@ -583,7 +583,7 @@ export function TagsSpacingsUI() {
             <button
               className="secondary"
               onClick={handleBuildInternalTools}
-              disabled={isRunning !== null}
+              disabled={isRunning !== null || toolsExists}
             >
               {isRunning === "tools" ? "Building..." : "Build Internal Tools"}
             </button>
@@ -594,14 +594,9 @@ export function TagsSpacingsUI() {
       {/* Status Messages */}
       {(statusMessage || errorMessage) && (
         <div
+          className="status-pill pill-anim"
           style={{
-            padding: "var(--pixel-12, 12px)",
-            borderRadius: "var(--pixel-8, 8px)",
-            fontSize: "12px",
-            backgroundColor: statusMessage
-              ? "rgba(5, 150, 105, 0.1)"
-              : "rgba(220, 38, 38, 0.1)",
-            color: statusMessage ? "#059669" : "#dc2626",
+            ["--pillBtnColor" as any]: statusMessage ? "#059669" : "#dc2626",
           }}
         >
           {statusMessage || errorMessage}
