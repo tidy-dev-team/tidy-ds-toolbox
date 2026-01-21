@@ -655,7 +655,8 @@ div .form-control:last-of-type {
     padding 300ms linear 0s;
 }
 
-.sidebar.small .nav-section-heading {
+.sidebar.small .nav-section-heading,
+.sidebar.small-width .nav-section-heading {
   width: 45px;
   max-height: 0;
   padding-top: 2px;
