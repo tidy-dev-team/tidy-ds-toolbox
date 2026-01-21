@@ -8,6 +8,8 @@ import {
   STICKER_SHEET_PROGRESS_EVENT,
   STICKER_SHEET_MODULE_ID,
   StickerSheetBuilderContext,
+  StickerSheetConfig,
+  PageMarker,
   BuildProgress,
 } from "./types";
 
@@ -159,6 +161,52 @@ export function StickerSheetBuilderUI() {
     sendRequest("cancel-build");
   }, [sendRequest]);
 
+  const handleConfigChange = useCallback(
+    (updates: Partial<StickerSheetConfig>) => {
+      const newConfig: StickerSheetConfig = {
+        ...context.config,
+        ...updates,
+      };
+      sendRequest("update-config", newConfig, {
+        onSuccess: (result) => {
+          if (result?.context) {
+            setContext(result.context as StickerSheetBuilderContext);
+          }
+        },
+        onError: (error) => setErrorMessage(error),
+      });
+    },
+    [context.config, sendRequest],
+  );
+
+  const handleStartMarkerChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const pageId = e.target.value;
+      const page = context.availablePages.find((p) => p.id === pageId) || null;
+      handleConfigChange({ startMarker: page });
+    },
+    [context.availablePages, handleConfigChange],
+  );
+
+  const handleEndMarkerChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const pageId = e.target.value;
+      const page = context.availablePages.find((p) => p.id === pageId) || null;
+      handleConfigChange({ endMarker: page });
+    },
+    [context.availablePages, handleConfigChange],
+  );
+
+  const handleDescriptionToggle = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleConfigChange({ requireDescription: e.target.checked });
+    },
+    [handleConfigChange],
+  );
+
+  const isConfigValid =
+    context.config.startMarker !== null && context.config.endMarker !== null;
+
   const buildAllLabel = context.stickerSheetExists
     ? "↻ Rebuild sticker sheet"
     : "Build sticker sheet";
@@ -168,8 +216,73 @@ export function StickerSheetBuilderUI() {
       style={containerStyle}
       className={context.selectionValid ? "selection-ready" : "selection-empty"}
     >
+      <Card title="Configuration">
+        <div style={configGridStyle}>
+          <div style={configRowStyle}>
+            <label style={labelStyle} htmlFor="start-marker">
+              Start marker
+            </label>
+            <select
+              id="start-marker"
+              style={selectStyle}
+              value={context.config.startMarker?.id ?? ""}
+              onChange={handleStartMarkerChange}
+              disabled={isLoading || isBuilding}
+            >
+              <option value="">Select page...</option>
+              {context.availablePages.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {page.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={configRowStyle}>
+            <label style={labelStyle} htmlFor="end-marker">
+              End marker
+            </label>
+            <select
+              id="end-marker"
+              style={selectStyle}
+              value={context.config.endMarker?.id ?? ""}
+              onChange={handleEndMarkerChange}
+              disabled={isLoading || isBuilding}
+            >
+              <option value="">Select page...</option>
+              {context.availablePages.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {page.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={checkboxRowStyle}>
+            <input
+              type="checkbox"
+              id="require-description"
+              checked={context.config.requireDescription}
+              onChange={handleDescriptionToggle}
+              disabled={isLoading || isBuilding}
+            />
+            <label htmlFor="require-description" style={checkboxLabelStyle}>
+              Require ℹ️ in description
+            </label>
+          </div>
+          {!isConfigValid && (
+            <div style={configHintStyle}>
+              Select start and end markers to define the component pages range.
+            </div>
+          )}
+        </div>
+      </Card>
+
       <Card title="Context">
         <div style={statusGridStyle}>
+          <StatusRow
+            label="Configuration"
+            value={isConfigValid ? "Ready" : "Not configured"}
+            tone={isConfigValid ? "success" : "warning"}
+          />
           <StatusRow
             label="Sticker sheet"
             value={context.stickerSheetExists ? "Detected" : "Not found"}
@@ -201,9 +314,9 @@ export function StickerSheetBuilderUI() {
           </button>
           <button
             onClick={handleBuildAll}
-            disabled={isLoading || isBuilding}
+            disabled={isLoading || isBuilding || !isConfigValid}
             className={isBuilding ? "morePadding working" : "morePadding"}
-            style={getButtonStyle(!(isLoading || isBuilding))}
+            style={getButtonStyle(!(isLoading || isBuilding) && isConfigValid)}
           >
             {isBuilding ? <img src={Loader} /> : buildAllLabel}
           </button>
@@ -303,6 +416,51 @@ const progressStyle: React.CSSProperties = {
 const cancelButtonStyle: React.CSSProperties = {
   backgroundColor: "var(--figma-color-bg-danger, #dc2626)",
   color: "white",
+};
+
+const configGridStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "var(--pixel-12, 12px)",
+};
+
+const configRowStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "var(--pixel-4, 4px)",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: "12px",
+  fontWeight: 500,
+  color: "var(--figma-color-text-secondary, #6b7280)",
+};
+
+const selectStyle: React.CSSProperties = {
+  padding: "var(--pixel-8, 8px)",
+  borderRadius: "var(--pixel-4, 4px)",
+  border: "1px solid var(--figma-color-border, #e5e5e5)",
+  backgroundColor: "var(--figma-color-bg, #fff)",
+  fontSize: "12px",
+  cursor: "pointer",
+};
+
+const checkboxRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "var(--pixel-8, 8px)",
+};
+
+const checkboxLabelStyle: React.CSSProperties = {
+  fontSize: "12px",
+  color: "var(--figma-color-text, #333)",
+  cursor: "pointer",
+};
+
+const configHintStyle: React.CSSProperties = {
+  fontSize: "11px",
+  color: "var(--figma-color-text-tertiary, #999)",
+  fontStyle: "italic",
 };
 
 function getButtonStyle(enabled: boolean): React.CSSProperties {

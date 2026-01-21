@@ -1,13 +1,26 @@
-export function findAtomPages() {
+import { PageMarker } from "../types";
+
+export function findAtomPages(
+  startMarker: PageMarker | null,
+  endMarker: PageMarker | null,
+): PageNode[] {
   const pages = figma.root.children;
-  const atomsTitleIndex = pages.findIndex((page) =>
-    page.name.startsWith("⚛️ Atoms"),
-  );
-  const moleculesTitleIndex = pages.findIndex((page) =>
-    page.name.startsWith("🧬 Molecules"),
-  );
-  const atomPages = pages.slice(atomsTitleIndex + 1, moleculesTitleIndex);
-  return atomPages;
+
+  // If no markers configured, return empty array
+  if (!startMarker || !endMarker) {
+    return [];
+  }
+
+  const startIndex = pages.findIndex((page) => page.id === startMarker.id);
+  const endIndex = pages.findIndex((page) => page.id === endMarker.id);
+
+  // If markers not found, return empty array
+  if (startIndex === -1 || endIndex === -1) {
+    return [];
+  }
+
+  // Get pages between markers (exclusive of marker pages)
+  return pages.slice(startIndex + 1, endIndex);
 }
 
 export function findStickerSheetPage() {
@@ -26,20 +39,37 @@ export function getStickerSheetPage() {
   return found;
 }
 
-export function getComponentsFromPage(atomPages: PageNode[]) {
-  const components: any = [];
+export function getComponentsFromPage(
+  atomPages: PageNode[],
+  requireDescription: boolean = true,
+) {
+  const components: (ComponentNode | ComponentSetNode)[] = [];
   for (const page of atomPages) {
     const componentsAndSets = page.findAllWithCriteria({
       types: ["COMPONENT", "COMPONENT_SET"],
     });
     componentsAndSets.forEach((item) => {
-      if (
-        !item.name.startsWith(".") &&
-        item.description.toLowerCase().includes("ℹ️")
-      ) {
+      // Skip components that are variants inside a ComponentSet
+      // We only want the ComponentSet itself, not its children
+      if (item.type === "COMPONENT" && item.parent?.type === "COMPONENT_SET") {
+        return;
+      }
+
+      const isPublic = !item.name.startsWith(".");
+      const hasDescription =
+        !requireDescription || item.description.toLowerCase().includes("ℹ️");
+
+      if (isPublic && hasDescription) {
         components.push(item);
       }
     });
   }
   return components;
+}
+
+export function getAllPages(): PageMarker[] {
+  return figma.root.children.map((page) => ({
+    id: page.id,
+    name: page.name,
+  }));
 }

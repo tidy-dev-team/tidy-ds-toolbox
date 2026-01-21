@@ -6,13 +6,16 @@ import { findDescriptionSection } from "./findDescriptionSection";
 export default function buildHeader(
   name: string,
   description: ComponentDescription,
+  includeInfo: boolean = true,
 ) {
   const headerFrame = buildHeaderFrame();
 
   buildTitleFrame(headerFrame, name);
-  const infoFrame = buildInfoFrame(headerFrame, description);
-  infoFrame.resize(520, infoFrame.height);
-  infoFrame.layoutSizingVertical = "HUG";
+  if (includeInfo) {
+    const infoFrame = buildInfoFrame(headerFrame, description);
+    infoFrame.resize(520, infoFrame.height);
+    infoFrame.layoutSizingVertical = "HUG";
+  }
   buildDividerFrame(headerFrame);
   buildBackToIndexFrame(headerFrame);
 

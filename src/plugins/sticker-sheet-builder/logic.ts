@@ -4,6 +4,7 @@ import {
   findStickerSheetPage,
   getComponentsFromPage,
   getStickerSheetPage,
+  getAllPages,
 } from "./utils/findAtomPages";
 import { loadFonts } from "./utils/loadFonts";
 import { lockStickers } from "./utils/lockStickers";
@@ -11,9 +12,12 @@ import {
   StickerSheetBuilderAction,
   StickerSheetBuilderContext,
   StickerSheetBuilderResponse,
+  StickerSheetConfig,
   BuildProgress,
   STICKER_SHEET_CONTEXT_EVENT,
   STICKER_SHEET_PROGRESS_EVENT,
+  STICKER_SHEET_CONFIG_KEY,
+  DEFAULT_STICKER_SHEET_CONFIG,
 } from "./types";
 
 let fontsLoaded = false;
@@ -23,6 +27,24 @@ let cancelRequested = false;
 // Yield control back to the event loop to keep UI responsive
 function yieldToMain(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+// Load config from plugin data
+function loadConfig(): StickerSheetConfig {
+  try {
+    const stored = figma.root.getPluginData(STICKER_SHEET_CONFIG_KEY);
+    if (stored) {
+      return JSON.parse(stored) as StickerSheetConfig;
+    }
+  } catch (e) {
+    console.error("Failed to load sticker sheet config:", e);
+  }
+  return DEFAULT_STICKER_SHEET_CONFIG;
+}
+
+// Save config to plugin data
+function saveConfig(config: StickerSheetConfig): void {
+  figma.root.setPluginData(STICKER_SHEET_CONFIG_KEY, JSON.stringify(config));
 }
 
 // Broadcast build progress to the UI
@@ -44,7 +66,7 @@ function broadcastProgress(
 
 export async function stickerSheetBuilderHandler(
   action: StickerSheetBuilderAction,
-  _payload?: any,
+  payload?: any,
   _figma?: PluginAPI,
 ): Promise<StickerSheetBuilderResponse> {
   ensureEventListeners();
@@ -56,6 +78,12 @@ export async function stickerSheetBuilderHandler(
       return { context };
     }
     case "load-context": {
+      const context = broadcastContext();
+      return { context };
+    }
+    case "update-config": {
+      const newConfig = payload as StickerSheetConfig;
+      saveConfig(newConfig);
       const context = broadcastContext();
       return { context };
     }
@@ -92,9 +120,12 @@ function ensureEventListeners() {
 }
 
 function broadcastContext(): StickerSheetBuilderContext {
+  const config = loadConfig();
   const context: StickerSheetBuilderContext = {
     selectionValid: isSelectionValid(),
     stickerSheetExists: Boolean(findStickerSheetPage()),
+    config,
+    availablePages: getAllPages(),
   };
 
   figma.ui?.postMessage({
@@ -157,16 +188,31 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
   cancelRequested = false;
   await ensureFontsLoaded();
 
+  const config = loadConfig();
+
   const stickerSheetPage = getStickerSheetPage();
   while (stickerSheetPage.children.length) {
     stickerSheetPage.children[0].remove();
   }
 
-  const atomPages = findAtomPages();
-  const components = getComponentsFromPage(atomPages) as (
-    | ComponentNode
-    | ComponentSetNode
-  )[];
+  const atomPages = findAtomPages(config.startMarker, config.endMarker);
+
+  if (atomPages.length === 0) {
+    throw new Error(
+      "No pages found between the configured markers. Please configure start and end markers.",
+    );
+  }
+
+  const components = getComponentsFromPage(
+    atomPages,
+    config.requireDescription,
+  ) as (ComponentNode | ComponentSetNode)[];
+
+  if (components.length === 0) {
+    throw new Error(
+      "No components found in the selected pages. Check your marker configuration and description filter settings.",
+    );
+  }
 
   const total = components.length;
   let builtCount = 0;
@@ -178,7 +224,9 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
     }
 
     broadcastProgress(builtCount + 1, total, component.name);
-    await buildOneSticker(component);
+    await buildOneSticker(component, {
+      includeInfo: config.requireDescription,
+    });
     builtCount += 1;
 
     // Yield to keep UI responsive

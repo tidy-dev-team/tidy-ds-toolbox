@@ -15,9 +15,15 @@ import { getStickerSheetPage } from "./findAtomPages";
 import { appendToStickerSheetPage } from "./appendToStickerSheetPage";
 import { parseComponentDescription } from "./parseDescription";
 
+export interface BuildStickerOptions {
+  includeInfo?: boolean;
+}
+
 export default async function buildOneSticker(
   node: InstanceNode | ComponentNode | ComponentSetNode,
+  options: BuildStickerOptions = {},
 ) {
+  const { includeInfo = true } = options;
   const stickerSheetPage = getStickerSheetPage();
 
   const mainComponent = await getMainComponent(node);
@@ -47,7 +53,7 @@ export default async function buildOneSticker(
 
   const stickerFrame = buildStickerFrame(mainComponent.name);
 
-  const headerFrame = buildHeader(mainComponent.name, description);
+  const headerFrame = buildHeader(mainComponent.name, description, includeInfo);
 
   stickerFrame.appendChild(headerFrame);
   headerFrame.layoutSizingHorizontal = "FILL";
