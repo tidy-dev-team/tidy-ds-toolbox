@@ -636,6 +636,18 @@ div .form-control:last-of-type {
   justify-content: center;
 }
 
+.sidebar button span.label {
+  transform: translateY(-6px);
+}
+
+.sidebar button span.state {
+  position: absolute;
+  margin-left: 32px;
+  top: 20px;
+  font-size: 0.7em;
+  opacity: 0.7;
+}
+
 .status-pill {
   position: absolute;
   bottom: 60px;

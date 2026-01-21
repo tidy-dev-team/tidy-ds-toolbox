@@ -36,6 +36,7 @@ function Navigation() {
               )}
             </span>
             <span className="label">{module.label}</span>
+            <span className="state">{module.state}</span>
           </button>
         );
       })}
