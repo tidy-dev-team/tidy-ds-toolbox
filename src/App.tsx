@@ -3,6 +3,7 @@ import { ErrorBoundary, ResizeHandle } from "./components";
 import { SearchDropdown } from "./components/SearchDropdown";
 import { SearchableFeature } from "./shared/searchIndex";
 import { moduleRegistry } from "./moduleRegistry";
+import { ModuleManifest } from "@shared/types";
 import "./App.css";
 import {
   IconLayoutSidebar,
@@ -13,18 +14,18 @@ function Navigation() {
   const { state, dispatch } = useShell();
   const modules = Object.values(moduleRegistry).sort((a, b) =>
     b.state.localeCompare(a.state),
-  ) as any[];
+  );
 
   // Group modules by state
   const groupedModules = modules.reduce(
-    (acc, module) => {
+    (acc, module: ModuleManifest) => {
       if (!acc[module.state]) {
         acc[module.state] = [];
       }
       acc[module.state].push(module);
       return acc;
     },
-    {} as Record<string, typeof modules>,
+    {} as Record<string, ModuleManifest[]>,
   );
 
   // Define order of states
@@ -36,7 +37,7 @@ function Navigation() {
       {orderedStates.map((stateName) => (
         <div key={stateName} className="nav-section">
           <h3 className="nav-section-heading">{stateName}</h3>
-          {groupedModules[stateName].map((module) => {
+          {groupedModules[stateName].map((module: ModuleManifest) => {
             const IconComponent = module.icon;
             return (
               <button
