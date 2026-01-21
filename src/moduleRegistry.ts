@@ -112,6 +112,7 @@ export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
     id: "ds-explorer",
     label: "DS Explorer",
+    state: "stable",
     icon: IconComponents,
     ui: DSExplorerUI,
     handler: dsExplorerHandler,
@@ -120,6 +121,7 @@ export const moduleRegistry: ModuleRegistry = {
   "component-labels": {
     id: "component-labels",
     label: "Component Labels",
+    state: "stable",
     icon: IconTag,
     ui: ComponentLabelsUI,
     handler: componentLabelsHandler,
@@ -128,6 +130,7 @@ export const moduleRegistry: ModuleRegistry = {
   "tidy-icon-care": {
     id: "tidy-icon-care",
     label: "Tidy Icon Care",
+    state: "stable",
     icon: IconIcons,
     ui: TidyIconCareUI,
     handler: tidyIconCareHandler,
@@ -136,6 +139,7 @@ export const moduleRegistry: ModuleRegistry = {
   "sticker-sheet-builder": {
     id: "sticker-sheet-builder",
     label: "Sticker Sheet Builder *",
+    state: "alpha",
     icon: IconSticker,
     ui: StickerSheetBuilderUI,
     handler: stickerSheetBuilderHandler,
@@ -144,6 +148,7 @@ export const moduleRegistry: ModuleRegistry = {
   "tidy-mapper": {
     id: "tidy-mapper",
     label: "Tidy Mapper",
+    state: "stable",
     icon: IconMap,
     ui: TidyMapperUI,
     handler: tidyMapperHandler,
@@ -152,6 +157,7 @@ export const moduleRegistry: ModuleRegistry = {
   utilities: {
     id: "utilities",
     label: "Utilities",
+    state: "stable",
     icon: IconTool,
     ui: UtilitiesUI,
     handler: utilitiesHandler,
@@ -160,22 +166,25 @@ export const moduleRegistry: ModuleRegistry = {
   audit: {
     id: "audit",
     label: "Audit",
+    state: "stable",
     icon: IconZoomCheck,
     ui: AuditUI,
     handler: auditHandler,
     permissionRequirements: ["activeselection"],
   },
-  "tags-spacings": {
-    id: "tags-spacings",
-    label: "Tags & Spacings *",
-    icon: IconRulerMeasure,
-    ui: TagsSpacingsUI,
-    handler: tagsSpacingsHandler,
-    permissionRequirements: ["activeselection"],
-  },
+  // "tags-spacings": {
+  //   id: "tags-spacings",
+  //   label: "Tags & Spacings *",
+  //   state: "alpha",
+  //   icon: IconRulerMeasure,
+  //   ui: TagsSpacingsUI,
+  //   handler: tagsSpacingsHandler,
+  //   permissionRequirements: ["activeselection"],
+  // },
   "release-notes": {
     id: "release-notes",
     label: "Release Notes *",
+    state: "beta",
     icon: IconFileText,
     ui: ReleaseNotesUI,
     handler: releaseNotesHandler,

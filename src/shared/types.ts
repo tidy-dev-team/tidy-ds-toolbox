@@ -32,11 +32,20 @@ export interface ShellMessage {
   result?: any;
 }
 
+// Module state type
+export type ModuleState =
+  | "stable"
+  | "beta"
+  | "alpha"
+  | "experimental"
+  | "deprecated";
+
 // Specific message types for type safety
 
 export interface ModuleManifest {
   id: PluginID;
   label: string;
+  state: ModuleState;
   icon: React.ComponentType<any> | string;
   ui: React.ComponentType<any>;
   handler: (action: string, payload: any, figma: any) => Promise<any>;
