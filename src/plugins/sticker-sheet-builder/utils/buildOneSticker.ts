@@ -44,83 +44,97 @@ export default async function buildOneSticker(
     return null;
   }
 
-  const description = parseComponentDescription(mainComponent.description);
+  try {
+    const description = parseComponentDescription(mainComponent.description);
 
-  const componentProps = getComponentProps(mainComponent);
-  const { stateProps, typeProps, sizeProps, binaryProps, allOtherProps } =
-    getProps(componentProps);
-  const booleanProps = componentProps.boolean;
-  const baseProps = getBaseProps(typeProps, stateProps, allOtherProps);
+    const componentProps = getComponentProps(mainComponent);
+    const { stateProps, typeProps, sizeProps, binaryProps, allOtherProps } =
+      getProps(componentProps);
+    const booleanProps = componentProps.boolean;
+    const baseProps = getBaseProps(typeProps, stateProps, allOtherProps);
 
-  let defaultVariant: ComponentNode;
-  if (mainComponent.type === "COMPONENT") {
-    defaultVariant = mainComponent;
-  } else {
-    defaultVariant = mainComponent.defaultVariant;
-  }
-
-  const raster = await getRaster(defaultVariant);
-
-  const stickerFrame = buildStickerFrame(mainComponent.name);
-
-  const headerFrame = buildHeader(mainComponent.name, description, includeInfo);
-
-  stickerFrame.appendChild(headerFrame);
-  headerFrame.layoutSizingHorizontal = "FILL";
-
-  const sizeFrame = sizeProps.length
-    ? buildSizes(defaultVariant, sizeProps)
-    : null;
-
-  const binaryFrames = binaryProps.length
-    ? buildBinariesGrids(defaultVariant, binaryProps)
-    : null;
-
-  const booleansFrame = buildBooleans(
-    mainComponent,
-    defaultVariant,
-    booleanProps,
-  );
-
-  const basicGrid = baseProps
-    ? buildBasicGrid(
-        defaultVariant,
-        baseProps?.firstProp,
-        baseProps?.secondProp,
-      )
-    : null;
-
-  let otherVariantsFrame: FrameNode | undefined;
-
-  if (baseProps && baseProps.otherProps?.length && basicGrid) {
-    otherVariantsFrame = buildOtherVariants(basicGrid, baseProps.otherProps);
-  }
-
-  if (sizeFrame) stickerFrame.appendChild(sizeFrame);
-
-  if (binaryFrames) {
-    for (const frame of binaryFrames) {
-      stickerFrame.appendChild(frame);
+    let defaultVariant: ComponentNode;
+    if (mainComponent.type === "COMPONENT") {
+      defaultVariant = mainComponent;
+    } else {
+      defaultVariant = mainComponent.defaultVariant;
     }
+
+    const raster = await getRaster(defaultVariant);
+
+    const stickerFrame = buildStickerFrame(mainComponent.name);
+
+    const headerFrame = buildHeader(
+      mainComponent.name,
+      description,
+      includeInfo,
+    );
+
+    stickerFrame.appendChild(headerFrame);
+    headerFrame.layoutSizingHorizontal = "FILL";
+
+    const sizeFrame = sizeProps.length
+      ? buildSizes(defaultVariant, sizeProps)
+      : null;
+
+    const binaryFrames = binaryProps.length
+      ? buildBinariesGrids(defaultVariant, binaryProps)
+      : null;
+
+    const booleansFrame = buildBooleans(
+      mainComponent,
+      defaultVariant,
+      booleanProps,
+    );
+
+    const basicGrid = baseProps
+      ? buildBasicGrid(
+          defaultVariant,
+          baseProps?.firstProp,
+          baseProps?.secondProp,
+        )
+      : null;
+
+    let otherVariantsFrame: FrameNode | undefined;
+
+    if (baseProps && baseProps.otherProps?.length && basicGrid) {
+      otherVariantsFrame = buildOtherVariants(basicGrid, baseProps.otherProps);
+    }
+
+    if (sizeFrame) stickerFrame.appendChild(sizeFrame);
+
+    if (binaryFrames) {
+      for (const frame of binaryFrames) {
+        stickerFrame.appendChild(frame);
+      }
+    }
+
+    if (booleansFrame) stickerFrame.appendChild(booleansFrame);
+
+    if (otherVariantsFrame) {
+      stickerFrame.appendChild(otherVariantsFrame);
+    } else {
+      if (basicGrid) stickerFrame.appendChild(basicGrid);
+    }
+
+    appendToStickerSheetPage(
+      stickerSheetPage,
+      stickerFrame,
+      mainComponent,
+      raster,
+      description,
+      groupingMode,
+      sourcePageName,
+    );
+  } catch (error) {
+    console.warn(
+      `[Sticker Sheet] Failed to build sticker for "${mainComponent.name}": ${error}. Skipping component.`,
+    );
+    figma.notify(`⚠️ Skipped "${mainComponent.name}" due to an error`, {
+      timeout: 3000,
+    });
+    return null;
   }
-
-  if (booleansFrame) stickerFrame.appendChild(booleansFrame);
-
-  if (otherVariantsFrame) {
-    stickerFrame.appendChild(otherVariantsFrame);
-  } else {
-    if (basicGrid) stickerFrame.appendChild(basicGrid);
-  }
-
-  appendToStickerSheetPage(
-    stickerSheetPage,
-    stickerFrame,
-    mainComponent,
-    raster,
-    description,
-    groupingMode,
-    sourcePageName,
-  );
 }
 
 export function addToIndex(

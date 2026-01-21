@@ -20,9 +20,15 @@ export function appendToStickerSheetPage(
   addToIndex(stickerSheetPage, element.name, stickerFrame, raster);
 
   if (groupingMode === "none") {
-    // No grouping - append directly to a flat container
+    // No grouping - organize by source page:
+    // - Horizontal: elements from the same page
+    // - Vertical: groups from different pages
     const flatContainer = findOrCreateFlatContainer();
-    flatContainer.appendChild(stickerFrame);
+    const pageRow = findOrCreatePageRow(
+      flatContainer,
+      sourcePageName ?? "Unknown page",
+    );
+    pageRow.appendChild(stickerFrame);
   } else {
     // Group by section or page
     const sectionName =
@@ -39,20 +45,48 @@ function findOrCreateFlatContainer(): FrameNode {
     (frame) => frame.name === "All Stickers",
   );
   if (!flatContainer) {
+    // Vertical container to stack page rows
     flatContainer = buildAutoLayoutFrame(
       "All Stickers",
-      "HORIZONTAL",
+      "VERTICAL",
       24,
       24,
       24,
     );
-    (flatContainer as FrameNode).fills = SECTION_FILL;
-    (flatContainer as FrameNode).cornerRadius = 56;
-    (flatContainer as FrameNode).layoutWrap = "WRAP";
+    (flatContainer as FrameNode).fills = [];
     figma.currentPage.appendChild(flatContainer);
     placeResultTopRight(flatContainer as FrameNode, figma.currentPage);
   }
   return flatContainer as FrameNode;
+}
+
+function findOrCreatePageRow(
+  container: FrameNode,
+  pageName: string,
+): FrameNode {
+  // Look for existing row for this page
+  const existingRow = container.findChild(
+    (node): node is FrameNode =>
+      node.type === "FRAME" && node.name === `Row: ${pageName}`,
+  );
+
+  if (existingRow) {
+    return existingRow;
+  }
+
+  // Create new horizontal row for this page
+  const pageRow = buildAutoLayoutFrame(
+    `Row: ${pageName}`,
+    "HORIZONTAL",
+    24,
+    24,
+    24,
+  );
+  pageRow.fills = SECTION_FILL;
+  pageRow.cornerRadius = 56;
+  container.appendChild(pageRow);
+
+  return pageRow;
 }
 
 function findOrCreateAllSectionsFrame() {
