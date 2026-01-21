@@ -11,7 +11,7 @@ export interface PageMarker {
   name: string;
 }
 
-export type GroupingMode = "section" | "page" | "none";
+export type GroupingMode = "section" | "page";
 
 export interface StickerSheetConfig {
   startMarker: PageMarker | null;

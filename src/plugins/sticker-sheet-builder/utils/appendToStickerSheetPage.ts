@@ -19,8 +19,8 @@ export function appendToStickerSheetPage(
 
   addToIndex(stickerSheetPage, element.name, stickerFrame, raster);
 
-  if (groupingMode === "none") {
-    // No grouping - organize by source page:
+  if (groupingMode === "page") {
+    // Group by source page:
     // - Horizontal: elements from the same page
     // - Vertical: groups from different pages
     const flatContainer = findOrCreateFlatContainer();
@@ -30,11 +30,12 @@ export function appendToStickerSheetPage(
     );
     pageRow.appendChild(stickerFrame);
   } else {
-    // Group by section or page
-    const sectionName =
-      groupingMode === "page"
-        ? (sourcePageName ?? "Unknown page")
-        : findDescriptionSection("🗂️", description, "Unknown section");
+    // Group by section (from description 🗂️)
+    const sectionName = findDescriptionSection(
+      "🗂️",
+      description,
+      "Unknown section",
+    );
     const currentSectionFrame = findOrCreateCurrentSectionFrame(sectionName);
     currentSectionFrame.appendChild(stickerFrame);
   }

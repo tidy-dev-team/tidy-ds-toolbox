@@ -287,9 +287,8 @@ export function StickerSheetBuilderUI() {
               onChange={handleGroupingChange}
               disabled={isLoading || isBuilding}
             >
-              <option value="section">By section (🗂️)</option>
+              <option value="section">By section (Kido DS only)</option>
               <option value="page">By source page</option>
-              <option value="none">No grouping</option>
             </select>
           </div>
           {!isConfigValid && (
