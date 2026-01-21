@@ -4,6 +4,7 @@ import { buildAutoLayoutFrame } from "./utilityFunctions";
 import { SECTION_FILL } from "./constants";
 import { findDescriptionSection } from "./findDescriptionSection";
 import { ComponentDescription } from "./parseDescription";
+import { GroupingMode } from "../types";
 
 export function appendToStickerSheetPage(
   stickerSheetPage: PageNode,
@@ -11,21 +12,47 @@ export function appendToStickerSheetPage(
   element: ComponentNode | ComponentSetNode,
   raster: FrameNode,
   description: ComponentDescription,
+  groupingMode: GroupingMode = "section",
+  sourcePageName?: string,
 ) {
   figma.currentPage = stickerSheetPage;
 
   addToIndex(stickerSheetPage, element.name, stickerFrame, raster);
 
-  const currentSectionName = findDescriptionSection(
-    "🗂️",
-    description,
-    "Unknown section",
-  );
-  const currentSectionFrame =
-    findOrCreateCurrentSectionFrame(currentSectionName);
-  currentSectionFrame.appendChild(stickerFrame);
+  if (groupingMode === "none") {
+    // No grouping - append directly to a flat container
+    const flatContainer = findOrCreateFlatContainer();
+    flatContainer.appendChild(stickerFrame);
+  } else {
+    // Group by section or page
+    const sectionName =
+      groupingMode === "page"
+        ? (sourcePageName ?? "Unknown page")
+        : findDescriptionSection("🗂️", description, "Unknown section");
+    const currentSectionFrame = findOrCreateCurrentSectionFrame(sectionName);
+    currentSectionFrame.appendChild(stickerFrame);
+  }
+}
 
-  // placeResultTopRight(stickerFrame, stickerSheetPage);
+function findOrCreateFlatContainer(): FrameNode {
+  let flatContainer = figma.currentPage.findChild(
+    (frame) => frame.name === "All Stickers",
+  );
+  if (!flatContainer) {
+    flatContainer = buildAutoLayoutFrame(
+      "All Stickers",
+      "HORIZONTAL",
+      24,
+      24,
+      24,
+    );
+    (flatContainer as FrameNode).fills = SECTION_FILL;
+    (flatContainer as FrameNode).cornerRadius = 56;
+    (flatContainer as FrameNode).layoutWrap = "WRAP";
+    figma.currentPage.appendChild(flatContainer);
+    placeResultTopRight(flatContainer as FrameNode, figma.currentPage);
+  }
+  return flatContainer as FrameNode;
 }
 
 function findOrCreateAllSectionsFrame() {

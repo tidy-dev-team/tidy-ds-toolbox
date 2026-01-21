@@ -6,9 +6,10 @@ export function checkOrAddIndex(page: PageNode): FrameNode {
   );
   if (!indexFrame) {
     indexFrame = buildAutoLayoutFrame("index", "VERTICAL", 60, 60, 24);
-    indexFrame.cornerRadius = 40;
-    addTitle(indexFrame);
-    return indexFrame;
+    (indexFrame as FrameNode).cornerRadius = 40;
+    addTitle(indexFrame as FrameNode);
+    page.appendChild(indexFrame);
+    return indexFrame as FrameNode;
   }
   return indexFrame as FrameNode;
 }

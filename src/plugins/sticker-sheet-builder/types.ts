@@ -11,10 +11,13 @@ export interface PageMarker {
   name: string;
 }
 
+export type GroupingMode = "section" | "page" | "none";
+
 export interface StickerSheetConfig {
   startMarker: PageMarker | null;
   endMarker: PageMarker | null;
   requireDescription: boolean;
+  groupingMode: GroupingMode;
 }
 
 export interface StickerSheetBuilderContext {
@@ -45,6 +48,7 @@ export const DEFAULT_STICKER_SHEET_CONFIG: StickerSheetConfig = {
   startMarker: null,
   endMarker: null,
   requireDescription: true,
+  groupingMode: "section",
 };
 
 export const DEFAULT_STICKER_SHEET_CONTEXT: StickerSheetBuilderContext = {

@@ -14,19 +14,26 @@ import { getRaster } from "./makeRaster";
 import { getStickerSheetPage } from "./findAtomPages";
 import { appendToStickerSheetPage } from "./appendToStickerSheetPage";
 import { parseComponentDescription } from "./parseDescription";
+import { GroupingMode } from "../types";
 
 // Maximum width for raster images in the index to prevent overflow
 const MAX_INDEX_RASTER_WIDTH = 360;
 
 export interface BuildStickerOptions {
   includeInfo?: boolean;
+  groupingMode?: GroupingMode;
+  sourcePageName?: string;
 }
 
 export default async function buildOneSticker(
   node: InstanceNode | ComponentNode | ComponentSetNode,
   options: BuildStickerOptions = {},
 ) {
-  const { includeInfo = true } = options;
+  const {
+    includeInfo = true,
+    groupingMode = "section",
+    sourcePageName,
+  } = options;
   const stickerSheetPage = getStickerSheetPage();
 
   const mainComponent = await getMainComponent(node);
@@ -111,6 +118,8 @@ export default async function buildOneSticker(
     mainComponent,
     raster,
     description,
+    groupingMode,
+    sourcePageName,
   );
 }
 

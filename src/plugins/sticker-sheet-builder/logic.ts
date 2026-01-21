@@ -156,6 +156,9 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
   cancelRequested = false;
   await ensureFontsLoaded();
 
+  const config = loadConfig();
+  const sourcePageName = figma.currentPage.name;
+
   const validNodes = figma.currentPage.selection.filter(isStickerEligible);
   if (!validNodes.length) {
     throw new Error(
@@ -173,7 +176,10 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
     }
 
     broadcastProgress(builtCount + 1, total, node.name);
-    await buildOneSticker(node);
+    await buildOneSticker(node, {
+      groupingMode: config.groupingMode,
+      sourcePageName,
+    });
     builtCount += 1;
 
     // Yield to keep UI responsive
@@ -203,21 +209,21 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
     );
   }
 
-  const components = getComponentsFromPage(
+  const componentsWithPages = getComponentsFromPage(
     atomPages,
     config.requireDescription,
-  ) as (ComponentNode | ComponentSetNode)[];
+  );
 
-  if (components.length === 0) {
+  if (componentsWithPages.length === 0) {
     throw new Error(
       "No components found in the selected pages. Check your marker configuration and description filter settings.",
     );
   }
 
-  const total = components.length;
+  const total = componentsWithPages.length;
   let builtCount = 0;
 
-  for (const component of components) {
+  for (const { component, pageName } of componentsWithPages) {
     if (cancelRequested) {
       const context = broadcastContext();
       return { builtCount, context, cancelled: true };
@@ -226,6 +232,8 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
     broadcastProgress(builtCount + 1, total, component.name);
     await buildOneSticker(component, {
       includeInfo: config.requireDescription,
+      groupingMode: config.groupingMode,
+      sourcePageName: pageName,
     });
     builtCount += 1;
 
@@ -238,6 +246,14 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
   ) as FrameNode | null;
   if (sectionsFrame) {
     lockStickers(sectionsFrame);
+  }
+
+  // Also lock "All Stickers" container for "none" grouping mode
+  const allStickersFrame = stickerSheetPage.findChild(
+    (node) => node.type === "FRAME" && node.name === "All Stickers",
+  ) as FrameNode | null;
+  if (allStickersFrame) {
+    lockStickers(allStickersFrame);
   }
 
   const context = broadcastContext();

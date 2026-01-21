@@ -11,6 +11,7 @@ import {
   StickerSheetConfig,
   PageMarker,
   BuildProgress,
+  GroupingMode,
 } from "./types";
 
 interface PendingRequest {
@@ -204,6 +205,13 @@ export function StickerSheetBuilderUI() {
     [handleConfigChange],
   );
 
+  const handleGroupingChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      handleConfigChange({ groupingMode: e.target.value as GroupingMode });
+    },
+    [handleConfigChange],
+  );
+
   const isConfigValid =
     context.config.startMarker !== null && context.config.endMarker !== null;
 
@@ -267,6 +275,22 @@ export function StickerSheetBuilderUI() {
             <label htmlFor="require-description" style={checkboxLabelStyle}>
               Require ℹ️ in description
             </label>
+          </div>
+          <div style={configRowStyle}>
+            <label style={labelStyle} htmlFor="grouping-mode">
+              Grouping
+            </label>
+            <select
+              id="grouping-mode"
+              style={selectStyle}
+              value={context.config.groupingMode ?? "section"}
+              onChange={handleGroupingChange}
+              disabled={isLoading || isBuilding}
+            >
+              <option value="section">By section (🗂️)</option>
+              <option value="page">By source page</option>
+              <option value="none">No grouping</option>
+            </select>
           </div>
           {!isConfigValid && (
             <div style={configHintStyle}>

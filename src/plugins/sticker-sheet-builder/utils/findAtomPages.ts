@@ -39,11 +39,16 @@ export function getStickerSheetPage() {
   return found;
 }
 
+export interface ComponentWithPage {
+  component: ComponentNode | ComponentSetNode;
+  pageName: string;
+}
+
 export function getComponentsFromPage(
   atomPages: PageNode[],
   requireDescription: boolean = true,
-) {
-  const components: (ComponentNode | ComponentSetNode)[] = [];
+): ComponentWithPage[] {
+  const components: ComponentWithPage[] = [];
   for (const page of atomPages) {
     const componentsAndSets = page.findAllWithCriteria({
       types: ["COMPONENT", "COMPONENT_SET"],
@@ -60,7 +65,7 @@ export function getComponentsFromPage(
         !requireDescription || item.description.toLowerCase().includes("ℹ️");
 
       if (isPublic && hasDescription) {
-        components.push(item);
+        components.push({ component: item, pageName: page.name });
       }
     });
   }
