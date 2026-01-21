@@ -15,6 +15,9 @@ import { getStickerSheetPage } from "./findAtomPages";
 import { appendToStickerSheetPage } from "./appendToStickerSheetPage";
 import { parseComponentDescription } from "./parseDescription";
 
+// Maximum width for raster images in the index to prevent overflow
+const MAX_INDEX_RASTER_WIDTH = 360;
+
 export interface BuildStickerOptions {
   includeInfo?: boolean;
 }
@@ -140,6 +143,8 @@ export function addToIndex(
       boundVariables: {},
     },
   ];
+  // Scale raster proportionally if it exceeds max width
+  scaleToFit(raster, MAX_INDEX_RASTER_WIDTH);
   const wrappedRaster = wrapImage(raster);
   indexEntryFrame.appendChild(wrappedRaster);
   wrappedRaster.layoutSizingHorizontal = "FILL";
@@ -160,6 +165,17 @@ export function addToIndex(
   indexFrame.appendChild(indexEntryFrame);
   indexEntryFrame.layoutSizingHorizontal = "FILL";
   return indexFrame;
+}
+
+/**
+ * Scales a frame proportionally to fit within maxWidth.
+ * Only scales down if the frame is wider than maxWidth.
+ */
+function scaleToFit(frame: FrameNode, maxWidth: number) {
+  if (frame.width > maxWidth) {
+    const scale = maxWidth / frame.width;
+    frame.resize(maxWidth, frame.height * scale);
+  }
 }
 
 function wrapImage(image: FrameNode) {
