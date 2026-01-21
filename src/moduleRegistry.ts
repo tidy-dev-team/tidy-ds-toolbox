@@ -139,7 +139,7 @@ export const moduleRegistry: ModuleRegistry = {
   "sticker-sheet-builder": {
     id: "sticker-sheet-builder",
     label: "Sticker Sheet Builder *",
-    state: "stable",
+    state: "alpha",
     icon: IconSticker,
     ui: StickerSheetBuilderUI,
     handler: stickerSheetBuilderHandler,
@@ -175,7 +175,7 @@ export const moduleRegistry: ModuleRegistry = {
   "tags-spacings": {
     id: "tags-spacings",
     label: "Tags & Spacings *",
-    state: "stable",
+    state: "alpha",
     icon: IconRulerMeasure,
     ui: TagsSpacingsUI,
     handler: tagsSpacingsHandler,
@@ -184,7 +184,7 @@ export const moduleRegistry: ModuleRegistry = {
   "release-notes": {
     id: "release-notes",
     label: "Release Notes *",
-    state: "stable",
+    state: "beta",
     icon: IconFileText,
     ui: ReleaseNotesUI,
     handler: releaseNotesHandler,
