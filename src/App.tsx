@@ -180,7 +180,7 @@ function AppContent() {
         <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
           <Navigation />
           <div className="spacer"></div>
-          <button className="nav-item">
+          <button className="nav-item" aria-label="Feedback">
             <span className="icon">
               <IconMessageCircle size={20} stroke={1.5} />
             </span>
