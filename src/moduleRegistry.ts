@@ -7,7 +7,6 @@ import {
   IconMap,
   IconTool,
   IconZoomCheck,
-  IconRulerMeasure,
   IconFileText,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
@@ -17,7 +16,6 @@ import { StickerSheetBuilderUI } from "./plugins/sticker-sheet-builder/ui";
 import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
 import { UtilitiesUI } from "./plugins/utilities/ui";
 import { AuditUI } from "./plugins/audit/ui";
-import { TagsSpacingsUI } from "./plugins/tags-spacings/ui";
 import { ReleaseNotesUI } from "./plugins/release-notes/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
@@ -37,7 +35,6 @@ import { stickerSheetBuilderHandler as stickerSheetBuilderLogic } from "./plugin
 import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logic";
 import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
 import { auditHandler as auditLogic } from "./plugins/audit/logic";
-import { tagsSpacingsHandler as tagsSpacingsLogic } from "./plugins/tags-spacings/logic";
 import { releaseNotesHandler as releaseNotesLogic } from "./plugins/release-notes/logic";
 
 // Module handlers - now using static imports

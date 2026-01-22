@@ -1,4 +1,5 @@
 import { ModuleManifest, ModuleRegistry } from "@shared/types";
+import { moduleRegistry } from "./moduleRegistry";
 
 // Helper to load and wire a module
 export function loadModule(manifest: ModuleManifest) {
@@ -14,10 +15,6 @@ export function loadModule(manifest: ModuleManifest) {
 // Export handlers for the main thread
 export function getModuleHandlers() {
   // This would be used in code.ts to register handlers
-  const { moduleRegistry } = require("./moduleRegistry") as {
-    moduleRegistry: ModuleRegistry;
-  };
-
   const handlers: Record<string, Function> = {};
   Object.values(moduleRegistry).forEach((manifest: ModuleManifest) => {
     handlers[manifest.id] = manifest.handler;

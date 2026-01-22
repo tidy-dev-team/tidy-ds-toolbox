@@ -14,7 +14,7 @@ interface ShellState {
   featureFocus: string | null; // CSS selector for scrolling to a feature section
   windowSize: { width: number; height: number };
   theme: "light" | "dark";
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
 }
 
 type ShellAction =
@@ -27,7 +27,7 @@ type ShellAction =
   | { type: "CLEAR_FEATURE_FOCUS" }
   | { type: "SET_WINDOW_SIZE"; payload: { width: number; height: number } }
   | { type: "SET_THEME"; payload: "light" | "dark" }
-  | { type: "UPDATE_SETTINGS"; payload: Record<string, any> };
+  | { type: "UPDATE_SETTINGS"; payload: Record<string, unknown> };
 
 const initialState: ShellState = {
   activeModule: "ds-explorer",
@@ -96,8 +96,10 @@ export function ShellProvider({ children }: { children: ReactNode }) {
   // Message bus for handling messages from main thread
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const rawData = event.data as any;
-      const message: ShellMessage = rawData?.pluginMessage ?? rawData;
+      const rawData: unknown = event.data;
+      const message: ShellMessage | undefined =
+        (rawData as { pluginMessage?: ShellMessage })?.pluginMessage ??
+        (rawData as ShellMessage | undefined);
       if (message?.type) {
         switch (message.type) {
           case "resize":

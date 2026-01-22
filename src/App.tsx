@@ -143,10 +143,11 @@ function AppContent() {
 
   // Scroll to focused feature when it changes
   useEffect(() => {
-    if (state.featureFocus) {
+    const selector = state.featureFocus;
+    if (selector) {
       // Small delay to ensure the plugin UI is rendered
       const timeout = setTimeout(() => {
-        const element = document.querySelector(state.featureFocus!);
+        const element = document.querySelector(selector);
         if (element) {
           element.scrollIntoView({ behavior: "smooth", block: "center" });
           // Add highlight effect

@@ -309,29 +309,6 @@ export function AuditUI() {
     );
   }, [isProcessing, sendRequest]);
 
-  // Handle update from canvas
-  const handleUpdateFromCanvas = useCallback(() => {
-    if (isProcessing) return;
-
-    setIsProcessing("update");
-
-    sendRequest(
-      "update-from-canvas",
-      {},
-      {
-        onSuccess: (result) => {
-          if (result?.success) {
-            showStatus(result.message);
-          } else {
-            showError(result?.message ?? "Failed to update from canvas");
-          }
-        },
-        onError: showError,
-        onFinally: () => setIsProcessing(null),
-      },
-    );
-  }, [isProcessing, sendRequest]);
-
   // Handle erase notes on canvas
   const handleEraseNotesOnCanvas = useCallback(() => {
     if (isProcessing) return;

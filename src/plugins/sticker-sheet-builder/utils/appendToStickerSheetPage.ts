@@ -42,23 +42,24 @@ export function appendToStickerSheetPage(
 }
 
 function findOrCreateFlatContainer(): FrameNode {
-  let flatContainer = figma.currentPage.findChild(
-    (frame) => frame.name === "All Stickers",
+  const flatContainer = figma.currentPage.findChild(
+    (node): node is FrameNode =>
+      node.type === "FRAME" && node.name === "All Stickers",
   );
-  if (!flatContainer) {
-    // Vertical container to stack page rows
-    flatContainer = buildAutoLayoutFrame(
-      "All Stickers",
-      "VERTICAL",
-      24,
-      24,
-      24,
-    );
-    (flatContainer as FrameNode).fills = [];
-    figma.currentPage.appendChild(flatContainer);
-    placeResultTopRight(flatContainer as FrameNode, figma.currentPage);
-  }
-  return flatContainer as FrameNode;
+  if (flatContainer) return flatContainer;
+
+  // Vertical container to stack page rows
+  const created = buildAutoLayoutFrame(
+    "All Stickers",
+    "VERTICAL",
+    24,
+    24,
+    24,
+  );
+  created.fills = [];
+  figma.currentPage.appendChild(created);
+  placeResultTopRight(created, figma.currentPage);
+  return created;
 }
 
 function findOrCreatePageRow(
@@ -91,16 +92,17 @@ function findOrCreatePageRow(
 }
 
 function findOrCreateAllSectionsFrame() {
-  let allSectionsFrame = figma.currentPage.findChild(
-    (frame) => frame.name === "Sections",
+  const allSectionsFrame = figma.currentPage.findChild(
+    (node): node is FrameNode =>
+      node.type === "FRAME" && node.name === "Sections",
   );
-  if (!allSectionsFrame) {
-    allSectionsFrame = buildAutoLayoutFrame("Sections", "VERTICAL", 24, 24, 24);
-    allSectionsFrame.fills = [];
-    figma.currentPage.appendChild(allSectionsFrame);
-    placeResultTopRight(allSectionsFrame as FrameNode, figma.currentPage);
-  }
-  return allSectionsFrame as FrameNode;
+  if (allSectionsFrame) return allSectionsFrame;
+
+  const created = buildAutoLayoutFrame("Sections", "VERTICAL", 24, 24, 24);
+  created.fills = [];
+  figma.currentPage.appendChild(created);
+  placeResultTopRight(created, figma.currentPage);
+  return created;
 }
 
 function findOrCreateCurrentSectionFrame(sectionName: string): FrameNode {

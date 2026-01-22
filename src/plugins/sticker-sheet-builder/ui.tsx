@@ -9,7 +9,6 @@ import {
   STICKER_SHEET_MODULE_ID,
   StickerSheetBuilderContext,
   StickerSheetConfig,
-  PageMarker,
   BuildProgress,
   GroupingMode,
 } from "./types";

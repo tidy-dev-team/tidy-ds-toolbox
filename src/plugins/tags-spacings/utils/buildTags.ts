@@ -5,7 +5,6 @@ import {
   TagsSpacingsResult,
   ElementData,
   FrameBounds,
-  TagPlacement,
   ElementCoordinates,
   SupportedContainerNode,
 } from "../types";
