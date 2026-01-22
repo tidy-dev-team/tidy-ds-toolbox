@@ -29,6 +29,11 @@ function Navigation() {
     {} as Record<string, ModuleManifest[]>,
   );
 
+  // Sort plugins alphabetically within each state group
+  Object.values(groupedModules).forEach((group) =>
+    group.sort((a, b) => a.label.localeCompare(b.label)),
+  );
+
   // Define order of states
   const stateOrder = ["stable", "beta", "alpha", "experimental", "deprecated"];
   const orderedStates = stateOrder.filter((state) => groupedModules[state]);

@@ -167,7 +167,7 @@ export const moduleRegistry: ModuleRegistry = {
   "sticker-sheet-builder": {
     id: "sticker-sheet-builder",
     label: "Sticker Sheet Builder",
-    state: "alpha",
+    state: "beta",
     icon: IconSticker,
     ui: StickerSheetBuilderUI,
     handler: stickerSheetBuilderHandler,
