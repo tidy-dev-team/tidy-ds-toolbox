@@ -42,6 +42,13 @@ export type ModuleState =
 
 // Specific message types for type safety
 
+export interface PluginFeature {
+  id: string;
+  label: string;
+  section?: string; // CSS selector or data attribute for scrolling
+  keywords: string[];
+}
+
 export interface ModuleManifest {
   id: PluginID;
   label: string;
@@ -51,6 +58,8 @@ export interface ModuleManifest {
   handler: (action: string, payload: any, figma: any) => Promise<any>;
   permissionRequirements: string[];
   settingsSchema?: any;
+  keywords?: string[]; // Keywords for search
+  features?: PluginFeature[]; // Sub-features within the plugin
 }
 
 export interface ModuleRegistry {

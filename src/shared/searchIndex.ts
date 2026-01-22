@@ -1,9 +1,10 @@
 /**
  * Searchable feature index for all plugins
- * This file defines all searchable features, keywords, and their locations
+ * Auto-generated from moduleRegistry
  */
 
 import { PluginID } from "./types";
+import { moduleRegistry } from "../moduleRegistry";
 
 export interface SearchableFeature {
   id: string;
@@ -14,11 +15,58 @@ export interface SearchableFeature {
   keywords: string[];
 }
 
+let cachedSearchIndex: SearchableFeature[] | null = null;
+
 /**
- * Build the search index from plugin features
- * Add new features here as plugins are expanded
+ * Build the search index dynamically from moduleRegistry
+ * This ensures search index is always in sync with available plugins
  */
-export const searchIndex: SearchableFeature[] = [
+export function buildSearchIndex(): SearchableFeature[] {
+  if (cachedSearchIndex) {
+    return cachedSearchIndex;
+  }
+
+  const features: SearchableFeature[] = [];
+
+  Object.values(moduleRegistry).forEach((module) => {
+    // Add plugin-level entry
+    features.push({
+      id: module.id,
+      label: module.label,
+      pluginId: module.id,
+      pluginLabel: module.label,
+      keywords: module.keywords || [],
+    });
+
+    // Add feature-level entries (if defined)
+    module.features?.forEach((feature) => {
+      features.push({
+        id: feature.id,
+        label: feature.label,
+        pluginId: module.id,
+        pluginLabel: module.label,
+        section: feature.section,
+        keywords: feature.keywords,
+      });
+    });
+  });
+
+  cachedSearchIndex = features;
+  return features;
+}
+
+/**
+ * Get the search index (lazy initialized)
+ */
+export function getSearchIndex(): SearchableFeature[] {
+  return buildSearchIndex();
+}
+
+/**
+ * Legacy static search index - kept for reference during migration
+ * TODO: Remove after migration is complete
+ */
+export const searchIndexLegacy: SearchableFeature[] = [
   // DS Explorer
   {
     id: "ds-explorer",
@@ -208,8 +256,9 @@ export const searchIndex: SearchableFeature[] = [
  * Get all unique plugin entries (for plugin-level search)
  */
 export function getPluginEntries(): SearchableFeature[] {
+  const index = getSearchIndex();
   const seen = new Set<PluginID>();
-  return searchIndex.filter((feature) => {
+  return index.filter((feature) => {
     if (feature.id === feature.pluginId && !seen.has(feature.pluginId)) {
       seen.add(feature.pluginId);
       return true;
@@ -222,5 +271,6 @@ export function getPluginEntries(): SearchableFeature[] {
  * Get all feature entries (for feature-level search)
  */
 export function getFeatureEntries(): SearchableFeature[] {
-  return searchIndex.filter((feature) => feature.id !== feature.pluginId);
+  const index = getSearchIndex();
+  return index.filter((feature) => feature.id !== feature.pluginId);
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { SearchableFeature, searchIndex } from "../shared/searchIndex";
+import { SearchableFeature, getSearchIndex } from "../shared/searchIndex";
 import { fuzzyMatch, highlightMatches } from "../shared/fuzzySearch";
 
 interface SearchResult extends SearchableFeature {
@@ -32,6 +32,8 @@ export const SearchDropdown: React.FC<SearchDropdownProps> = ({
     const trimmedQuery = query.trim();
     if (!trimmedQuery) return [];
 
+    // Get search index dynamically to avoid initialization issues
+    const searchIndex = getSearchIndex();
     const searchResults: SearchResult[] = [];
 
     for (const feature of searchIndex) {

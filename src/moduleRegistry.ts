@@ -128,6 +128,21 @@ export const moduleRegistry: ModuleRegistry = {
     ui: DSExplorerUI,
     handler: dsExplorerHandler,
     permissionRequirements: ["activeselection"],
+    keywords: [
+      "design system",
+      "component",
+      "preview",
+      "configure",
+      "properties",
+    ],
+    features: [
+      {
+        id: "ds-explorer-preview",
+        label: "Component Preview",
+        section: "[data-feature='preview']",
+        keywords: ["preview", "component", "view"],
+      },
+    ],
   },
   "component-labels": {
     id: "component-labels",
@@ -137,6 +152,7 @@ export const moduleRegistry: ModuleRegistry = {
     ui: ComponentLabelsUI,
     handler: componentLabelsHandler,
     permissionRequirements: [],
+    keywords: ["label", "annotation", "naming", "component"],
   },
   "tidy-icon-care": {
     id: "tidy-icon-care",
@@ -146,6 +162,7 @@ export const moduleRegistry: ModuleRegistry = {
     ui: TidyIconCareUI,
     handler: tidyIconCareHandler,
     permissionRequirements: ["activeselection"],
+    keywords: ["icon", "svg", "clean", "optimize", "tidy"],
   },
   "sticker-sheet-builder": {
     id: "sticker-sheet-builder",
@@ -155,6 +172,15 @@ export const moduleRegistry: ModuleRegistry = {
     ui: StickerSheetBuilderUI,
     handler: stickerSheetBuilderHandler,
     permissionRequirements: ["activeselection"],
+    keywords: ["sticker", "sheet", "build", "variants", "documentation"],
+    features: [
+      {
+        id: "sticker-sheet-build-all",
+        label: "Build All Sticker Sheets",
+        section: "[data-feature='build-all']",
+        keywords: ["build", "all", "sticker", "generate"],
+      },
+    ],
   },
   "tidy-mapper": {
     id: "tidy-mapper",
@@ -164,6 +190,7 @@ export const moduleRegistry: ModuleRegistry = {
     ui: TidyMapperUI,
     handler: tidyMapperHandler,
     permissionRequirements: [],
+    keywords: ["map", "mapping", "library", "swap", "migrate"],
   },
   utilities: {
     id: "utilities",
@@ -173,6 +200,44 @@ export const moduleRegistry: ModuleRegistry = {
     ui: UtilitiesUI,
     handler: utilitiesHandler,
     permissionRequirements: [],
+    keywords: ["utility", "tools", "helper", "misc"],
+    features: [
+      {
+        id: "address-note",
+        label: "Address Note",
+        keywords: [
+          "note",
+          "navigation",
+          "address",
+          "backlink",
+          "frame",
+          "link",
+        ],
+      },
+      {
+        id: "image-wrapper",
+        label: "Image Wrapper",
+        keywords: [
+          "wrap",
+          "image",
+          "frame",
+          "selected",
+          "items",
+        ],
+      },
+      {
+        id: "misprint",
+        label: "Misprint",
+        keywords: [
+          "misprint",
+          "scramble",
+          "hebrew",
+          "text",
+          "description",
+          "component",
+        ],
+      },
+    ],
   },
   audit: {
     id: "audit",
@@ -182,6 +247,45 @@ export const moduleRegistry: ModuleRegistry = {
     ui: AuditUI,
     handler: auditHandler,
     permissionRequirements: ["activeselection"],
+    keywords: ["audit", "check", "report", "analysis", "quality"],
+    features: [
+      {
+        id: "audit-add-note",
+        label: "Add Note",
+        section: "[data-feature='add-note']",
+        keywords: ["note", "add", "annotate", "comment", "severity"],
+      },
+      {
+        id: "audit-generate-report",
+        label: "Generate Report",
+        section: "[data-feature='report']",
+        keywords: ["report", "generate", "create", "build"],
+      },
+      {
+        id: "audit-export-pdf",
+        label: "Export PDF",
+        section: "[data-feature='report']",
+        keywords: ["export", "pdf", "download", "save"],
+      },
+      {
+        id: "audit-export-csv",
+        label: "Export CSV",
+        section: "[data-feature='report']",
+        keywords: ["export", "csv", "spreadsheet", "download", "save"],
+      },
+      {
+        id: "audit-erase-notes",
+        label: "Erase Notes on Canvas",
+        section: "[data-feature='manage']",
+        keywords: ["erase", "delete", "remove", "notes", "cleanup", "canvas"],
+      },
+      {
+        id: "audit-erase-report",
+        label: "Erase Report Data",
+        section: "[data-feature='manage']",
+        keywords: ["erase", "delete", "remove", "report", "cleanup", "data"],
+      },
+    ],
   },
   // "tags-spacings": {
   //   id: "tags-spacings",
@@ -200,5 +304,6 @@ export const moduleRegistry: ModuleRegistry = {
     ui: ReleaseNotesUI,
     handler: releaseNotesHandler,
     permissionRequirements: [],
+    keywords: ["release", "notes", "changelog", "version", "update"],
   },
 };
