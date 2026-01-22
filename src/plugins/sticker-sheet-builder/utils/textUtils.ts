@@ -23,6 +23,13 @@ export function createSubSectionTitle(currentType: string) {
 export function createElementLabelText(state: string) {
   const label = figma.createText();
   label.characters = state;
+  // Brand blue for instance labels
+  label.fills = [
+    {
+      type: "SOLID",
+      color: { r: 0, g: 0.28235294, b: 0.69019608 },
+    },
+  ];
   return label;
 }
 
