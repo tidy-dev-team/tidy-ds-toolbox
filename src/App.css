@@ -95,6 +95,7 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
   color: #111827;
   letter-spacing: -0.01em;
 }
+
 .header .searchdiv {
   flex-grow: 1;
   display: flex;
@@ -640,7 +641,7 @@ div .form-control:last-of-type {
   height: 100%;
 }
 
-.sidebar .nav-section-heading {
+.sidebar .nav-section .nav-section-heading {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
@@ -659,7 +660,8 @@ div .form-control:last-of-type {
     max-height 300ms linear 0s,
     padding 300ms linear 0s;
 }
-.sidebar .nav-section-heading:first-of-type {
+
+.sidebar .nav-section:first-of-type .nav-section-heading {
   border: none;
 }
 
