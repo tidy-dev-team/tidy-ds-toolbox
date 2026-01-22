@@ -217,13 +217,7 @@ export const moduleRegistry: ModuleRegistry = {
       {
         id: "image-wrapper",
         label: "Image Wrapper",
-        keywords: [
-          "wrap",
-          "image",
-          "frame",
-          "selected",
-          "items",
-        ],
+        keywords: ["wrap", "image", "frame", "selected", "items"],
       },
       {
         id: "misprint",
