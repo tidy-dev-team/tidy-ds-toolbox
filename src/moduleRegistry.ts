@@ -231,6 +231,20 @@ export const moduleRegistry: ModuleRegistry = {
           "component",
         ],
       },
+      {
+        id: "ds-template",
+        label: "DS Template",
+        keywords: [
+          "template",
+          "design system",
+          "ds",
+          "pages",
+          "structure",
+          "foundation",
+          "scaffold",
+          "setup",
+        ],
+      },
     ],
   },
   audit: {
