@@ -129,6 +129,11 @@ function AppContent() {
     [dispatch],
   );
 
+  const handleFeedbackClick = () => {
+    window.location.href =
+      "mailto:adir@wearekido.com?subject=Tidy DS Toolbox Feedback";
+  };
+
   // Scroll to focused feature when it changes
   useEffect(() => {
     if (state.featureFocus) {
@@ -180,7 +185,11 @@ function AppContent() {
         <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
           <Navigation />
           <div className="spacer"></div>
-          <button className="nav-item" aria-label="Feedback">
+          <button
+            className="nav-item"
+            aria-label="Feedback"
+            onClick={handleFeedbackClick}
+          >
             <span className="icon">
               <IconMessageCircle size={20} stroke={1.5} />
             </span>
