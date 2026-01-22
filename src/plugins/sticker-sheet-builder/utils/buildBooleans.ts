@@ -50,7 +50,7 @@ export function buildBooleans(
       "HORIZONTAL",
       0,
       0,
-      16,
+      100,
     );
     oneBooleanFrame.appendChild(elementsFrame);
     elementsFrame.counterAxisAlignItems = "MAX";

@@ -21,7 +21,7 @@ export default function buildBinariesGrids(node: any, binaryProps: any[]) {
       "HORIZONTAL",
       0,
       0,
-      16,
+      100,
     );
 
     for (const option of binaryOptions) {

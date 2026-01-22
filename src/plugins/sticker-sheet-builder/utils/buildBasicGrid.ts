@@ -87,7 +87,7 @@ function buildStates(
     "HORIZONTAL",
     0,
     0,
-    16,
+    100,
   );
   stateWithTitle.appendChild(elementsFrame);
   for (const state of secondOptions) {

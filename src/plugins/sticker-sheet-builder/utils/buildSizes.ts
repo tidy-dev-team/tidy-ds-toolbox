@@ -15,7 +15,7 @@ export default function buildSizes(
     "HORIZONTAL",
     0,
     0,
-    16,
+    100,
   );
   elementsFrame.counterAxisAlignItems = "MAX";
   for (const prop of sizeOptions) {
