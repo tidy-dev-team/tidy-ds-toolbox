@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { UtilitiesAction } from "./types";
-import { IconNote, IconFrame, IconLetterCase } from "@tabler/icons-react";
+import {
+  IconNote,
+  IconFrame,
+  IconLetterCase,
+  IconTemplate,
+} from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -35,6 +40,12 @@ const UTILITIES: UtilityConfig[] = [
     label: "Misprint",
     description: "Add scrambled Hebrew text to component descriptions",
     icon: IconLetterCase,
+  },
+  {
+    id: "ds-template",
+    label: "DS Template",
+    description: "Build a template structure for an empty Design System file",
+    icon: IconTemplate,
   },
 ];
 

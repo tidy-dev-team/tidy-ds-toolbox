@@ -4,6 +4,7 @@ import { UtilitiesAction, UtilityResult } from "./types";
 import { runAddressNote } from "./utils/addressNote";
 import { runImageWrapper } from "./utils/imageWrapper";
 import { runMisprint } from "./utils/misprint";
+import { runDsTemplate } from "./utils/dsTemplate";
 
 /**
  * Utilities handler - processes messages from the UI
@@ -23,6 +24,9 @@ export async function utilitiesHandler(
 
     case "misprint":
       return await runMisprint();
+
+    case "ds-template":
+      return await runDsTemplate();
 
     default:
       return {
