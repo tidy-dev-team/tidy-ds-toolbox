@@ -635,6 +635,11 @@ div .form-control:last-of-type {
   align-items: center;
   justify-content: center;
 }
+
+.sidebar .spacer {
+  height: 100%;
+}
+
 .sidebar .nav-section-heading {
   font-size: 14px;
   font-weight: 600;

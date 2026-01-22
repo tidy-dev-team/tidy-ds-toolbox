@@ -8,6 +8,7 @@ import "./App.css";
 import {
   IconLayoutSidebar,
   IconLayoutSidebarFilled,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 
 function Navigation() {
@@ -178,6 +179,13 @@ function AppContent() {
       <div className="main">
         <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
           <Navigation />
+          <div className="spacer"></div>
+          <button className="nav-item">
+            <span className="icon">
+              <IconMessageCircle size={20} stroke={1.5} />
+            </span>
+            <span className="label">Feedback</span>
+          </button>
         </aside>
         <main className="viewport">
           <Viewport />
