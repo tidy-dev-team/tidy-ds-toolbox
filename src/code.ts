@@ -92,6 +92,17 @@ function sendResponse(
 figma.ui.onmessage = async (msg: unknown) => {
   const message = (msg as Record<string, unknown>)?.pluginMessage || msg;
 
+  // Handle external link requests
+  if (
+    message &&
+    typeof message === "object" &&
+    "type" in message &&
+    message.type === "open-external-link"
+  ) {
+    figma.openExternal((message as any).url);
+    return;
+  }
+
   if (
     !message ||
     typeof message !== "object" ||

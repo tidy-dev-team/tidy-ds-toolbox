@@ -130,8 +130,15 @@ function AppContent() {
   );
 
   const handleFeedbackClick = () => {
-    window.location.href =
-      "mailto:adir@wearekido.com?subject=Tidy DS Toolbox Feedback";
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "open-external-link",
+          url: "mailto:adir@wearekido.com?subject=Tidy DS Toolbox Feedback",
+        },
+      },
+      "*",
+    );
   };
 
   // Scroll to focused feature when it changes
