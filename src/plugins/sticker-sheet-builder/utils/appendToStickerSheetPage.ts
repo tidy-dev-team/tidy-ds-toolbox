@@ -49,13 +49,7 @@ function findOrCreateFlatContainer(): FrameNode {
   if (flatContainer) return flatContainer;
 
   // Vertical container to stack page rows
-  const created = buildAutoLayoutFrame(
-    "All Stickers",
-    "VERTICAL",
-    24,
-    24,
-    24,
-  );
+  const created = buildAutoLayoutFrame("All Stickers", "VERTICAL", 24, 24, 24);
   created.fills = [];
   figma.currentPage.appendChild(created);
   placeResultTopRight(created, figma.currentPage);
