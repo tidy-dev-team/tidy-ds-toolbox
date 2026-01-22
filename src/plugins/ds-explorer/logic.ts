@@ -190,6 +190,33 @@ function parseVariantName(name: string): Record<string, string> {
   return properties;
 }
 
+// Helper to strip a property from all variant names in a component set
+function stripPropertyFromVariantNames(
+  componentSet: ComponentSetNode,
+  propertyName: string,
+): void {
+  const variants = componentSet.children.filter(
+    (child): child is ComponentNode => child.type === "COMPONENT",
+  );
+
+  for (const variant of variants) {
+    const props = parseVariantName(variant.name);
+    if (!(propertyName in props)) continue;
+
+    delete props[propertyName];
+
+    // Rebuild name without the removed property
+    const newName = Object.entries(props)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(", ");
+
+    // Only rename if we have remaining properties
+    if (newName) {
+      variant.name = newName;
+    }
+  }
+}
+
 function getDefaultVariantValue(
   propName: string,
   propDef: ComponentPropertyDefinition,
@@ -345,6 +372,10 @@ export async function handleBuildComponent(
         removalTargets.forEach((variant) => variant.remove());
 
         if (allOptionsDisabled) {
+          // Strip property from remaining variant names first
+          // This is required because Figma infers variant properties from child names
+          stripPropertyFromVariantNames(clone, propName);
+
           try {
             clone.deleteComponentProperty(propName);
           } catch (error) {
