@@ -1,4 +1,4 @@
-import { ModuleManifest, ModuleRegistry } from "@shared/types";
+import { ModuleManifest } from "@shared/types";
 import { moduleRegistry } from "./moduleRegistry";
 
 // Helper to load and wire a module

@@ -4,5 +4,8 @@
   "prettier.configPath": ".prettierrc.json",
   "[tailwindcss]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "npm run type-check": true
   }
 }

@@ -21,8 +21,8 @@ import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
 import type { UtilitiesAction } from "./plugins/utilities/types";
 import type { AuditAction } from "./plugins/audit/types";
-import type { TagsSpacingsAction } from "./plugins/tags-spacings/types";
 import type { ReleaseNotesAction } from "./plugins/release-notes/types";
+import type { BuildData } from "./plugins/ds-explorer/types";
 
 // Import all handlers statically
 import {
@@ -38,12 +38,22 @@ import { auditHandler as auditLogic } from "./plugins/audit/logic";
 import { releaseNotesHandler as releaseNotesLogic } from "./plugins/release-notes/logic";
 
 // Module handlers - now using static imports
-const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
+const dsExplorerHandler = async (
+  action: string,
+  payload: unknown,
+  figma: PluginAPI,
+) => {
   switch (action) {
     case "get-component-properties":
-      return await handleGetComponentProperties(payload, figma);
+      return await handleGetComponentProperties(
+        payload as { key: string; name: string; requestId?: string },
+        figma,
+      );
     case "build-component":
-      return await handleBuildComponent(payload, figma);
+      return await handleBuildComponent(
+        payload as BuildData & { requestId?: string },
+        figma,
+      );
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -51,24 +61,24 @@ const dsExplorerHandler = async (action: string, payload: any, figma: any) => {
 
 const componentLabelsHandler = async (
   action: string,
-  payload: any,
-  figma: any,
+  payload: unknown,
+  figma: PluginAPI,
 ) => {
   return await componentLabelsLogic(action, payload, figma);
 };
 
 const tidyIconCareHandler = async (
   action: string,
-  payload: any,
-  figma: any,
+  payload: unknown,
+  figma: PluginAPI,
 ) => {
   return await tidyIconCareLogic(action, payload, figma);
 };
 
 const stickerSheetBuilderHandler = async (
   action: string,
-  payload: any,
-  figma: any,
+  payload: unknown,
+  figma: PluginAPI,
 ) => {
   return await stickerSheetBuilderLogic(
     action as StickerSheetBuilderAction,
@@ -77,30 +87,34 @@ const stickerSheetBuilderHandler = async (
   );
 };
 
-const tidyMapperHandler = async (action: string, payload: any, figma: any) => {
+const tidyMapperHandler = async (
+  action: string,
+  payload: unknown,
+  figma: PluginAPI,
+) => {
   return await tidyMapperLogic(action as TidyMapperAction, payload, figma);
 };
 
-const utilitiesHandler = async (action: string, payload: any, figma: any) => {
+const utilitiesHandler = async (
+  action: string,
+  payload: unknown,
+  figma: PluginAPI,
+) => {
   return await utilitiesLogic(action as UtilitiesAction, payload, figma);
 };
 
-const auditHandler = async (action: string, payload: any, figma: any) => {
-  return await auditLogic(action as AuditAction, payload, figma);
-};
-
-const tagsSpacingsHandler = async (
+const auditHandler = async (
   action: string,
-  payload: any,
-  figma: any,
+  payload: unknown,
+  figma: PluginAPI,
 ) => {
-  return await tagsSpacingsLogic(action as TagsSpacingsAction, payload, figma);
+  return await auditLogic(action as AuditAction, payload, figma);
 };
 
 const releaseNotesHandler = async (
   action: string,
-  payload: any,
-  figma: any,
+  payload: unknown,
+  figma: PluginAPI,
 ) => {
   return await releaseNotesLogic(action as ReleaseNotesAction, payload, figma);
 };

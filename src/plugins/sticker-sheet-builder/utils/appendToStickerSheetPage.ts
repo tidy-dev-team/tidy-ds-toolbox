@@ -45,7 +45,7 @@ function findOrCreateFlatContainer(): FrameNode {
   const flatContainer = figma.currentPage.findChild(
     (node): node is FrameNode =>
       node.type === "FRAME" && node.name === "All Stickers",
-  );
+  ) as FrameNode | null;
   if (flatContainer) return flatContainer;
 
   // Vertical container to stack page rows
@@ -64,7 +64,7 @@ function findOrCreatePageRow(
   const existingRow = container.findChild(
     (node): node is FrameNode =>
       node.type === "FRAME" && node.name === `Row: ${pageName}`,
-  );
+  ) as FrameNode | null;
 
   if (existingRow) {
     return existingRow;
@@ -85,11 +85,11 @@ function findOrCreatePageRow(
   return pageRow;
 }
 
-function findOrCreateAllSectionsFrame() {
+function findOrCreateAllSectionsFrame(): FrameNode {
   const allSectionsFrame = figma.currentPage.findChild(
     (node): node is FrameNode =>
       node.type === "FRAME" && node.name === "Sections",
-  );
+  ) as FrameNode | null;
   if (allSectionsFrame) return allSectionsFrame;
 
   const created = buildAutoLayoutFrame("Sections", "VERTICAL", 24, 24, 24);
