@@ -103,12 +103,12 @@ body:has(.sidebar.small) .header .menuBtn .side-filled-icon {
 }
 
 .header .searchbar {
-  width: 100%;
   padding: var(--pixel-8, 8px) var(--pixel-12, 12px);
   border: var(--pixel-1, 1px) solid var(--light-hover);
   border-radius: var(--pixel-6, 6px);
   font-size: 13px;
   width: 240px;
+  max-width: 50vw;
   margin-right: 8px;
 }
 
@@ -635,14 +635,19 @@ div .form-control:last-of-type {
   align-items: center;
   justify-content: center;
 }
+
+.sidebar .spacer {
+  height: 100%;
+}
+
 .sidebar .nav-section-heading {
   font-size: 14px;
   font-weight: 600;
   color: #111827;
   letter-spacing: -0.01em;
   border-top: var(--pixel-1) solid var(--border-light);
-  padding-top: 12px;
-  padding-bottom: 4px;
+  padding-top: 16px;
+  padding-bottom: 8px;
   padding-left: 12px;
   margin: 0;
   text-transform: capitalize;
@@ -653,6 +658,9 @@ div .form-control:last-of-type {
     width 300ms linear 0s,
     max-height 300ms linear 0s,
     padding 300ms linear 0s;
+}
+.sidebar .nav-section-heading:first-of-type {
+  border: none;
 }
 
 .sidebar.small .nav-section-heading,

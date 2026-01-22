@@ -8,6 +8,7 @@ import "./App.css";
 import {
   IconLayoutSidebar,
   IconLayoutSidebarFilled,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 
 function Navigation() {
@@ -128,6 +129,18 @@ function AppContent() {
     [dispatch],
   );
 
+  const handleFeedbackClick = () => {
+    parent.postMessage(
+      {
+        pluginMessage: {
+          type: "open-external-link",
+          url: "mailto:adir@wearekido.com?subject=Tidy DS Toolbox Feedback",
+        },
+      },
+      "*",
+    );
+  };
+
   // Scroll to focused feature when it changes
   useEffect(() => {
     if (state.featureFocus) {
@@ -178,6 +191,17 @@ function AppContent() {
       <div className="main">
         <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
           <Navigation />
+          <div className="spacer"></div>
+          <button
+            className="nav-item"
+            aria-label="Feedback"
+            onClick={handleFeedbackClick}
+          >
+            <span className="icon">
+              <IconMessageCircle size={20} stroke={1.5} />
+            </span>
+            <span className="label">Feedback</span>
+          </button>
         </aside>
         <main className="viewport">
           <Viewport />
