@@ -27,7 +27,11 @@ export function OffBoardingUI() {
   const pendingRequests = useRef(new Map<string, PendingRequest>());
 
   const sendRequest = useCallback(
-    (action: OffBoardingAction, payload: any, handlers: PendingRequest = {}) => {
+    (
+      action: OffBoardingAction,
+      payload: any,
+      handlers: PendingRequest = {},
+    ) => {
       const requestId = `off-boarding-${action}-${Date.now()}`;
       pendingRequests.current.set(requestId, handlers);
       postToFigma({
@@ -67,18 +71,22 @@ export function OffBoardingUI() {
   }, []);
 
   const refreshPages = useCallback(() => {
-    sendRequest("get-pages", {}, {
-      onSuccess: (result) => {
-        if (result?.pages) {
-          setPages(
-            result.pages.map((p: PageInfo) => ({
-              ...p,
-              selected: true,
-            })),
-          );
-        }
+    sendRequest(
+      "get-pages",
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.pages) {
+            setPages(
+              result.pages.map((p: PageInfo) => ({
+                ...p,
+                selected: true,
+              })),
+            );
+          }
+        },
       },
-    });
+    );
   }, [sendRequest]);
 
   const handleSelectAll = useCallback(() => {
@@ -130,18 +138,22 @@ export function OffBoardingUI() {
     setStatusMessage(null);
     setErrorMessage(null);
 
-    sendRequest("unpack-pages", {}, {
-      onSuccess: (result) => {
-        if (result?.success) {
-          setStatusMessage(result.message);
-          refreshPages();
-        } else {
-          setErrorMessage(result?.message ?? "Failed to unpack pages");
-        }
+    sendRequest(
+      "unpack-pages",
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.success) {
+            setStatusMessage(result.message);
+            refreshPages();
+          } else {
+            setErrorMessage(result?.message ?? "Failed to unpack pages");
+          }
+        },
+        onError: (error) => setErrorMessage(error),
+        onFinally: () => setIsLoading(null),
       },
-      onError: (error) => setErrorMessage(error),
-      onFinally: () => setIsLoading(null),
-    });
+    );
   }, [sendRequest, refreshPages]);
 
   const handleFindBoundVariables = useCallback(() => {
@@ -149,17 +161,23 @@ export function OffBoardingUI() {
     setStatusMessage(null);
     setErrorMessage(null);
 
-    sendRequest("find-bound-variables", {}, {
-      onSuccess: (result) => {
-        if (result?.success) {
-          setStatusMessage(result.message);
-        } else {
-          setErrorMessage(result?.message ?? "Failed to find bound variables");
-        }
+    sendRequest(
+      "find-bound-variables",
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.success) {
+            setStatusMessage(result.message);
+          } else {
+            setErrorMessage(
+              result?.message ?? "Failed to find bound variables",
+            );
+          }
+        },
+        onError: (error) => setErrorMessage(error),
+        onFinally: () => setIsLoading(null),
       },
-      onError: (error) => setErrorMessage(error),
-      onFinally: () => setIsLoading(null),
-    });
+    );
   }, [sendRequest]);
 
   return (
