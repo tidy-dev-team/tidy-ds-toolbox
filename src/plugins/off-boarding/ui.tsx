@@ -201,40 +201,6 @@ export function OffBoardingUI() {
             <span style={{ fontSize: "12px", fontWeight: 500 }}>
               Pages to pack
             </span>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                onClick={handleSelectAll}
-                disabled={allSelected}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: allSelected
-                    ? "var(--figma-color-text-disabled)"
-                    : "var(--figma-color-text-brand)",
-                  cursor: allSelected ? "default" : "pointer",
-                  fontSize: "11px",
-                  padding: "2px 4px",
-                }}
-              >
-                All
-              </button>
-              <button
-                onClick={handleDeselectAll}
-                disabled={noneSelected}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: noneSelected
-                    ? "var(--figma-color-text-disabled)"
-                    : "var(--figma-color-text-brand)",
-                  cursor: noneSelected ? "default" : "pointer",
-                  fontSize: "11px",
-                  padding: "2px 4px",
-                }}
-              >
-                None
-              </button>
-            </div>
           </div>
 
           <div
@@ -246,6 +212,65 @@ export function OffBoardingUI() {
               padding: "4px 0",
             }}
           >
+            <div style={{ padding: "4px 8px" }}>
+              {/* Select all - shown when none selected */}
+              {noneSelected && (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: "var(--figma-color-text-brand)",
+                  }}
+                  onClick={handleSelectAll}
+                >
+                  <input type="checkbox" checked={false} readOnly />
+                  <span>Select all</span>
+                </label>
+              )}
+              {/* Select none with mixed state - shown when partial selection */}
+              {!allSelected && !noneSelected && (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: "var(--figma-color-text-brand)",
+                  }}
+                  onClick={handleDeselectAll}
+                >
+                  <input
+                    type="checkbox"
+                    ref={(el) => {
+                      if (el) el.indeterminate = true;
+                    }}
+                    readOnly
+                  />
+                  <span>Select none</span>
+                </label>
+              )}
+              {/* Select none with checked state - shown when all selected */}
+              {allSelected && (
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    color: "var(--figma-color-text-brand)",
+                  }}
+                  onClick={handleDeselectAll}
+                >
+                  <input type="checkbox" checked={true} readOnly />
+                  <span>Select none</span>
+                </label>
+              )}
+            </div>
             {pages.map((page) => (
               <label
                 key={page.id}
