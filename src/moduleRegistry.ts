@@ -8,6 +8,7 @@ import {
   IconTool,
   IconZoomCheck,
   IconFileText,
+  IconPackage,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -17,11 +18,13 @@ import { TidyMapperUI } from "./plugins/tidy-mapper/ui";
 import { UtilitiesUI } from "./plugins/utilities/ui";
 import { AuditUI } from "./plugins/audit/ui";
 import { ReleaseNotesUI } from "./plugins/release-notes/ui";
+import { OffBoardingUI } from "./plugins/off-boarding/ui";
 import type { StickerSheetBuilderAction } from "./plugins/sticker-sheet-builder/types";
 import type { TidyMapperAction } from "./plugins/tidy-mapper/types";
 import type { UtilitiesAction } from "./plugins/utilities/types";
 import type { AuditAction } from "./plugins/audit/types";
 import type { ReleaseNotesAction } from "./plugins/release-notes/types";
+import type { OffBoardingAction } from "./plugins/off-boarding/types";
 import type { BuildData } from "./plugins/ds-explorer/types";
 
 // Import all handlers statically
@@ -36,6 +39,7 @@ import { tidyMapperHandler as tidyMapperLogic } from "./plugins/tidy-mapper/logi
 import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
 import { auditHandler as auditLogic } from "./plugins/audit/logic";
 import { releaseNotesHandler as releaseNotesLogic } from "./plugins/release-notes/logic";
+import { offBoardingHandler as offBoardingLogic } from "./plugins/off-boarding/logic";
 
 // Module handlers - now using static imports
 const dsExplorerHandler = async (
@@ -117,6 +121,14 @@ const releaseNotesHandler = async (
   figma: PluginAPI,
 ) => {
   return await releaseNotesLogic(action as ReleaseNotesAction, payload, figma);
+};
+
+const offBoardingHandler = async (
+  action: string,
+  payload: unknown,
+  figma: PluginAPI,
+) => {
+  return await offBoardingLogic(action as OffBoardingAction, payload, figma);
 };
 
 export const moduleRegistry: ModuleRegistry = {
@@ -313,5 +325,41 @@ export const moduleRegistry: ModuleRegistry = {
     handler: releaseNotesHandler,
     permissionRequirements: [],
     keywords: ["release", "notes", "changelog", "version", "update"],
+  },
+  "off-boarding": {
+    id: "off-boarding",
+    label: "Off-Boarding",
+    state: "beta",
+    icon: IconPackage,
+    ui: OffBoardingUI,
+    handler: offBoardingHandler,
+    permissionRequirements: [],
+    keywords: [
+      "pack",
+      "unpack",
+      "pages",
+      "transfer",
+      "copy",
+      "move",
+      "variables",
+      "bound",
+    ],
+    features: [
+      {
+        id: "off-boarding-pack",
+        label: "Pack Pages",
+        keywords: ["pack", "pages", "compress", "bundle"],
+      },
+      {
+        id: "off-boarding-unpack",
+        label: "Unpack Pages",
+        keywords: ["unpack", "pages", "extract", "restore"],
+      },
+      {
+        id: "off-boarding-variables",
+        label: "Find Bound Variables",
+        keywords: ["find", "variables", "bound", "scan"],
+      },
+    ],
   },
 };

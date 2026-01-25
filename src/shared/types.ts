@@ -10,6 +10,7 @@ export type PluginID =
   | "audit"
   | "tags-spacings"
   | "release-notes"
+  | "off-boarding"
   | (string & {});
 
 export interface PluginMessage {
