@@ -14,8 +14,15 @@ export interface PageMarker {
 export type GroupingMode = "section" | "page";
 
 export interface StickerSheetConfig {
-  startMarker: PageMarker | null;
-  endMarker: PageMarker | null;
+  selectedPageIds: string[];
+  requireDescription: boolean;
+  groupingMode: GroupingMode;
+}
+
+// Legacy config for migration
+export interface LegacyStickerSheetConfig {
+  startMarker?: PageMarker | null;
+  endMarker?: PageMarker | null;
   requireDescription: boolean;
   groupingMode: GroupingMode;
 }
@@ -45,8 +52,7 @@ export const STICKER_SHEET_PROGRESS_EVENT = "sticker-sheet-builder:progress";
 export const STICKER_SHEET_CONFIG_KEY = "stickerSheetConfig";
 
 export const DEFAULT_STICKER_SHEET_CONFIG: StickerSheetConfig = {
-  startMarker: null,
-  endMarker: null,
+  selectedPageIds: [],
   requireDescription: true,
   groupingMode: "section",
 };

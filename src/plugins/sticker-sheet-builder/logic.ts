@@ -13,6 +13,7 @@ import {
   StickerSheetBuilderContext,
   StickerSheetBuilderResponse,
   StickerSheetConfig,
+  LegacyStickerSheetConfig,
   BuildProgress,
   STICKER_SHEET_CONTEXT_EVENT,
   STICKER_SHEET_PROGRESS_EVENT,
@@ -29,12 +30,48 @@ function yieldToMain(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-// Load config from plugin data
+// Load config from plugin data (with migration from legacy format)
 function loadConfig(): StickerSheetConfig {
   try {
     const stored = figma.root.getPluginData(STICKER_SHEET_CONFIG_KEY);
     if (stored) {
-      return JSON.parse(stored) as StickerSheetConfig;
+      const parsed = JSON.parse(stored);
+
+      // Check if this is legacy format (has startMarker/endMarker)
+      if ("startMarker" in parsed || "endMarker" in parsed) {
+        const legacy = parsed as LegacyStickerSheetConfig;
+
+        // Migrate: convert marker range to selectedPageIds
+        let selectedPageIds: string[] = [];
+        if (legacy.startMarker && legacy.endMarker) {
+          const pages = figma.root.children;
+          const startIndex = pages.findIndex(
+            (p) => p.id === legacy.startMarker!.id,
+          );
+          const endIndex = pages.findIndex(
+            (p) => p.id === legacy.endMarker!.id,
+          );
+
+          if (startIndex !== -1 && endIndex !== -1) {
+            // Get pages between markers (exclusive) - same as old behavior
+            const pagesInRange = pages.slice(startIndex + 1, endIndex);
+            selectedPageIds = pagesInRange.map((p) => p.id);
+          }
+        }
+
+        const migratedConfig: StickerSheetConfig = {
+          selectedPageIds,
+          requireDescription: legacy.requireDescription ?? true,
+          groupingMode: legacy.groupingMode ?? "section",
+        };
+
+        // Save migrated config
+        saveConfig(migratedConfig);
+        return migratedConfig;
+      }
+
+      // New format
+      return parsed as StickerSheetConfig;
     }
   } catch (e) {
     console.error("Failed to load sticker sheet config:", e);
@@ -201,11 +238,11 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
     stickerSheetPage.children[0].remove();
   }
 
-  const atomPages = findAtomPages(config.startMarker, config.endMarker);
+  const atomPages = findAtomPages(config.selectedPageIds);
 
   if (atomPages.length === 0) {
     throw new Error(
-      "No pages found between the configured markers. Please configure start and end markers.",
+      "No pages selected. Please select component pages in the configuration.",
     );
   }
 

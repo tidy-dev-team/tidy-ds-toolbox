@@ -11,7 +11,12 @@ import {
   StickerSheetConfig,
   BuildProgress,
   GroupingMode,
+  PageMarker,
 } from "./types";
+
+interface PageSelection extends PageMarker {
+  selected: boolean;
+}
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -161,6 +166,23 @@ export function StickerSheetBuilderUI() {
     sendRequest("cancel-build");
   }, [sendRequest]);
 
+  // Track last clicked index for shift+click range selection
+  const lastClickedIndexRef = useRef<number | null>(null);
+
+  // Build page selection state from context
+  const selectedSet = new Set(context.config.selectedPageIds);
+  const pageSelections: PageSelection[] = context.availablePages.map(
+    (page) => ({
+      ...page,
+      selected: selectedSet.has(page.id),
+    }),
+  );
+
+  const selectedCount = context.config.selectedPageIds.length;
+  const allSelected =
+    selectedCount === context.availablePages.length && selectedCount > 0;
+  const noneSelected = selectedCount === 0;
+
   const handleConfigChange = useCallback(
     (updates: Partial<StickerSheetConfig>) => {
       const newConfig: StickerSheetConfig = {
@@ -179,23 +201,58 @@ export function StickerSheetBuilderUI() {
     [context.config, sendRequest],
   );
 
-  const handleStartMarkerChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const pageId = e.target.value;
-      const page = context.availablePages.find((p) => p.id === pageId) || null;
-      handleConfigChange({ startMarker: page });
+  const handlePageToggle = useCallback(
+    (pageIndex: number, event: React.MouseEvent) => {
+      const page = context.availablePages[pageIndex];
+      if (!page) return;
+
+      const currentSelected = new Set(context.config.selectedPageIds);
+      const isCurrentlySelected = currentSelected.has(page.id);
+      const targetState = !isCurrentlySelected;
+
+      // Handle shift+click for range selection
+      if (event.shiftKey && lastClickedIndexRef.current !== null) {
+        const startIdx = Math.min(lastClickedIndexRef.current, pageIndex);
+        const endIdx = Math.max(lastClickedIndexRef.current, pageIndex);
+
+        // Toggle all pages in range to the target state
+        for (let i = startIdx; i <= endIdx; i++) {
+          const p = context.availablePages[i];
+          if (p) {
+            if (targetState) {
+              currentSelected.add(p.id);
+            } else {
+              currentSelected.delete(p.id);
+            }
+          }
+        }
+      } else {
+        // Normal click - toggle single page
+        if (targetState) {
+          currentSelected.add(page.id);
+        } else {
+          currentSelected.delete(page.id);
+        }
+      }
+
+      lastClickedIndexRef.current = pageIndex;
+      handleConfigChange({ selectedPageIds: Array.from(currentSelected) });
     },
-    [context.availablePages, handleConfigChange],
+    [
+      context.availablePages,
+      context.config.selectedPageIds,
+      handleConfigChange,
+    ],
   );
 
-  const handleEndMarkerChange = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const pageId = e.target.value;
-      const page = context.availablePages.find((p) => p.id === pageId) || null;
-      handleConfigChange({ endMarker: page });
-    },
-    [context.availablePages, handleConfigChange],
-  );
+  const handleSelectAll = useCallback(() => {
+    const allIds = context.availablePages.map((p) => p.id);
+    handleConfigChange({ selectedPageIds: allIds });
+  }, [context.availablePages, handleConfigChange]);
+
+  const handleSelectNone = useCallback(() => {
+    handleConfigChange({ selectedPageIds: [] });
+  }, [handleConfigChange]);
 
   const handleDescriptionToggle = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -211,8 +268,7 @@ export function StickerSheetBuilderUI() {
     [handleConfigChange],
   );
 
-  const isConfigValid =
-    context.config.startMarker !== null && context.config.endMarker !== null;
+  const isConfigValid = context.config.selectedPageIds.length > 0;
 
   const buildAllLabel = context.stickerSheetExists
     ? "↻ Rebuild sticker sheet"
@@ -226,42 +282,162 @@ export function StickerSheetBuilderUI() {
       <Card title="Configuration">
         <div style={configGridStyle}>
           <div style={configRowStyle}>
-            <label style={labelStyle} htmlFor="start-marker">
-              Start marker
-            </label>
-            <select
-              id="start-marker"
-              style={selectStyle}
-              value={context.config.startMarker?.id ?? ""}
-              onChange={handleStartMarkerChange}
-              disabled={isLoading || isBuilding}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
             >
-              <option value="">Select page...</option>
-              {context.availablePages.map((page) => (
-                <option key={page.id} value={page.id}>
-                  {page.name}
-                </option>
+              <span style={labelStyle}>
+                Component pages ({selectedCount} selected)
+              </span>
+              <span
+                style={{
+                  fontSize: "10px",
+                  color: "var(--figma-color-text-tertiary, #999)",
+                }}
+              >
+                Shift+click for range
+              </span>
+            </div>
+            <div style={pageListContainerStyle}>
+              {/* Select all / none row */}
+              <div
+                style={{
+                  padding: "4px 8px",
+                  borderBottom: "1px solid var(--figma-color-border, #e5e5e5)",
+                }}
+              >
+                {noneSelected && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor:
+                        isLoading || isBuilding ? "not-allowed" : "pointer",
+                      fontSize: "12px",
+                      color: "var(--figma-color-text-brand)",
+                    }}
+                    onClick={
+                      isLoading || isBuilding ? undefined : handleSelectAll
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      readOnly
+                      disabled={isLoading || isBuilding}
+                    />
+                    <span>Select all</span>
+                  </label>
+                )}
+                {!allSelected && !noneSelected && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor:
+                        isLoading || isBuilding ? "not-allowed" : "pointer",
+                      fontSize: "12px",
+                      color: "var(--figma-color-text-brand)",
+                    }}
+                    onClick={
+                      isLoading || isBuilding ? undefined : handleSelectNone
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      ref={(el) => {
+                        if (el) el.indeterminate = true;
+                      }}
+                      readOnly
+                      disabled={isLoading || isBuilding}
+                    />
+                    <span>Select none</span>
+                  </label>
+                )}
+                {allSelected && (
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor:
+                        isLoading || isBuilding ? "not-allowed" : "pointer",
+                      fontSize: "12px",
+                      color: "var(--figma-color-text-brand)",
+                    }}
+                    onClick={
+                      isLoading || isBuilding ? undefined : handleSelectNone
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      readOnly
+                      disabled={isLoading || isBuilding}
+                    />
+                    <span>Select none</span>
+                  </label>
+                )}
+              </div>
+              {/* Page rows */}
+              {pageSelections.map((page, index) => (
+                <label
+                  key={page.id}
+                  style={{
+                    ...pageRowStyle,
+                    backgroundColor: page.selected
+                      ? "var(--figma-color-bg-selected, rgba(24, 160, 251, 0.1))"
+                      : "transparent",
+                    cursor: isLoading || isBuilding ? "not-allowed" : "pointer",
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (!isLoading && !isBuilding) {
+                      handlePageToggle(index, e);
+                    }
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={page.selected}
+                    onChange={() => {}}
+                    disabled={isLoading || isBuilding}
+                    style={{
+                      cursor:
+                        isLoading || isBuilding ? "not-allowed" : "pointer",
+                    }}
+                  />
+                  <span
+                    style={{
+                      flex: 1,
+                      fontSize: "12px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {page.name}
+                  </span>
+                </label>
               ))}
-            </select>
-          </div>
-          <div style={configRowStyle}>
-            <label style={labelStyle} htmlFor="end-marker">
-              End marker
-            </label>
-            <select
-              id="end-marker"
-              style={selectStyle}
-              value={context.config.endMarker?.id ?? ""}
-              onChange={handleEndMarkerChange}
-              disabled={isLoading || isBuilding}
-            >
-              <option value="">Select page...</option>
-              {context.availablePages.map((page) => (
-                <option key={page.id} value={page.id}>
-                  {page.name}
-                </option>
-              ))}
-            </select>
+              {pageSelections.length === 0 && (
+                <div
+                  style={{
+                    padding: "12px",
+                    textAlign: "center",
+                    fontSize: "12px",
+                    color: "var(--figma-color-text-secondary)",
+                  }}
+                >
+                  No pages found
+                </div>
+              )}
+            </div>
           </div>
           <div style={checkboxRowStyle}>
             <input
@@ -292,7 +468,7 @@ export function StickerSheetBuilderUI() {
           </div>
           {!isConfigValid && (
             <div style={configHintStyle}>
-              Select start and end markers to define the component pages range.
+              Select component pages to include in the sticker sheet.
             </div>
           )}
         </div>
@@ -483,6 +659,22 @@ const configHintStyle: React.CSSProperties = {
   fontSize: "11px",
   color: "var(--figma-color-text-tertiary, #999)",
   fontStyle: "italic",
+};
+
+const pageListContainerStyle: React.CSSProperties = {
+  maxHeight: "180px",
+  overflowY: "auto",
+  border: "1px solid var(--figma-color-border, #e5e5e5)",
+  borderRadius: "4px",
+};
+
+const pageRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "6px 8px",
+  borderBottom: "1px solid var(--figma-color-border, #e5e5e5)",
+  transition: "background-color 0.1s ease",
 };
 
 function getButtonStyle(enabled: boolean): React.CSSProperties {

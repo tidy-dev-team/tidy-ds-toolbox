@@ -1,26 +1,18 @@
 import { PageMarker } from "../types";
 
-export function findAtomPages(
-  startMarker: PageMarker | null,
-  endMarker: PageMarker | null,
-): PageNode[] {
+export function findAtomPages(selectedPageIds: string[]): PageNode[] {
   const pages = figma.root.children;
 
-  // If no markers configured, return empty array
-  if (!startMarker || !endMarker) {
+  // If no pages selected, return empty array
+  if (!selectedPageIds || selectedPageIds.length === 0) {
     return [];
   }
 
-  const startIndex = pages.findIndex((page) => page.id === startMarker.id);
-  const endIndex = pages.findIndex((page) => page.id === endMarker.id);
+  // Create a Set for O(1) lookup
+  const selectedSet = new Set(selectedPageIds);
 
-  // If markers not found, return empty array
-  if (startIndex === -1 || endIndex === -1) {
-    return [];
-  }
-
-  // Get pages between markers (exclusive of marker pages)
-  return pages.slice(startIndex + 1, endIndex);
+  // Filter pages by selected IDs, preserving order from Figma
+  return pages.filter((page) => selectedSet.has(page.id));
 }
 
 export function findStickerSheetPage() {
