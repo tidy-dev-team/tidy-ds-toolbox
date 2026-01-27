@@ -199,11 +199,11 @@ export function OffBoardingUI() {
 
           <div
             style={{
-              maxHeight: "150px",
+              maxHeight: "calc(100vh - 264px)",
               overflowY: "auto",
               border: "1px solid var(--border-light)",
               borderRadius: "4px",
-              marginTop: "12px",
+              marginTop: "4px",
               marginBottom: "12px",
             }}
           >

@@ -796,7 +796,7 @@ body:has(.sidebar.small) .severity-card button {
 
 .win-button {
   position: absolute !important;
-  top: 20px;
+  top: 14px;
   right: 20px;
   padding: 0 !important;
   width: 32px !important;
