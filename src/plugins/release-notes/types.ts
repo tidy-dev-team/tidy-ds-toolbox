@@ -41,6 +41,12 @@ export interface SprintsPayload {
   lastSelectedSprintId: string | null;
 }
 
+export interface ReleaseNotesExportData {
+  version: string;
+  exportedAt: string;
+  sprints: Sprint[];
+}
+
 // ===================
 // Action Types
 // ===================
@@ -59,7 +65,9 @@ export type ReleaseNotesAction =
   | "delete-note"
   | "view-component"
   | "publish-notes"
-  | "clear-canvas";
+  | "clear-canvas"
+  | "export-notes"
+  | "import-notes";
 
 // ===================
 // Payload Types

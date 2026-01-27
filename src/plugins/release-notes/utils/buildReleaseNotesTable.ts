@@ -181,6 +181,7 @@ export async function buildSprintNotesTable(
 
 export async function publishSprintNotes(
   figma: PluginAPI,
+  sprints: Sprint[],
   sprint: Sprint,
 ): Promise<void> {
   if (!sprint || sprint.notes.length === 0) {
@@ -190,15 +191,23 @@ export async function publishSprintNotes(
   const page = getOrCreateReleaseNotesPage(figma);
   const frame = getOrCreateReleaseNotesFrame(figma, page);
 
-  const table = await buildSprintNotesTable(figma, sprint, sprint.notes);
-
-  if (frame.children.length === 0) {
-    frame.appendChild(table);
-  } else {
-    frame.insertChild(0, table);
+  while (frame.children.length > 0) {
+    frame.children[0].remove();
   }
 
-  // Build per-component tables
+  const sortedSprints = [...sprints]
+    .filter((entry) => entry.notes.length > 0)
+    .sort((a, b) => parseInt(b.id) - parseInt(a.id));
+
+  for (const sprintEntry of sortedSprints) {
+    const table = await buildSprintNotesTable(
+      figma,
+      sprintEntry,
+      sprintEntry.notes,
+    );
+    frame.appendChild(table);
+  }
+
   const notesByComponentSet = new Map<string, ReleaseNote[]>();
   for (const note of sprint.notes) {
     const existing = notesByComponentSet.get(note.componentSetId) || [];
@@ -208,31 +217,54 @@ export async function publishSprintNotes(
 
   for (const entry of Array.from(notesByComponentSet.entries())) {
     const componentSetId = entry[0];
-    const notes = entry[1];
     const node = figma.getNodeById(componentSetId);
     if (!node || node.type !== "COMPONENT_SET") {
       continue;
     }
 
     const componentSet = node as ComponentSetNode;
+    const frameName = `${componentSet.name}-release-notes`;
+    const pageForComponent = findParentPage(componentSet);
+    if (!pageForComponent) {
+      continue;
+    }
+
+    const existingFrame = pageForComponent.children.find(
+      (child) => child.type === "FRAME" && child.name === frameName,
+    ) as FrameNode | undefined;
+
+    if (existingFrame) {
+      existingFrame.remove();
+    }
+
     const componentFrame = getOrCreateComponentReleaseNotesFrame(
       figma,
       componentSet,
     );
-    const componentTable = await buildSprintNotesTable(figma, sprint, notes);
 
-    if (componentFrame.children.length === 0) {
+    const componentNotes = sprints
+      .filter((entry) =>
+        entry.notes.some((note) => note.componentSetId === componentSet.id),
+      )
+      .sort((a, b) => parseInt(b.id) - parseInt(a.id));
+
+    for (const sprintEntry of componentNotes) {
+      const notes = sprintEntry.notes.filter(
+        (note) => note.componentSetId === componentSet.id,
+      );
+      const componentTable = await buildSprintNotesTable(
+        figma,
+        sprintEntry,
+        notes,
+      );
+
       componentFrame.appendChild(componentTable);
-    } else {
-      componentFrame.insertChild(0, componentTable);
     }
 
-    // Position the frame to the left of the component set, aligned by top, with 100px gap
     componentFrame.x = componentSet.x - componentFrame.width - 100;
     componentFrame.y = componentSet.y;
   }
 
-  // Navigate to the aggregated table
   figma.currentPage = page;
   figma.viewport.scrollAndZoomIntoView([frame]);
 }
