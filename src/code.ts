@@ -1,6 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 
-import { moduleRegistry } from "./moduleRegistry";
+import { moduleHandlers } from "./moduleHandlers";
 import { RESIZE_DEFAULT, clampSize } from "./shared/resize";
 import {
   withTimeout,
@@ -28,11 +28,11 @@ const logger = createLogger("Main");
 
 figma.showUI(__html__, RESIZE_DEFAULT);
 
-// Build handlers map from module registry
-const handlers: Record<string, Function> = {};
-Object.values(moduleRegistry).forEach((manifest) => {
-  handlers[manifest.id] = manifest.handler;
-});
+// Module handlers map
+const handlers: Record<
+  string,
+  (action: string, payload: unknown, figma: PluginAPI) => Promise<unknown>
+> = moduleHandlers;
 
 // Handle shell-level commands coming from the UI shell
 async function handleShellCommand(
