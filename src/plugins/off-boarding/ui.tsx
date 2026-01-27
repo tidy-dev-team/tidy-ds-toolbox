@@ -185,15 +185,17 @@ export function OffBoardingUI() {
         padding: "var(--pixel-16, 16px)",
       }}
     >
-      <Card title="Pack Pages">
+      <Card title="Pack Pages" className="card relative-element">
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          ></div>
+          <button
+            onClick={handleFindBoundVariables}
+            disabled={isLoading !== null}
+            className="secondary win-button"
+            tool-tip="Find bound variables"
+          >
+            <IconNut size={16} stroke={1.5} />
+            {isLoading === "find" ? "" : ""}
+          </button>
 
           <div
             style={{
@@ -201,6 +203,7 @@ export function OffBoardingUI() {
               overflowY: "auto",
               border: "1px solid var(--border-light)",
               borderRadius: "4px",
+              marginTop: "12px",
               marginBottom: "12px",
             }}
           >
@@ -341,26 +344,6 @@ export function OffBoardingUI() {
               {isLoading === "unpack" ? "Unpacking..." : "Unpack Pages"}
             </button>
           </div>
-        </div>
-      </Card>
-
-      <Card title="Utilities">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <button
-            onClick={handleFindBoundVariables}
-            disabled={isLoading !== null}
-            className="secondary-btn"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              opacity: isLoading ? 0.5 : 1,
-            }}
-          >
-            <IconNut size={16} stroke={1.5} />
-            {isLoading === "find" ? "Scanning..." : "Find Bound Variables"}
-          </button>
         </div>
       </Card>
 
