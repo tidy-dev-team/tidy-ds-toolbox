@@ -199,7 +199,7 @@ export function OffBoardingUI() {
 
           <div
             style={{
-              maxHeight: "calc(100vh - 264px)",
+              maxHeight: "calc(100vh - 320px)",
               overflowY: "auto",
               border: "1px solid var(--border-light)",
               borderRadius: "4px",
@@ -307,17 +307,16 @@ export function OffBoardingUI() {
             )}
           </div>
 
-          <div style={{ display: "flex", gap: "12px" }}>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={handlePackPages}
               disabled={noneSelected || isLoading !== null}
-              className="primary-btn"
+              className="note"
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "8px",
-                width: "50%",
                 opacity: noneSelected || isLoading ? 0.5 : 1,
               }}
             >
@@ -330,14 +329,13 @@ export function OffBoardingUI() {
             <button
               onClick={handleUnpackPages}
               disabled={isLoading !== null}
-              className="secondary"
+              className="secondary note"
               tool-tip="Paste packed frames, then click this button"
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: "8px",
-                width: "50%",
               }}
             >
               <IconPackageExport size={16} stroke={1.5} />
