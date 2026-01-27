@@ -1,6 +1,6 @@
 ba3014a814019e35cea0d62f8b67fe6995a3f3bc150b1ce13bd1e05866b2dcb7  ./CHANGELOG.md
-a2876d38eece696f24a5b78356af66100ff9dabc3b76810d12c910c77f41e6bd  ./dist/index.html
-0a380b6e69e533cd0f2b8aefef05d9256d50bb2e0d53254738c19a64b76b42e2  ./dist/code.js
-05aca9bace3416ca658d71f6e2b15c6133d2d17bf258182d1f14f2c3516a7be0  ./CHECKSUMS.txt
+32893f081eaec1ad8e33bbca571e2b078f6bd4e7abd5c532b73e8a341a216b20  ./dist/index.html
+bb7481414b44a595647e723938cf1bf9f2bf90e7e0e166ac6cd2163ca6d453f1  ./dist/code.js
+cfc32e160e3a80dfde8aa6f0e588311ee443224d05f5aeb09bcc4a5b6ba511ad  ./CHECKSUMS.txt
 efca26bcba62a0fcaa3cb44c9002f1e530ad429d41e9fc3c43fdae047de3b04a  ./README.md
 baebcbb47ce344cb6b2713c7e96e7f670b870ad78e1dd80b170ef6b6be6769de  ./manifest.json
