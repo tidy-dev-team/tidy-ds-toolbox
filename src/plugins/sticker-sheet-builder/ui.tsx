@@ -271,7 +271,7 @@ export function StickerSheetBuilderUI() {
   const isConfigValid = context.config.selectedPageIds.length > 0;
 
   const buildAllLabel = context.stickerSheetExists
-    ? "↻ Rebuild sticker sheet"
+    ? "Rebuild sticker sheet"
     : "Build sticker sheet";
 
   return (
@@ -305,8 +305,12 @@ export function StickerSheetBuilderUI() {
               {/* Select all / none row */}
               <div
                 style={{
-                  padding: "4px 8px",
+                  padding: "8px",
+                  position: "sticky",
+                  top: "0",
+                  backgroundColor: "#ffffff",
                   borderBottom: "1px solid var(--figma-color-border, #e5e5e5)",
+                  zIndex: "9",
                 }}
               >
                 {noneSelected && (
@@ -495,13 +499,29 @@ export function StickerSheetBuilderUI() {
       </Card>
 
       <Card title="Actions">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            onClick={handleBuildAll}
+            disabled={isLoading || isBuilding || !isConfigValid}
+            className={
+              isBuilding ? "morePadding working note" : "morePadding note"
+            }
+            style={getButtonStyle(!(isLoading || isBuilding) && isConfigValid)}
+          >
+            {isBuilding ? <img src={Loader} /> : buildAllLabel}
+          </button>
           <button
             onClick={handleBuildOne}
             className={
               isBuilding
-                ? "morePadding secondary working"
-                : "morePadding secondary"
+                ? "morePadding secondary working note"
+                : "morePadding secondary note"
             }
             disabled={isLoading || isBuilding || !context.selectionValid}
             style={getButtonStyle(
@@ -510,18 +530,10 @@ export function StickerSheetBuilderUI() {
           >
             {isBuilding ? "" : "Build one sticker"}
           </button>
-          <button
-            onClick={handleBuildAll}
-            disabled={isLoading || isBuilding || !isConfigValid}
-            className={isBuilding ? "morePadding working" : "morePadding"}
-            style={getButtonStyle(!(isLoading || isBuilding) && isConfigValid)}
-          >
-            {isBuilding ? <img src={Loader} /> : buildAllLabel}
-          </button>
           {isBuilding && (
             <button
               onClick={handleCancel}
-              className="morePadding"
+              className="morePadding note"
               style={cancelButtonStyle}
             >
               Cancel
