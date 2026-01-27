@@ -2,11 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { OffBoardingAction, PageInfo } from "./types";
-import {
-  IconPackage,
-  IconPackageExport,
-  IconVariable,
-} from "@tabler/icons-react";
+import { IconPackage, IconPackageExport, IconNut } from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -308,23 +304,43 @@ export function OffBoardingUI() {
             )}
           </div>
 
-          <button
-            onClick={handlePackPages}
-            disabled={noneSelected || isLoading !== null}
-            className="primary-btn"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              opacity: noneSelected || isLoading ? 0.5 : 1,
-            }}
-          >
-            <IconPackage size={16} stroke={1.5} />
-            {isLoading === "pack"
-              ? "Packing..."
-              : `Pack ${selectedCount > 0 ? `${selectedCount} ` : ""}Page${selectedCount !== 1 ? "s" : ""}`}
-          </button>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button
+              onClick={handlePackPages}
+              disabled={noneSelected || isLoading !== null}
+              className="primary-btn"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "50%",
+                opacity: noneSelected || isLoading ? 0.5 : 1,
+              }}
+            >
+              <IconPackage size={16} stroke={1.5} />
+              {isLoading === "pack"
+                ? "Packing..."
+                : `Pack ${selectedCount > 0 ? `${selectedCount} ` : ""}Page${selectedCount !== 1 ? "s" : ""}`}
+            </button>
+
+            <button
+              onClick={handleUnpackPages}
+              disabled={isLoading !== null}
+              className="secondary"
+              tool-tip="Paste packed frames, then click this button"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "50%",
+              }}
+            >
+              <IconPackageExport size={16} stroke={1.5} />
+              {isLoading === "unpack" ? "Unpacking..." : "Unpack Pages"}
+            </button>
+          </div>
         </div>
       </Card>
 
@@ -342,38 +358,8 @@ export function OffBoardingUI() {
               opacity: isLoading ? 0.5 : 1,
             }}
           >
-            <IconVariable size={16} stroke={1.5} />
+            <IconNut size={16} stroke={1.5} />
             {isLoading === "find" ? "Scanning..." : "Find Bound Variables"}
-          </button>
-        </div>
-      </Card>
-
-      <Card title="Unpack Pages">
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <p
-            style={{
-              fontSize: "11px",
-              color: "var(--figma-color-text-secondary)",
-              margin: 0,
-            }}
-          >
-            Paste packed frames, then click Unpack to restore them as separate
-            pages.
-          </p>
-          <button
-            onClick={handleUnpackPages}
-            disabled={isLoading !== null}
-            className="secondary-btn"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "8px",
-              opacity: isLoading ? 0.5 : 1,
-            }}
-          >
-            <IconPackageExport size={16} stroke={1.5} />
-            {isLoading === "unpack" ? "Unpacking..." : "Unpack Pages"}
           </button>
         </div>
       </Card>
