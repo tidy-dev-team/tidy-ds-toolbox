@@ -190,29 +190,33 @@ export function OffBoardingUI() {
       }}
     >
       <Card title="Pack Pages">
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <div
             style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
             }}
-          >
-            <span style={{ fontSize: "12px", fontWeight: 500 }}>
-              Pages to pack
-            </span>
-          </div>
+          ></div>
 
           <div
             style={{
               maxHeight: "150px",
               overflowY: "auto",
-              border: "1px solid var(--figma-color-border)",
+              border: "1px solid var(--border-light)",
               borderRadius: "4px",
-              padding: "4px 0",
+              marginBottom: "12px",
             }}
           >
-            <div style={{ padding: "4px 8px" }}>
+            <div
+              style={{
+                padding: "8px",
+                position: "sticky",
+                top: "0",
+                borderBottom: "1px solid var(--border-light)",
+                backgroundColor: "#ffffff",
+              }}
+            >
               {/* Select all - shown when none selected */}
               {noneSelected && (
                 <label
