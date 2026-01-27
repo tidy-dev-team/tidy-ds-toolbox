@@ -5,13 +5,11 @@ import {
   IconFocus2,
   IconEdit,
   IconTrash,
-  IconTable,
   IconRefresh,
   IconNote,
   IconComponents,
   IconArrowIteration,
   IconPlus,
-  IconEraser,
 } from "@tabler/icons-react";
 import type {
   ComponentSetInfo,
@@ -24,6 +22,7 @@ import type {
   EditNotePayload,
   DeleteNotePayload,
   RenameSprintPayload,
+  ReleaseNotesExportData,
 } from "./types";
 import { TAG_OPTIONS, TAG_COLORS, TAG_LABELS } from "./utils/constants";
 
@@ -199,6 +198,7 @@ export function ReleaseNotesUI() {
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null,
   );
+  const [componentSearchValue, setComponentSearchValue] = useState<string>("");
 
   // ===================
   // Sprint State
@@ -225,6 +225,8 @@ export function ReleaseNotesUI() {
   );
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [isClearingCanvas, setIsClearingCanvas] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isImporting, setIsImporting] = useState<boolean>(false);
 
   // ===================
   // UI State
@@ -315,6 +317,14 @@ export function ReleaseNotesUI() {
           const payload = result as ComponentSetsPayload;
           setComponentSets(payload.componentSets);
           setSelectedComponentId(payload.lastSelectedComponentSetId);
+          if (payload.lastSelectedComponentSetId) {
+            const selected = payload.componentSets.find(
+              (cs) => cs.id === payload.lastSelectedComponentSetId,
+            );
+            if (selected) {
+              setComponentSearchValue(selected.name);
+            }
+          }
         },
       },
     );
@@ -346,6 +356,14 @@ export function ReleaseNotesUI() {
           const payload = result as ComponentSetsPayload;
           setComponentSets(payload.componentSets);
           setSelectedComponentId(payload.lastSelectedComponentSetId);
+          if (payload.lastSelectedComponentSetId) {
+            const selected = payload.componentSets.find(
+              (cs) => cs.id === payload.lastSelectedComponentSetId,
+            );
+            if (selected) {
+              setComponentSearchValue(selected.name);
+            }
+          }
           setStatusMessage(
             `Found ${payload.componentSets.length} component sets`,
           );
@@ -356,11 +374,37 @@ export function ReleaseNotesUI() {
   }, [sendRequest]);
 
   const handleComponentSelect = useCallback(
-    (id: string) => {
-      setSelectedComponentId(id);
-      sendRequest("select-component", id);
+    (id: string | null) => {
+      const nextId = id || null;
+      setSelectedComponentId(nextId);
+      const selected = componentSets.find((cs) => cs.id === nextId);
+      if (selected) {
+        setComponentSearchValue(selected.name);
+      } else if (!nextId) {
+        setComponentSearchValue("");
+      }
+      sendRequest("select-component", nextId);
     },
-    [sendRequest],
+    [componentSets, sendRequest],
+  );
+
+  const handleComponentSearch = useCallback(
+    (value: string) => {
+      setComponentSearchValue(value);
+
+      if (!value) {
+        handleComponentSelect(null);
+        return;
+      }
+
+      const match = filteredComponentSets.find(
+        (cs) => cs.name.toLowerCase() === value.toLowerCase(),
+      );
+      if (match) {
+        handleComponentSelect(match.id);
+      }
+    },
+    [filteredComponentSets, handleComponentSelect],
   );
 
   // ===================
@@ -459,6 +503,79 @@ export function ReleaseNotesUI() {
       onError: (error) => setErrorMessage(error),
       onFinally: () => setIsClearingCanvas(false),
     });
+  }, [sendRequest]);
+
+  const handleExportNotes = useCallback(() => {
+    setIsExporting(true);
+    sendRequest("export-notes", null, {
+      onSuccess: (result) => {
+        const data = result as ReleaseNotesExportData;
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `release-notes-${new Date()
+          .toISOString()
+          .slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        setStatusMessage("Release notes exported");
+      },
+      onError: (error) => setErrorMessage(error),
+      onFinally: () => setIsExporting(false),
+    });
+  }, [sendRequest]);
+
+  const handleImportNotes = useCallback(() => {
+    setIsImporting(true);
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/json";
+    input.oncancel = () => {
+      setIsImporting(false);
+    };
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) {
+        setIsImporting(false);
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text) as ReleaseNotesExportData;
+        sendRequest("import-notes", data, {
+          onSuccess: (result) => {
+            const response = result as {
+              success: boolean;
+              message: string;
+              payload?: SprintsPayload;
+            };
+            if (!response.success) {
+              setErrorMessage(response.message);
+              return;
+            }
+            if (response.payload) {
+              setSprints(response.payload.sprints);
+              setSelectedSprintId(response.payload.lastSelectedSprintId);
+            }
+            setStatusMessage(response.message);
+          },
+          onError: (error) => setErrorMessage(error),
+          onFinally: () => setIsImporting(false),
+        });
+      } catch (error) {
+        setIsImporting(false);
+        setErrorMessage(
+          error instanceof Error ? error.message : "Invalid JSON file",
+        );
+      }
+    };
+    input.click();
   }, [sendRequest]);
 
   // ===================
@@ -602,19 +719,6 @@ export function ReleaseNotesUI() {
     gap: "var(--pixel-4, 4px)",
   };
 
-  const iconButtonStyle: React.CSSProperties = {
-    flex: 1,
-    padding: "var(--pixel-8, 8px)",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "transparent",
-    border: "1px solid var(--border-light)",
-    borderRadius: "var(--pixel-4, 4px)",
-    cursor: "pointer",
-    color: "var(--figma-color-text, #333)",
-  };
-
   // ===================
   // Render
   // ===================
@@ -679,38 +783,62 @@ export function ReleaseNotesUI() {
 
           {/* Sprint Actions */}
           {selectedSprintId && !isRenaming && (
-            <div style={buttonRowStyle}>
-              <button
-                onClick={handlePublishNotes}
-                disabled={isPublishing || currentSprintNotes.length === 0}
-                style={iconButtonStyle}
-                tool-tip="Publish notes to canvas"
-              >
-                <IconTable size={16} />
-              </button>
-              <button
-                onClick={handleStartRename}
-                style={iconButtonStyle}
-                tool-tip="Rename sprint"
-              >
-                <IconEdit size={16} />
-              </button>
-              <button
-                onClick={() => setIsDeleteConfirmOpen(true)}
-                style={iconButtonStyle}
-                tool-tip="Delete sprint"
-              >
-                <IconTrash size={16} />
-              </button>
-              <button
-                onClick={handleClearCanvas}
-                disabled={isClearingCanvas}
-                style={iconButtonStyle}
-                tool-tip="Unpublish notes from canvas"
-              >
-                <IconEraser size={16} />
-              </button>
-            </div>
+            <>
+              <div style={buttonRowStyle}>
+                <button
+                  onClick={handleStartRename}
+                  className="secondary"
+                  style={{ flex: 1 }}
+                >
+                  Edit sprint
+                </button>
+                <button
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                  className="secondary"
+                  style={{ flex: 1 }}
+                >
+                  Delete sprint
+                </button>
+              </div>
+
+              <div style={buttonRowStyle}>
+                <button
+                  onClick={handleExportNotes}
+                  disabled={isExporting || sprints.length === 0}
+                  className="secondary"
+                  style={{ flex: 1 }}
+                >
+                  Export notes
+                </button>
+                <button
+                  onClick={handleImportNotes}
+                  disabled={isImporting}
+                  className="secondary"
+                  style={{ flex: 1 }}
+                >
+                  Import notes
+                </button>
+              </div>
+
+              <div style={buttonRowStyle}>
+                <button
+                  onClick={handlePublishNotes}
+                  disabled={isPublishing || currentSprintNotes.length === 0}
+                  className="secondary"
+                  style={{ flex: 1 }}
+                >
+                  Publish to canvas
+                </button>
+                <button
+                  onClick={handleClearCanvas}
+                  disabled={isClearingCanvas}
+                  className="secondary"
+                  style={{ flex: 1 }}
+                >
+                  Delete from canvas
+                </button>
+              </div>
+            </>
           )}
 
           {/* Rename Inline UI */}
@@ -777,20 +905,27 @@ export function ReleaseNotesUI() {
               <div style={{ fontSize: "12px", opacity: 0.6 }}>
                 Found {componentSets.length} component set(s)
               </div>
-              <select
-                value={selectedComponentId || ""}
-                onChange={(e) => handleComponentSelect(e.target.value)}
-                style={selectStyle}
-              >
-                <option value="" disabled>
-                  Select a component set
-                </option>
+              <input
+                type="text"
+                value={componentSearchValue}
+                onChange={(e) => handleComponentSearch(e.target.value)}
+                placeholder="Search component set..."
+                style={inputStyle}
+                list="component-set-options"
+              />
+              <datalist id="component-set-options">
                 {filteredComponentSets.map((cs) => (
-                  <option key={cs.id} value={cs.id}>
-                    {cs.name}
-                  </option>
+                  <option key={cs.id} value={cs.name} />
                 ))}
-              </select>
+              </datalist>
+              {selectedComponentId && (
+                <button
+                  onClick={() => handleComponentSelect(null)}
+                  className="secondary win-button"
+                >
+                  Clear selection
+                </button>
+              )}
             </>
           )}
 

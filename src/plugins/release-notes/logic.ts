@@ -6,6 +6,7 @@ import type {
   EditNotePayload,
   DeleteNotePayload,
   RenameSprintPayload,
+  ReleaseNotesExportData,
 } from "./types";
 
 import {
@@ -178,7 +179,7 @@ export async function releaseNotesHandler(
       const sprint = sprints.find((s) => s.id === sprintId);
 
       if (sprint) {
-        await publishSprintNotes(figma, sprint);
+        await publishSprintNotes(figma, sprints, sprint);
       }
 
       return { success: true };
@@ -221,6 +222,70 @@ export async function releaseNotesHandler(
       }
 
       return { success: true, removedCount };
+    }
+
+    case "export-notes": {
+      const sprints = loadAllSprints(figma);
+      const exportData: ReleaseNotesExportData = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        sprints,
+      };
+      return exportData;
+    }
+
+    case "import-notes": {
+      try {
+        const data = payload as ReleaseNotesExportData;
+        if (!data || !Array.isArray(data.sprints)) {
+          throw new Error("Invalid data format: sprints array is missing");
+        }
+
+        const importedSprints = data.sprints.filter(
+          (sprint) => sprint.id && sprint.name && Array.isArray(sprint.notes),
+        );
+
+        const existingSprints = loadAllSprints(figma);
+        const mergedMap = new Map<string, Sprint>();
+        for (const sprint of existingSprints) {
+          mergedMap.set(sprint.id, sprint);
+        }
+
+        const newlyAdded: Sprint[] = [];
+        for (const sprint of importedSprints) {
+          if (!mergedMap.has(sprint.id)) {
+            mergedMap.set(sprint.id, sprint);
+            newlyAdded.push(sprint);
+          }
+        }
+
+        const mergedSprints = Array.from(mergedMap.values());
+        for (const sprint of mergedSprints) {
+          saveSprint(figma, sprint);
+        }
+
+        let targetSprintId = getLastSprintId(figma);
+        if (!targetSprintId || !mergedMap.has(targetSprintId)) {
+          const newestImported = newlyAdded
+            .slice()
+            .sort((a, b) => parseInt(b.id) - parseInt(a.id))[0];
+          targetSprintId = newestImported?.id ?? mergedSprints[0]?.id ?? null;
+        }
+        setLastSprintId(figma, targetSprintId);
+
+        return {
+          success: true,
+          message: `Imported ${newlyAdded.length} new sprint(s)`,
+          payload: getSprintsPayload(figma),
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: `Import failed: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        };
+      }
     }
 
     default:
