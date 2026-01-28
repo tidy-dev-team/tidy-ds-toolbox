@@ -511,7 +511,7 @@ main:has(.right-menu) .viewport-scroll {
 
 .form-control .title-icon {
   position: absolute;
-  top: calc(var(--pixel-2) * -1);
+  top: calc(var(--pixel-4) * -1);
   left: 0;
 }
 
