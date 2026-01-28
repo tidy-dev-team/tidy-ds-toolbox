@@ -499,6 +499,22 @@ main:has(.right-menu) .viewport-scroll {
   left: var(--pixel-20);
 }
 
+.form-control:has(.title-icon) {
+  position: relative;
+}
+
+.form-control:has(.title-icon) .form-label {
+  padding-left: var(--pixel-32);
+  padding-top: var(--pixel-2);
+  padding-bottom: var(--pixel-2);
+}
+
+.form-control .title-icon {
+  position: absolute;
+  top: calc(var(--pixel-2) * -1);
+  left: 0;
+}
+
 .card-content {
   color: #4b5563;
 }
