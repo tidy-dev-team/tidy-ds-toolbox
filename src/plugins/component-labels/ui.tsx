@@ -2,7 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { Card, FormControl } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { LabelConfig, VariantProperty } from "./types";
-import { IconArrowBigUp, IconArrowBigLeft } from "@tabler/icons-react";
+import {
+  IconArrowBigUp,
+  IconArrowBigLeft,
+  IconRuler2,
+  IconLetterCase,
+} from "@tabler/icons-react";
 
 const DEFAULT_OPTION = "Choose property";
 
@@ -312,7 +317,8 @@ export function ComponentLabelsUI() {
               }}
             >
               {/* Spacing */}
-              <FormControl label="📏 Spacing">
+              <FormControl label="Spacing">
+                <IconRuler2 className="title-icon" />
                 <input
                   type="number"
                   value={spacing}
@@ -328,7 +334,8 @@ export function ComponentLabelsUI() {
               </FormControl>
 
               {/* Font Size */}
-              <FormControl label="🔤 Font Size">
+              <FormControl label="Font Size">
+                <IconLetterCase className="title-icon" />
                 <input
                   type="number"
                   value={fontSize}
