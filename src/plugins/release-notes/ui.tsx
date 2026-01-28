@@ -922,9 +922,7 @@ export function ReleaseNotesUI() {
                 <button
                   onClick={() => handleComponentSelect(null)}
                   className="secondary win-button"
-                >
-                  Clear selection
-                </button>
+                ></button>
               )}
             </>
           )}
