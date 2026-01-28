@@ -470,21 +470,77 @@ export function StickerSheetBuilderUI() {
               <option value="page">By source page</option>
             </select>
           </div>
-          {!isConfigValid && (
+          {/* {!isConfigValid && (
             <div style={configHintStyle}>
               Select component pages to include in the sticker sheet.
             </div>
-          )}
+          )} */}
+
+          <div
+            style={{
+              display: "flex",
+              gap: "12px",
+              flexWrap: "wrap",
+              marginTop: "12px",
+            }}
+          >
+            <button
+              onClick={handleBuildAll}
+              disabled={isLoading || isBuilding || !isConfigValid}
+              className={
+                isBuilding ? "morePadding working note" : "morePadding note"
+              }
+              style={getButtonStyle(
+                !(isLoading || isBuilding) && isConfigValid,
+              )}
+            >
+              {isBuilding ? <img src={Loader} /> : buildAllLabel}
+            </button>
+            <button
+              onClick={handleBuildOne}
+              className={
+                isBuilding
+                  ? "morePadding secondary working note"
+                  : "morePadding secondary note"
+              }
+              disabled={isLoading || isBuilding || !context.selectionValid}
+              style={getButtonStyle(
+                context.selectionValid && !isBuilding && !isLoading,
+              )}
+            >
+              {isBuilding ? "" : "Build one sticker"}
+            </button>
+            {isBuilding && (
+              <button
+                onClick={handleCancel}
+                className="morePadding note"
+                style={cancelButtonStyle}
+              >
+                Cancel
+              </button>
+            )}
+            {isBuilding && progress && (
+              <div style={progressStyle}>
+                Building "{progress.currentComponentName}" ({progress.current}{" "}
+                of {progress.total})
+              </div>
+            )}
+            {statusMessage && (
+              <div style={{ ...messageStyle, color: "#059669" }}>
+                {statusMessage}
+              </div>
+            )}
+            {errorMessage && (
+              <div style={{ ...messageStyle, color: "#dc2626" }}>
+                {errorMessage}
+              </div>
+            )}
+          </div>
         </div>
       </Card>
 
       <Card title="Context">
         <div style={statusGridStyle}>
-          <StatusRow
-            label="Configuration"
-            value={isConfigValid ? "Ready" : "Not configured"}
-            tone={isConfigValid ? "success" : "warning"}
-          />
           <StatusRow
             label="Sticker sheet"
             value={context.stickerSheetExists ? "Detected" : "Not found"}
@@ -492,69 +548,9 @@ export function StickerSheetBuilderUI() {
           />
           <StatusRow
             label="Selection"
-            value={context.selectionValid ? "Ready" : "Nothing is selected"}
+            value={context.selectionValid ? "Ready" : "No selection"}
             tone={context.selectionValid ? "success" : "warning"}
           />
-        </div>
-      </Card>
-
-      <Card title="Actions">
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
-        >
-          <button
-            onClick={handleBuildAll}
-            disabled={isLoading || isBuilding || !isConfigValid}
-            className={
-              isBuilding ? "morePadding working note" : "morePadding note"
-            }
-            style={getButtonStyle(!(isLoading || isBuilding) && isConfigValid)}
-          >
-            {isBuilding ? <img src={Loader} /> : buildAllLabel}
-          </button>
-          <button
-            onClick={handleBuildOne}
-            className={
-              isBuilding
-                ? "morePadding secondary working note"
-                : "morePadding secondary note"
-            }
-            disabled={isLoading || isBuilding || !context.selectionValid}
-            style={getButtonStyle(
-              context.selectionValid && !isBuilding && !isLoading,
-            )}
-          >
-            {isBuilding ? "" : "Build one sticker"}
-          </button>
-          {isBuilding && (
-            <button
-              onClick={handleCancel}
-              className="morePadding note"
-              style={cancelButtonStyle}
-            >
-              Cancel
-            </button>
-          )}
-          {isBuilding && progress && (
-            <div style={progressStyle}>
-              Building "{progress.currentComponentName}" ({progress.current} of{" "}
-              {progress.total})
-            </div>
-          )}
-          {statusMessage && (
-            <div style={{ ...messageStyle, color: "#059669" }}>
-              {statusMessage}
-            </div>
-          )}
-          {errorMessage && (
-            <div style={{ ...messageStyle, color: "#dc2626" }}>
-              {errorMessage}
-            </div>
-          )}
         </div>
       </Card>
     </div>
@@ -601,14 +597,18 @@ const containerStyle: React.CSSProperties = {
 
 const statusGridStyle: React.CSSProperties = {
   display: "flex",
-  flexDirection: "column",
+  flexWrap: "wrap",
   gap: "var(--pixel-8, 8px)",
+  justifyContent: "space-between",
 };
 
 const statusRowStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
+  alignItems: "flex-start",
+  flexDirection: "column",
   justifyContent: "space-between",
+  gap: "var(--pixel-8, 8px)",
+  width: "calc(50% - 6px)",
 };
 
 const messageStyle: React.CSSProperties = {
