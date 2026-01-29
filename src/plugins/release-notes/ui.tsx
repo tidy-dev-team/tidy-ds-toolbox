@@ -1102,13 +1102,9 @@ export function ReleaseNotesUI() {
                       fontSize: "11px",
                       fontWeight: "bold",
                       cursor: "pointer",
-                      border: isSelected
-                        ? "none"
-                        : "1px solid var(--border-light)",
-                      backgroundColor: isSelected ? tagColor : "transparent",
-                      color: isSelected
-                        ? "white"
-                        : "var(--figma-color-text, #333)",
+                      border: `1px solid ${tagColor}`,
+                      backgroundColor: isSelected ? tagColor : "white",
+                      color: isSelected ? "white" : tagColor,
                       transition: "all 0.2s ease",
                     }}
                   >
