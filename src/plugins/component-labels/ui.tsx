@@ -2,6 +2,12 @@ import { useState, useCallback, useEffect } from "react";
 import { Card, FormControl } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { LabelConfig, VariantProperty } from "./types";
+import {
+  IconArrowBigUp,
+  IconArrowBigLeft,
+  IconRuler2,
+  IconLetterCase,
+} from "@tabler/icons-react";
 
 const DEFAULT_OPTION = "Choose property";
 
@@ -175,7 +181,8 @@ export function ComponentLabelsUI() {
               }}
             >
               {/* Top Labels (Level 1) */}
-              <FormControl label="⬆︎ Top labels (Level 1)">
+              <FormControl label="Top labels (Level 1)">
+                <IconArrowBigUp className="title-icon" />
                 <select
                   value={topValue}
                   onChange={(e) => setTopValue(e.target.value)}
@@ -197,7 +204,8 @@ export function ComponentLabelsUI() {
               </FormControl>
 
               {/* Left Labels (Level 1) */}
-              <FormControl label="⬅︎ Left labels (Level 1)">
+              <FormControl label="Left labels (Level 1)">
+                <IconArrowBigLeft className="title-icon" />
                 <select
                   value={leftValue}
                   onChange={(e) => setLeftValue(e.target.value)}
@@ -219,7 +227,8 @@ export function ComponentLabelsUI() {
               </FormControl>
 
               {/* Top Labels (Level 2) */}
-              <FormControl label="⬆︎ Top labels (Level 2)">
+              <FormControl label="Top labels (Level 2)">
+                <IconArrowBigUp className="title-icon" />
                 <select
                   value={secondTopValue}
                   onChange={(e) => setSecondTopValue(e.target.value)}
@@ -258,7 +267,8 @@ export function ComponentLabelsUI() {
               </FormControl>
 
               {/* Left Labels (Level 2) */}
-              <FormControl label="⬅︎ Left labels (Level 2)">
+              <FormControl label="Left labels (Level 2)">
+                <IconArrowBigLeft className="title-icon" />
                 <select
                   value={secondLeftValue}
                   onChange={(e) => setSecondLeftValue(e.target.value)}
@@ -307,7 +317,8 @@ export function ComponentLabelsUI() {
               }}
             >
               {/* Spacing */}
-              <FormControl label="📏 Spacing">
+              <FormControl label="Spacing">
+                <IconRuler2 className="title-icon" />
                 <input
                   type="number"
                   value={spacing}
@@ -323,7 +334,8 @@ export function ComponentLabelsUI() {
               </FormControl>
 
               {/* Font Size */}
-              <FormControl label="🔤 Font Size">
+              <FormControl label="Font Size">
+                <IconLetterCase className="title-icon" />
                 <input
                   type="number"
                   value={fontSize}

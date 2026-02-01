@@ -921,11 +921,8 @@ export function ReleaseNotesUI() {
               {selectedComponentId && (
                 <button
                   onClick={() => handleComponentSelect(null)}
-                  className="secondary"
-                  style={{ width: "100%" }}
-                >
-                  Clear selection
-                </button>
+                  className="secondary win-button"
+                ></button>
               )}
             </>
           )}
@@ -1055,6 +1052,7 @@ export function ReleaseNotesUI() {
       </Modal>
 
       {/* Add/Edit Note Modal */}
+      {/* Add/Edit Note Modal */}
       <Modal
         isOpen={isNoteModalOpen}
         title={editingNote ? "Edit Note" : "Add Note"}
@@ -1082,17 +1080,39 @@ export function ReleaseNotesUI() {
           </FormControl>
 
           <FormControl label="Tag">
-            <select
-              value={noteTag}
-              onChange={(e) => setNoteTag(e.target.value as NoteTag)}
-              style={selectStyle}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "var(--pixel-8, 8px)",
+              }}
             >
-              {TAG_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              {TAG_OPTIONS.map((option) => {
+                const isSelected = noteTag === option.value;
+                const tagColor = TAG_COLORS[option.value as NoteTag];
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setNoteTag(option.value as NoteTag)}
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: "4px",
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      border: `1px solid ${tagColor}`,
+                      backgroundColor: isSelected ? tagColor : "white",
+                      color: isSelected ? "white" : tagColor,
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
           </FormControl>
 
           <FormControl label="Component Set">
