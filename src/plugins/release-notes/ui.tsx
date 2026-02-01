@@ -921,7 +921,8 @@ export function ReleaseNotesUI() {
               {selectedComponentId && (
                 <button
                   onClick={() => handleComponentSelect(null)}
-                  className="secondary win-button"
+                  className="secondary"
+                  style={{ width: "100%" }}
                 >
                   Clear selection
                 </button>
