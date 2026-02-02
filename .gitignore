@@ -3,3 +3,4 @@ dist
 .DS_Store
 deployment/CHECKSUMS.txt
 temp
+AGENTS.md
