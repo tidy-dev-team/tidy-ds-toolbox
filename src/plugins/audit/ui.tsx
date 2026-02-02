@@ -12,6 +12,7 @@ import { exportCsv } from "./utils/exportCsv";
 import { createMultiPagePdf, downloadPdf } from "./utils/createMultiPagePdf";
 
 interface PendingRequest {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSuccess?: (result: any) => void;
   onError?: (error: string) => void;
   onFinally?: () => void;
@@ -107,7 +108,7 @@ export function AuditUI() {
 
   // Send request helper
   const sendRequest = useCallback(
-    (action: AuditAction, payload: any, handlers: PendingRequest = {}) => {
+    (action: AuditAction, payload: unknown, handlers: PendingRequest = {}) => {
       const requestId = `audit-${action}-${Date.now()}`;
       pendingRequests.current.set(requestId, handlers);
       postToFigma({
@@ -361,12 +362,13 @@ export function AuditUI() {
     width: "100%",
   };
 
-  const buttonStyle = (bgColor: string) => ({
-    backgroundColor: "#ffffff",
-    ["--btnColor" as any]: bgColor,
-    border: "var(--pixel-1) solid var(--btnColor)",
-    color: "#111827",
-  });
+  const buttonStyle = (bgColor: string): React.CSSProperties =>
+    ({
+      backgroundColor: "#ffffff",
+      "--btnColor": bgColor,
+      border: "var(--pixel-1) solid var(--btnColor)",
+      color: "#111827",
+    }) as React.CSSProperties;
 
   return (
     <div
@@ -381,9 +383,11 @@ export function AuditUI() {
       {(statusMessage || errorMessage) && (
         <div
           className="status-pill pill-anim"
-          style={{
-            ["--pillBtnColor" as any]: statusMessage ? "#059669" : "#dc2626",
-          }}
+          style={
+            {
+              "--pillBtnColor": statusMessage ? "#059669" : "#dc2626",
+            } as React.CSSProperties
+          }
         >
           {statusMessage || errorMessage}
         </div>

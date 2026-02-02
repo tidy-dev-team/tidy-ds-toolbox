@@ -667,12 +667,6 @@ const checkboxLabelStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const configHintStyle: React.CSSProperties = {
-  fontSize: "11px",
-  color: "var(--figma-color-text-tertiary, #999)",
-  fontStyle: "italic",
-};
-
 const pageListContainerStyle: React.CSSProperties = {
   maxHeight: "180px",
   overflowY: "auto",

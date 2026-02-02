@@ -35,9 +35,9 @@ async function loadFonts(): Promise<void> {
  */
 export async function auditHandler(
   action: string,
-  payload: any,
+  payload: unknown,
   _figma?: PluginAPI,
-): Promise<any> {
+): Promise<unknown> {
   // Load fonts for any operation that might need them
   await loadFonts();
 
@@ -266,7 +266,8 @@ async function handleExportPdf(): Promise<{
       success: true,
       data: pdf,
     };
-  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_error) {
     return {
       success: false,
       message: "PDF export failed",
@@ -313,7 +314,8 @@ async function handleExportMultipagePdf(): Promise<{
       success: true,
       pages,
     };
-  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_error) {
     return {
       success: false,
       message: "Multi-page PDF export failed",

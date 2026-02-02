@@ -37,16 +37,18 @@ const handlers: Record<
 // Handle shell-level commands coming from the UI shell
 async function handleShellCommand(
   action: string,
-  payload: any,
+  payload: unknown,
   requestId?: string,
 ) {
   switch (action) {
     case "save-storage": {
-      await figma.clientStorage.setAsync(payload.key, payload.value);
+      const p = payload as { key: string; value: unknown };
+      await figma.clientStorage.setAsync(p.key, p.value);
       return;
     }
     case "load-storage": {
-      const value = await figma.clientStorage.getAsync(payload.key);
+      const p = payload as { key: string };
+      const value = await figma.clientStorage.getAsync(p.key);
       figma.ui.postMessage({
         type: "response",
         requestId,
@@ -55,8 +57,9 @@ async function handleShellCommand(
       return;
     }
     case "resize-ui": {
-      const targetWidth = Number(payload?.width) || RESIZE_DEFAULT.width;
-      const targetHeight = Number(payload?.height) || RESIZE_DEFAULT.height;
+      const p = payload as { width?: number; height?: number };
+      const targetWidth = Number(p?.width) || RESIZE_DEFAULT.width;
+      const targetHeight = Number(p?.height) || RESIZE_DEFAULT.height;
       const nextSize = clampSize(targetWidth, targetHeight);
 
       figma.ui.resize(nextSize.width, nextSize.height);
@@ -75,7 +78,7 @@ async function handleShellCommand(
 // Send response to UI
 function sendResponse(
   requestId: string | undefined,
-  result: any,
+  result: unknown,
   error?: string,
 ) {
   if (!requestId) return;
@@ -97,9 +100,11 @@ figma.ui.onmessage = async (msg: unknown) => {
     message &&
     typeof message === "object" &&
     "type" in message &&
-    message.type === "open-external-link"
+    message.type === "open-external-link" &&
+    "url" in message &&
+    typeof message.url === "string"
   ) {
-    figma.openExternal((message as any).url);
+    figma.openExternal(message.url);
     return;
   }
 

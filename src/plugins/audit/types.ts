@@ -25,12 +25,13 @@ export interface NotePayload {
   note?: string;
 }
 
-export interface QuickWinPayload {}
+// Empty payload for quick win action - intentionally has no properties
+export type QuickWinPayload = Record<string, never>;
 
 export interface AuditResult {
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface SelectionState {
