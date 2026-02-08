@@ -824,6 +824,10 @@ body:has(.sidebar.small) .severity-card button {
   color: var(--figma-color-text, #333) !important;
 }
 
+.win-button:nth-of-type(2) {
+  right: 56px;
+}
+
 .win-button::before {
   display: none;
 }
