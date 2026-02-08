@@ -215,7 +215,7 @@ export function OffBoardingUI() {
           <button
             onClick={handleFindBoundVariables}
             disabled={isLoading !== null}
-            className="secondary win-button"
+            className="secondary"
             tool-tip="Find bound variables"
           >
             <IconNut size={16} stroke={1.5} />
@@ -224,7 +224,7 @@ export function OffBoardingUI() {
           <button
             onClick={handleFindHiddenStyles}
             disabled={isLoading !== null}
-            className="secondary win-button"
+            className="secondary"
             tool-tip="Find hidden layout grid styles"
           >
             <IconLayoutGrid size={16} stroke={1.5} />
