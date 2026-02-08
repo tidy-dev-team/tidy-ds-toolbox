@@ -355,6 +355,72 @@ function findBoundVariables(): OffBoardingResult {
   };
 }
 
+type NodeWithGridStyleId = SceneNode & {
+  gridStyleId?: string;
+};
+
+function hasGridStyleId(node: SceneNode): boolean {
+  const candidate = node as NodeWithGridStyleId;
+  if (candidate.gridStyleId === undefined || candidate.gridStyleId === "") {
+    return false;
+  }
+  return true;
+}
+
+function collectNodesWithGridStyles(
+  nodes: ReadonlyArray<SceneNode>,
+): Array<SceneNode> {
+  const matches: Array<SceneNode> = [];
+  const stack: Array<SceneNode> = [...nodes];
+
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (node === undefined) {
+      continue;
+    }
+    if (hasGridStyleId(node)) {
+      matches.push(node);
+    }
+    if (isNodeWithChildren(node)) {
+      for (const child of node.children) {
+        stack.push(child);
+      }
+    }
+  }
+
+  return matches;
+}
+
+function findHiddenStyles(): OffBoardingResult {
+  const selection = figma.currentPage.selection;
+
+  if (selection.length === 0) {
+    return {
+      success: false,
+      message: "Select at least one node to scan for hidden styles.",
+    };
+  }
+
+  const matches = collectNodesWithGridStyles(selection);
+
+  if (matches.length === 0) {
+    return {
+      success: true,
+      message: "No hidden layout grid styles found in selection.",
+      count: 0,
+    };
+  }
+
+  figma.currentPage.selection = matches;
+  figma.viewport.scrollAndZoomIntoView(matches);
+
+  return {
+    success: true,
+    message: `Found ${matches.length} node${matches.length === 1 ? "" : "s"} with hidden layout grid styles.`,
+    count: matches.length,
+  };
+}
+
 /**
  * Off-Boarding handler - processes messages from the UI
  */
@@ -380,6 +446,9 @@ export async function offBoardingHandler(
 
     case "find-bound-variables":
       return findBoundVariables();
+
+    case "find-hidden-styles":
+      return findHiddenStyles();
 
     default:
       return {

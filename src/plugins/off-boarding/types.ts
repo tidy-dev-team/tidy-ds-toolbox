@@ -7,7 +7,8 @@ export type OffBoardingAction =
   | "get-pages"
   | "pack-pages"
   | "unpack-pages"
-  | "find-bound-variables";
+  | "find-bound-variables"
+  | "find-hidden-styles";
 
 export interface PageInfo {
   id: string;

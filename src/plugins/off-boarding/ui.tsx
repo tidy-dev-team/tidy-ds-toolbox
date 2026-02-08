@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { OffBoardingAction, PageInfo } from "./types";
-import { IconPackage, IconPackageExport, IconNut } from "@tabler/icons-react";
+import { IconPackage, IconPackageExport, IconNut, IconLayoutGrid } from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -176,6 +176,30 @@ export function OffBoardingUI() {
     );
   }, [sendRequest]);
 
+  const handleFindHiddenStyles = useCallback(() => {
+    setIsLoading("find-styles");
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    sendRequest(
+      "find-hidden-styles",
+      {},
+      {
+        onSuccess: (result) => {
+          if (result?.success) {
+            setStatusMessage(result.message);
+          } else {
+            setErrorMessage(
+              result?.message ?? "Failed to find hidden styles",
+            );
+          }
+        },
+        onError: (error) => setErrorMessage(error),
+        onFinally: () => setIsLoading(null),
+      },
+    );
+  }, [sendRequest]);
+
   return (
     <div
       style={{
@@ -187,6 +211,7 @@ export function OffBoardingUI() {
     >
       <Card title="Pack Pages" className="card relative-element">
         <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", flexDirection: "row", gap: "8px", marginBottom: "4px" }}>
           <button
             onClick={handleFindBoundVariables}
             disabled={isLoading !== null}
@@ -196,6 +221,16 @@ export function OffBoardingUI() {
             <IconNut size={16} stroke={1.5} />
             {isLoading === "find" ? "" : ""}
           </button>
+          <button
+            onClick={handleFindHiddenStyles}
+            disabled={isLoading !== null}
+            className="secondary win-button"
+            tool-tip="Find hidden layout grid styles"
+          >
+            <IconLayoutGrid size={16} stroke={1.5} />
+            {isLoading === "find-styles" ? "" : ""}
+          </button>
+        </div>
 
           <div
             style={{
