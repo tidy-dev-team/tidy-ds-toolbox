@@ -114,17 +114,42 @@ function cloneTopLevelNodesIntoFrame(
   targetFrame.resize(bounds.width + padding * 2, bounds.height + padding * 2);
 }
 
-function stackFramesVertically(
+const FIGMA_MAX_Y = 60000; // Safe max Y to stay within pasteboard
+const FIGMA_MIN_Y = -60000; // Safe min Y to stay within pasteboard
+const COLUMN_SPACING = 200; // Spacing between columns
+
+function arrangeFramesInGrid(
   frames: Array<FrameNode>,
   spacing: number,
 ): void {
-  let y = 0;
+  if (frames.length === 0) return;
+
+  // Find the widest frame to determine column width
+  let maxWidth = 0;
   for (const frame of frames) {
-    frame.x = 0;
-    frame.y = y;
-    y += frame.height + spacing;
+    if (frame.width > maxWidth) {
+      maxWidth = frame.width;
+    }
+  }
+  const columnWidth = maxWidth + COLUMN_SPACING;
+
+  let currentColumn = 0;
+  let currentY = FIGMA_MIN_Y;
+
+  for (const frame of frames) {
+    // Check if this frame would exceed the available height
+    if (currentY + frame.height > FIGMA_MAX_Y && currentY !== FIGMA_MIN_Y) {
+      // Move to next column
+      currentColumn++;
+      currentY = FIGMA_MIN_Y;
+    }
+
+    frame.x = currentColumn * columnWidth;
+    frame.y = currentY;
+    currentY += frame.height + spacing;
   }
 }
+
 
 function isNodeWithChildren(
   node: SceneNode,
@@ -206,7 +231,7 @@ function packPages(pageIds: string[]): OffBoardingResult {
     frames.push(frame);
   }
 
-  stackFramesVertically(frames, 200);
+  arrangeFramesInGrid(frames, 200);
 
   figma.currentPage.selection = frames;
   figma.viewport.scrollAndZoomIntoView(frames);
