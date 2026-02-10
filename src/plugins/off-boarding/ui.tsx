@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { OffBoardingAction, PageInfo } from "./types";
-import { IconPackage, IconPackageExport, IconNut, IconLayoutGrid } from "@tabler/icons-react";
+import {
+  IconPackage,
+  IconPackageExport,
+  IconNut,
+  IconLayoutGrid,
+} from "@tabler/icons-react";
 
 interface PendingRequest {
   onSuccess?: (result: any) => void;
@@ -189,9 +194,7 @@ export function OffBoardingUI() {
           if (result?.success) {
             setStatusMessage(result.message);
           } else {
-            setErrorMessage(
-              result?.message ?? "Failed to find hidden styles",
-            );
+            setErrorMessage(result?.message ?? "Failed to find hidden styles");
           }
         },
         onError: (error) => setErrorMessage(error),
@@ -211,26 +214,33 @@ export function OffBoardingUI() {
     >
       <Card title="Pack Pages" className="card relative-element">
         <div style={{ display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", flexDirection: "row", gap: "8px", marginBottom: "4px" }}>
-          <button
-            onClick={handleFindBoundVariables}
-            disabled={isLoading !== null}
-            className="secondary"
-            tool-tip="Find bound variables"
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: "8px",
+              marginBottom: "4px",
+            }}
           >
-            <IconNut size={16} stroke={1.5} />
-            {isLoading === "find" ? "" : ""}
-          </button>
-          <button
-            onClick={handleFindHiddenStyles}
-            disabled={isLoading !== null}
-            className="secondary"
-            tool-tip="Find hidden layout grid styles"
-          >
-            <IconLayoutGrid size={16} stroke={1.5} />
-            {isLoading === "find-styles" ? "" : ""}
-          </button>
-        </div>
+            <button
+              onClick={handleFindBoundVariables}
+              disabled={isLoading !== null}
+              className="secondary win-button"
+              tool-tip="Find bound variables"
+            >
+              <IconNut size={16} stroke={1.5} />
+              {isLoading === "find" ? "" : ""}
+            </button>
+            <button
+              onClick={handleFindHiddenStyles}
+              disabled={isLoading !== null}
+              className="secondary win-button"
+              tool-tip="Find hidden layout grid styles"
+            >
+              <IconLayoutGrid size={16} stroke={1.5} />
+              {isLoading === "find-styles" ? "" : ""}
+            </button>
+          </div>
 
           <div
             style={{
