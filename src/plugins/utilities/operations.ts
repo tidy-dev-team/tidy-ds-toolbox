@@ -16,7 +16,7 @@ interface FindComponentsParams {
 }
 
 interface FindComponentsResult {
-  ids: string[];
+  components: { id: string; name: string }[];
   summary: string;
 }
 
@@ -74,7 +74,7 @@ registerOperation<FindComponentsParams, FindComponentsResult>(
     const matches = pattern ? nodes.filter((n) => pattern.test(n.name)) : nodes;
 
     return {
-      ids: matches.map((n) => n.id),
+      components: matches.map((n) => ({ id: n.id, name: n.name })),
       summary: `${matches.length} component(s) matched`,
     };
   },

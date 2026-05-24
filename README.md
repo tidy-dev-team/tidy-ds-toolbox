@@ -83,11 +83,21 @@ The plugin ships with an MCP server that exposes a curated set of **Operations**
 
 | Tool | Kind | What it does |
 | --- | --- | --- |
-| `tidy_misprint_find_components` | Query | Find components / component sets in the active file (params: `{ scope: "file" \| "page", pageId?, namePattern? }`). Returns ids. |
+| `tidy_misprint_find_components` | Query | Find components / component sets in the active file. Params: `{ scope: "file" \| "page", pageId?, namePattern? }` (glob, e.g. `Btn*`). Returns `{ components: { id, name }[], summary }`. |
 | `tidy_misprint_apply` | Execute | Append/replace a Hebrew-scrambled "misprint" line on each component's description, for searchability. Idempotent; atomic-fails if any id is missing or wrong type. |
 | `tidy_ds_template_run` | Execute | Stamp the standard DS Template pages into the file. **Not** idempotent — running twice creates duplicates. |
 
-Query / Plan / Execute are the three Operation flavours from [`ADR-0001`](docs/adr/0001-plan-execute-split-for-operations.md). Lookup ids via a Query, pass them to an Execute.
+Query / Plan / Execute are the three Operation flavours from [`ADR-0001`](docs/adr/0001-plan-execute-split-for-operations.md). Lookup via a Query, pass the resulting ids to an Execute.
+
+### Slash commands
+
+Project-scoped wrappers in `.claude/commands/` expand into prompts that drive the tools above. They appear in `/` autocomplete after restarting Claude Code in this directory.
+
+| Slash | What it does |
+| --- | --- |
+| `/tidy-find [scope] [pageId] [pattern]` | Wraps `tidy_misprint_find_components`. No args → `scope: "file"`. A positional glob (e.g. `Btn*`) is taken as `namePattern`. Renders matches as `name — id`. |
+| `/tidy-misprint [ids\|names\|globs…]` | Wraps `tidy_misprint_apply`. Each argument is resolved by shape: `2226:741` → id, `Btn*` → glob, anything else → exact name (find first, then apply). With no args, finds the whole file and asks before applying. |
+| `/tidy-ds-template [--force]` | Wraps `tidy_ds_template_run`. Confirms first (since it's not idempotent); `--force` skips the prompt. |
 
 ### Troubleshooting
 

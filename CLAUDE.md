@@ -64,6 +64,21 @@ To add a plugin: create the three files, then register the module in `moduleRegi
 
 `code.ts` wraps all operations in a timeout (30 seconds default). Long-running operations (batch builds, report generation) must bypass this via the `isLongRunningAction` check. `src/shared/error-handler.ts` provides `isRecoverableError()` to distinguish user-fixable errors from critical ones.
 
+### Operations / MCP Bridge (agent-facing surface)
+
+Separate from the in-plugin module pattern, the codebase exposes typed **Operations** to AI agents over an MCP server. Domain vocabulary and composition rules live in [`CONTEXT.md`](CONTEXT.md); decisions in [`docs/adr/0001`–`0005`](docs/adr/).
+
+Layout:
+- `src/shared/operations/types.ts`, `errors.ts` — canonical `OperationSpec`, `OperationHandler`, `OperationError`, error-code enum, bridge envelopes. Shared between plugin and MCP server.
+- `src/shared/operations/registry.ts` — plugin-main-thread `registerOperation` / `dispatch` / `bindSession`.
+- `src/shared/operations/register-all.ts` — side-effect import that pulls in every module's operation registrations. Add a line here when a new module exposes operations.
+- `src/shared/operations/ui-bridge.ts`, `ui-bridge-startup.ts` — UI-iframe WebSocket to `ws://localhost:9876`; relays envelopes to the main thread via the existing `postMessage` channel.
+- `src/plugins/<module>/operations.ts` — per-module `registerOperation(...)` calls. Each id is snake_case and `tidy_`-prefixed (e.g. `tidy_misprint_find_components`).
+- `mcp-server/` — Node MCP server that **listens** on `127.0.0.1:9876` and accepts the plugin's outbound connection (plugin sandbox can't accept inbound, hence inverted server/client roles).
+- `.claude/commands/tidy-*.md` — project-scoped slash commands that wrap the MCP tools for ergonomic invocation.
+
+Production builds disable the bridge: `manifest.json` has `allowedDomains: ["none"]` and the dev socket is allow-listed only under `devAllowedDomains`. Adding a new Operation: implement and register in the module's `operations.ts`, declare it in `mcp-server/src/catalogue.ts` (Zod input schema + summary), rebuild, reload the plugin in Figma.
+
 ## Figma Plugin Development
 
 - Figma API types come from `@figma/plugin-typings` — no runtime import needed, types are globally available.
