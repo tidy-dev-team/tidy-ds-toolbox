@@ -62,10 +62,14 @@ async function handleShellCommand(
       return;
     }
     case "resize-ui": {
-      const p = payload as { width?: number; height?: number };
+      const p = payload as {
+        width?: number;
+        height?: number;
+        mode?: "default" | "bridge";
+      };
       const targetWidth = Number(p?.width) || RESIZE_DEFAULT.width;
       const targetHeight = Number(p?.height) || RESIZE_DEFAULT.height;
-      const nextSize = clampSize(targetWidth, targetHeight);
+      const nextSize = clampSize(targetWidth, targetHeight, p?.mode);
 
       figma.ui.resize(nextSize.width, nextSize.height);
       figma.ui.postMessage({

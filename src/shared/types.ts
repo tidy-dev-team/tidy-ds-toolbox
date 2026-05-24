@@ -61,6 +61,7 @@ export interface ModuleManifest {
   settingsSchema?: any;
   keywords?: string[]; // Keywords for search
   features?: PluginFeature[]; // Sub-features within the plugin
+  agentified?: boolean; // True if this module exposes operations over MCP / agents
 }
 
 export interface ModuleRegistry {

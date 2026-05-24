@@ -102,6 +102,7 @@ export const moduleRegistry: ModuleRegistry = {
     ui: UtilitiesUI,
     handler: moduleHandlers.utilities,
     permissionRequirements: [],
+    agentified: true,
     keywords: ["utility", "tools", "helper", "misc"],
     features: [
       {

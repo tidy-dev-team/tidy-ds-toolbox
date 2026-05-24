@@ -6,9 +6,11 @@ import { moduleRegistry } from "./moduleRegistry";
 import { ModuleManifest } from "@shared/types";
 import "./App.css";
 import {
+  IconArrowsMaximize,
   IconLayoutSidebar,
   IconLayoutSidebarFilled,
   IconMessageCircle,
+  IconRobot,
 } from "@tabler/icons-react";
 
 function Navigation() {
@@ -62,6 +64,15 @@ function Navigation() {
                   )}
                 </span>
                 <span className="label">{module.label}</span>
+                {module.agentified && (
+                  <span
+                    className="agentified-badge"
+                    title="Exposed via MCP / agent"
+                    aria-label="Exposed via MCP / agent"
+                  >
+                    <IconRobot size={14} stroke={1.5} />
+                  </span>
+                )}
               </button>
             );
           })}
@@ -165,6 +176,25 @@ function AppContent() {
       return () => clearTimeout(timeout);
     }
   }, [state.featureFocus, state.activeModule, dispatch]);
+
+  if (state.bridgeMode) {
+    return (
+      <div className="app bridge">
+        <div className="bridge-bar">
+          <span className="bridge-status" aria-hidden="true" />
+          <span className="bridge-title">Tidy DS Toolbox · MCP bridge</span>
+          <button
+            type="button"
+            className="bridge-expand"
+            aria-label="Exit bridge mode"
+            onClick={() => dispatch({ type: "EXIT_BRIDGE_MODE" })}
+          >
+            <IconArrowsMaximize size={14} stroke={1.5} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">

@@ -125,12 +125,27 @@ export function ResizeHandle() {
     [state.windowSize.height, state.windowSize.width],
   );
 
+  const handleDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      // Cancel any drag started by the underlying pointerdown events.
+      pointerIdRef.current = null;
+      setIsDragging(false);
+      dispatch({
+        type: state.bridgeMode ? "EXIT_BRIDGE_MODE" : "ENTER_BRIDGE_MODE",
+      });
+    },
+    [dispatch, state.bridgeMode],
+  );
+
   return (
     <button
       type="button"
       className={`resize-handle${isDragging ? " dragging" : ""}`}
-      aria-label="Resize plugin window"
+      aria-label="Resize plugin window (double-click to toggle bridge mode)"
       onPointerDown={handlePointerDown}
+      onDoubleClick={handleDoubleClick}
     >
       <IconArrowsDiagonal size={16} />
     </button>
