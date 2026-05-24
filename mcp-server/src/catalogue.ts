@@ -19,11 +19,11 @@ export interface CatalogueEntry {
 
 export const CATALOGUE: CatalogueEntry[] = [
   {
-    id: "misprint.find-components",
+    id: "tidy_misprint_find_components",
     kind: "query",
     module: "utilities",
     summary:
-      "Find components and component sets in the active Figma file. Returns node ids that can be passed to misprint.apply.",
+      "Find components and component sets in the active Figma file. Returns node ids that can be passed to tidy_misprint_apply.",
     inputSchema: {
       scope: z
         .enum(["file", "page"])
@@ -39,7 +39,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     },
   },
   {
-    id: "misprint.apply",
+    id: "tidy_misprint_apply",
     kind: "execute",
     module: "utilities",
     summary:
@@ -52,7 +52,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     },
   },
   {
-    id: "ds-template.run",
+    id: "tidy_ds_template_run",
     kind: "execute",
     module: "utilities",
     summary:

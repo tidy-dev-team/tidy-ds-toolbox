@@ -9,7 +9,10 @@ export type OperationKind = "query" | "plan" | "execute";
  * the plugin advertises a version on Bridge connect and the server rejects
  * unsupported ops with typed UNSUPPORTED_OPERATION errors.
  *
- * `id` is dotted: `<module>.<operation>` (e.g. `misprint.find-components`).
+ * `id` is snake_case and `tidy_`-prefixed for vendor namespacing
+ * (e.g. `tidy_misprint_find_components`). MCP exposes the id verbatim
+ * as the tool name, so the prefix makes our tools self-identifying when
+ * a Claude Code session has multiple MCP servers attached.
  */
 export interface OperationSpec {
   id: string;

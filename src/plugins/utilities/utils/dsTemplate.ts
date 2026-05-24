@@ -262,26 +262,26 @@ async function loadFonts(): Promise<void> {
 }
 
 /**
+ * Build the DS Template (fonts → pages → frames + headers) and return the
+ * pages that were created. Shared between the designer UI entrypoint
+ * (`runDsTemplate`) and the MCP `ds-template.run` Operation.
+ */
+export async function buildDsTemplate(): Promise<PageNode[]> {
+  await loadFonts();
+  const pages = buildPages(DS_PAGES);
+  await buildFramesForPages(pages);
+  return pages;
+}
+
+/**
  * Main function to run DS Template utility
  */
 export async function runDsTemplate(): Promise<UtilityResult> {
   try {
-    // Load fonts first
-    await loadFonts();
-
-    // Build pages
-    const pages = buildPages(DS_PAGES);
-
+    const pages = await buildDsTemplate();
     if (pages.length === 0) {
-      return {
-        success: false,
-        message: "No pages were created",
-      };
+      return { success: false, message: "No pages were created" };
     }
-
-    // Build frames and headers for each page
-    await buildFramesForPages(pages);
-
     return {
       success: true,
       message: `DS Template created with ${pages.length} pages`,

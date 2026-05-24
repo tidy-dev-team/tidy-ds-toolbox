@@ -6,6 +6,8 @@
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
+import { addMisprintToDescription } from "./utils/misprint";
+import { buildDsTemplate } from "./utils/dsTemplate";
 
 interface FindComponentsParams {
   scope: "file" | "page";
@@ -25,11 +27,11 @@ function globToRegex(g: string): RegExp {
 
 registerOperation<FindComponentsParams, FindComponentsResult>(
   {
-    id: "misprint.find-components",
+    id: "tidy_misprint_find_components",
     kind: "query",
     module: "utilities",
     summary:
-      "Find components and component sets. Returns ids passable to misprint.apply.",
+      "Find components and component sets. Returns ids passable to tidy_misprint_apply.",
     paramsExample: { scope: "file" },
   },
   async (params) => {
@@ -74,6 +76,97 @@ registerOperation<FindComponentsParams, FindComponentsResult>(
     return {
       ids: matches.map((n) => n.id),
       summary: `${matches.length} component(s) matched`,
+    };
+  },
+);
+
+interface ApplyMisprintParams {
+  nodeIds: string[];
+}
+interface ApplyMisprintResult {
+  updated: number;
+  ids: string[];
+}
+
+registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
+  {
+    id: "tidy_misprint_apply",
+    kind: "execute",
+    module: "utilities",
+    summary:
+      "Append/replace a Hebrew-scrambled 'misprint' line on each component's description. Idempotent. Atomic-fails if any id is missing or not a component.",
+    paramsExample: { nodeIds: ["1:2"] },
+  },
+  async (params) => {
+    if (!Array.isArray(params.nodeIds) || params.nodeIds.length === 0) {
+      throw new OperationError(
+        ErrorCode.INVALID_PARAMS,
+        "nodeIds must be a non-empty array",
+      );
+    }
+
+    const missing: string[] = [];
+    const wrongType: string[] = [];
+    const resolved: (ComponentNode | ComponentSetNode)[] = [];
+    for (const id of params.nodeIds) {
+      const node = await figma.getNodeByIdAsync(id);
+      if (!node) {
+        missing.push(id);
+        continue;
+      }
+      if (node.type !== "COMPONENT" && node.type !== "COMPONENT_SET") {
+        wrongType.push(id);
+        continue;
+      }
+      resolved.push(node);
+    }
+    if (missing.length) {
+      throw new OperationError(
+        ErrorCode.NOT_FOUND,
+        `${missing.length} nodeId(s) not found`,
+        true,
+        { missing },
+      );
+    }
+    if (wrongType.length) {
+      throw new OperationError(
+        ErrorCode.WRONG_NODE_TYPE,
+        `${wrongType.length} node(s) are not components or component sets`,
+        true,
+        { wrongType },
+      );
+    }
+
+    for (const node of resolved) {
+      addMisprintToDescription(node);
+    }
+
+    return {
+      updated: resolved.length,
+      ids: resolved.map((n) => n.id),
+    };
+  },
+);
+
+interface DsTemplateRunResult {
+  pagesCreated: number;
+  pageIds: string[];
+}
+
+registerOperation<Record<string, never>, DsTemplateRunResult>(
+  {
+    id: "tidy_ds_template_run",
+    kind: "execute",
+    module: "utilities",
+    summary:
+      "Stamp the standard DS Template pages into the file. NOT idempotent — running twice creates duplicate pages.",
+    paramsExample: {},
+  },
+  async () => {
+    const pages = await buildDsTemplate();
+    return {
+      pagesCreated: pages.length,
+      pageIds: pages.map((p) => p.id),
     };
   },
 );

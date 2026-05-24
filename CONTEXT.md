@@ -5,7 +5,7 @@ A Figma plugin that bundles several Design System maintenance modules (DS Explor
 ## Language
 
 **Operation**:
-A single Figma action exposed to an agent. Discoverable, callable, returns a structured result. Comes in three flavours:
+A single Figma action exposed to an agent. Discoverable, callable, returns a structured result. Each Operation has a snake_case id prefixed `tidy_` for vendor namespacing (e.g. `tidy_misprint_find_components`); MCP exposes the id verbatim as the tool name. Comes in three flavours:
 
 - **Query Operation** — read-only; returns DS / file / selection state so the agent can plan without asking the designer (e.g. `list-components`, `get-audit-report`).
 - **Plan Operation** — takes intent, returns an inspectable JSON plan. May be non-deterministic.

@@ -17,9 +17,10 @@ function createMisprintText(name: string): string {
 }
 
 /**
- * Adds misprint text to a component or component set description
+ * Adds misprint text to a component or component set description.
+ * Exported so the MCP `misprint.apply` Operation can reuse it.
  */
-function addMisprintToDescription(
+export function addMisprintToDescription(
   element: ComponentNode | ComponentSetNode,
 ): void {
   const misprint = createMisprintText(element.name);

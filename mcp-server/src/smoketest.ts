@@ -28,32 +28,32 @@ async function main(): Promise<void> {
   const tools = await client.listTools();
   for (const t of tools.tools) print(`  • ${t.name} — ${t.description}`);
 
-  banner("misprint.find-components { scope: 'file' }");
-  await callAndPrint(client, "misprint.find-components", { scope: "file" });
+  banner("tidy_misprint_find_components { scope: 'file' }");
+  await callAndPrint(client, "tidy_misprint_find_components", { scope: "file" });
 
-  banner("misprint.find-components { scope: 'page', pageId: 'page1', namePattern: 'Btn*' }");
-  const findRes = await callAndPrint(client, "misprint.find-components", {
+  banner("tidy_misprint_find_components { scope: 'page', pageId: 'page1', namePattern: 'Btn*' }");
+  const findRes = await callAndPrint(client, "tidy_misprint_find_components", {
     scope: "page",
     pageId: "page1",
     namePattern: "Btn*",
   });
 
-  banner("misprint.apply with last-found ids");
+  banner("tidy_misprint_apply with last-found ids");
   const ids = extractIds(findRes);
-  await callAndPrint(client, "misprint.apply", { nodeIds: ids });
+  await callAndPrint(client, "tidy_misprint_apply", { nodeIds: ids });
 
-  banner("misprint.apply with bogus id → NOT_FOUND");
-  await callAndPrint(client, "misprint.apply", { nodeIds: ["n1", "n_bogus"] });
+  banner("tidy_misprint_apply with bogus id → NOT_FOUND");
+  await callAndPrint(client, "tidy_misprint_apply", { nodeIds: ["n1", "n_bogus"] });
 
-  banner("misprint.apply with FRAME mixed in → WRONG_NODE_TYPE");
-  await callAndPrint(client, "misprint.apply", { nodeIds: ["n1", "n5"] });
+  banner("tidy_misprint_apply with FRAME mixed in → WRONG_NODE_TYPE");
+  await callAndPrint(client, "tidy_misprint_apply", { nodeIds: ["n1", "n5"] });
 
-  banner("ds-template.run (twice — pages should duplicate)");
-  await callAndPrint(client, "ds-template.run", {});
-  await callAndPrint(client, "ds-template.run", {});
+  banner("tidy_ds_template_run (twice — pages should duplicate)");
+  await callAndPrint(client, "tidy_ds_template_run", {});
+  await callAndPrint(client, "tidy_ds_template_run", {});
 
-  banner("misprint.find-components missing pageId → INVALID_PARAMS");
-  await callAndPrint(client, "misprint.find-components", { scope: "page" });
+  banner("tidy_misprint_find_components missing pageId → INVALID_PARAMS");
+  await callAndPrint(client, "tidy_misprint_find_components", { scope: "page" });
 
   await client.close();
   print("\n✓ smoketest complete");

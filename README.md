@@ -48,6 +48,64 @@ npm run release:major # Version bump (major)
 npm run release:push  # Push commits and tags
 ```
 
+## 🤖 AI Agent Access (MCP — Dev Only)
+
+The plugin ships with an MCP server that exposes a curated set of **Operations** (typed Figma actions) to Claude Code and other MCP hosts. This is a development-only surface today — `manifest.json` has `networkAccess.allowedDomains: ["none"]` so production builds get no network, and the dev socket is `ws://localhost:9876` (see [`docs/adr/0005-localhost-bridge-no-auth.md`](docs/adr/0005-localhost-bridge-no-auth.md) for the threat model). Background and vocabulary in [`CONTEXT.md`](CONTEXT.md).
+
+### One-time setup
+
+1. **Add the MCP server to Claude Code** (machine-local scope):
+
+   ```bash
+   claude mcp add tidy-ds-toolbox -s local -- \
+     node --experimental-strip-types \
+     "$(pwd)/mcp-server/src/server.ts"
+   ```
+
+   Verify:
+
+   ```bash
+   claude mcp list
+   # → tidy-ds-toolbox: node --experimental-strip-types … - ✓ Connected
+   ```
+
+   Requires Node 22+ (for `--experimental-strip-types`). The path is absolute and machine-specific, which is why we use `-s local` (lives in `~/.claude.json`, not checked in).
+
+2. **Restart Claude Code in this directory** so it picks up the new server. Tools then appear as `mcp__tidy-ds-toolbox__<tool_id>`.
+
+### Order of operations every session
+
+1. Open the plugin in Figma: **Plugins → Development → Tidy DS Toolbox**. The plugin's UI iframe tries to connect to `ws://localhost:9876` and retries with backoff.
+2. Start a Claude Code session in this directory (or invoke any tool — Claude spawns the MCP server on first use, which binds the bridge port; the plugin connects within ~250 ms).
+3. Call tools from your prompts; results round-trip MCP host → MCP server → Bridge → plugin → Figma and back.
+
+### Exposed tools
+
+| Tool | Kind | What it does |
+| --- | --- | --- |
+| `tidy_misprint_find_components` | Query | Find components / component sets in the active file (params: `{ scope: "file" \| "page", pageId?, namePattern? }`). Returns ids. |
+| `tidy_misprint_apply` | Execute | Append/replace a Hebrew-scrambled "misprint" line on each component's description, for searchability. Idempotent; atomic-fails if any id is missing or wrong type. |
+| `tidy_ds_template_run` | Execute | Stamp the standard DS Template pages into the file. **Not** idempotent — running twice creates duplicates. |
+
+Query / Plan / Execute are the three Operation flavours from [`ADR-0001`](docs/adr/0001-plan-execute-split-for-operations.md). Lookup ids via a Query, pass them to an Execute.
+
+### Troubleshooting
+
+- **`claude mcp list` shows ✗ Failed** — usually the MCP server crashed on spawn. Run it manually to see stderr: `node --experimental-strip-types mcp-server/src/server.ts`.
+- **Tool calls return `BRIDGE_DISCONNECTED`** — the plugin isn't open in Figma, or the file was switched (kills the Session). Open it; calls retry inside a 15 s wait window before failing.
+- **Port 9876 already in use** — a leftover server is still bound. `lsof -i :9876 -t | xargs kill`.
+- **Manifest validation errors after editing `networkAccess`** — Figma's validator rejects raw IP literals and only accepts `ws://` URLs under `devAllowedDomains`, not `allowedDomains`.
+
+### Smoketest (without a real plugin)
+
+Useful for confirming the MCP layer alone:
+
+```bash
+node --experimental-strip-types mcp-server/src/smoketest.ts
+```
+
+The smoketest spawns its own server. If the plugin is running, you'll see real component ids come back; without it, you'll see typed `BRIDGE_DISCONNECTED` / `UNSUPPORTED_OPERATION` errors, which is fine.
+
 ## 📝 Creating a New Release
 
 ### Quick Release Process
