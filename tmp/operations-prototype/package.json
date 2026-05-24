@@ -1,0 +1,11 @@
+{
+  "name": "operations-prototype",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}

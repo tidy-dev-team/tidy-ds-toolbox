@@ -6,6 +6,10 @@ import type { ReleaseNotesAction } from "./plugins/release-notes/types";
 import type { OffBoardingAction } from "./plugins/off-boarding/types";
 import type { BuildData } from "./plugins/ds-explorer/types";
 
+import { dispatch as dispatchOperation } from "./shared/operations/registry";
+import type { BridgeRequest } from "./shared/operations/types";
+import "./shared/operations/register-all";
+
 import {
   handleGetComponentProperties,
   handleBuildComponent,
@@ -109,6 +113,17 @@ const offBoardingHandler = async (
   return await offBoardingLogic(action as OffBoardingAction, payload, figma);
 };
 
+// MCP Bridge handler: the UI iframe holds the WebSocket to the MCP server and
+// relays each incoming BridgeRequest envelope here as { action: "dispatch",
+// payload: envelope }. We dispatch through the Operation registry and return
+// the BridgeResponse; the UI then sends it back over the socket.
+const mcpBridgeHandler = async (action: string, payload: unknown) => {
+  if (action !== "dispatch") {
+    throw new Error(`Unknown mcp-bridge action: ${action}`);
+  }
+  return await dispatchOperation(payload as BridgeRequest);
+};
+
 export const moduleHandlers: Record<
   string,
   (action: string, payload: unknown, figma: PluginAPI) => Promise<unknown>
@@ -122,4 +137,5 @@ export const moduleHandlers: Record<
   audit: auditHandler,
   "release-notes": releaseNotesHandler,
   "off-boarding": offBoardingHandler,
+  "mcp-bridge": mcpBridgeHandler,
 };

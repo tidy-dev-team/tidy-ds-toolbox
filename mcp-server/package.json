@@ -1,0 +1,19 @@
+{
+  "name": "@tidy/mcp-server",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "MCP server exposing Tidy DS Toolbox operations to AI agents. PROTOTYPE scaffold — see tmp/operations-prototype/NOTES.md.",
+  "scripts": {
+    "start": "node src/server.ts",
+    "smoketest": "node src/smoketest.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}

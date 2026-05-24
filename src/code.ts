@@ -8,6 +8,7 @@ import {
   isRecoverableError,
 } from "./shared/error-handler";
 import { createLogger } from "./shared/logging";
+import { bindSession } from "./shared/operations/registry";
 
 // Configuration
 const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
@@ -27,6 +28,10 @@ const logger = createLogger("Main");
 // createLogger().debug() within targeted code paths.
 
 figma.showUI(__html__, RESIZE_DEFAULT);
+
+// Bind the MCP Operation Session for the lifetime of this plugin run.
+// MVP supports one Session at a time; reload tears it down.
+bindSession(`sess_${figma.fileKey ?? "unknown"}_${Date.now().toString(36)}`);
 
 // Module handlers map
 const handlers: Record<

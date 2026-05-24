@@ -16,7 +16,11 @@
     "release:patch": "./scripts/version-bump.sh patch",
     "release:minor": "./scripts/version-bump.sh minor",
     "release:major": "./scripts/version-bump.sh major",
-    "release:push": "git push && git push --tags"
+    "release:push": "git push && git push --tags",
+    "prototype:operations": "node tmp/operations-prototype/cli.ts",
+    "prototype:plugin-sim": "node tmp/operations-prototype/plugin-sim.ts",
+    "prototype:mcp-server": "node mcp-server/src/server.ts",
+    "prototype:mcp-smoketest": "node mcp-server/src/smoketest.ts"
   },
   "keywords": [],
   "author": "",
