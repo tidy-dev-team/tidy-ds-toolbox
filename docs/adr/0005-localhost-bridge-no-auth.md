@@ -1,6 +1,6 @@
 # Localhost-only Bridge, no auth (MVP)
 
-The MCP server binds the Bridge websocket to `127.0.0.1:9876` and accepts any connection that arrives. No token, no trust-on-first-use, no rate limiting. The plugin's `manifest.json` whitelists exactly `ws://127.0.0.1:9876` under `networkAccess.allowedDomains` — nothing wider.
+The MCP server binds the Bridge websocket to `localhost:9876` and accepts any connection that arrives. No token, no trust-on-first-use, no rate limiting. The plugin's `manifest.json` whitelists exactly `ws://localhost:9876` under `networkAccess.devAllowedDomains` (production `allowedDomains` is `"none"` — the agent surface is dev-only for now). Both endpoints use the `localhost` hostname rather than `127.0.0.1` because Figma's manifest validator rejects IP literals as "not a valid URL"; binding the server to the same name avoids IPv4/IPv6 resolution drift.
 
 Considered: TOFU (server binds to the first connection that lands, rejects others) and a shared token pasted into the plugin UI on first launch. Rejected for MVP because this is a single-user dev tool and the simplest thing that works is enough until we expose more dangerous operations or ship to shared machines.
 

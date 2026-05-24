@@ -10,7 +10,7 @@ import { CATALOGUE } from "./catalogue.ts";
 import { BridgeServer } from "./bridge-server.ts";
 import type { BridgeError } from "./bridge-server.ts";
 
-const BRIDGE_HOST = process.env.TIDY_BRIDGE_HOST ?? "127.0.0.1";
+const BRIDGE_HOST = process.env.TIDY_BRIDGE_HOST ?? "localhost";
 const BRIDGE_PORT = Number(process.env.TIDY_BRIDGE_PORT ?? 9876);
 
 const log = (msg: string) => process.stderr.write(`[mcp-server] ${msg}\n`);

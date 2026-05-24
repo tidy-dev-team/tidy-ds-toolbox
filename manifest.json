@@ -7,6 +7,7 @@
   "editorType": ["figma"],
   "permissions": ["currentuser"],
   "networkAccess": {
-    "allowedDomains": ["ws://127.0.0.1:9876"]
+    "allowedDomains": ["none"],
+    "devAllowedDomains": ["ws://localhost:9876"]
   }
 }

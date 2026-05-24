@@ -17,9 +17,9 @@ import type {
   BridgeErrorPayload,
 } from "./types";
 
-const DEFAULT_URL = "ws://127.0.0.1:9876";
-const MIN_BACKOFF_MS = 1_000;
-const MAX_BACKOFF_MS = 30_000;
+const DEFAULT_URL = "ws://localhost:9876";
+const MIN_BACKOFF_MS = 250;
+const MAX_BACKOFF_MS = 10_000;
 
 type DispatchFn = (req: BridgeRequest) => Promise<BridgeResponse>;
 

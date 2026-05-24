@@ -23,6 +23,7 @@ interface Pending {
 }
 
 const CALL_TIMEOUT_MS = 30_000;
+const WAIT_FOR_CLIENT_MS = 15_000;
 
 export class BridgeServer {
   private wss: WebSocketServer | null = null;
@@ -31,10 +32,29 @@ export class BridgeServer {
   private nextId = 0;
   private host: string;
   private port: number;
+  private clientWaiters: Array<() => void> = [];
 
   constructor(host: string, port: number) {
     this.host = host;
     this.port = port;
+  }
+
+  private waitForClient(timeoutMs: number): Promise<boolean> {
+    if (this.client && this.client.readyState === WebSocket.OPEN) {
+      return Promise.resolve(true);
+    }
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        const idx = this.clientWaiters.indexOf(notify);
+        if (idx >= 0) this.clientWaiters.splice(idx, 1);
+        resolve(false);
+      }, timeoutMs);
+      const notify = () => {
+        clearTimeout(timer);
+        resolve(true);
+      };
+      this.clientWaiters.push(notify);
+    });
   }
 
   async listen(): Promise<void> {
@@ -58,12 +78,15 @@ export class BridgeServer {
 
   async call<T = unknown>(operation: string, params: unknown): Promise<T> {
     if (!this.client || this.client.readyState !== WebSocket.OPEN) {
-      throw {
-        code: "BRIDGE_DISCONNECTED",
-        message:
-          "Plugin is not connected. Open the Tidy DS Toolbox plugin in Figma; it will reconnect automatically.",
-        recoverable: true,
-      } satisfies BridgeError;
+      const arrived = await this.waitForClient(WAIT_FOR_CLIENT_MS);
+      if (!arrived) {
+        throw {
+          code: "BRIDGE_DISCONNECTED",
+          message:
+            "Plugin is not connected. Open the Tidy DS Toolbox plugin in Figma; it will reconnect automatically.",
+          recoverable: true,
+        } satisfies BridgeError;
+      }
     }
     const id = "req_" + (++this.nextId).toString().padStart(4, "0");
     const envelope: BridgeRequest = { id, operation, params };
@@ -98,6 +121,8 @@ export class BridgeServer {
     ws.on("message", (data) => this.onMessage(data.toString()));
     ws.on("close", () => this.onClientClose(ws));
     ws.on("error", (err) => this.log(`client socket error: ${err.message}`));
+    const waiters = this.clientWaiters.splice(0);
+    for (const w of waiters) w();
   }
 
   private onMessage(raw: string): void {
