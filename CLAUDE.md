@@ -89,6 +89,6 @@ Production builds disable the bridge: `manifest.json` has `allowedDomains: ["non
 ## Commit Conventions
 
 Follow Conventional Commits with these scopes:
-`shell`, `component-labels`, `ds-explorer`, `sticker-sheet`, `icon-care`, `ui`, `build`, `deps`
+`shell`, `component-labels`, `ds-explorer`, `sticker-sheet`, `icon-care`, `tidy-mapper`, `utilities`, `audit`, `release-notes`, `off-boarding`, `mcp`, `ui`, `build`, `deps`
 
 Version bumps follow semver: `feat` → minor, `fix`/`perf` → patch, `BREAKING CHANGE` → major.

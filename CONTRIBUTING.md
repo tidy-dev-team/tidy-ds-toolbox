@@ -36,6 +36,12 @@ The scope provides additional context about which part of the codebase is affect
 - **ds-explorer**: DS Explorer module
 - **sticker-sheet**: Sticker Sheet Builder module
 - **icon-care**: Tidy Icon Care module
+- **tidy-mapper**: Tidy Mapper module
+- **utilities**: Utilities module (Misprint, DS Template, Image Wrapper, Address Note)
+- **audit**: Audit module
+- **release-notes**: Release Notes module
+- **off-boarding**: Off-Boarding module
+- **mcp**: MCP server / Bridge / Operations layer
 - **ui**: UI components or styling
 - **build**: Build configuration
 - **deps**: Dependency updates

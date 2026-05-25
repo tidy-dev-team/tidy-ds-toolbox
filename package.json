@@ -17,10 +17,8 @@
     "release:minor": "./scripts/version-bump.sh minor",
     "release:major": "./scripts/version-bump.sh major",
     "release:push": "git push && git push --tags",
-    "prototype:operations": "node tmp/operations-prototype/cli.ts",
-    "prototype:plugin-sim": "node tmp/operations-prototype/plugin-sim.ts",
-    "prototype:mcp-server": "node mcp-server/src/server.ts",
-    "prototype:mcp-smoketest": "node mcp-server/src/smoketest.ts"
+    "mcp:server": "node --experimental-strip-types mcp-server/src/server.ts",
+    "mcp:smoketest": "node --experimental-strip-types mcp-server/src/smoketest.ts"
   },
   "keywords": [],
   "author": "",

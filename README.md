@@ -4,10 +4,15 @@ A modular Figma plugin suite for design system management and component workflow
 
 ## 📦 Modules
 
-- **DS Explorer** - Browse and build design system components
-- **Component Labels** - Manage component property labels
-- **Sticker Sheet Builder** - Generate component sticker sheets
-- **Tidy Icon Care** - Icon management and organization
+- **DS Explorer** — Browse and configure design system components
+- **Component Labels** — Lay out variant-property labels around a component set
+- **Tidy Icon Care** — Icon management and organization
+- **Sticker Sheet Builder** — Generate component sticker sheets
+- **Tidy Mapper** — Map and swap library components across files
+- **Utilities** — Misprint (searchability tagging), Image Wrapper, Address Note, DS Template
+- **Audit** — Annotate, generate, and export design-system audit reports
+- **Release Notes** — Author and publish release notes for a design system
+- **Off-Boarding** — Pack / unpack pages, find bound variables for handoff
 
 ## 🚀 Installation
 
@@ -85,7 +90,9 @@ The plugin ships with an MCP server that exposes a curated set of **Operations**
 | --- | --- | --- |
 | `tidy_misprint_find_components` | Query | Find components / component sets in the active file. Params: `{ scope: "file" \| "page", pageId?, namePattern? }` (glob, e.g. `Btn*`). Returns `{ components: { id, name }[], summary }`. |
 | `tidy_misprint_apply` | Execute | Append/replace a Hebrew-scrambled "misprint" line on each component's description, for searchability. Idempotent; atomic-fails if any id is missing or wrong type. |
-| `tidy_ds_template_run` | Execute | Stamp the standard DS Template pages into the file. **Not** idempotent — running twice creates duplicates. |
+| `tidy_ds_template_run` | Execute | Stamp the standard DS Template pages into the file. **Not** idempotent — running twice creates duplicates. Bridge timeout: 120 s. |
+| `tidy_component_labels_get_variant_props` | Query | Inspect a component set and return its variant properties (name, options, default). Accepts an explicit `nodeId` or falls back to the current selection. |
+| `tidy_component_labels_build` | Execute | Build variant labels around a component set's top and left edges. Accepts an explicit `nodeId` or falls back to the current selection. Validates that each axis references a known variant property; reports `availableProps` on mismatch. Bridge timeout: 120 s. |
 
 Query / Plan / Execute are the three Operation flavours from [`ADR-0001`](docs/adr/0001-plan-execute-split-for-operations.md). Lookup via a Query, pass the resulting ids to an Execute.
 
@@ -98,6 +105,7 @@ Project-scoped wrappers in `.claude/commands/` expand into prompts that drive th
 | `/tidy-find [scope] [pageId] [pattern]` | Wraps `tidy_misprint_find_components`. No args → `scope: "file"`. A positional glob (e.g. `Btn*`) is taken as `namePattern`. Renders matches as `name — id`. |
 | `/tidy-misprint [ids\|names\|globs…]` | Wraps `tidy_misprint_apply`. Each argument is resolved by shape: `2226:741` → id, `Btn*` → glob, anything else → exact name (find first, then apply). With no args, finds the whole file and asks before applying. |
 | `/tidy-ds-template [--force]` | Wraps `tidy_ds_template_run`. Confirms first (since it's not idempotent); `--force` skips the prompt. |
+| `/tidy-labels [nodeId] [top=…] [left=…] [secondTop=…] [secondLeft=…] [groupSecondTop=true\|false] [groupSecondLeft=true\|false] [spacing=…] [fontSize=…] [extractElement=true\|false]` | Wraps `tidy_component_labels_get_variant_props` + `tidy_component_labels_build`. With no axis args, surfaces the variant properties and asks how to assign them. |
 
 ### Troubleshooting
 
@@ -280,4 +288,5 @@ ISC
 - [GitHub Repository](https://github.com/tidy-dev-team/tidy-ds-toolbox)
 - [Releases](https://github.com/tidy-dev-team/tidy-ds-toolbox/releases)
 - [Contributing Guidelines](CONTRIBUTING.md)
-- [CI/CD Plan](CI_CD_PLAN.md)
+- [Domain language (CONTEXT.md)](CONTEXT.md)
+- [Architecture decisions (docs/adr/)](docs/adr/)

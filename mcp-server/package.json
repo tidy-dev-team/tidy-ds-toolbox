@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "description": "MCP server exposing Tidy DS Toolbox operations to AI agents. PROTOTYPE scaffold — see tmp/operations-prototype/NOTES.md.",
+  "description": "MCP server exposing Tidy DS Toolbox operations to AI agents over a localhost WebSocket bridge to the plugin.",
   "scripts": {
     "start": "node src/server.ts",
     "smoketest": "node src/smoketest.ts"
