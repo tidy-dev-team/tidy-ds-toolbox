@@ -22,7 +22,7 @@ interface Pending {
   timer: NodeJS.Timeout;
 }
 
-const CALL_TIMEOUT_MS = 30_000;
+const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const WAIT_FOR_CLIENT_MS = 15_000;
 
 export class BridgeServer {
@@ -76,7 +76,11 @@ export class BridgeServer {
     });
   }
 
-  async call<T = unknown>(operation: string, params: unknown): Promise<T> {
+  async call<T = unknown>(
+    operation: string,
+    params: unknown,
+    timeoutMs?: number,
+  ): Promise<T> {
     if (!this.client || this.client.readyState !== WebSocket.OPEN) {
       const arrived = await this.waitForClient(WAIT_FOR_CLIENT_MS);
       if (!arrived) {
@@ -90,16 +94,17 @@ export class BridgeServer {
     }
     const id = "req_" + (++this.nextId).toString().padStart(4, "0");
     const envelope: BridgeRequest = { id, operation, params };
+    const effectiveTimeout = timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
 
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject({
           code: "TIMEOUT",
-          message: `Operation '${operation}' did not respond within ${CALL_TIMEOUT_MS}ms`,
+          message: `Operation '${operation}' did not respond within ${effectiveTimeout}ms`,
           recoverable: true,
         } satisfies BridgeError);
-      }, CALL_TIMEOUT_MS);
+      }, effectiveTimeout);
 
       this.pending.set(id, {
         resolve: (result) => resolve(result as T),

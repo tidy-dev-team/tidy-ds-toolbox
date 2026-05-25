@@ -44,7 +44,11 @@ async function main(): Promise<void> {
       },
       async (input: unknown) => {
         try {
-          const result = await bridge.call(entry.id, input ?? {});
+          const result = await bridge.call(
+            entry.id,
+            input ?? {},
+            entry.timeoutMs,
+          );
           return {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           };

@@ -54,6 +54,7 @@ export const moduleRegistry: ModuleRegistry = {
     ui: ComponentLabelsUI,
     handler: moduleHandlers["component-labels"],
     permissionRequirements: [],
+    agentified: true,
     keywords: ["label", "annotation", "naming", "component"],
   },
   "tidy-icon-care": {

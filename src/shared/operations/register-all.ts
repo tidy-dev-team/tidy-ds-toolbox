@@ -2,3 +2,4 @@
 // Add a line here when a module starts exposing Operations.
 
 import "../../plugins/utilities/operations";
+import "../../plugins/component-labels/operations";

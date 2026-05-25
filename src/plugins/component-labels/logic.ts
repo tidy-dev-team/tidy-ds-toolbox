@@ -134,21 +134,41 @@ async function handleBuildLabels(payload: BuildLabelsPayload): Promise<void> {
   }
 
   const element = selection[0] as ComponentSetNode;
-  const nodes = element.children;
 
-  await loadFonts();
-  await buildLabelElements(nodes, labels, element, spacing, fontSize);
-
-  // Extract the component to the top if enabled in settings
-  if (extractElement) {
-    extractToTheTop(element);
-  }
+  await executeBuildLabels(element, { labels, spacing, fontSize, extractElement });
 
   figma.notify("✓ Labels created successfully!");
 
   figma.ui.postMessage({
     type: "labels-built",
   });
+}
+
+/**
+ * Build labels on a given component set. Shared between the UI message
+ * handler and the agent-facing Operation.
+ */
+export async function executeBuildLabels(
+  element: ComponentSetNode,
+  opts: {
+    labels: LabelConfig;
+    spacing: number;
+    fontSize: number;
+    extractElement: boolean;
+  },
+): Promise<void> {
+  await loadFonts();
+  await buildLabelElements(
+    element.children,
+    opts.labels,
+    element,
+    opts.spacing,
+    opts.fontSize,
+  );
+
+  if (opts.extractElement) {
+    extractToTheTop(element);
+  }
 }
 
 /**
@@ -212,6 +232,11 @@ async function createLabel(
 /**
  * Creates labels for a row of nodes
  */
+interface LabelRowResult {
+  labels: TextNode[];
+  sources: SceneNode[];
+}
+
 async function createLabelsForRow(
   rowNodes: SceneNode[],
   propertyName: string,
@@ -219,13 +244,14 @@ async function createLabelsForRow(
   _spacing: number,
   fontSize: number,
   positionFn: (node: SceneNode, label: TextNode) => { x: number; y: number },
-): Promise<TextNode[]> {
+): Promise<LabelRowResult> {
   const labels: TextNode[] = [];
+  const sources: SceneNode[] = [];
 
-  if (!propertyName) return labels;
+  if (!propertyName) return { labels, sources };
 
   const parent = element.parent;
-  if (!parent) return labels;
+  if (!parent) return { labels, sources };
 
   for (const node of rowNodes) {
     const label = await createLabel(
@@ -242,17 +268,28 @@ async function createLabelsForRow(
       label.x = position.x;
       label.y = position.y;
       labels.push(label);
+      sources.push(node);
     }
   }
 
-  return labels;
+  return { labels, sources };
+}
+
+function extractVariantValue(node: SceneNode, propertyName: string): string {
+  if (!propertyName) return "";
+  const arr = node.name.split(",");
+  const found = arr.find((item) => item.includes(propertyName));
+  return found?.split("=")[1]?.trim() ?? "";
 }
 
 /**
  * Processes and optimizes groups of labels
  */
-function processLabelGroups(labels: TextNode[]): void {
-  const groupedLabels = splitArrayOfObjects(labels);
+function processLabelGroups(
+  labels: TextNode[],
+  extraKey?: (label: TextNode) => string,
+): void {
+  const groupedLabels = splitArrayOfObjects(labels, extraKey);
 
   for (const group of groupedLabels) {
     const bounds = computeMaximumBounds(group);
@@ -334,7 +371,7 @@ async function buildLabelElements(
   const { leftRow, topRow } = getTopAndLeftElements(nodes);
 
   // Create first-level labels
-  const topLabels = await createLabelsForRow(
+  const topResult = await createLabelsForRow(
     topRow,
     labels.top,
     element,
@@ -345,8 +382,9 @@ async function buildLabelElements(
       y: element.y - label.height - spacing,
     }),
   );
+  const topLabels = topResult.labels;
 
-  const leftLabels = await createLabelsForRow(
+  const leftResult = await createLabelsForRow(
     leftRow,
     labels.left,
     element,
@@ -357,13 +395,14 @@ async function buildLabelElements(
       y: element.y + node.y + node.height / 2 - label.height / 2,
     }),
   );
+  const leftLabels = leftResult.labels;
 
   // Calculate bounds for positioning second-level labels
   const leftBounds = computeMaximumBounds(leftLabels);
   const leftWidth = leftLabels.length ? leftBounds[1].x - leftBounds[0].x : 0;
 
   // Create second-level labels
-  const secondLevelTopLabels = await createLabelsForRow(
+  const secondTopResult = await createLabelsForRow(
     topRow,
     labels.secondTop,
     element,
@@ -376,8 +415,9 @@ async function buildLabelElements(
         : element.y - label.height - spacing * 2,
     }),
   );
+  const secondLevelTopLabels = secondTopResult.labels;
 
-  const secondLevelLeftLabels = await createLabelsForRow(
+  const secondLeftResult = await createLabelsForRow(
     leftRow,
     labels.secondLeft,
     element,
@@ -388,12 +428,28 @@ async function buildLabelElements(
       y: element.y + node.y + node.height / 2 - label.height / 2,
     }),
   );
+  const secondLevelLeftLabels = secondLeftResult.labels;
 
-  // Process and optimize label groups (optional per axis)
+  // Process and optimize label groups (optional per axis). Grouping is
+  // scoped to the parent (primary) axis bucket so labels in different
+  // primary groups stay distinct — otherwise e.g. all "primary" labels
+  // across every size group would collapse into one globally-centered label.
   if (labels.groupSecondLeft) {
-    processLabelGroups(secondLevelLeftLabels);
+    const sourceByLabel = new Map(
+      secondLeftResult.labels.map((l, i) => [l, secondLeftResult.sources[i]]),
+    );
+    processLabelGroups(secondLevelLeftLabels, (label) => {
+      const src = sourceByLabel.get(label);
+      return src ? extractVariantValue(src, labels.left) : "";
+    });
   }
   if (labels.groupSecondTop) {
-    processLabelGroups(secondLevelTopLabels);
+    const sourceByLabel = new Map(
+      secondTopResult.labels.map((l, i) => [l, secondTopResult.sources[i]]),
+    );
+    processLabelGroups(secondLevelTopLabels, (label) => {
+      const src = sourceByLabel.get(label);
+      return src ? extractVariantValue(src, labels.top) : "";
+    });
   }
 }
