@@ -10,6 +10,8 @@ export const ErrorCode = {
   TIMEOUT: "TIMEOUT",
   INTERNAL: "INTERNAL",
 } as const;
+// Type + const declaration merge is intentional and valid TypeScript.
+// eslint-disable-next-line no-redeclare
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
 export class OperationError extends Error {

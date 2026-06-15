@@ -47,7 +47,10 @@ export interface BridgeErrorPayload {
 }
 
 /** What an Operation handler returns when it succeeds. Errors are thrown (ADR-0003). */
-export type OperationHandler<P, R> = (params: P, ctx: OperationContext) => Promise<R>;
+export type OperationHandler<P, R> = (
+  params: P,
+  ctx: OperationContext,
+) => Promise<R>;
 
 /**
  * Runtime context handed to every operation handler.

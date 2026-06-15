@@ -21,7 +21,9 @@ interface FindComponentsResult {
 }
 
 function globToRegex(g: string): RegExp {
-  const escaped = g.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&"));
+  const escaped = g
+    .split("*")
+    .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&"));
   return new RegExp("^" + escaped.join(".*") + "$");
 }
 

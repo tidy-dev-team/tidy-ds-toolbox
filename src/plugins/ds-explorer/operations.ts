@@ -3,10 +3,7 @@
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
-import {
-  componentRegistry,
-  getAllComponentNames,
-} from "./utils/componentData";
+import { componentRegistry, getAllComponentNames } from "./utils/componentData";
 import {
   importComponent,
   getComponentPropertyInfo,
@@ -84,10 +81,7 @@ registerOperation<GetComponentParams, GetComponentResult>(
   },
   async (params) => {
     if (!params.name || typeof params.name !== "string") {
-      throw new OperationError(
-        ErrorCode.INVALID_PARAMS,
-        "name is required",
-      );
+      throw new OperationError(ErrorCode.INVALID_PARAMS, "name is required");
     }
 
     const entry = componentRegistry[params.name];

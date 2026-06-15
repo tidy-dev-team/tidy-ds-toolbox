@@ -135,7 +135,12 @@ async function handleBuildLabels(payload: BuildLabelsPayload): Promise<void> {
 
   const element = selection[0] as ComponentSetNode;
 
-  await executeBuildLabels(element, { labels, spacing, fontSize, extractElement });
+  await executeBuildLabels(element, {
+    labels,
+    spacing,
+    fontSize,
+    extractElement,
+  });
 
   figma.notify("✓ Labels created successfully!");
 

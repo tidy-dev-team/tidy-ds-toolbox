@@ -157,11 +157,13 @@ export async function localizeStyles(root: SceneNode): Promise<number> {
   for (const node of nodes) {
     try {
       // Paint styles — fill and stroke.
-      const paintFields: ["fillStyleId" | "strokeStyleId", "fill" | "stroke"][] =
-        [
-          ["fillStyleId", "fill"],
-          ["strokeStyleId", "stroke"],
-        ];
+      const paintFields: [
+        "fillStyleId" | "strokeStyleId",
+        "fill" | "stroke",
+      ][] = [
+        ["fillStyleId", "fill"],
+        ["strokeStyleId", "stroke"],
+      ];
       for (const [prop, kind] of paintFields) {
         if (!(prop in node)) continue;
         const raw = (node as unknown as Record<string, unknown>)[prop];

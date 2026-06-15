@@ -118,10 +118,7 @@ const FIGMA_MAX_Y = 60000; // Safe max Y to stay within pasteboard
 const FIGMA_MIN_Y = -60000; // Safe min Y to stay within pasteboard
 const COLUMN_SPACING = 200; // Spacing between columns
 
-function arrangeFramesInGrid(
-  frames: Array<FrameNode>,
-  spacing: number,
-): void {
+function arrangeFramesInGrid(frames: Array<FrameNode>, spacing: number): void {
   if (frames.length === 0) return;
 
   // Find the widest frame to determine column width
@@ -149,7 +146,6 @@ function arrangeFramesInGrid(
     currentY += frame.height + spacing;
   }
 }
-
 
 function isNodeWithChildren(
   node: SceneNode,

@@ -36,7 +36,11 @@ function handleMainResponse(evt: MessageEvent): void {
   pending.delete(requestId);
   // Main returns the BridgeResponse as `result` (success path) or as an
   // error string we never expect (registry.dispatch always resolves).
-  const msg = data as { type?: string; result?: BridgeResponse; error?: string };
+  const msg = data as {
+    type?: string;
+    result?: BridgeResponse;
+    error?: string;
+  };
   if (msg.type === "response" && msg.result) {
     resolve(msg.result);
   } else {
