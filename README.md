@@ -93,6 +93,9 @@ The plugin ships with an MCP server that exposes a curated set of **Operations**
 | `tidy_ds_template_run` | Execute | Stamp the standard DS Template pages into the file. **Not** idempotent — running twice creates duplicates. Bridge timeout: 120 s. |
 | `tidy_component_labels_get_variant_props` | Query | Inspect a component set and return its variant properties (name, options, default). Accepts an explicit `nodeId` or falls back to the current selection. |
 | `tidy_component_labels_build` | Execute | Build variant labels around a component set's top and left edges. Accepts an explicit `nodeId` or falls back to the current selection. Validates that each axis references a known variant property; reports `availableProps` on mismatch. Bridge timeout: 120 s. |
+| `tidy_ds_explorer_list_components` | Query | List the DS Explorer registry (name + library key + type), optionally filtered by a name glob. Names returned here are the valid inputs to `tidy_ds_explorer_get_component`. |
+| `tidy_ds_explorer_get_component` | Query | Import a DS Explorer component by name and return `{ properties, description, nestedInstances }`. Set `includeImage: true` for a base64 PNG preview (heavier — agent-only). Errors `INVALID_PARAMS` with `details.availableNames` on unknown name. Bridge timeout: 60 s. |
+| `tidy_ds_explorer_place_set` | Execute | Place a registered component SET onto a page as an editable clone, ready to be labelled by `tidy_component_labels_build`. Defaults to the current page and viewport centre. Returns the new `nodeId`. Errors `WRONG_NODE_TYPE` if the named component is a single component. Bridge timeout: 60 s. |
 
 Query / Plan / Execute are the three Operation flavours from [`ADR-0001`](docs/adr/0001-plan-execute-split-for-operations.md). Lookup via a Query, pass the resulting ids to an Execute.
 
@@ -106,6 +109,7 @@ Project-scoped wrappers in `.claude/commands/` expand into prompts that drive th
 | `/tidy-misprint [ids\|names\|globs…]` | Wraps `tidy_misprint_apply`. Each argument is resolved by shape: `2226:741` → id, `Btn*` → glob, anything else → exact name (find first, then apply). With no args, finds the whole file and asks before applying. |
 | `/tidy-ds-template [--force]` | Wraps `tidy_ds_template_run`. Confirms first (since it's not idempotent); `--force` skips the prompt. |
 | `/tidy-labels [nodeId] [top=…] [left=…] [secondTop=…] [secondLeft=…] [groupSecondTop=true\|false] [groupSecondLeft=true\|false] [spacing=…] [fontSize=…] [extractElement=true\|false]` | Wraps `tidy_component_labels_get_variant_props` + `tidy_component_labels_build`. With no axis args, surfaces the variant properties and asks how to assign them. |
+| `/tidy-ds [name\|glob] [--image] [--place [x=…] [y=…] [pageId=…]]` | Wraps `tidy_ds_explorer_list_components`, `tidy_ds_explorer_get_component`, and `tidy_ds_explorer_place_set`. No args → lists registered names. A glob lists matches. An exact name fetches the component; `--image` adds a PNG preview; `--place` drops a clone of the set onto the page and returns a `nodeId` you can pipe into `/tidy-labels`. |
 
 ### Troubleshooting
 

@@ -30,6 +30,7 @@ export const moduleRegistry: ModuleRegistry = {
     ui: DSExplorerUI,
     handler: moduleHandlers["ds-explorer"],
     permissionRequirements: ["activeselection"],
+    agentified: true,
     keywords: [
       "design system",
       "component",

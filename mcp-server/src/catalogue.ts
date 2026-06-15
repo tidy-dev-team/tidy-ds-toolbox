@@ -143,4 +143,73 @@ export const CATALOGUE: CatalogueEntry[] = [
     },
     timeoutMs: 120_000,
   },
+  {
+    id: "tidy_ds_explorer_list_components",
+    kind: "query",
+    module: "ds-explorer",
+    summary:
+      "List the design-system components registered in DS Explorer (name + library key). Optionally filtered by a name glob (e.g. 'Avatar*'). Names returned here are the valid inputs to tidy_ds_explorer_get_component.",
+    inputSchema: {
+      namePattern: z
+        .string()
+        .optional()
+        .describe(
+          "Optional glob matched against component names (e.g. 'Avatar*', '*Badge').",
+        ),
+    },
+  },
+  {
+    id: "tidy_ds_explorer_get_component",
+    kind: "query",
+    module: "ds-explorer",
+    summary:
+      "Import a registered DS Explorer component by name and return its properties, description, and nested instances. Set includeImage=true to also return a base64 PNG preview (heavier — only when the agent needs to actually see the component). Errors INVALID_PARAMS with details.availableNames if the name is unknown.",
+    inputSchema: {
+      name: z
+        .string()
+        .describe(
+          "Exact name of a component registered in DS Explorer (e.g. 'Avatar', 'Button Icon'). Use tidy_ds_explorer_list_components to discover valid names.",
+        ),
+      includeImage: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, include a base64-encoded PNG preview of the component (default variant for sets). Defaults to false.",
+        ),
+    },
+    timeoutMs: 60_000,
+  },
+  {
+    id: "tidy_ds_explorer_place_set",
+    kind: "execute",
+    module: "ds-explorer",
+    summary:
+      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set).",
+    inputSchema: {
+      name: z
+        .string()
+        .describe(
+          "Exact name of a component set registered in DS Explorer (e.g. 'Buttons'). Use tidy_ds_explorer_list_components to discover valid names.",
+        ),
+      pageId: z
+        .string()
+        .optional()
+        .describe(
+          "Optional Figma page id to place the set on. Defaults to the current page.",
+        ),
+      x: z
+        .number()
+        .optional()
+        .describe(
+          "Optional x coordinate (top-left) on the page. Defaults to the viewport centre.",
+        ),
+      y: z
+        .number()
+        .optional()
+        .describe(
+          "Optional y coordinate (top-left) on the page. Defaults to the viewport centre.",
+        ),
+    },
+    timeoutMs: 60_000,
+  },
 ];

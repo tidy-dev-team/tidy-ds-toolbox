@@ -6,7 +6,7 @@ import { PropertyInfo, ComponentData, BuildData } from "./types";
 type ComponentPropertyDefinition = ComponentPropertyDefinitions[string];
 
 // Helper to get property info from component or component set
-function getComponentPropertyInfo(
+export function getComponentPropertyInfo(
   node: ComponentSetNode | ComponentNode,
 ): PropertyInfo[] {
   const properties: PropertyInfo[] = [];
@@ -36,7 +36,7 @@ function getComponentPropertyInfo(
 }
 
 // Helper to get component description
-function getComponentDescription(
+export function getComponentDescription(
   node: ComponentSetNode | ComponentNode,
 ): string {
   try {
@@ -56,7 +56,7 @@ function getComponentDescription(
 }
 
 // Helper to generate component image
-async function getComponentImage(
+export async function getComponentImage(
   node: ComponentSetNode | ComponentNode,
 ): Promise<string | null> {
   try {
@@ -79,7 +79,7 @@ async function getComponentImage(
 }
 
 // Helper to find exposed instances
-function findExposedInstances(
+export function findExposedInstances(
   node: ComponentNode,
 ): { name: string; id: string; key: string }[] {
   const instances: { name: string; id: string; key: string }[] = [];
@@ -107,7 +107,7 @@ function findExposedInstances(
 }
 
 // Helper to import component (tries component set first, then regular component)
-async function importComponent(
+export async function importComponent(
   key: string,
   figma: any,
 ): Promise<ComponentSetNode | ComponentNode> {

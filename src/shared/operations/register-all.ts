@@ -3,3 +3,4 @@
 
 import "../../plugins/utilities/operations";
 import "../../plugins/component-labels/operations";
+import "../../plugins/ds-explorer/operations";
