@@ -163,7 +163,7 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
     kind: "execute",
     module: "ds-explorer",
     summary:
-      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. By default (localize='detach') the clone's nested instances are detached from Kido-DS into frames so the placed set no longer links those instances back to the library; variables/tokens are intentionally left bound to Kido-DS. Pass localize='none' for the old fully-linked behavior. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set).",
+      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. By default (localize='full') the clone is de-linked from Kido-DS: nested instances are detached into frames and paint/text/effect styles are localized; variables/tokens are intentionally left bound to Kido-DS. Pass localize='none' for the old fully-linked behavior, or 'detach'/'styles' for one half. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set).",
     paramsExample: { name: "Buttons" },
   },
   async (params) => {
@@ -171,7 +171,7 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
       throw new OperationError(ErrorCode.INVALID_PARAMS, "name is required");
     }
 
-    const localizeLevel: LocalizeLevel = params.localize ?? "detach";
+    const localizeLevel: LocalizeLevel = params.localize ?? "full";
     if (!LOCALIZE_LEVELS.includes(localizeLevel)) {
       throw new OperationError(
         ErrorCode.INVALID_PARAMS,
