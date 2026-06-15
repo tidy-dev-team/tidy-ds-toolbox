@@ -9,6 +9,7 @@ import {
   IconZoomCheck,
   IconFileText,
   IconPackage,
+  IconSearch,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -19,6 +20,7 @@ import { UtilitiesUI } from "./plugins/utilities/ui";
 import { AuditUI } from "./plugins/audit/ui";
 import { ReleaseNotesUI } from "./plugins/release-notes/ui";
 import { OffBoardingUI } from "./plugins/off-boarding/ui";
+import { IconFinderUI } from "./plugins/iconfinder/ui";
 import { moduleHandlers } from "./moduleHandlers";
 
 export const moduleRegistry: ModuleRegistry = {
@@ -252,6 +254,23 @@ export const moduleRegistry: ModuleRegistry = {
         id: "off-boarding-variables",
         label: "Find Bound Variables",
         keywords: ["find", "variables", "bound", "scan"],
+      },
+    ],
+  },
+  iconfinder: {
+    id: "iconfinder",
+    label: "Icon Finder",
+    state: "beta",
+    icon: IconSearch,
+    ui: IconFinderUI,
+    handler: moduleHandlers.iconfinder,
+    permissionRequirements: ["activeselection"],
+    keywords: ["icon", "find", "search", "identify", "match"],
+    features: [
+      {
+        id: "iconfinder-find",
+        label: "Find Icon",
+        keywords: ["icon", "find", "match", "identify"],
       },
     ],
   },

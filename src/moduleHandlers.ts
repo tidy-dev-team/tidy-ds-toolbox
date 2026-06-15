@@ -22,6 +22,7 @@ import { utilitiesHandler as utilitiesLogic } from "./plugins/utilities/logic";
 import { auditHandler as auditLogic } from "./plugins/audit/logic";
 import { releaseNotesHandler as releaseNotesLogic } from "./plugins/release-notes/logic";
 import { offBoardingHandler as offBoardingLogic } from "./plugins/off-boarding/logic";
+import { iconFinderHandler as iconFinderLogic } from "./plugins/iconfinder/logic";
 
 // Module handlers - static imports only
 const dsExplorerHandler = async (
@@ -113,6 +114,14 @@ const offBoardingHandler = async (
   return await offBoardingLogic(action as OffBoardingAction, payload, figma);
 };
 
+const iconFinderHandler = async (
+  action: string,
+  payload: unknown,
+  _figma: PluginAPI,
+) => {
+  return await iconFinderLogic(action, payload);
+};
+
 // MCP Bridge handler: the UI iframe holds the WebSocket to the MCP server and
 // relays each incoming BridgeRequest envelope here as { action: "dispatch",
 // payload: envelope }. We dispatch through the Operation registry and return
@@ -137,5 +146,6 @@ export const moduleHandlers: Record<
   audit: auditHandler,
   "release-notes": releaseNotesHandler,
   "off-boarding": offBoardingHandler,
+  iconfinder: iconFinderHandler,
   "mcp-bridge": mcpBridgeHandler,
 };

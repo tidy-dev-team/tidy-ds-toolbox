@@ -11,6 +11,7 @@ export type PluginID =
   | "tags-spacings"
   | "release-notes"
   | "off-boarding"
+  | "iconfinder"
   | (string & {});
 
 export interface PluginMessage {
@@ -27,7 +28,10 @@ export interface ShellMessage {
     | "settings-update"
     | "module-loaded"
     | "error"
-    | "response";
+    | "response"
+    | "analyze-png"
+    | "no-selection"
+    | "loading";
   payload?: any;
   requestId?: string;
   result?: any;
