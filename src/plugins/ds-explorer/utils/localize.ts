@@ -61,8 +61,14 @@ export function detachNestedInstances(root: SceneNode): number {
     }
 
     // No progress this pass means the remaining instances can't be detached;
-    // stop rather than spin.
-    if (detachedThisPass === 0) break;
+    // stop rather than spin, but surface it — a clean count would otherwise
+    // hide that the subtree is still partly linked to Kido-DS.
+    if (detachedThisPass === 0) {
+      console.warn(
+        `detachNestedInstances: gave up with ${instances.length} instance(s) still present on '${root.name}'`,
+      );
+      break;
+    }
   }
 
   return total;

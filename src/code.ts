@@ -18,6 +18,9 @@ const LONG_RUNNING_ACTIONS = new Set([
   "sticker-sheet-builder:build-all",
   "sticker-sheet-builder:build-one",
   "audit:generate-report",
+  // Builds a clone, prunes variants, then de-links from Kido-DS (detach nested
+  // instances + localize styles) — can exceed the default timeout on large sets.
+  "ds-explorer:build-component",
 ]);
 
 // Create logger for main thread
