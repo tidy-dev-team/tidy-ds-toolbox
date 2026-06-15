@@ -1,6 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { PropertyInfo, ComponentData, BuildData } from "./types";
+import { localizeClone } from "./utils/localize";
 
 // Figma typings do not export ComponentPropertyDefinition directly, so define it here:
 type ComponentPropertyDefinition = ComponentPropertyDefinitions[string];
@@ -406,6 +407,12 @@ export async function handleBuildComponent(
 
     // Add to canvas
     figma.currentPage.appendChild(clone);
+
+    // De-link the built component from Kido-DS: detach nested instances into
+    // frames and localize paint/text/effect styles. Variables stay bound to
+    // Kido-DS by design. Matches the tidy_ds_explorer_place_set default.
+    await localizeClone(clone, "full");
+
     figma.currentPage.selection = [clone];
     figma.viewport.scrollAndZoomIntoView([clone]);
 
