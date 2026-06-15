@@ -15,7 +15,7 @@ User-supplied arguments (may be empty): $ARGUMENTS
 - If `$ARGUMENTS` is empty, call `mcp__tidy-ds-toolbox__tidy_ds_explorer_list_components` with `{}` and report the count + first 20 names. Suggest the user pass a name next.
 - If `$ARGUMENTS` contains `*`, treat it as a glob and call `tidy_ds_explorer_list_components` with `{ namePattern: <glob> }`. Render matches as `name — key`.
 - Otherwise the first token is the exact component name. Then look at the remaining tokens:
-  - `--place` → call `mcp__tidy-ds-toolbox__tidy_ds_explorer_place_set` with `{ name }`. Optional `x=<num>` / `y=<num>` / `pageId=<id>` tokens become extra params. Report the returned `nodeId` and remind the user it can be piped into `/tidy-labels <nodeId>`.
+  - `--place` → call `mcp__tidy-ds-toolbox__tidy_ds_explorer_place_set` with `{ name }`. Optional `x=<num>` / `y=<num>` / `pageId=<id>` / `localize=<none|detach|styles|full>` tokens become extra params. By default the placed clone has its nested instances detached from Kido-DS (`localize='detach'`); pass `localize=none` to keep the old fully-linked behavior. Variables/tokens always stay bound to Kido-DS. Report the returned `nodeId` and remind the user it can be piped into `/tidy-labels <nodeId>`.
   - `--image` → call `tidy_ds_explorer_get_component` with `{ name, includeImage: true }`.
   - Neither flag → call `tidy_ds_explorer_get_component` with `{ name }`.
 
@@ -26,7 +26,7 @@ User-supplied arguments (may be empty): $ARGUMENTS
 
 ## After the place call
 
-- Report the returned `nodeId`, `name`, `pageId`, and `(x, y)`.
+- Report the returned `nodeId`, `name`, `pageId`, and `(x, y)`. Also report `detachedInstances` (and `localizedStyles` once supported) so the user can see how much was de-linked from Kido-DS.
 - Remind the user: pipe `nodeId` into `/tidy-labels <nodeId>` to build variant labels on it.
 
 ## Error handling

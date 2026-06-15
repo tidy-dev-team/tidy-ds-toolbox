@@ -14,6 +14,11 @@ import {
   getComponentImage,
   findExposedInstances,
 } from "./logic";
+import {
+  localizeClone,
+  LOCALIZE_LEVELS,
+  type LocalizeLevel,
+} from "./utils/localize";
 
 function globToRegex(g: string): RegExp {
   const escaped = g
@@ -140,6 +145,7 @@ interface PlaceSetParams {
   pageId?: string;
   x?: number;
   y?: number;
+  localize?: LocalizeLevel;
 }
 interface PlaceSetResult {
   nodeId: string;
@@ -147,6 +153,8 @@ interface PlaceSetResult {
   pageId: string;
   x: number;
   y: number;
+  detachedInstances: number;
+  localizedStyles: number;
 }
 
 registerOperation<PlaceSetParams, PlaceSetResult>(
@@ -155,12 +163,22 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
     kind: "execute",
     module: "ds-explorer",
     summary:
-      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set).",
+      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. By default (localize='detach') the clone's nested instances are detached from Kido-DS into frames so the placed set no longer links those instances back to the library; variables/tokens are intentionally left bound to Kido-DS. Pass localize='none' for the old fully-linked behavior. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set).",
     paramsExample: { name: "Buttons" },
   },
   async (params) => {
     if (!params.name || typeof params.name !== "string") {
       throw new OperationError(ErrorCode.INVALID_PARAMS, "name is required");
+    }
+
+    const localizeLevel: LocalizeLevel = params.localize ?? "detach";
+    if (!LOCALIZE_LEVELS.includes(localizeLevel)) {
+      throw new OperationError(
+        ErrorCode.INVALID_PARAMS,
+        `localize must be one of ${LOCALIZE_LEVELS.join(", ")}`,
+        true,
+        { localize: params.localize },
+      );
     }
 
     const entry = componentRegistry[params.name];
@@ -216,6 +234,8 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
     const clone = imported.clone();
     targetPage.appendChild(clone);
 
+    const { detached, styles } = await localizeClone(clone, localizeLevel);
+
     const x =
       typeof params.x === "number"
         ? params.x
@@ -240,6 +260,8 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
       pageId: targetPage.id,
       x: clone.x,
       y: clone.y,
+      detachedInstances: detached,
+      localizedStyles: styles,
     };
   },
 );
