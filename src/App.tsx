@@ -203,7 +203,10 @@ function AppContent() {
           <IconLayoutSidebar className="side-icon" />
           <IconLayoutSidebarFilled className="side-filled-icon" />
         </button>
-        <h1>Tidy DS Toolbox</h1>
+        <h1>
+          Tidy DS Toolbox
+          <span className="version">v{__APP_VERSION__}</span>
+        </h1>
 
         <div className="searchdiv">
           <input
