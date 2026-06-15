@@ -15,6 +15,9 @@ export interface IconEntry {
   name: string;
   source: string;
   hash: bigint;
+  /** Normalized SVG markup for rendering the matched glyph. Optional so the
+   * pure query logic and its tests need not carry display data. */
+  svg?: string;
 }
 
 export interface MatchResult {

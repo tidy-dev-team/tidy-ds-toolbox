@@ -21,6 +21,7 @@ interface IconEntry {
   name: string;
   source: string;
   hash: string; // bigint serialized as hex string
+  svg: string; // normalized full SVG markup, for rendering the matched glyph
 }
 
 interface LibrarySource {
@@ -31,10 +32,6 @@ interface LibrarySource {
 // ---------------------------------------------------------------------------
 // SVG helpers
 // ---------------------------------------------------------------------------
-
-function svgDocument(innerSvg: string, viewBox = "0 0 24 24"): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">${innerSvg}</svg>`;
-}
 
 function nodesToSvg(nodes: [string, Record<string, string>][]): string {
   return nodes.map((node) => nodeToSvg(node)).join("");
@@ -54,6 +51,23 @@ function nodeToSvg(node: [string, Record<string, string>] | unknown): string {
 
 function readSvgFile(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
+}
+
+/**
+ * Normalize an SVG for storage/display: drop the XML declaration, comments,
+ * `class`, and `width`/`height` attributes (so CSS sizes the glyph), and
+ * collapse whitespace. viewBox/stroke/fill/currentColor are preserved so each
+ * library's color semantics (outline vs filled) render correctly. Display-only
+ * — the hash is computed from the original SVG, so this never affects parity.
+ */
+function normalizeSvg(svg: string): string {
+  return svg
+    .replace(/<\?xml[^>]*\?>/g, "")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\s(?:class|id|width|height)="[^"]*"/g, "")
+    .replace(/>\s+</g, "><")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -108,9 +122,17 @@ const lucideSource: LibrarySource = {
       };
       const nodes = mod.default;
       if (!Array.isArray(nodes)) continue;
+      // Lucide ships only the path nodes; the defining outline attributes
+      // (fill:none, stroke:currentColor, width 2, round caps/joins) live on the
+      // wrapper its consumers add. Reproduce them or both the rasterized hash
+      // and the rendered glyph would be a solid-black blob instead of a stroke.
       icons.push({
         name: baseName,
-        svg: svgDocument(nodesToSvg(nodes)),
+        svg:
+          `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" ` +
+          `viewBox="0 0 24 24" fill="none" stroke="currentColor" ` +
+          `stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+          `${nodesToSvg(nodes)}</svg>`,
       });
     }
     return icons;
@@ -234,6 +256,7 @@ function renderAndHash(svg: string, name: string, source: string): IconEntry {
     name,
     source,
     hash: `0x${hash.toString(16)}`,
+    svg: normalizeSvg(svg),
   };
 }
 
