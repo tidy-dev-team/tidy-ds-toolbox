@@ -1,8 +1,6 @@
 // Icon Finder module types
 
-export type IconFinderAction =
-  | "start"
-  | "stop";
+export type IconFinderAction = "start" | "stop";
 
 export interface AnalyzedNode {
   id: string;

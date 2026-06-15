@@ -1,0 +1,5 @@
+dist
+node_modules
+
+# Generated icon database — multi-MB string artifact, see build:icon-db.
+src/plugins/iconfinder/db/

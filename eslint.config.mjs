@@ -68,6 +68,13 @@ export default [
     },
   },
   {
-    ignores: ["dist/**", "node_modules/**", "*.config.js", "*.config.ts"],
+    ignores: [
+      "dist/**",
+      "node_modules/**",
+      "*.config.js",
+      "*.config.ts",
+      // Generated icon database — multi-MB string artifact, see build:icon-db.
+      "src/plugins/iconfinder/db/**",
+    ],
   },
 ];

@@ -14,6 +14,22 @@ export const HASH_SIZE = 32;
 export const DCT_SIZE = 8;
 export const HASH_BITS = 63;
 
+// Precomputed cosine table. COS[a * n + b] = cos(π·(2a+1)·b / 2n) for the
+// constant grid size n = HASH_SIZE. Both the row and column 1-D transforms use
+// this exact basis, so reusing the table (same values, same summation order)
+// yields bit-identical results to computing Math.cos inline — it only removes
+// ~65k redundant Math.cos calls per hash, which dominates a 22.6k-icon rebuild.
+const COS: Float64Array = (() => {
+  const n = HASH_SIZE;
+  const table = new Float64Array(n * n);
+  for (let a = 0; a < n; a++) {
+    for (let b = 0; b < n; b++) {
+      table[a * n + b] = Math.cos((Math.PI * (2 * a + 1) * b) / (2 * n));
+    }
+  }
+  return table;
+})();
+
 /**
  * Compute the 2D DCT-II of a 32×32 Float64 grid using separable 1D DCTs.
  * Returns a new 32×32 Float64Array in row-major order.
@@ -34,9 +50,7 @@ export function dct2d(samples: Float64Array): Float64Array {
     for (let u = 0; u < n; u++) {
       let sum = 0;
       for (let x = 0; x < n; x++) {
-        sum +=
-          samples[y * n + x] *
-          Math.cos((Math.PI * (2 * x + 1) * u) / (2 * n));
+        sum += samples[y * n + x] * COS[x * n + u];
       }
       intermediate[y * n + u] = sum * scale(u, n);
     }
@@ -47,9 +61,7 @@ export function dct2d(samples: Float64Array): Float64Array {
     for (let u = 0; u < n; u++) {
       let sum = 0;
       for (let y = 0; y < n; y++) {
-        sum +=
-          intermediate[y * n + u] *
-          Math.cos((Math.PI * (2 * y + 1) * x) / (2 * n));
+        sum += intermediate[y * n + u] * COS[y * n + x];
       }
       result[x * n + u] = sum * scale(x, n);
     }
