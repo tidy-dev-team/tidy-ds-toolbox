@@ -2,7 +2,9 @@
 description: Apply the searchability "misprint" line to component descriptions. Accepts node ids, names, or globs. With no args, finds first.
 allowed-tools:
   - "mcp__tidy-ds-toolbox__tidy_misprint_apply"
+  - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_misprint_apply"
   - "mcp__tidy-ds-toolbox__tidy_misprint_find_components"
+  - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_misprint_find_components"
 ---
 
 Apply the Tidy DS Toolbox misprint operation to component descriptions.
@@ -19,7 +21,7 @@ Otherwise, split `$ARGUMENTS` on whitespace and commas into tokens. Classify eac
 - **Glob** — contains `*` (e.g. `Btn*`, `*Icon*`). Pass as `namePattern` to `tidy_misprint_find_components`.
 - **Name** — anything else (e.g. `Zzz`, `Header`). Pass as a literal `namePattern` to `tidy_misprint_find_components` (the glob compiler treats no-`*` strings as exact match).
 
-For every Name and Glob token, call `mcp__tidy-ds-toolbox__tidy_misprint_find_components` with `{ scope: "file", namePattern: <token> }`. Collect ids from the `components` array.
+For every Name and Glob token, call `tidy_misprint_find_components` with `{ scope: "file", namePattern: <token> }`. Collect ids from the `components` array.
 
 After all tokens are resolved:
 
@@ -29,11 +31,11 @@ After all tokens are resolved:
   - A **Glob** token that resolves to 0 components: warn but continue; the user was explicit about wanting a wildcard.
 - **Combine** the resolved ids across all tokens, deduplicated.
 - If the final id list is empty, stop and say so.
-- Call `mcp__tidy-ds-toolbox__tidy_misprint_apply` with `{ nodeIds: <deduped ids> }`.
+- Call `tidy_misprint_apply` with `{ nodeIds: <deduped ids> }`.
 
 ## Whole-file flow (empty `$ARGUMENTS`)
 
-1. Call `mcp__tidy-ds-toolbox__tidy_misprint_find_components` with `{ scope: "file" }`.
+1. Call `tidy_misprint_find_components` with `{ scope: "file" }`.
 2. If 0 components, stop and say so.
 3. Otherwise summarise the result (count + first ~5 `name — id` rows) and ASK the user to confirm before applying to the full set. Do not auto-apply.
 4. On confirmation, call `tidy_misprint_apply` with `nodeIds: components.map(c => c.id)`.

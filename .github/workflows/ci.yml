@@ -71,6 +71,9 @@ jobs:
       - name: Bundle and smoketest the MCP server
         run: npm run mcp:smoketest
 
+      - name: Assemble and structurally check the Claude Code plugin
+        run: npm run build:plugin
+
   build-validation:
     name: Build Validation
     runs-on: ubuntu-latest

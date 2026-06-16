@@ -2,7 +2,9 @@
 description: Build variant labels around a component set via the Tidy DS Toolbox MCP server.
 allowed-tools:
   - "mcp__tidy-ds-toolbox__tidy_component_labels_get_variant_props"
+  - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_component_labels_get_variant_props"
   - "mcp__tidy-ds-toolbox__tidy_component_labels_build"
+  - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_component_labels_build"
 ---
 
 Inspect a component set's variant properties, then optionally build labels on its top and left edges.
@@ -20,9 +22,9 @@ User-supplied arguments (may be empty): $ARGUMENTS
 
 ## Flow
 
-1. Call `mcp__tidy-ds-toolbox__tidy_component_labels_get_variant_props` with `{ nodeId }` (or `{}` if no id). Surface the available variant properties to the user as `name — options[]`.
+1. Call `tidy_component_labels_get_variant_props` with `{ nodeId }` (or `{}` if no id). Surface the available variant properties to the user as `name — options[]`.
 2. If the user supplied no axis arguments (no `top=`/`left=`/`secondTop=`/`secondLeft=`), stop here and ASK which variant property to label on which axis. Do not invent label assignments.
-3. Otherwise call `mcp__tidy-ds-toolbox__tidy_component_labels_build` with `{ nodeId, labels: { top, left, secondTop, secondLeft, groupSecondTop, groupSecondLeft }, spacing?, fontSize?, extractElement? }`. Treat `none` as empty string `""`.
+3. Otherwise call `tidy_component_labels_build` with `{ nodeId, labels: { top, left, secondTop, secondLeft, groupSecondTop, groupSecondLeft }, spacing?, fontSize?, extractElement? }`. Treat `none` as empty string `""`.
 
 ## After the build call
 

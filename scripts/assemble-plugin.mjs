@@ -1,0 +1,139 @@
+// Assembles the distributable Claude Code plugin tree under dist-plugin/.
+//
+// The output is a *marketplace-rooted* tree that is both locally installable
+// (for dev dogfooding) and ready to publish to the distribution repo (#32):
+//
+//   dist-plugin/                          ← marketplace root
+//     .claude-plugin/marketplace.json     ← lists the tidy-ds plugin
+//     tidy-ds/                             ← plugin root
+//       .claude-plugin/plugin.json         ← version synced from root package.json
+//       commands/                          ← canonical /tidy-* commands
+//       skills/                            ← future skills
+//       mcp/server.cjs                     ← bundled MCP server (from build.js)
+//
+// The canonical plugin source lives in claude-plugin/; this step only copies it,
+// injects the bundled server, and stamps the version. It then runs structural
+// assertions on the real output so a broken assemble fails loudly.
+
+import { execFileSync, spawn } from "node:child_process";
+import { cpSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+const pluginSrc = join(repoRoot, "claude-plugin");
+const serverBundle = join(repoRoot, "mcp-server", "dist", "server.cjs");
+const outRoot = join(repoRoot, "dist-plugin");
+const PLUGIN_DIR = "tidy-ds";
+const MARKETPLACE_NAME = "tidy-ds-marketplace";
+
+const log = (m) => process.stdout.write(`[assemble-plugin] ${m}\n`);
+
+function assert(cond, msg) {
+  if (!cond) {
+    process.stderr.write(`[assemble-plugin] CHECK FAILED: ${msg}\n`);
+    process.exit(1);
+  }
+}
+
+// 1. Build the MCP server bundle (the artifact the plugin ships).
+log("building MCP server bundle…");
+execFileSync(process.execPath, [join(repoRoot, "mcp-server", "build.js")], {
+  stdio: "inherit",
+});
+assert(existsSync(serverBundle), `server bundle missing at ${serverBundle}`);
+
+// 2. Lay down a clean output tree.
+rmSync(outRoot, { recursive: true, force: true });
+const pluginOut = join(outRoot, PLUGIN_DIR);
+mkdirSync(join(pluginOut, "mcp"), { recursive: true });
+
+// 3. Copy the canonical plugin source (commands, skills, manifest).
+cpSync(pluginSrc, pluginOut, { recursive: true });
+
+// 4. Inject the bundled server.
+cpSync(serverBundle, join(pluginOut, "mcp", "server.cjs"));
+
+// 5. Sync the plugin version from the root package.json.
+const rootVersion = JSON.parse(
+  readFileSync(join(repoRoot, "package.json"), "utf8"),
+).version;
+const manifestPath = join(pluginOut, ".claude-plugin", "plugin.json");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+manifest.version = rootVersion;
+writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+log(`synced plugin version → ${rootVersion}`);
+
+// 6. Write the marketplace manifest at the output root.
+const marketplace = {
+  name: MARKETPLACE_NAME,
+  owner: { name: "Kido" },
+  plugins: [{ name: "tidy-ds", source: `./${PLUGIN_DIR}` }],
+};
+mkdirSync(join(outRoot, ".claude-plugin"), { recursive: true });
+writeFileSync(
+  join(outRoot, ".claude-plugin", "marketplace.json"),
+  JSON.stringify(marketplace, null, 2) + "\n",
+);
+
+// 7. Structural checks on the real output directory.
+log("verifying assembled output…");
+assert(existsSync(manifestPath), "plugin.json present");
+assert(manifest.version === rootVersion, "plugin.json version synced");
+assert(manifest.name === "tidy-ds", "plugin name is tidy-ds");
+assert(
+  manifest.mcpServers?.["tidy-ds-toolbox"]?.args?.[0]?.includes("server.cjs"),
+  "mcpServers references the bundled server.cjs",
+);
+const serverOut = join(pluginOut, "mcp", "server.cjs");
+assert(existsSync(serverOut), "mcp/server.cjs present");
+for (const cmd of [
+  "tidy-find",
+  "tidy-misprint",
+  "tidy-labels",
+  "tidy-ds",
+  "tidy-ds-template",
+]) {
+  assert(
+    existsSync(join(pluginOut, "commands", `${cmd}.md`)),
+    `command ${cmd}.md present`,
+  );
+}
+assert(
+  existsSync(join(outRoot, ".claude-plugin", "marketplace.json")),
+  "marketplace.json present",
+);
+
+// 8. The bundled server must actually start (catches a corrupt copy). It runs
+//    forever awaiting stdio, so we wait for its "ready" line on stderr and then
+//    kill it; an early crash (non-zero exit before ready) fails the check.
+log("smoke-starting the bundled server on an isolated port…");
+await new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [serverOut], {
+    env: { ...process.env, TIDY_BRIDGE_PORT: "49878" },
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  const timer = setTimeout(() => {
+    child.kill();
+    reject(new Error("server did not report ready within 4s"));
+  }, 4000);
+  child.stderr.on("data", (buf) => {
+    if (buf.toString().includes("MCP server ready")) {
+      clearTimeout(timer);
+      child.kill();
+      resolve();
+    }
+  });
+  child.on("exit", (code) => {
+    if (code && code !== 0) {
+      clearTimeout(timer);
+      reject(new Error(`server exited with code ${code} before ready`));
+    }
+  });
+  child.on("error", (err) => {
+    clearTimeout(timer);
+    reject(err);
+  });
+});
+
+log(`✓ assembled plugin at ${outRoot} (version ${rootVersion})`);
