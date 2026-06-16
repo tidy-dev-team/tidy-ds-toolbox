@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { findTopN, confidence, MAX_DIST, type IconEntry } from "./query";
+import {
+  findTopN,
+  findNearest,
+  confidence,
+  MAX_DIST,
+  type IconEntry,
+} from "./query";
 
 describe("query and ranking", () => {
   const database: IconEntry[] = [
@@ -52,5 +58,29 @@ describe("query and ranking", () => {
     expect(results[0].confidence).toBe(1);
     expect(results[1].confidence).toBeCloseTo(1 - 1 / MAX_DIST, 6);
     expect(results[2].confidence).toBeCloseTo(1 - 2 / MAX_DIST, 6);
+  });
+});
+
+describe("findNearest", () => {
+  const database: IconEntry[] = [
+    { name: "exact", source: "test", hash: 0b1111_1111n },
+    { name: "far", source: "test", hash: 0b0000_0000n },
+    { name: "two-bit", source: "test", hash: 0b1111_1100n },
+  ];
+
+  it("returns the N nearest with no distance threshold", () => {
+    // 0b0000_0000 is 8 bits away — far past MAX_DIST — but still returned.
+    const results = findNearest(0n, database, 3);
+    expect(results.map((r) => r.entry.name)).toEqual([
+      "far",
+      "two-bit",
+      "exact",
+    ]);
+    expect(results[0].distance).toBe(0);
+    expect(results[2].distance).toBe(8);
+  });
+
+  it("respects the limit", () => {
+    expect(findNearest(0n, database, 1)).toHaveLength(1);
   });
 });

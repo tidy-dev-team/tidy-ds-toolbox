@@ -66,3 +66,27 @@ export function findTopN(
   matches.sort((a, b) => a.distance - b.distance);
   return matches.slice(0, n);
 }
+
+/**
+ * Return the N nearest entries by Hamming distance with NO distance threshold.
+ *
+ * Used only as a fallback when findTopN returns nothing: a simple/generic glyph
+ * (an X, a plus, a bare arrow) has no confident match because its shape isn't
+ * distinctive — measured, truly-unmatchable shapes land at the same distance as
+ * a generic glyph's "real" match, so we cannot auto-decide quality. Instead we
+ * surface the closest shapes verbatim and let the user judge. Callers MUST label
+ * these as uncertain and MUST NOT show a confidence percentage (confidence() is
+ * 0 for everything here).
+ */
+export function findNearest(
+  query: bigint,
+  database: IconEntry[],
+  n: number,
+): MatchResult[] {
+  const matches: MatchResult[] = database.map((entry) => {
+    const distance = hammingDistance(query, entry.hash);
+    return { entry, distance, confidence: confidence(distance) };
+  });
+  matches.sort((a, b) => a.distance - b.distance);
+  return matches.slice(0, n);
+}
