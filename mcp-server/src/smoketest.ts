@@ -1,93 +1,74 @@
-// PROTOTYPE scaffold — end-to-end test client.
-// Spawns ./server.ts as a subprocess, speaks MCP over its stdio, and calls
-// each tool. Verifies the full Claude → MCP → Bridge → operation path without
-// needing Claude Code configured.
+// CI gate for the bundled MCP server.
 //
-// Run plugin-sim in another terminal first:
-//   npm run prototype:plugin-sim
+// Spawns the *bundled* server (dist/server.cjs — the exact artifact designers
+// run) as a subprocess, speaks MCP over its stdio, and asserts it starts and
+// serves the operation catalogue. This catches bundling regressions: a missing
+// dependency or broken `shared/operations` cross-import crashes on startup, and
+// `listTools` forces the catalogue to register and serialize its zod schemas to
+// JSON Schema — exercising zod end-to-end.
+//
+// It does NOT round-trip a real operation: that needs a connected Figma plugin
+// over the Bridge and can't run headless. A true end-to-end operation test
+// belongs in its own issue (build a plugin sim, exercise bridge + handlers).
+//
+// Run via `npm run mcp:smoketest`, which bundles first.
 
-import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { CATALOGUE } from "./catalogue.ts";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const serverPath = join(here, "server.ts");
+// Path to the bundled server is passed as the first arg (the npm script points
+// it at dist/server.cjs). Resolving it here avoids import.meta / __dirname,
+// which don't survive the same way through the CJS bundle.
+const serverArg = process.argv[2];
+if (!serverArg) {
+  process.stderr.write(
+    "smoketest: missing server bundle path argument (e.g. dist/server.cjs)\n",
+  );
+  process.exit(2);
+}
+const serverPath = resolve(serverArg);
 
 async function main(): Promise<void> {
+  // Use an isolated bridge port so the smoketest never collides with a real
+  // dev server (or another CI job) sitting on the default 9876.
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [serverPath],
     stderr: "inherit",
+    env: { ...process.env, TIDY_BRIDGE_PORT: "49876" } as Record<string, string>,
   });
   const client = new Client({ name: "tidy-smoketest", version: "0.0.1" });
-  await client.connect(transport);
 
-  banner("listTools");
+  await client.connect(transport); // performs the MCP `initialize` handshake
+  print("✓ server started and completed MCP initialize");
+
   const tools = await client.listTools();
+  const got = new Set(tools.tools.map((t) => t.name));
+  const expected = CATALOGUE.map((e) => e.id);
+
   for (const t of tools.tools) print(`  • ${t.name} — ${t.description}`);
 
-  banner("tidy_misprint_find_components { scope: 'file' }");
-  await callAndPrint(client, "tidy_misprint_find_components", { scope: "file" });
-
-  banner("tidy_misprint_find_components { scope: 'page', pageId: 'page1', namePattern: 'Btn*' }");
-  const findRes = await callAndPrint(client, "tidy_misprint_find_components", {
-    scope: "page",
-    pageId: "page1",
-    namePattern: "Btn*",
-  });
-
-  banner("tidy_misprint_apply with last-found ids");
-  const ids = extractIds(findRes);
-  await callAndPrint(client, "tidy_misprint_apply", { nodeIds: ids });
-
-  banner("tidy_misprint_apply with bogus id → NOT_FOUND");
-  await callAndPrint(client, "tidy_misprint_apply", { nodeIds: ["n1", "n_bogus"] });
-
-  banner("tidy_misprint_apply with FRAME mixed in → WRONG_NODE_TYPE");
-  await callAndPrint(client, "tidy_misprint_apply", { nodeIds: ["n1", "n5"] });
-
-  banner("tidy_ds_template_run (twice — pages should duplicate)");
-  await callAndPrint(client, "tidy_ds_template_run", {});
-  await callAndPrint(client, "tidy_ds_template_run", {});
-
-  banner("tidy_misprint_find_components missing pageId → INVALID_PARAMS");
-  await callAndPrint(client, "tidy_misprint_find_components", { scope: "page" });
-
+  const missing = expected.filter((id) => !got.has(id));
   await client.close();
-  print("\n✓ smoketest complete");
+
+  if (missing.length > 0) {
+    throw new Error(
+      `catalogue mismatch — missing tool(s): ${missing.join(", ")}`,
+    );
+  }
+  if (got.size !== expected.length) {
+    throw new Error(
+      `expected ${expected.length} tools, server served ${got.size}`,
+    );
+  }
+
+  print(`\n✓ smoketest complete — ${expected.length} tools served from bundle`);
 }
 
-function banner(text: string): void {
-  print(`\n\x1b[1m── ${text} ──\x1b[0m`);
-}
 function print(s: string): void {
   process.stdout.write(s + "\n");
-}
-
-async function callAndPrint(
-  client: Client,
-  name: string,
-  args: Record<string, unknown>,
-): Promise<unknown> {
-  try {
-    const res = await client.callTool({ name, arguments: args });
-    const body = (res.content as Array<{ type: string; text: string }>)[0]?.text ?? "(empty)";
-    const tag = res.isError ? "\x1b[31merror\x1b[0m" : "\x1b[32mok\x1b[0m";
-    print(`${tag} ${body}`);
-    try { return JSON.parse(body); } catch { return body; }
-  } catch (err) {
-    print(`\x1b[31mthrew\x1b[0m ${(err as Error).message}`);
-    return null;
-  }
-}
-
-function extractIds(parsed: unknown): string[] {
-  if (parsed && typeof parsed === "object" && Array.isArray((parsed as { ids?: unknown }).ids)) {
-    return (parsed as { ids: string[] }).ids;
-  }
-  return [];
 }
 
 main().catch((err) => {
