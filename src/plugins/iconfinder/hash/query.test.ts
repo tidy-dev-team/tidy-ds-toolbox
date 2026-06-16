@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   findTopN,
   findNearest,
+  tallyLibraries,
   confidence,
   MAX_DIST,
   type IconEntry,
@@ -82,5 +83,45 @@ describe("findNearest", () => {
 
   it("respects the limit", () => {
     expect(findNearest(0n, database, 1)).toHaveLength(1);
+  });
+});
+
+describe("tallyLibraries", () => {
+  it("counts votes per source, sorted by count then name", () => {
+    const tally = tallyLibraries([
+      "Lucide",
+      "Tabler",
+      "Lucide",
+      "Lucide",
+      "Tabler",
+    ]);
+    expect(tally.counts).toEqual([
+      { source: "Lucide", count: 3 },
+      { source: "Tabler", count: 2 },
+    ]);
+    expect(tally.leader).toBe("Lucide");
+    expect(tally.total).toBe(5);
+    expect(tally.unmatched).toBe(0);
+  });
+
+  it("excludes nulls from the vote and reports them as unmatched", () => {
+    const tally = tallyLibraries(["Lucide", null, "Lucide", null]);
+    expect(tally.leader).toBe("Lucide");
+    expect(tally.counts).toEqual([{ source: "Lucide", count: 2 }]);
+    expect(tally.unmatched).toBe(2);
+    expect(tally.total).toBe(4);
+  });
+
+  it("breaks count ties alphabetically", () => {
+    const tally = tallyLibraries(["Tabler", "Lucide"]);
+    expect(tally.counts.map((c) => c.source)).toEqual(["Lucide", "Tabler"]);
+    expect(tally.leader).toBe("Lucide");
+  });
+
+  it("returns a null leader when nothing matched", () => {
+    const tally = tallyLibraries([null, null]);
+    expect(tally.leader).toBeNull();
+    expect(tally.counts).toEqual([]);
+    expect(tally.unmatched).toBe(2);
   });
 });

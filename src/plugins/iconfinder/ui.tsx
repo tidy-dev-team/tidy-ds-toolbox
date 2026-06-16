@@ -3,7 +3,12 @@ import { IconSearch, IconExternalLink } from "@tabler/icons-react";
 import { Card } from "@shell/components";
 import { postToFigma, openExternalLink } from "@shared/bridge";
 import { hashPngBase64 } from "./hash/runtime";
-import { findTopN, findNearest, type MatchResult } from "./hash/query";
+import {
+  findTopN,
+  findNearest,
+  tallyLibraries,
+  type MatchResult,
+} from "./hash/query";
 import { searchByText, type TextMatch } from "./hash/search";
 import { getIconDatabase } from "./db/load";
 import { docUrlFor } from "./db/links";
@@ -154,6 +159,9 @@ export function IconFinderUI() {
           {state.kind === "loading" && <LoadingState />}
           {state.kind === "no-selection" && <NoSelectionState />}
           {state.kind === "error" && <ErrorState />}
+          {state.kind === "results" && state.results.length > 1 && (
+            <LibraryBreakdown results={state.results} />
+          )}
           {state.kind === "results" &&
             state.results.map((result) => (
               <ResultCard
@@ -165,6 +173,88 @@ export function IconFinderUI() {
         </>
       )}
     </div>
+  );
+}
+
+function LibraryBreakdown({ results }: { results: NodeResult[] }) {
+  const tally = tallyLibraries(
+    results.map((r) => r.matches[0]?.entry.source ?? null),
+  );
+  if (tally.counts.length === 0) return null; // nothing confident to tally
+
+  const matched = tally.total - tally.unmatched;
+
+  return (
+    <Card title="Library breakdown">
+      <div
+        style={{
+          fontSize: "13px",
+          color: "var(--text-color, #111827)",
+          marginBottom: "var(--pixel-12, 12px)",
+        }}
+      >
+        Most likely <strong>{tally.leader}</strong> — {tally.counts[0].count} of{" "}
+        {matched} matched
+        {tally.unmatched > 0 ? ` (${tally.unmatched} unmatched)` : ""}
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "var(--pixel-8, 8px)",
+        }}
+      >
+        {tally.counts.map(({ source, count }) => {
+          const isLeader = source === tally.leader;
+          return (
+            <span
+              key={source}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "var(--pixel-6, 6px)",
+                padding: "var(--pixel-4, 4px) var(--pixel-8, 8px)",
+                borderRadius: "var(--pixel-12, 12px)",
+                fontSize: "12px",
+                border: "1px solid var(--border-light)",
+                background: isLeader
+                  ? "var(--primary-color)"
+                  : "var(--panel-color)",
+                color: isLeader ? "#ffffff" : "var(--text-color, #111827)",
+              }}
+            >
+              {source}
+              <span
+                style={{
+                  fontWeight: 600,
+                  opacity: isLeader ? 1 : 0.7,
+                }}
+              >
+                {count}
+              </span>
+            </span>
+          );
+        })}
+        {tally.unmatched > 0 && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "var(--pixel-6, 6px)",
+              padding: "var(--pixel-4, 4px) var(--pixel-8, 8px)",
+              borderRadius: "var(--pixel-12, 12px)",
+              fontSize: "12px",
+              border: "1px dashed var(--border-light)",
+              background: "transparent",
+              color: "var(--disabled-color)",
+            }}
+          >
+            Unmatched
+            <span style={{ fontWeight: 600 }}>{tally.unmatched}</span>
+          </span>
+        )}
+      </div>
+    </Card>
   );
 }
 

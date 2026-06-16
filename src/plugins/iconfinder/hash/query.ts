@@ -90,3 +90,41 @@ export function findNearest(
   matches.sort((a, b) => a.distance - b.distance);
   return matches.slice(0, n);
 }
+
+export interface LibraryTally {
+  /** Per-source counts, sorted by count descending then source name. */
+  counts: { source: string; count: number }[];
+  /** Selected nodes with no confident match (excluded from the vote). */
+  unmatched: number;
+  /** Total nodes considered. */
+  total: number;
+  /** The source with the most votes, or null when nothing matched. */
+  leader: string | null;
+}
+
+/**
+ * Tally which library a multi-selection most likely came from. Each node casts
+ * one vote — the source of its best confident match (`null` when it has none).
+ * Lets the user statistically decide the set's origin library even when a few
+ * individual icons are ambiguous.
+ */
+export function tallyLibraries(bestSources: (string | null)[]): LibraryTally {
+  const map = new Map<string, number>();
+  let unmatched = 0;
+  for (const source of bestSources) {
+    if (source === null) {
+      unmatched++;
+    } else {
+      map.set(source, (map.get(source) ?? 0) + 1);
+    }
+  }
+  const counts = Array.from(map, ([source, count]) => ({ source, count })).sort(
+    (a, b) => b.count - a.count || a.source.localeCompare(b.source),
+  );
+  return {
+    counts,
+    unmatched,
+    total: bestSources.length,
+    leader: counts.length > 0 ? counts[0].source : null,
+  };
+}
