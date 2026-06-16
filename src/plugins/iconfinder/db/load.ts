@@ -12,6 +12,7 @@ interface RawEntry {
   source: string;
   hash: string;
   svg: string;
+  terms?: string;
 }
 
 interface RawDatabase {
@@ -33,6 +34,7 @@ export function getIconDatabase(): IconEntry[] {
     source: entry.source,
     hash: BigInt(entry.hash),
     svg: entry.svg,
+    terms: entry.terms,
   }));
   return cache;
 }

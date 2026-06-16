@@ -18,6 +18,9 @@ export interface IconEntry {
   /** Normalized SVG markup for rendering the matched glyph. Optional so the
    * pure query logic and its tests need not carry display data. */
   svg?: string;
+  /** Lowercased, space-joined search terms (name tokens + harvested tags).
+   * Optional so the pure pHash query logic and its tests need not carry it. */
+  terms?: string;
 }
 
 export interface MatchResult {

@@ -22,11 +22,44 @@ interface IconEntry {
   source: string;
   hash: string; // bigint serialized as hex string
   svg: string; // normalized full SVG markup, for rendering the matched glyph
+  terms: string; // lowercased, deduped, space-joined search terms (name + tags)
+}
+
+interface ExtractedIcon {
+  name: string;
+  svg: string;
+  /** Library-supplied keywords/tags/aliases. Name tokens are added generically
+   * later, so a source that has no metadata can leave this empty. */
+  terms?: string[];
 }
 
 interface LibrarySource {
   name: string;
-  extractIcons: () => Promise<{ name: string; svg: string }[]>;
+  extractIcons: () => Promise<ExtractedIcon[]>;
+}
+
+// ---------------------------------------------------------------------------
+// Search-term helpers
+// ---------------------------------------------------------------------------
+
+/** Split an icon name into lowercased word tokens (kebab/snake/space). */
+function tokenizeName(name: string): string[] {
+  return name
+    .toLowerCase()
+    .split(/[-_\s]+/)
+    .filter(Boolean);
+}
+
+/** name tokens + supplied terms → lowercased, deduped, space-joined string. */
+function buildTerms(name: string, terms: string[] = []): string {
+  const set = new Set<string>(tokenizeName(name));
+  for (const t of terms) {
+    // Some libraries include non-string tags (e.g. Tabler's numeric labels on
+    // "hexagon-number-7") — coerce defensively.
+    const trimmed = String(t).trim().toLowerCase();
+    if (trimmed) set.add(trimmed);
+  }
+  return Array.from(set).join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -77,11 +110,25 @@ function normalizeSvg(svg: string): string {
 const tablerSource: LibrarySource = {
   name: "Tabler",
   extractIcons: async () => {
+    // icons.json maps each base name → { tags, category } (e.g. bell →
+    // alarm, sound, notification). Keyed by the file basename, shared by the
+    // outline and filled variants.
+    const meta = JSON.parse(
+      readSvgFile(
+        path.join(repoRoot, "node_modules", "@tabler", "icons", "icons.json"),
+      ),
+    ) as Record<string, { tags?: string[]; category?: string }>;
+    const termsFor = (baseName: string): string[] => {
+      const m = meta[baseName];
+      if (!m) return [];
+      return [...(m.tags ?? []), ...(m.category ? [m.category] : [])];
+    };
+
     const sets = [
       { dir: "outline", suffix: "" },
       { dir: "filled", suffix: "-filled" },
     ];
-    const icons: { name: string; svg: string }[] = [];
+    const icons: ExtractedIcon[] = [];
     for (const { dir, suffix } of sets) {
       const base = path.join(
         repoRoot,
@@ -94,7 +141,11 @@ const tablerSource: LibrarySource = {
       const files = await glob("*.svg", { cwd: base, absolute: true });
       for (const file of files) {
         const baseName = path.basename(file, ".svg");
-        icons.push({ name: `${baseName}${suffix}`, svg: readSvgFile(file) });
+        icons.push({
+          name: `${baseName}${suffix}`,
+          svg: readSvgFile(file),
+          terms: termsFor(baseName),
+        });
       }
     }
     return icons;
@@ -177,18 +228,42 @@ const bootstrapSource: LibrarySource = {
 const mdiSource: LibrarySource = {
   name: "Material Design Icons",
   extractIcons: async () => {
+    // meta.json is an array of { name, tags, aliases } (e.g. bell → alias
+    // "notifications", tag "Notification").
+    const meta = JSON.parse(
+      readSvgFile(path.join(repoRoot, "node_modules", "@mdi", "svg", "meta.json")),
+    ) as { name: string; tags?: string[]; aliases?: string[] }[];
+    const termsByName = new Map<string, string[]>();
+    for (const m of meta) {
+      termsByName.set(m.name, [...(m.tags ?? []), ...(m.aliases ?? [])]);
+    }
+
     const base = path.join(repoRoot, "node_modules", "@mdi", "svg", "svg");
     const files = await glob("*.svg", { cwd: base, absolute: true });
-    return files.map((file) => ({
-      name: path.basename(file, ".svg"),
-      svg: readSvgFile(file),
-    }));
+    return files.map((file) => {
+      const name = path.basename(file, ".svg");
+      return {
+        name,
+        svg: readSvgFile(file),
+        terms: termsByName.get(name) ?? [],
+      };
+    });
   },
 };
 
 const phosphorSource: LibrarySource = {
   name: "Phosphor",
   extractIcons: async () => {
+    // The core catalog carries tags + categories per icon (e.g. bell →
+    // alarm, notifications, ringer).
+    const { icons } = (await import("@phosphor-icons/core")) as {
+      icons: { name: string; tags?: string[]; categories?: string[] }[];
+    };
+    const termsByName = new Map<string, string[]>();
+    for (const i of icons) {
+      termsByName.set(i.name, [...(i.tags ?? []), ...(i.categories ?? [])]);
+    }
+
     const base = path.join(
       repoRoot,
       "node_modules",
@@ -198,10 +273,14 @@ const phosphorSource: LibrarySource = {
       "regular",
     );
     const files = await glob("*.svg", { cwd: base, absolute: true });
-    return files.map((file) => ({
-      name: path.basename(file, ".svg").replace(/-regular$/, ""),
-      svg: readSvgFile(file),
-    }));
+    return files.map((file) => {
+      const name = path.basename(file, ".svg").replace(/-regular$/, "");
+      return {
+        name,
+        svg: readSvgFile(file),
+        terms: termsByName.get(name) ?? [],
+      };
+    });
   },
 };
 
@@ -231,7 +310,12 @@ const sources: LibrarySource[] = [
 // Hashing
 // ---------------------------------------------------------------------------
 
-function renderAndHash(svg: string, name: string, source: string): IconEntry {
+function renderAndHash(
+  svg: string,
+  name: string,
+  source: string,
+  terms: string[],
+): IconEntry {
   // Render at 64px width to match runtime export geometry, then letterbox
   // to 32×32 in the shared preprocessor.
   const resvg = new Resvg(svg, {
@@ -257,6 +341,7 @@ function renderAndHash(svg: string, name: string, source: string): IconEntry {
     source,
     hash: `0x${hash.toString(16)}`,
     svg: normalizeSvg(svg),
+    terms: buildTerms(name, terms),
   };
 }
 
@@ -273,9 +358,9 @@ async function main(): Promise<void> {
     console.log(`  ${icons.length} icons found`);
 
     for (let i = 0; i < icons.length; i++) {
-      const { name, svg } = icons[i];
+      const { name, svg, terms } = icons[i];
       try {
-        const entry = renderAndHash(svg, name, source.name);
+        const entry = renderAndHash(svg, name, source.name, terms ?? []);
         entries.push(entry);
       } catch (error) {
         console.warn(
