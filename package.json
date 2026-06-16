@@ -1,6 +1,6 @@
 {
   "name": "tidy-ds-toolbox",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,8 @@
     "release:push": "git push && git push --tags",
     "mcp:server": "node --experimental-strip-types mcp-server/src/server.ts",
     "mcp:smoketest": "node --experimental-strip-types mcp-server/src/smoketest.ts",
-    "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts"
+    "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts",
+    "eval:icon-hash": "node --experimental-strip-types scripts/eval-icon-hash.mts"
   },
   "keywords": [],
   "author": "",
