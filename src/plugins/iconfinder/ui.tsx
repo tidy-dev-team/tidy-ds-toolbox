@@ -130,8 +130,11 @@ export function IconFinderUI() {
       }}
     >
       {/* Force stored glyph SVGs (width/height stripped at build time) to fill
-          their box and inherit the surrounding text color via currentColor. */}
-      <style>{`.if-glyph svg { width: 100%; height: 100%; display: block; }`}</style>
+          their box and inherit the surrounding text color via currentColor.
+          Glyphs whose root has no `fill` (e.g. MDI, default-black) get
+          `fill: currentColor` so they follow the pinned text color too;
+          outline glyphs (root `fill="none"`) are untouched and stay stroked. */}
+      <style>{`.if-glyph svg { width: 100%; height: 100%; display: block; } .if-glyph svg:not([fill]) { fill: currentColor; }`}</style>
 
       <SearchBox value={query} onChange={setQuery} inputRef={searchInputRef} />
 
@@ -190,7 +193,7 @@ function SearchBox({
           padding: "var(--pixel-8, 8px) var(--pixel-12, 12px)",
           paddingLeft: "var(--pixel-32, 32px)",
           fontSize: "13px",
-          color: "var(--text-color)",
+          color: "var(--text-color, #111827)",
           background: "var(--panel-color)",
           border: "1px solid var(--border-light)",
           borderRadius: "var(--pixel-6, 6px)",
@@ -282,7 +285,7 @@ function TextResults({
               <span
                 style={{
                   fontSize: "10px",
-                  color: "var(--text-color)",
+                  color: "var(--text-color, #111827)",
                   maxWidth: "100%",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -537,7 +540,9 @@ function Glyph({ svg, size }: { svg?: string; size: number }) {
         width: size,
         height: size,
         flexShrink: 0,
-        color: "currentColor",
+        // Pin a strong foreground. Glyphs paint via currentColor (fill or
+        // stroke); inheriting it left them near-invisible on the light panel.
+        color: "var(--text-color, #111827)",
       }}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
