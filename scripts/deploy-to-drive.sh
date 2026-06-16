@@ -128,6 +128,36 @@ echo "  - $VERSIONED_PATH/"
 echo "  - $LATEST_PATH/"
 echo ""
 
+# ---------------------------------------------------------------------------
+# Claude Code plugin (agent surface) — same assembled bundle, Drive fallback
+# channel. Designers without GitHub access install this from the synced folder.
+# ---------------------------------------------------------------------------
+echo -e "${BLUE}🤖 Deploying Claude Code plugin...${NC}"
+
+# Assemble the marketplace tree if it isn't already present.
+if [ ! -f "dist-plugin/.claude-plugin/marketplace.json" ]; then
+  echo "  Assembling plugin (npm run build:plugin)..."
+  npm run build:plugin
+fi
+
+# Publish the marketplace tree to a stable path so designers add it once and
+# then just re-sync + re-run the installer to update.
+CLAUDE_PLUGIN_PATH="$ACTUAL_PATH/claude-plugin-latest"
+rm -rf "$CLAUDE_PLUGIN_PATH"
+mkdir -p "$CLAUDE_PLUGIN_PATH"
+cp -r dist-plugin/. "$CLAUDE_PLUGIN_PATH/"
+
+# Drop the one-click installer beside the marketplace tree. The `.command`
+# extension lets macOS designers double-click it from Finder; it self-locates
+# the sibling marketplace tree, so the Drive mount path doesn't matter.
+cp scripts/install-claude-plugin.sh "$ACTUAL_PATH/Install Tidy DS (Claude Code).command"
+chmod +x "$ACTUAL_PATH/Install Tidy DS (Claude Code).command"
+
+echo -e "${GREEN}✅ Claude Code plugin deployed!${NC}"
+echo "  - $CLAUDE_PLUGIN_PATH/"
+echo "  - $ACTUAL_PATH/Install Tidy DS (Claude Code).command"
+echo ""
+
 # Cleanup old releases
 echo -e "${BLUE}🗑️  Managing release history...${NC}"
 RELEASES_DIR="$ACTUAL_PATH/releases"

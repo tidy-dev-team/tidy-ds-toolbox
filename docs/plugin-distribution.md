@@ -60,7 +60,7 @@ builds the Figma bundle and GitHub release, and now also runs `publish-plugin`:
 Plugin, MCP server bundle, and Figma bundle therefore release together from one
 tag, at one version.
 
-## Consumer install
+## Consumer install — GitHub channel
 
 ```
 /plugin marketplace add tidy-dev-team/tidy-ds-toolbox-plugin
@@ -69,3 +69,35 @@ tag, at one version.
 
 Update with `/plugin update`. See [`plugin-dev.md`](plugin-dev.md) for the
 local-path dogfood loop and the manual Figma round-trip check.
+
+## Consumer install — Google Drive channel (no GitHub access)
+
+For designers whose GitHub access is uncertain, the **same assembled bundle** is
+also published to the shared Google Drive folder, so both channels converge on
+one artifact with real `/plugin update` semantics (here: re-sync + re-run).
+
+`scripts/deploy-to-drive.sh` (run at deploy time) writes two things next to the
+Figma plugin under `Shared drives/shared kido/Tidy/plugins/`:
+
+- `claude-plugin-latest/` — the marketplace tree (a **local-path marketplace**;
+  relative `source` paths resolve because the whole directory is synced locally,
+  unlike URL-based marketplaces which fetch only the JSON).
+- `Install Tidy DS (Claude Code).command` — the one-click installer
+  (`scripts/install-claude-plugin.sh`), self-locating so the Drive mount path
+  doesn't matter.
+
+A designer double-clicks the `.command` file (or runs the script). It registers
+the synced directory as a marketplace and installs `tidy-ds`. To update, they
+let Drive re-sync and run it again — the installer refreshes the marketplace and
+re-installs the newer version.
+
+**Fallback (if a Claude Code version can't add a local-path marketplace):** run
+the bundled server directly, no marketplace —
+
+```
+claude mcp add tidy-ds-toolbox -- node "<drive>/Tidy/plugins/claude-plugin-latest/tidy-ds/mcp/server.cjs"
+```
+
+This exposes the operations as `mcp__tidy-ds-toolbox__*` (matching the standalone
+tool names the `/tidy-*` commands already allow), but does **not** install the
+slash commands. The installer prints this fallback when local-path install fails.
