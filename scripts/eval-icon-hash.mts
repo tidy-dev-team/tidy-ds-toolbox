@@ -24,7 +24,9 @@ import {
   letterboxGrayscale,
   rgbaToLetterboxGrayscale,
 } from "../src/plugins/iconfinder/hash/preprocess.ts";
-import { ICON_DB_JSON } from "../src/plugins/iconfinder/db/generated.ts";
+import { gunzipSync, strFromU8 } from "fflate";
+
+import { ICON_DB_GZIP_B64 } from "../src/plugins/iconfinder/db/generated.ts";
 
 // Mirrors MAX_DIST in hash/query.ts. Imported by value rather than from query.ts
 // because that module uses the src/ extensionless-import convention, which raw
@@ -144,7 +146,10 @@ interface Tally {
 }
 
 function main(): void {
-  const db = JSON.parse(ICON_DB_JSON) as { entries: RawEntry[] };
+  const json = strFromU8(
+    gunzipSync(Uint8Array.from(atob(ICON_DB_GZIP_B64), (c) => c.charCodeAt(0))),
+  );
+  const db = JSON.parse(json) as { entries: RawEntry[] };
   const sample = parseSample(db.entries);
   console.log(
     `Evaluating ${sample.length} of ${db.entries.length} glyphs · MAX_DIST=${MAX_DIST}\n`,

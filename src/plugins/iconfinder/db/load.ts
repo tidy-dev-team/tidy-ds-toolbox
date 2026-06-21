@@ -1,10 +1,10 @@
 // Parse the committed icon database once and expose it as typed IconEntry[].
 //
-// The generated module ships the database as a JSON string (not a JSON import)
-// to keep the type checker fast on the multi-MB payload; we JSON.parse it once
-// on first use and convert each hex hash to a bigint.
+// The generated module ships the database as gzip+base64-compressed JSON (see
+// decode.ts); we decompress and JSON.parse it once on first use and convert
+// each hex hash to a bigint.
 
-import { ICON_DB_JSON } from "./generated";
+import { decodeIconDbJson } from "./decode";
 import type { IconEntry } from "../hash/query";
 
 interface RawEntry {
@@ -28,7 +28,7 @@ export function getIconDatabase(): IconEntry[] {
   if (cache) {
     return cache;
   }
-  const parsed = JSON.parse(ICON_DB_JSON) as RawDatabase;
+  const parsed = JSON.parse(decodeIconDbJson()) as RawDatabase;
   cache = parsed.entries.map((entry) => ({
     name: entry.name,
     source: entry.source,
