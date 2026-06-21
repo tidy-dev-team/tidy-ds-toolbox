@@ -1,4 +1,5 @@
 const esbuild = require("esbuild");
+const pkg = require("./package.json");
 
 esbuild
   .build({
@@ -15,6 +16,7 @@ esbuild
     },
     define: {
       "process.env.NODE_ENV": '"production"',
+      __APP_VERSION__: JSON.stringify(pkg.version),
     },
   })
   .catch(() => process.exit(1));

@@ -9,6 +9,8 @@ import {
 } from "./shared/error-handler";
 import { createLogger } from "./shared/logging";
 import { bindSession } from "./shared/operations/registry";
+import { captureUsage } from "./shared/analytics/capture";
+import { dumpUsageEvents } from "./shared/analytics/buffer";
 
 // Configuration
 const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
@@ -35,6 +37,12 @@ figma.showUI(__html__, RESIZE_DEFAULT);
 // Bind the MCP Operation Session for the lifetime of this plugin run.
 // MVP supports one Session at a time; reload tears it down.
 bindSession(`sess_${figma.fileKey ?? "unknown"}_${Date.now().toString(36)}`);
+
+// Usage analytics (Phase 1): expose the dev-only buffer dump on the plugin
+// global so it can be inspected from the Figma dev console. Inert in
+// production (reads in-memory state only). See issues #36–#38 and
+// docs/prd-usage-analytics-phase1.md (FR8).
+(globalThis as Record<string, unknown>).__dumpUsageEvents = dumpUsageEvents;
 
 // Module handlers map
 const handlers: Record<
@@ -138,6 +146,19 @@ figma.ui.onmessage = async (msg: unknown) => {
   };
 
   logger.debug(`Received message: ${target}:${action}`, { payload, requestId });
+
+  // Usage analytics: classify and emit a structured event for this message.
+  // Never throws into the user action — captureUsage swallows internally (FR9).
+  // Only {target, action} identity is recorded; payload is never copied (FR6).
+  captureUsage(
+    { target, action, payload },
+    {
+      fileKey: figma.fileKey ?? null,
+      rootId: figma.root.id,
+      rootName: figma.root.name,
+    },
+    __APP_VERSION__,
+  );
 
   try {
     // Handle shell-specific actions
