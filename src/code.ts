@@ -23,6 +23,10 @@ const LONG_RUNNING_ACTIONS = new Set([
   // Builds a clone, prunes variants, then de-links from Kido-DS (detach nested
   // instances + localize styles) — can exceed the default timeout on large sets.
   "ds-explorer:build-component",
+  // Walks every node on the chosen scope (optionally all pages) extracting
+  // solid-color usages, then renders an inventory page — can exceed the default
+  // timeout on large files. Emits progress updates while it runs.
+  "color-finder:scan-colors",
 ]);
 
 // Create logger for main thread

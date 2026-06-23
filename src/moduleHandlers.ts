@@ -4,6 +4,7 @@ import type { UtilitiesAction } from "./plugins/utilities/types";
 import type { AuditAction } from "./plugins/audit/types";
 import type { ReleaseNotesAction } from "./plugins/release-notes/types";
 import type { OffBoardingAction } from "./plugins/off-boarding/types";
+import type { TidyColorFinderAction } from "./plugins/color-finder/types";
 import type { BuildData } from "./plugins/ds-explorer/types";
 
 import { dispatch as dispatchOperation } from "./shared/operations/registry";
@@ -23,6 +24,7 @@ import { auditHandler as auditLogic } from "./plugins/audit/logic";
 import { releaseNotesHandler as releaseNotesLogic } from "./plugins/release-notes/logic";
 import { offBoardingHandler as offBoardingLogic } from "./plugins/off-boarding/logic";
 import { iconFinderHandler as iconFinderLogic } from "./plugins/iconfinder/logic";
+import { tidyColorFinderHandler as colorFinderLogic } from "./plugins/color-finder/logic";
 
 // Module handlers - static imports only
 const dsExplorerHandler = async (
@@ -122,6 +124,14 @@ const iconFinderHandler = async (
   return await iconFinderLogic(action, payload);
 };
 
+const colorFinderHandler = async (
+  action: string,
+  payload: unknown,
+  figma: PluginAPI,
+) => {
+  return await colorFinderLogic(action as TidyColorFinderAction, payload, figma);
+};
+
 // MCP Bridge handler: the UI iframe holds the WebSocket to the MCP server and
 // relays each incoming BridgeRequest envelope here as { action: "dispatch",
 // payload: envelope }. We dispatch through the Operation registry and return
@@ -147,5 +157,6 @@ export const moduleHandlers: Record<
   "release-notes": releaseNotesHandler,
   "off-boarding": offBoardingHandler,
   iconfinder: iconFinderHandler,
+  "color-finder": colorFinderHandler,
   "mcp-bridge": mcpBridgeHandler,
 };

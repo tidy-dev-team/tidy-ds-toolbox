@@ -1,0 +1,28 @@
+# systemd unit for the usage-analytics ingest service (issue #42).
+# Install to /etc/systemd/system/toolbox-logs.service
+# NOTE: set ExecStart to the absolute path from `which node` (may not be /usr/bin/node).
+
+[Unit]
+Description=Tidy DS Toolbox usage-analytics ingest service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=tidy
+WorkingDirectory=/opt/toolbox-logs
+EnvironmentFile=/etc/toolbox-logs.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=2
+
+# Hardening — the service only needs to talk to localhost Postgres and listen
+# on a localhost port; it writes nothing to disk.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+MemoryMax=150M
+
+[Install]
+WantedBy=multi-user.target

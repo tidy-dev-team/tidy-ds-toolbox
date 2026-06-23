@@ -10,6 +10,7 @@ import {
   IconFileText,
   IconPackage,
   IconSearch,
+  IconPalette,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -21,6 +22,7 @@ import { AuditUI } from "./plugins/audit/ui";
 import { ReleaseNotesUI } from "./plugins/release-notes/ui";
 import { OffBoardingUI } from "./plugins/off-boarding/ui";
 import { IconFinderUI } from "./plugins/iconfinder/ui";
+import { TidyColorFinderUI } from "./plugins/color-finder/ui";
 import { moduleHandlers } from "./moduleHandlers";
 
 export const moduleRegistry: ModuleRegistry = {
@@ -272,6 +274,24 @@ export const moduleRegistry: ModuleRegistry = {
         label: "Find Icon",
         keywords: ["icon", "find", "match", "identify"],
       },
+    ],
+  },
+  "color-finder": {
+    id: "color-finder",
+    label: "Color Finder",
+    state: "beta",
+    icon: IconPalette,
+    ui: TidyColorFinderUI,
+    handler: moduleHandlers["color-finder"],
+    permissionRequirements: ["activeselection"],
+    keywords: [
+      "color",
+      "palette",
+      "audit",
+      "variable",
+      "token",
+      "untokenized",
+      "inventory",
     ],
   },
 };

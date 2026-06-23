@@ -1,0 +1,4 @@
+node_modules/
+# Never commit a real env file — only the .example is tracked.
+*.env
+toolbox-logs.env
