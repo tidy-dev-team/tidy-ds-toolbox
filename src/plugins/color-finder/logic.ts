@@ -196,6 +196,17 @@ function makeSourceRef(node: SceneNode): SourceNodeRef {
   return { id: node.id, name: node.name, type: node.type };
 }
 
+function findImagePaletteSource(node: SceneNode): SceneNode {
+  let parent = node.parent;
+  while (parent && parent.type !== "PAGE" && parent.type !== "DOCUMENT") {
+    if (parent.type === "FRAME") {
+      return parent;
+    }
+    parent = parent.parent;
+  }
+  return node;
+}
+
 function hasVisibleImageFill(node: SceneNode): boolean {
   if (!node.visible) return false;
   if ("fills" in node && Array.isArray(node.fills)) {
@@ -260,7 +271,7 @@ async function scanImagePalette(
 
         images.push({
           imageId: `${node.id}_${i}_${Date.now()}`,
-          source: makeSourceRef(node),
+          source: makeSourceRef(findImagePaletteSource(node)),
           pngBytes: bytes,
         });
       } catch {
