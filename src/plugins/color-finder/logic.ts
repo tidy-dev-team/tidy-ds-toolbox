@@ -7,10 +7,17 @@ import {
   ScanScope,
   ColorUsage,
   TidyColorFinderAction,
+  ScanImagePalettePayload,
+  ScanImagePaletteResult,
+  ImageExport,
+  RenderPalettePagePayload,
+  RenderPalettePageResult,
+  SourceNodeRef,
 } from "./types";
 import { collectUsages } from "./utils/scan";
 import { buildColorInventory } from "./utils/inventory";
 import { buildInventoryPage } from "./utils/render";
+import { buildPalettePage } from "./utils/render-palette";
 
 /**
  * Tidy Color Finder handler — processes messages from the UI.
@@ -33,6 +40,12 @@ export async function tidyColorFinderHandler(
 
     case "show-page":
       return await showPage(payload as { pageId: string });
+
+    case "scan-image-palette":
+      return await scanImagePalette(payload as ScanImagePalettePayload);
+
+    case "render-palette-page":
+      return await renderPalettePage(payload as RenderPalettePagePayload);
 
     default:
       console.warn(`Unknown action: ${action}`);
@@ -175,4 +188,129 @@ async function goToPage(page: PageNode): Promise<void> {
   if (page.children.length > 0) {
     figma.viewport.scrollAndZoomIntoView([page.children[0]]);
   }
+}
+
+const DEFAULT_MAX_LONG_EDGE = 512;
+
+function makeSourceRef(node: SceneNode): SourceNodeRef {
+  return { id: node.id, name: node.name, type: node.type };
+}
+
+function hasVisibleImageFill(node: SceneNode): boolean {
+  if (!node.visible) return false;
+  if ("fills" in node && Array.isArray(node.fills)) {
+    return (node.fills as readonly Paint[]).some(
+      (f) => f.visible !== false && f.type === "IMAGE",
+    );
+  }
+  return false;
+}
+
+async function scanImagePalette(
+  payload: ScanImagePalettePayload,
+): Promise<ScanImagePaletteResult> {
+  const maxLongEdge = payload.maxLongEdge ?? DEFAULT_MAX_LONG_EDGE;
+  const resolved = resolveScope(payload.scope);
+  const totalPages = resolved.pages.length;
+
+  const images: ImageExport[] = [];
+  let skipped = 0;
+  let pagesScanned = 0;
+  let totalImagesDetected = 0;
+
+  for (const page of resolved.pages) {
+    await loadPage(page);
+
+    const roots: readonly SceneNode[] = resolved.selection
+      ? resolved.selection
+      : page.children;
+
+    const imageNodes: SceneNode[] = [];
+    for (const root of roots) {
+      walkImageNodes(root, imageNodes);
+    }
+    totalImagesDetected += imageNodes.length;
+
+    for (let i = 0; i < imageNodes.length; i++) {
+      const node = imageNodes[i];
+      try {
+        let scale = 1;
+        if (
+          "width" in node &&
+          "height" in node &&
+          typeof node.width === "number" &&
+          typeof node.height === "number"
+        ) {
+          const longest = Math.max(node.width, node.height);
+          if (longest > 0 && longest > maxLongEdge) {
+            scale = maxLongEdge / longest;
+          }
+        }
+
+        const exportSettings: ExportSettingsImage = {
+          format: "PNG",
+          constraint: { type: "SCALE", value: scale },
+        };
+
+        const bytes = await (
+          node as SceneNode & {
+            exportAsync: (s: ExportSettingsImage) => Promise<Uint8Array>;
+          }
+        ).exportAsync(exportSettings);
+
+        images.push({
+          imageId: `${node.id}_${i}_${Date.now()}`,
+          source: makeSourceRef(node),
+          pngBytes: bytes,
+        });
+      } catch {
+        skipped++;
+      }
+
+      figma.ui.postMessage({
+        type: "progress",
+        payload: {
+          phase: "exporting",
+          pagesScanned,
+          totalPages,
+          imagesExported: images.length,
+          totalImages: totalImagesDetected,
+        },
+      });
+    }
+
+    pagesScanned++;
+  }
+
+  return {
+    images,
+    skipped,
+    scopeLabel: resolved.label,
+    pagesScanned,
+    totalPages,
+  };
+}
+
+function walkImageNodes(node: SceneNode, out: SceneNode[]): void {
+  if (hasVisibleImageFill(node)) {
+    out.push(node);
+  }
+  if ("children" in node) {
+    for (const child of (node as ChildrenMixin).children) {
+      walkImageNodes(child, out);
+    }
+  }
+}
+
+async function renderPalettePage(
+  payload: RenderPalettePagePayload,
+): Promise<RenderPalettePageResult> {
+  const { palette, summary, scopeLabel } = payload;
+  const page = await buildPalettePage(palette, summary, scopeLabel);
+  await goToPage(page);
+
+  return {
+    pageId: page.id,
+    pageName: page.name,
+  };
 }

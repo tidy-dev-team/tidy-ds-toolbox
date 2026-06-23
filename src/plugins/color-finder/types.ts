@@ -12,7 +12,17 @@
  * Figma runtime.
  */
 
-export type TidyColorFinderAction = "list-pages" | "scan-colors" | "show-page";
+export type TidyColorFinderAction =
+  | "list-pages"
+  | "scan-colors"
+  | "show-page"
+  // Extract palette from raster images (issue #46, slices #47–#49):
+  //   scan-image-palette:   plugin walks scope, exports image-bearing nodes,
+  //                         returns PNG bytes for UI-thread decode + extract.
+  //   render-palette-page:  UI sends the extracted palette back; plugin builds
+  //                         the dedicated palette page and navigates to it.
+  | "scan-image-palette"
+  | "render-palette-page";
 
 // The four role tables. Gradient/image paints are counted as "other" and
 // excluded from the tables. "icon" is detected by layer name (see
@@ -149,5 +159,103 @@ export interface ScanProgress {
     pagesScanned: number;
     totalPages: number;
     nodesScanned: number;
+  };
+}
+
+// ===========================================================================
+// Extract palette from images (issue #46, slices #47–#49)
+// ===========================================================================
+//
+// A separate round trip: the plugin walks the scope, finds image-bearing
+// nodes and exports their rendered PNG (cropped/scaled/composited exactly as
+// on canvas); the UI decodes each PNG on a <canvas> and runs the (pure)
+// extractor; the resulting palette is handed back to the plugin, which
+// renders the dedicated palette page. The cross-thread seam is RGBA bytes
+// (UI-bound) and `PaletteColor[]` (figma-free, serializable) — kept free of
+// any Figma type so the extractor can be unit-tested without a Figma runtime.
+
+/** A back-link to the source node a color was found inside (palette page). */
+export interface SourceNodeRef {
+  id: string;
+  name: string;
+  type: string;
+}
+
+/**
+ * One flat UI color extracted from raster images. Figma-free (no Paint/Solid
+ * types) so the pure extractor in slice 2 can run in any unit-test context.
+ * For image extraction `coverage` (0..1 of sampled pixels) stands in for the
+ * vector scan's integer `count` — coverage is additive across images, so the
+ * same seam serves slice 3's cross-image aggregation.
+ */
+export interface PaletteColor {
+  hex: string; // uppercase "#RRGGBB"
+  hsl: HSL;
+  coverage: number; // 0..1, fraction of sampled pixels in this color
+  foundIn: SourceNodeRef[]; // source nodes the color was found in
+}
+
+// --- scan-image-palette (plugin → UI) ---
+
+/** One exported raster image, ready for UI-thread decode. */
+export interface ImageExport {
+  imageId: string; // unique per exported raster; pairs palette cells to source
+  source: SourceNodeRef; // node the image was rendered from
+  // Raw PNG bytes. Figma's postMessage is structured-clone, so a Uint8Array
+  // crosses the bridge directly — no base64 inflation. The UI reads the true
+  // pixel dimensions off the decoded bitmap, so they are not carried here.
+  pngBytes: Uint8Array;
+}
+
+export interface ScanImagePalettePayload {
+  scope: ScanScope;
+  // Cap the longest edge of each exported PNG. Aspect ratio is preserved.
+  // Larger = better color fidelity at the cost of more decode/sampling time.
+  maxLongEdge?: number;
+}
+
+export interface ScanImagePaletteResult {
+  images: ImageExport[];
+  // Nodes that had a visible image fill but could not be exported (zero
+  // bounds, export failure, …). Reported in the slice-3 summary.
+  skipped: number;
+  scopeLabel: string;
+  pagesScanned: number;
+  totalPages: number;
+}
+
+// --- render-palette-page (UI → plugin) ---
+
+export interface PaletteSummary {
+  imagesScanned: number;
+  // Filled in slice 3; left 0 in slice 1 (naive extractor does not mask).
+  photosMasked: number;
+  // Nodes carrying a visible image fill that were detected within scope.
+  nodesDetected: number;
+}
+
+export interface RenderPalettePagePayload {
+  palette: PaletteColor[];
+  summary: PaletteSummary;
+  scopeLabel: string;
+}
+
+export interface RenderPalettePageResult {
+  pageId: string;
+  pageName: string;
+}
+
+// Progress messages posted to the UI during image-palette scanning. Extends
+// the vector-scan `ScanProgress` with a `phase` field so the UI can render
+// distinct export/sampling progress (slice 3). Slice 1 only emits the
+// `exporting` phase from the plugin thread.
+export interface ScanImageProgress {
+  type: "progress";
+  payload: {
+    phase: "exporting" | "sampling";
+    pagesScanned: number;
+    totalPages: number;
+    imagesExported: number; // exporting: images sent so far
+    totalImages: number; // known after the scope walk completes
   };
 }

@@ -129,7 +129,11 @@ const colorFinderHandler = async (
   payload: unknown,
   figma: PluginAPI,
 ) => {
-  return await colorFinderLogic(action as TidyColorFinderAction, payload, figma);
+  return await colorFinderLogic(
+    action as TidyColorFinderAction,
+    payload,
+    figma,
+  );
 };
 
 // MCP Bridge handler: the UI iframe holds the WebSocket to the MCP server and

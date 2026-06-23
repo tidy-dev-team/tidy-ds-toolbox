@@ -18,7 +18,9 @@ const usage = (over: Partial<ColorUsage> = {}): ColorUsage => ({
   ...over,
 });
 
-const opts = (over: Partial<Parameters<typeof buildColorInventory>[1]> = {}) => ({
+const opts = (
+  over: Partial<Parameters<typeof buildColorInventory>[1]> = {},
+) => ({
   pagesScanned: 1,
   otherSkipped: 0,
   ...over,
@@ -204,8 +206,16 @@ describe("buildColorInventory", () => {
   it("merges a variable and a style from different usages of the same color", () => {
     const inv = buildColorInventory(
       [
-        usage({ hex: "#123456", variableName: "color/primary", styleName: null }),
-        usage({ hex: "#123456", variableName: null, styleName: "Brand/Primary" }),
+        usage({
+          hex: "#123456",
+          variableName: "color/primary",
+          styleName: null,
+        }),
+        usage({
+          hex: "#123456",
+          variableName: null,
+          styleName: "Brand/Primary",
+        }),
       ],
       opts(),
     );
@@ -216,7 +226,13 @@ describe("buildColorInventory", () => {
 
   it("treats a style-only color as untokenized (only a variable counts)", () => {
     const inv = buildColorInventory(
-      [usage({ hex: "#123456", variableName: null, styleName: "Brand/Primary" })],
+      [
+        usage({
+          hex: "#123456",
+          variableName: null,
+          styleName: "Brand/Primary",
+        }),
+      ],
       opts(),
     );
     expect(inv.summary.untokenized).toBe(1);

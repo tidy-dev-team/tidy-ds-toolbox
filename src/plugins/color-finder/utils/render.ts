@@ -71,11 +71,16 @@ export async function buildInventoryPage(
   return page;
 }
 
-function buildSummary(inventory: ColorInventory, scopeLabel: string): FrameNode {
+function buildSummary(
+  inventory: ColorInventory,
+  scopeLabel: string,
+): FrameNode {
   const { summary } = inventory;
   const frame = verticalFrame("Summary", 8);
 
-  frame.appendChild(text(`Color Inventory — ${scopeLabel}`, 20, FONT_BOLD, INK));
+  frame.appendChild(
+    text(`Color Inventory — ${scopeLabel}`, 20, FONT_BOLD, INK),
+  );
 
   const totals =
     `${summary.uniqueTotal} unique color${summary.uniqueTotal === 1 ? "" : "s"} — ` +

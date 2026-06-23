@@ -12,11 +12,16 @@ import {
   ScanColorsResult,
   ScanOptions,
   ScopeMode,
+  ImageExport,
+  PaletteColor,
+  PaletteSummary,
+  RenderPalettePageResult,
 } from "./types";
 import { serializeInventoryToMarkdown } from "./utils/markdown";
+import { robustExtractWithSummary } from "./utils/extract";
 
-// Copy text to the clipboard from the Figma plugin iframe. navigator.clipboard
-// is unreliable inside the sandboxed iframe, so fall back to execCommand.
+type ScanMode = "vector" | "image-palette";
+
 function copyToClipboard(text: string): void {
   const textarea = document.createElement("textarea");
   textarea.value = text;
@@ -28,7 +33,7 @@ function copyToClipboard(text: string): void {
   try {
     document.execCommand("copy");
   } catch {
-    // ignore — best effort
+    // ignore
   }
   document.body.removeChild(textarea);
 }
@@ -39,17 +44,29 @@ const DEFAULT_OPTIONS: ScanOptions = {
   includeBorders: true,
   includeIcons: true,
   skipTokenized: false,
-  // On by default: most real text/icon colors live inside component instances,
-  // so off-by-default makes the Text table miss almost everything. Turn off to
-  // count design-level usage only.
   lookInsideInstances: true,
   sortByHue: false,
 };
 
-interface Progress {
+interface VectorProgress {
   pagesScanned: number;
   totalPages: number;
   nodesScanned: number;
+}
+
+interface ImageProgress {
+  phase: "exporting" | "sampling";
+  pagesScanned: number;
+  totalPages: number;
+  imagesExported: number;
+  totalImages: number;
+}
+
+interface PalettePageResult {
+  pageId: string;
+  pageName: string;
+  palette: PaletteColor[];
+  summary: PaletteSummary;
 }
 
 export function TidyColorFinderUI() {
@@ -58,12 +75,20 @@ export function TidyColorFinderUI() {
   const [scopeMode, setScopeMode] = useState<ScopeMode>("current-page");
   const [options, setOptions] = useState<ScanOptions>(DEFAULT_OPTIONS);
   const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState<Progress | null>(null);
-  const [result, setResult] = useState<ScanColorsResult | null>(null);
+  const [vectorProgress, setVectorProgress] = useState<VectorProgress | null>(
+    null,
+  );
+  const [imageProgress, setImageProgress] = useState<ImageProgress | null>(
+    null,
+  );
+  const [scanResult, setScanResult] = useState<ScanColorsResult | null>(null);
+  const [paletteResult, setPaletteResult] = useState<PalettePageResult | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<ScanMode>("vector");
   const lastClickedIndex = useRef<number | null>(null);
 
-  // Load pages on mount.
   useEffect(() => {
     postToFigma({
       target: "color-finder",
@@ -73,14 +98,18 @@ export function TidyColorFinderUI() {
     });
   }, []);
 
-  // Listen for responses + progress.
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data.pluginMessage || event.data;
       if (!message) return;
 
       if (message.type === "progress") {
-        setProgress(message.payload as Progress);
+        const p = message.payload;
+        if (p && "phase" in p) {
+          setImageProgress(p as ImageProgress);
+        } else {
+          setVectorProgress(p as VectorProgress);
+        }
       } else if (
         message.type === "response" &&
         message.requestId === "list-pages"
@@ -93,17 +122,48 @@ export function TidyColorFinderUI() {
         message.type === "response" &&
         message.requestId === "scan-colors"
       ) {
-        setResult(message.result as ScanColorsResult);
+        setScanResult(message.result as ScanColorsResult);
         setScanning(false);
-        setProgress(null);
+        setVectorProgress(null);
+      } else if (
+        message.type === "response" &&
+        message.requestId === "scan-image-palette"
+      ) {
+        const result = message.result as {
+          images: ImageExport[];
+          skipped: number;
+          scopeLabel: string;
+          pagesScanned: number;
+          totalPages: number;
+        };
+        processImagePalette(result.images, result.skipped, result.scopeLabel);
+      } else if (
+        message.type === "response" &&
+        message.requestId === "render-palette-page"
+      ) {
+        const renderResult = message.result as RenderPalettePageResult;
+        if (paletteResult) {
+          setPaletteResult((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  pageId: renderResult.pageId,
+                  pageName: renderResult.pageName,
+                }
+              : prev,
+          );
+        }
+        setScanning(false);
+        setImageProgress(null);
       } else if (message.type === "error") {
         setScanning(false);
-        setProgress(null);
+        setVectorProgress(null);
+        setImageProgress(null);
       }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [paletteResult]);
 
   const togglePage = useCallback(
     (index: number, shiftKey: boolean) => {
@@ -127,17 +187,19 @@ export function TidyColorFinderUI() {
     [pages],
   );
 
-  const handleScan = useCallback(() => {
+  const handleVectorScan = useCallback(() => {
     setScanning(true);
-    setResult(null);
-    setProgress(null);
+    setScanResult(null);
+    setPaletteResult(null);
+    setVectorProgress(null);
     postToFigma({
       target: "color-finder",
       action: "scan-colors",
       payload: {
         scope: {
           mode: scopeMode,
-          pageIds: scopeMode === "selected-pages" ? [...selectedIds] : undefined,
+          pageIds:
+            scopeMode === "selected-pages" ? [...selectedIds] : undefined,
         },
         options,
       },
@@ -145,29 +207,138 @@ export function TidyColorFinderUI() {
     });
   }, [scopeMode, selectedIds, options]);
 
+  const handleImageScan = useCallback(() => {
+    setScanning(true);
+    setScanResult(null);
+    setPaletteResult(null);
+    setImageProgress(null);
+    postToFigma({
+      target: "color-finder",
+      action: "scan-image-palette",
+      payload: {
+        scope: {
+          mode: scopeMode,
+          pageIds:
+            scopeMode === "selected-pages" ? [...selectedIds] : undefined,
+        },
+      },
+      requestId: "scan-image-palette",
+    });
+  }, [scopeMode, selectedIds]);
+
+  const processImagePalette = useCallback(
+    async (images: ImageExport[], skipped: number, scopeLabel: string) => {
+      setImageProgress({
+        phase: "sampling",
+        pagesScanned: 0,
+        totalPages: 0,
+        imagesExported: images.length,
+        totalImages: images.length,
+      });
+
+      const pixelData: {
+        pixels: Uint8ClampedArray;
+        width: number;
+        height: number;
+        source: ImageExport["source"];
+        imageId: string;
+      }[] = [];
+
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        try {
+          const decoded = await decodePng(img.pngBytes);
+          pixelData.push({
+            pixels: decoded.pixels,
+            width: decoded.width,
+            height: decoded.height,
+            source: img.source,
+            imageId: img.imageId,
+          });
+        } catch {
+          // skip images that fail to decode
+        }
+
+        setImageProgress({
+          phase: "sampling",
+          pagesScanned: 0,
+          totalPages: 0,
+          imagesExported: i + 1,
+          totalImages: images.length,
+        });
+      }
+
+      const extraction = robustExtractWithSummary(pixelData);
+
+      const summary: PaletteSummary = {
+        // Total images that decoded and were sampled (contributed + masked),
+        // so "N images scanned �· M masked" reads consistently (M ⊆ N).
+        imagesScanned:
+          extraction.summary.imagesContributed +
+          extraction.summary.imagesMasked,
+        photosMasked: extraction.summary.imagesMasked,
+        nodesDetected: images.length + skipped,
+      };
+
+      const pageResult: PalettePageResult = {
+        pageId: "",
+        pageName: "",
+        palette: extraction.palette,
+        summary,
+      };
+      setPaletteResult(pageResult);
+
+      postToFigma({
+        target: "color-finder",
+        action: "render-palette-page",
+        payload: { palette: extraction.palette, summary, scopeLabel },
+        requestId: "render-palette-page",
+      });
+    },
+    [],
+  );
+
+  const handleRun = useCallback(() => {
+    if (mode === "vector") {
+      handleVectorScan();
+    } else {
+      handleImageScan();
+    }
+  }, [mode, handleVectorScan, handleImageScan]);
+
   const handleShowPage = useCallback(() => {
-    if (!result) return;
+    const pageId = scanResult?.pageId || paletteResult?.pageId;
+    if (!pageId) return;
     postToFigma({
       target: "color-finder",
       action: "show-page",
-      payload: { pageId: result.pageId },
+      payload: { pageId },
     });
-  }, [result]);
+  }, [scanResult, paletteResult]);
 
   const handleCopyMarkdown = useCallback(() => {
-    if (!result) return;
-    copyToClipboard(serializeInventoryToMarkdown(result.inventory));
+    if (!scanResult) return;
+    copyToClipboard(serializeInventoryToMarkdown(scanResult.inventory));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  }, [result]);
+  }, [scanResult]);
 
-  const scanDisabled =
+  const imageScanDisabled =
+    scanning || (scopeMode === "selected-pages" && selectedIds.size === 0);
+
+  const vectorScanDisabled =
     scanning ||
     (scopeMode === "selected-pages" && selectedIds.size === 0) ||
     (!options.includeBackgrounds &&
       !options.includeText &&
       !options.includeBorders &&
       !options.includeIcons);
+
+  const scanDisabled =
+    mode === "vector" ? vectorScanDisabled : imageScanDisabled;
+
+  const showPageId = scanResult?.pageId || paletteResult?.pageId;
+  const showPageName = scanResult?.pageName || paletteResult?.pageName || "";
 
   return (
     <div
@@ -178,6 +349,21 @@ export function TidyColorFinderUI() {
         padding: "var(--pixel-16, 16px)",
       }}
     >
+      <Card title="Mode">
+        <div style={{ display: "flex", gap: 8 }}>
+          <QuickButton
+            label="Tidy DS colors"
+            active={mode === "vector"}
+            onClick={() => setMode("vector")}
+          />
+          <QuickButton
+            label="Extract palette from images"
+            active={mode === "image-palette"}
+            onClick={() => setMode("image-palette")}
+          />
+        </div>
+      </Card>
+
       <Card title="Scope">
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -238,7 +424,11 @@ export function TidyColorFinderUI() {
                 <span>{page.name}</span>
                 {page.isCurrent && (
                   <span
-                    style={{ marginLeft: "auto", fontSize: 11, color: "var(--disabled-color)" }}
+                    style={{
+                      marginLeft: "auto",
+                      fontSize: 11,
+                      color: "var(--disabled-color)",
+                    }}
                   >
                     current
                   </span>
@@ -247,59 +437,73 @@ export function TidyColorFinderUI() {
             ))}
           </div>
           <div style={{ fontSize: 11, color: "var(--disabled-color)" }}>
-            Tick pages (shift-click for a range) to use “Selected pages”.
+            Tick pages (shift-click for a range) to use "Selected pages".
           </div>
         </div>
       </Card>
 
-      <Card title="Options">
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <CheckRow
-            label="Backgrounds"
-            checked={options.includeBackgrounds}
-            onChange={(v) =>
-              setOptions((o) => ({ ...o, includeBackgrounds: v }))
-            }
-          />
-          <CheckRow
-            label="Text"
-            checked={options.includeText}
-            onChange={(v) => setOptions((o) => ({ ...o, includeText: v }))}
-          />
-          <CheckRow
-            label="Borders"
-            checked={options.includeBorders}
-            onChange={(v) => setOptions((o) => ({ ...o, includeBorders: v }))}
-          />
-          <CheckRow
-            label="Icons (by layer name)"
-            checked={options.includeIcons}
-            onChange={(v) => setOptions((o) => ({ ...o, includeIcons: v }))}
-          />
-          <hr style={{ border: 0, borderTop: "1px solid var(--border-light)", margin: "2px 0" }} />
-          <CheckRow
-            label="Skip colors already bound to a variable"
-            checked={options.skipTokenized}
-            onChange={(v) => setOptions((o) => ({ ...o, skipTokenized: v }))}
-          />
-          <CheckRow
-            label="Look inside component instances"
-            checked={options.lookInsideInstances}
-            onChange={(v) =>
-              setOptions((o) => ({ ...o, lookInsideInstances: v }))
-            }
-          />
-          <hr style={{ border: 0, borderTop: "1px solid var(--border-light)", margin: "2px 0" }} />
-          <CheckRow
-            label="Sort each table by hue (instead of usage count)"
-            checked={options.sortByHue ?? false}
-            onChange={(v) => setOptions((o) => ({ ...o, sortByHue: v }))}
-          />
-        </div>
-      </Card>
+      {mode === "vector" && (
+        <Card title="Options">
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <CheckRow
+              label="Backgrounds"
+              checked={options.includeBackgrounds}
+              onChange={(v) =>
+                setOptions((o) => ({ ...o, includeBackgrounds: v }))
+              }
+            />
+            <CheckRow
+              label="Text"
+              checked={options.includeText}
+              onChange={(v) => setOptions((o) => ({ ...o, includeText: v }))}
+            />
+            <CheckRow
+              label="Borders"
+              checked={options.includeBorders}
+              onChange={(v) => setOptions((o) => ({ ...o, includeBorders: v }))}
+            />
+            <CheckRow
+              label="Icons (by layer name)"
+              checked={options.includeIcons}
+              onChange={(v) => setOptions((o) => ({ ...o, includeIcons: v }))}
+            />
+            <hr
+              style={{
+                border: 0,
+                borderTop: "1px solid var(--border-light)",
+                margin: "2px 0",
+              }}
+            />
+            <CheckRow
+              label="Skip colors already bound to a variable"
+              checked={options.skipTokenized}
+              onChange={(v) => setOptions((o) => ({ ...o, skipTokenized: v }))}
+            />
+            <CheckRow
+              label="Look inside component instances"
+              checked={options.lookInsideInstances}
+              onChange={(v) =>
+                setOptions((o) => ({ ...o, lookInsideInstances: v }))
+              }
+            />
+            <hr
+              style={{
+                border: 0,
+                borderTop: "1px solid var(--border-light)",
+                margin: "2px 0",
+              }}
+            />
+            <CheckRow
+              label="Sort each table by hue (instead of usage count)"
+              checked={options.sortByHue ?? false}
+              onChange={(v) => setOptions((o) => ({ ...o, sortByHue: v }))}
+            />
+          </div>
+        </Card>
+      )}
 
       <button
-        onClick={handleScan}
+        onClick={handleRun}
         disabled={scanDisabled}
         style={{
           display: "flex",
@@ -309,27 +513,35 @@ export function TidyColorFinderUI() {
         }}
       >
         <IconRefresh size={16} stroke={1.5} />
-        {scanning ? "Scanning…" : "Run"}
+        {scanning ? "Scanning..." : "Run"}
       </button>
 
-      {progress && (
+      {vectorProgress && (
         <div className="status-message">
-          Scanning {progress.totalPages} page
-          {progress.totalPages === 1 ? "" : "s"} ·{" "}
-          {progress.nodesScanned.toLocaleString()} nodes
+          Scanning {vectorProgress.totalPages} page
+          {vectorProgress.totalPages === 1 ? "" : "s"} �·{" "}
+          {vectorProgress.nodesScanned.toLocaleString()} nodes
         </div>
       )}
 
-      {result && (
+      {imageProgress && (
+        <div className="status-message">
+          {imageProgress.phase === "exporting"
+            ? `Exporting images... ${imageProgress.imagesExported} of ${imageProgress.totalImages}`
+            : `Sampling images... ${imageProgress.imagesExported} of ${imageProgress.totalImages}`}
+        </div>
+      )}
+
+      {scanResult && (
         <div className="status-message success">
           <div style={{ marginBottom: 8 }}>
-            {result.inventory.summary.uniqueTotal} unique color
-            {result.inventory.summary.uniqueTotal === 1 ? "" : "s"} —{" "}
-            {result.inventory.summary.byRole.background} background,{" "}
-            {result.inventory.summary.byRole.text} text,{" "}
-            {result.inventory.summary.byRole.border} border,{" "}
-            {result.inventory.summary.byRole.icon} icon;{" "}
-            {result.inventory.summary.untokenized} untokenized
+            {scanResult.inventory.summary.uniqueTotal} unique color
+            {scanResult.inventory.summary.uniqueTotal === 1 ? "" : "s"} —{" "}
+            {scanResult.inventory.summary.byRole.background} background,{" "}
+            {scanResult.inventory.summary.byRole.text} text,{" "}
+            {scanResult.inventory.summary.byRole.border} border,{" "}
+            {scanResult.inventory.summary.byRole.icon} icon;{" "}
+            {scanResult.inventory.summary.untokenized} untokenized
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
@@ -344,7 +556,7 @@ export function TidyColorFinderUI() {
               }}
             >
               <IconExternalLink size={14} stroke={1.5} />
-              Open “{result.pageName}”
+              Open "{scanResult.pageName}"
             </button>
             <button
               className="secondary"
@@ -367,8 +579,69 @@ export function TidyColorFinderUI() {
           </div>
         </div>
       )}
+
+      {paletteResult && (
+        <div className="status-message success">
+          <div style={{ marginBottom: 8 }}>
+            {paletteResult.palette.length} unique color
+            {paletteResult.palette.length === 1 ? "" : "s"} ·{" "}
+            {paletteResult.summary.imagesScanned} image
+            {paletteResult.summary.imagesScanned === 1 ? "" : "s"} scanned
+            {paletteResult.summary.photosMasked > 0
+              ? ` · ${paletteResult.summary.photosMasked} photo image${paletteResult.summary.photosMasked === 1 ? "" : "s"} masked`
+              : ""}
+            {paletteResult.summary.nodesDetected > 0
+              ? ` · ${paletteResult.summary.nodesDetected} node${paletteResult.summary.nodesDetected === 1 ? "" : "s"} detected`
+              : ""}
+          </div>
+          {showPageId && (
+            <button
+              className="secondary"
+              onClick={handleShowPage}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 10px",
+                fontSize: 12,
+              }}
+            >
+              <IconExternalLink size={14} stroke={1.5} />
+              Open "{showPageName}"
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
+}
+
+async function decodePng(bytes: Uint8Array): Promise<{
+  pixels: Uint8ClampedArray;
+  width: number;
+  height: number;
+}> {
+  // Cast: exportAsync yields a backing ArrayBuffer at runtime, but its static
+  // type (Uint8Array<ArrayBufferLike>) is not assignable to BlobPart under the
+  // stricter typed-array generics.
+  const blob = new Blob([bytes as BlobPart], { type: "image/png" });
+  const bitmap = await createImageBitmap(blob);
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Failed to get 2d context");
+    ctx.drawImage(bitmap, 0, 0);
+    const imageData = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    return {
+      pixels: imageData.data,
+      width: bitmap.width,
+      height: bitmap.height,
+    };
+  } finally {
+    bitmap.close();
+  }
 }
 
 function QuickButton({

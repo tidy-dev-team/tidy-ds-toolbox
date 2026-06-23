@@ -74,7 +74,9 @@ describe("serializeInventoryToMarkdown", () => {
     expect(md).toContain("## Text (1)");
     expect(md).toContain("## Borders (0)");
     expect(md).toContain("## Icons (0)");
-    expect(md).toContain("| Hex | HSL | Variable | Style | Count | Where used |");
+    expect(md).toContain(
+      "| Hex | HSL | Variable | Style | Count | Where used |",
+    );
   });
 
   it("renders a row per color with hex, opacity, variable, style, count", () => {

@@ -27,6 +27,7 @@ const LONG_RUNNING_ACTIONS = new Set([
   // solid-color usages, then renders an inventory page — can exceed the default
   // timeout on large files. Emits progress updates while it runs.
   "color-finder:scan-colors",
+  "color-finder:scan-image-palette",
 ]);
 
 // Create logger for main thread
