@@ -179,6 +179,71 @@ describe("robustExtractPalette", () => {
     expect(whiteSwatch?.coverage).toBe(1);
   });
 
+  it("keeps an accent diluted below accentKeep by a tall host image (absolute floor)", () => {
+    // Regression: the same-size accent must survive whether it sits in a short
+    // or a tall screenshot. Here the bar's per-image *fraction* (256 / 102400 ≈
+    // 0.0025) is below accentKeep (0.003), but its absolute pixel count (256) is
+    // above accentMinPixels, so it must be kept rather than dropped for the crime
+    // of living in a large capture.
+    const width = 128;
+    const height = 800;
+    const pixels = new Uint8ClampedArray(width * height * 4);
+    fillRect(pixels, width, 0, 0, width, height, 255, 255, 255, 255);
+    fillRect(pixels, width, 0, 0, width, 2, 236, 158, 87, 255); // 256px orange bar
+
+    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
+      quantBits: 6,
+      mergeDeltaE: 5,
+      topN: 10,
+    });
+
+    const orange = result.find((c) => c.coverage < 0.003 && c.hsl.s > 0);
+    expect(orange).toBeDefined();
+    expect(hexes(result)).toContain("#FFFFFF");
+  });
+
+  it("still drops a saturated speck below both the fraction and pixel floors", () => {
+    // The absolute floor must not become a backdoor for noise: an accent that is
+    // both a tiny fraction AND below accentMinPixels stays filtered.
+    const width = 128;
+    const height = 800;
+    const pixels = new Uint8ClampedArray(width * height * 4);
+    fillRect(pixels, width, 0, 0, width, height, 255, 255, 255, 255);
+    fillRect(pixels, width, 0, 0, 8, 8, 236, 158, 87, 255); // 64px speck < 150
+
+    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
+      quantBits: 6,
+      mergeDeltaE: 5,
+      topN: 10,
+      accentMinPixels: 150,
+    });
+
+    expect(result.every((c) => c.hsl.s === 0)).toBe(true);
+  });
+
+  it("ranks a vivid accent above an equally-prominent low-chroma colour", () => {
+    // Selection is by salience (prominence + Lab chroma), not raw area. Two bands
+    // of identical size: the chromatic one must sort ahead of the muted one so it
+    // is not the one sacrificed to the topN cut.
+    const width = 64;
+    const height = 96;
+    const pixels = new Uint8ClampedArray(width * height * 4);
+    fillRect(pixels, width, 0, 0, width, 48, 0x20, 0x66, 0x4a, 255); // vivid green
+    fillRect(pixels, width, 0, 48, width, 48, 0xad, 0xb5, 0xc5, 255); // muted blue-grey
+
+    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
+      quantBits: 6,
+      mergeDeltaE: 5,
+      topN: 10,
+    });
+
+    const greenIdx = result.findIndex((c) => c.hsl.h > 120 && c.hsl.h < 180);
+    const mutedIdx = result.findIndex((c) => c.hsl.h >= 180 && c.hsl.h < 260);
+    expect(greenIdx).toBeGreaterThanOrEqual(0);
+    expect(mutedIdx).toBeGreaterThanOrEqual(0);
+    expect(greenIdx).toBeLessThan(mutedIdx);
+  });
+
   it("merges near Delta E colors into one swatch", () => {
     const width = 64;
     const height = 32;

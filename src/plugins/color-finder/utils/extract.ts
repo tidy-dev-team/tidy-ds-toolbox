@@ -46,8 +46,23 @@ export interface ExtractorOptions {
   neutralKeep?: number;
   // Min peak per-image coverage (0..1) to keep a saturated accent colour.
   accentKeep?: number;
+  // Absolute fallback for accents: a saturated colour is kept if it occupies at
+  // least this many pixels in the single image where it is most present, even
+  // when its per-image *fraction* falls below `accentKeep`. This decouples accent
+  // survival from host-image size — the same accent at the same pixel size is no
+  // longer dropped just because it sits in a taller/busier screenshot. Tuned for
+  // the default 512px long-edge export.
+  accentMinPixels?: number;
   mergeDeltaE?: number;
   topN?: number;
+  // How strongly Lab chroma (colourfulness) lifts a colour in the final ranking.
+  // Selection ranks by salience = prominence^promExp · (1 + chroma/chromaRef),
+  // not raw area. This keeps the dominant neutrals on top while preventing vivid
+  // accents (a dark-green chart bar, a brand CTA) from being buried — and sliced
+  // off by topN — beneath a stack of larger but near-white tints. `coverage` in
+  // the result still reports true area prominence; only ordering changes.
+  chromaRef?: number;
+  promExp?: number;
   alphaThreshold?: number;
 }
 
@@ -58,8 +73,11 @@ const DEFAULTS: Required<ExtractorOptions> = {
   accentSatThreshold: 0.15,
   neutralKeep: 0.02,
   accentKeep: 0.003,
+  accentMinPixels: 150,
   mergeDeltaE: 6,
-  topN: 24,
+  topN: 36,
+  chromaRef: 25,
+  promExp: 0.6,
   alphaThreshold: 64,
 };
 
@@ -151,6 +169,9 @@ interface Aggregate {
   // Peak per-image coverage (0..1): how prominent this colour is in the single
   // image where it is most prominent. This is what we rank/threshold on.
   prominence: number;
+  // Peak per-image absolute pixel count, paired with `prominence`. Used as a
+  // size-independent keep fallback for accents (see `accentMinPixels`).
+  peakPixels: number;
   sourceIds: Set<string>;
 }
 
@@ -165,8 +186,11 @@ export function robustExtractWithSummary(
     accentSatThreshold,
     neutralKeep,
     accentKeep,
+    accentMinPixels,
     mergeDeltaE,
     topN,
+    chromaRef,
+    promExp,
     alphaThreshold,
   } = { ...DEFAULTS, ...options };
 
@@ -214,6 +238,7 @@ export function robustExtractWithSummary(
       const existing = agg.get(key);
       if (existing) {
         existing.prominence = Math.max(existing.prominence, coverage);
+        existing.peakPixels = Math.max(existing.peakPixels, count);
         existing.sourceIds.add(imageId);
       } else {
         const qb = key & ((1 << quantBits) - 1);
@@ -224,6 +249,7 @@ export function robustExtractWithSummary(
           g: dequantize(qg, quantBits),
           b: dequantize(qb, quantBits),
           prominence: coverage,
+          peakPixels: count,
           sourceIds: new Set([imageId]),
         });
       }
@@ -242,8 +268,13 @@ export function robustExtractWithSummary(
   const candidates = [...agg.values()]
     .filter((c) => {
       const sat = saturationOf(c.r, c.g, c.b);
-      const threshold = sat >= accentSatThreshold ? accentKeep : neutralKeep;
-      return c.prominence >= threshold;
+      if (sat >= accentSatThreshold) {
+        // Accents survive on EITHER a fraction or an absolute-pixel basis. The
+        // absolute floor rescues real accents whose per-image fraction is pushed
+        // below `accentKeep` purely by living in a large/tall screenshot.
+        return c.prominence >= accentKeep || c.peakPixels >= accentMinPixels;
+      }
+      return c.prominence >= neutralKeep;
     })
     .map((c) => ({ ...c, lab: rgbToLab(c.r, c.g, c.b) }));
 
@@ -279,7 +310,15 @@ export function robustExtractWithSummary(
     }
   }
 
-  merged.sort((a, b) => b.prominence - a.prominence);
+  // Rank/select by salience, not raw area: dominant neutrals stay on top (large
+  // prominence), but a vivid accent is lifted above larger near-white tints by
+  // its Lab chroma so it survives the topN cut. Displayed `coverage` stays the
+  // true area prominence — only this ordering is salience-based.
+  const salience = (c: Aggregate & { lab: Lab }): number => {
+    const chroma = Math.sqrt(c.lab.a * c.lab.a + c.lab.b * c.lab.b);
+    return Math.pow(c.prominence, promExp) * (1 + chroma / chromaRef);
+  };
+  merged.sort((a, b) => salience(b) - salience(a));
   const top = merged.slice(0, topN);
 
   const imageIdToSource = new Map<string, SourceNodeRef>();
