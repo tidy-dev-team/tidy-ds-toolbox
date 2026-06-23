@@ -79,11 +79,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, 16, 255, 0, 0, 255);
     fillRect(pixels, width, 0, 16, width, 32, 0, 0, 255, 255);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      mergeDeltaE: 5,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        mergeDeltaE: 5,
+        topN: 10,
+      },
+    );
 
     expect(hexes(result)).toEqual(["#0000FF", "#FF0000"]);
     expect(result[0].coverage).toBeCloseTo(2048 / 3072, 5);
@@ -98,10 +101,13 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, 16, 0, 128, 0, 255);
     fillDeterministicTexture(pixels, width, 0, 16, width, 48);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        topN: 10,
+      },
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0].hex).toMatch(/^#00[0-9A-F]{2}00$/);
@@ -124,10 +130,13 @@ describe("robustExtractPalette", () => {
       }
     }
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        topN: 10,
+      },
+    );
 
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result.every((color) => color.hsl.s === 0)).toBe(true);
@@ -142,11 +151,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, 16, 16, 255, 0, 0, 255);
     fillRect(pixels, width, 16, 0, 16, 16, 128, 128, 128, 255);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      mergeDeltaE: 5,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        mergeDeltaE: 5,
+        topN: 10,
+      },
+    );
 
     expect(hexes(result)).toContain("#FFFFFF");
     expect(hexes(result)).toContain("#FF0000");
@@ -191,11 +203,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, height, 255, 255, 255, 255);
     fillRect(pixels, width, 0, 0, width, 2, 236, 158, 87, 255); // 256px orange bar
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      mergeDeltaE: 5,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        mergeDeltaE: 5,
+        topN: 10,
+      },
+    );
 
     const orange = result.find((c) => c.coverage < 0.003 && c.hsl.s > 0);
     expect(orange).toBeDefined();
@@ -211,12 +226,15 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, height, 255, 255, 255, 255);
     fillRect(pixels, width, 0, 0, 8, 8, 236, 158, 87, 255); // 64px speck < 150
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      mergeDeltaE: 5,
-      topN: 10,
-      accentMinPixels: 150,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        mergeDeltaE: 5,
+        topN: 10,
+        accentMinPixels: 150,
+      },
+    );
 
     expect(result.every((c) => c.hsl.s === 0)).toBe(true);
   });
@@ -231,11 +249,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, 48, 0x20, 0x66, 0x4a, 255); // vivid green
     fillRect(pixels, width, 0, 48, width, 48, 0xad, 0xb5, 0xc5, 255); // muted blue-grey
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      mergeDeltaE: 5,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        mergeDeltaE: 5,
+        topN: 10,
+      },
+    );
 
     const greenIdx = result.findIndex((c) => c.hsl.h > 120 && c.hsl.h < 180);
     const mutedIdx = result.findIndex((c) => c.hsl.h >= 180 && c.hsl.h < 260);
@@ -252,11 +273,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, 16, 220, 40, 40, 255);
     fillRect(pixels, width, 0, 16, width, 16, 222, 38, 42, 255);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      mergeDeltaE: 6,
-      quantBits: 6,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        mergeDeltaE: 6,
+        quantBits: 6,
+        topN: 10,
+      },
+    );
 
     expect(result).toHaveLength(1);
   });
@@ -269,11 +293,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 0, width, 16, 255, 0, 0, 255);
     fillRect(pixels, width, 0, 16, width, 16, 0, 0, 255, 255);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      mergeDeltaE: 6,
-      quantBits: 6,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        mergeDeltaE: 6,
+        quantBits: 6,
+        topN: 10,
+      },
+    );
 
     expect(hexes(result).sort()).toEqual(["#0000FF", "#FF0000"]);
   });
@@ -285,10 +312,13 @@ describe("robustExtractPalette", () => {
 
     fillRect(pixels, width, 0, 0, width, height, 255, 0, 0, 10);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      alphaThreshold: 64,
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        alphaThreshold: 64,
+        topN: 10,
+      },
+    );
 
     expect(result).toEqual([]);
   });
@@ -300,9 +330,12 @@ describe("robustExtractPalette", () => {
 
     fillDeterministicTexture(pixels, width, 0, 0, width, height);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      topN: 10,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        topN: 10,
+      },
+    );
 
     expect(result).toEqual([]);
   });
@@ -342,11 +375,14 @@ describe("robustExtractPalette", () => {
     fillRect(pixels, width, 0, 48, width, 16, 255, 255, 0, 255);
     fillRect(pixels, width, 0, 64, width, 16, 255, 0, 255, 255);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      mergeDeltaE: 5,
-      topN: 3,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        mergeDeltaE: 5,
+        topN: 3,
+      },
+    );
 
     expect(result).toHaveLength(3);
   });
@@ -358,10 +394,13 @@ describe("robustExtractPalette", () => {
 
     fillRect(pixels, width, 0, 0, width, height, 100, 150, 200, 255);
 
-    const result = robustExtractPalette([makeImage("a", pixels, width, height)], {
-      quantBits: 6,
-      topN: 5,
-    });
+    const result = robustExtractPalette(
+      [makeImage("a", pixels, width, height)],
+      {
+        quantBits: 6,
+        topN: 5,
+      },
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0].hex).toMatch(/^#[0-9A-F]{6}$/);
