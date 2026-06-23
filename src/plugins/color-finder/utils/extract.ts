@@ -1,6 +1,30 @@
 import { PaletteColor, SourceNodeRef } from "../types";
 import { hexToHsl } from "./color";
 
+/**
+ * Pure palette extractor for raster UI screenshots. No Figma/DOM dependency —
+ * operates on plain RGBA buffers so it can be unit-tested directly.
+ *
+ * Two ideas drive it, both chosen after measuring real screenshots:
+ *
+ *  1. Photo rejection by COLOUR DIVERSITY, not luminance variance. A flat UI
+ *     region — even a button with a text label or an icon-laden toolbar — uses
+ *     only a handful of distinct colours per tile. A photograph (avatar, hero,
+ *     thumbnail) is a texture: dozens of distinct colours per tile. We mask a
+ *     tile when its distinct-colour count exceeds `maxTileColors`. Luminance
+ *     variance cannot tell "orange button + white text" (high contrast, 2
+ *     colours, WANTED) from a photo (high contrast, many colours), and was
+ *     deleting ~99% of accent pixels. Note: this deliberately treats a smooth
+ *     gradient as UI (few distinct colours per small tile), not as a photo.
+ *
+ *  2. Selection by per-image PROMINENCE + saturation, not global area. A brand
+ *     accent (e.g. an orange CTA) may be only ~0.3% of a page and appear in one
+ *     screenshot out of many; ranking by global pixel area buries it under
+ *     white/grey chrome. We score each colour by its peak per-image coverage
+ *     and keep saturated colours at a far lower threshold than neutrals, so
+ *     vivid accents survive without letting photographic noise through.
+ */
+
 interface PixelData {
   pixels: Uint8ClampedArray;
   width: number;
@@ -11,9 +35,17 @@ interface PixelData {
 
 export interface ExtractorOptions {
   tileSize?: number;
-  varianceThreshold?: number;
+  // A tile with more than this many distinct quantized colours is treated as
+  // photographic and masked out. Flat/text-heavy UI stays well below it.
+  maxTileColors?: number;
   quantBits?: number;
-  coverageThreshold?: number;
+  // Saturation (0..1) at or above which a colour counts as an "accent" and is
+  // kept at the lower `accentKeep` prominence threshold instead of `neutralKeep`.
+  accentSatThreshold?: number;
+  // Min peak per-image coverage (0..1) to keep a neutral (low-saturation) colour.
+  neutralKeep?: number;
+  // Min peak per-image coverage (0..1) to keep a saturated accent colour.
+  accentKeep?: number;
   mergeDeltaE?: number;
   topN?: number;
   alphaThreshold?: number;
@@ -21,11 +53,13 @@ export interface ExtractorOptions {
 
 const DEFAULTS: Required<ExtractorOptions> = {
   tileSize: 16,
-  varianceThreshold: 50,
+  maxTileColors: 28,
   quantBits: 5,
-  coverageThreshold: 0.007,
-  mergeDeltaE: 5,
-  topN: 16,
+  accentSatThreshold: 0.15,
+  neutralKeep: 0.02,
+  accentKeep: 0.003,
+  mergeDeltaE: 6,
+  topN: 24,
   alphaThreshold: 64,
 };
 
@@ -50,15 +84,23 @@ function dequantize(q: number, bits: number): number {
   return Math.round((q / levels) * 255);
 }
 
-function rgbToLab(
-  r: number,
-  g: number,
-  b: number,
-): {
+// HSL saturation (0..1) — used to tell accents from neutrals.
+function saturationOf(r: number, g: number, b: number): number {
+  const mx = Math.max(r, g, b) / 255;
+  const mn = Math.min(r, g, b) / 255;
+  const d = mx - mn;
+  if (d === 0) return 0;
+  const l = (mx + mn) / 2;
+  return d / (1 - Math.abs(2 * l - 1));
+}
+
+interface Lab {
   l: number;
   a: number;
   b: number;
-} {
+}
+
+function rgbToLab(r: number, g: number, b: number): Lab {
   let rr = r / 255;
   let gg = g / 255;
   let bb = b / 255;
@@ -78,17 +120,10 @@ function rgbToLab(
   return { l: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
 }
 
-function deltaE(
-  l1: number,
-  a1: number,
-  b1: number,
-  l2: number,
-  a2: number,
-  b2: number,
-): number {
-  const dl = l1 - l2;
-  const da = a1 - a2;
-  const db = b1 - b2;
+function deltaE(p: Lab, q: Lab): number {
+  const dl = p.l - q.l;
+  const da = p.a - q.a;
+  const db = p.b - q.b;
   return Math.sqrt(dl * dl + da * da + db * db);
 }
 
@@ -108,213 +143,176 @@ export function robustExtractPalette(
   return robustExtractWithSummary(imageData, options).palette;
 }
 
+// A colour accumulated across the whole batch, keyed by its quantized RGB.
+interface Aggregate {
+  r: number;
+  g: number;
+  b: number;
+  // Peak per-image coverage (0..1): how prominent this colour is in the single
+  // image where it is most prominent. This is what we rank/threshold on.
+  prominence: number;
+  sourceIds: Set<string>;
+}
+
 export function robustExtractWithSummary(
   imageData: PixelData[],
   options: ExtractorOptions = {},
 ): ExtractionResult {
   const {
     tileSize,
-    varianceThreshold,
+    maxTileColors,
     quantBits,
-    coverageThreshold,
+    accentSatThreshold,
+    neutralKeep,
+    accentKeep,
     mergeDeltaE,
     topN,
     alphaThreshold,
   } = { ...DEFAULTS, ...options };
 
-  const bins = new Map<number, { count: number; sourceIds: Set<string> }>();
-  let totalSurvivingPixels = 0;
+  const agg = new Map<number, Aggregate>();
   let photoTilesMasked = 0;
   const contributingImageIds = new Set<string>();
 
   for (const img of imageData) {
     const { pixels, width, height, imageId } = img;
 
-    const { mask: flatMask, flatTiles, totalTiles } = computeVarianceMask(
+    const { mask, flatTiles, totalTiles } = computeDiversityMask(
       pixels,
       width,
       height,
       tileSize,
-      varianceThreshold,
+      quantBits,
+      maxTileColors,
+      alphaThreshold,
     );
     photoTilesMasked += totalTiles - flatTiles;
 
-    let imgHadFlatPixels = false;
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        if (!flatMask[y * width + x]) continue;
-
-        const i = (y * width + x) * 4;
-        const a = pixels[i + 3];
-        if (a < alphaThreshold) continue;
-
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-
-        const qr = quantize(r, quantBits);
-        const qg = quantize(g, quantBits);
-        const qb = quantize(b, quantBits);
-
-        const key = (qr << (2 * quantBits)) | (qg << quantBits) | qb;
-        totalSurvivingPixels++;
-        imgHadFlatPixels = true;
-
-        const entry = bins.get(key);
-        if (entry) {
-          entry.count++;
-          entry.sourceIds.add(imageId);
-        } else {
-          bins.set(key, {
-            count: 1,
-            sourceIds: new Set([imageId]),
-          });
-        }
-      }
+    // Histogram the surviving (flat) pixels for THIS image.
+    const counts = new Map<number, number>();
+    let imgSurviving = 0;
+    for (let p = 0; p < width * height; p++) {
+      if (!mask[p]) continue;
+      const i = p * 4;
+      if (pixels[i + 3] < alphaThreshold) continue;
+      const key =
+        (quantize(pixels[i], quantBits) << (2 * quantBits)) |
+        (quantize(pixels[i + 1], quantBits) << quantBits) |
+        quantize(pixels[i + 2], quantBits);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+      imgSurviving++;
     }
 
-    if (imgHadFlatPixels) {
-      contributingImageIds.add(imageId);
+    if (imgSurviving === 0) continue;
+    contributingImageIds.add(imageId);
+
+    // Fold this image's per-colour coverage into the batch, tracking the PEAK
+    // per-image coverage (prominence) rather than summing — a colour vivid in
+    // one screenshot must not be diluted by every other screenshot.
+    for (const [key, count] of counts) {
+      const coverage = count / imgSurviving;
+      const existing = agg.get(key);
+      if (existing) {
+        existing.prominence = Math.max(existing.prominence, coverage);
+        existing.sourceIds.add(imageId);
+      } else {
+        const qb = key & ((1 << quantBits) - 1);
+        const qg = (key >> quantBits) & ((1 << quantBits) - 1);
+        const qr = (key >> (2 * quantBits)) & ((1 << quantBits) - 1);
+        agg.set(key, {
+          r: dequantize(qr, quantBits),
+          g: dequantize(qg, quantBits),
+          b: dequantize(qb, quantBits),
+          prominence: coverage,
+          sourceIds: new Set([imageId]),
+        });
+      }
     }
   }
 
   const imagesMasked = imageData.length - contributingImageIds.size;
+  const summary = {
+    imagesContributed: contributingImageIds.size,
+    imagesMasked,
+    photoTilesMasked,
+  };
 
-  if (totalSurvivingPixels === 0) {
-    return {
-      palette: [],
-      summary: {
-        imagesContributed: contributingImageIds.size,
-        imagesMasked,
-        photoTilesMasked,
-      },
-    };
-  }
+  // Two-track keep: accents (saturated) survive at a far lower prominence than
+  // neutrals, so a small but vivid brand colour is not filtered out.
+  const candidates = [...agg.values()]
+    .filter((c) => {
+      const sat = saturationOf(c.r, c.g, c.b);
+      const threshold = sat >= accentSatThreshold ? accentKeep : neutralKeep;
+      return c.prominence >= threshold;
+    })
+    .map((c) => ({ ...c, lab: rgbToLab(c.r, c.g, c.b) }));
 
-  const minCount = coverageThreshold * totalSurvivingPixels;
+  // Anchor clusters on the most prominent colours first.
+  candidates.sort((a, b) => b.prominence - a.prominence);
 
-  const candidates: {
-    r: number;
-    g: number;
-    b: number;
-    lab: { l: number; a: number; b: number };
-    count: number;
-    sourceIds: string[];
-  }[] = [];
-
-  for (const [key, entry] of bins) {
-    if (entry.count < minCount) continue;
-
-    const qb = key & ((1 << quantBits) - 1);
-    const qg = (key >> quantBits) & ((1 << quantBits) - 1);
-    const qr = (key >> (2 * quantBits)) & ((1 << quantBits) - 1);
-
-    const r = dequantize(qr, quantBits);
-    const g = dequantize(qg, quantBits);
-    const b = dequantize(qb, quantBits);
-
-    candidates.push({
-      r,
-      g,
-      b,
-      lab: rgbToLab(r, g, b),
-      count: entry.count,
-      sourceIds: [...entry.sourceIds],
-    });
-  }
-
-  candidates.sort((a, b) => b.count - a.count);
-
-  const merged: {
-    r: number;
-    g: number;
-    b: number;
-    lab: { l: number; a: number; b: number };
-    count: number;
-    sourceIds: string[];
-  }[] = [];
-
+  const merged: (Aggregate & { lab: Lab })[] = [];
   for (const cand of candidates) {
-    let bestIdx = -1;
-    let bestDist = Infinity;
-
-    for (let i = 0; i < merged.length; i++) {
-      const m = merged[i];
-      const de = deltaE(
-        cand.lab.l,
-        cand.lab.a,
-        cand.lab.b,
-        m.lab.l,
-        m.lab.a,
-        m.lab.b,
-      );
-      if (de < mergeDeltaE && de < bestDist) {
-        bestDist = de;
-        bestIdx = i;
+    let target: (Aggregate & { lab: Lab }) | null = null;
+    for (const m of merged) {
+      if (deltaE(cand.lab, m.lab) < mergeDeltaE) {
+        target = m;
+        break;
       }
     }
-
-    if (bestIdx >= 0) {
-      const m = merged[bestIdx];
-      const total = m.count + cand.count;
-      const wr = m.count / total;
-      const wc = cand.count / total;
-      m.r = Math.round(m.r * wr + cand.r * wc);
-      m.g = Math.round(m.g * wr + cand.g * wc);
-      m.b = Math.round(m.b * wr + cand.b * wc);
-      m.lab = rgbToLab(m.r, m.g, m.b);
-      m.count = total;
-      for (const sid of cand.sourceIds) {
-        if (!m.sourceIds.includes(sid)) m.sourceIds.push(sid);
-      }
+    if (target) {
+      // Weight the centroid by prominence; keep the peak prominence.
+      const total = target.prominence + cand.prominence;
+      target.r = Math.round(
+        (target.r * target.prominence + cand.r * cand.prominence) / total,
+      );
+      target.g = Math.round(
+        (target.g * target.prominence + cand.g * cand.prominence) / total,
+      );
+      target.b = Math.round(
+        (target.b * target.prominence + cand.b * cand.prominence) / total,
+      );
+      target.lab = rgbToLab(target.r, target.g, target.b);
+      target.prominence = Math.max(target.prominence, cand.prominence);
+      for (const sid of cand.sourceIds) target.sourceIds.add(sid);
     } else {
-      merged.push({ ...cand, sourceIds: [...cand.sourceIds] });
+      merged.push({ ...cand, sourceIds: new Set(cand.sourceIds) });
     }
   }
 
-  merged.sort((a, b) => b.count - a.count);
+  merged.sort((a, b) => b.prominence - a.prominence);
   const top = merged.slice(0, topN);
 
   const imageIdToSource = new Map<string, SourceNodeRef>();
-  for (const img of imageData) {
-    imageIdToSource.set(img.imageId, img.source);
-  }
+  for (const img of imageData) imageIdToSource.set(img.imageId, img.source);
 
-  const palette = top.map((c) => {
+  const palette: PaletteColor[] = top.map((c) => {
     const hex = rgbToHexRounded(c.r, c.g, c.b);
     return {
       hex,
       hsl: hexToHsl(hex),
-      coverage: c.count / totalSurvivingPixels,
-      foundIn: c.sourceIds
+      // `coverage` here is peak per-image prominence (0..1).
+      coverage: c.prominence,
+      foundIn: [...c.sourceIds]
         .map((sid) => imageIdToSource.get(sid))
         .filter((s): s is SourceNodeRef => !!s),
     };
   });
 
-  return {
-    palette,
-    summary: {
-      imagesContributed: contributingImageIds.size,
-      imagesMasked,
-      photoTilesMasked,
-    },
-  };
+  return { palette, summary };
 }
 
-// Per-tile flatness test by luminance variance: a tile is "flat" (kept) when
-// its luminance variance is at/below the threshold, else it is treated as
-// photographic and masked out. Returns the per-pixel keep mask plus tile
-// tallies so the caller can report how many tiles were masked without a
-// second pass. Note: luminance-only — a tile that varies in hue/chroma at
-// near-constant luminance reads as flat; acceptable for UI screenshots.
-function computeVarianceMask(
+// Per-tile photo test by colour diversity: a tile is "flat" (kept) when it has
+// at most `maxColors` distinct quantized colours, else it is treated as
+// photographic and masked. Returns the per-pixel keep mask plus tile tallies so
+// the caller can report how many tiles were masked without a second pass.
+function computeDiversityMask(
   pixels: Uint8ClampedArray,
   width: number,
   height: number,
   tileSize: number,
-  varianceThreshold: number,
+  quantBits: number,
+  maxColors: number,
+  alphaThreshold: number,
 ): { mask: boolean[]; flatTiles: number; totalTiles: number } {
   const mask = new Array<boolean>(width * height).fill(false);
 
@@ -329,25 +327,22 @@ function computeVarianceMask(
       const x1 = Math.min(x0 + tileSize, width);
       const y1 = Math.min(y0 + tileSize, height);
 
-      let sumLum = 0;
-      let sumSq = 0;
-      let n = 0;
-
+      const colors = new Set<number>();
+      let opaque = 0;
       for (let y = y0; y < y1; y++) {
         for (let x = x0; x < x1; x++) {
           const i = (y * width + x) * 4;
-          const lum =
-            0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
-          sumLum += lum;
-          sumSq += lum * lum;
-          n++;
+          if (pixels[i + 3] < alphaThreshold) continue;
+          colors.add(
+            (quantize(pixels[i], quantBits) << (2 * quantBits)) |
+              (quantize(pixels[i + 1], quantBits) << quantBits) |
+              quantize(pixels[i + 2], quantBits),
+          );
+          opaque++;
         }
       }
 
-      const meanLum = sumLum / n;
-      const variance = sumSq / n - meanLum * meanLum;
-
-      if (variance <= varianceThreshold) {
+      if (opaque > 0 && colors.size <= maxColors) {
         flatTiles++;
         for (let y = y0; y < y1; y++) {
           for (let x = x0; x < x1; x++) {
