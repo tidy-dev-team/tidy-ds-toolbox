@@ -352,12 +352,12 @@ export function TidyColorFinderUI() {
       <Card title="Mode">
         <div style={{ display: "flex", gap: 8 }}>
           <QuickButton
-            label="Tidy DS colors"
+            label="From elements"
             active={mode === "vector"}
             onClick={() => setMode("vector")}
           />
           <QuickButton
-            label="Extract palette from images"
+            label="From images"
             active={mode === "image-palette"}
             onClick={() => setMode("image-palette")}
           />
