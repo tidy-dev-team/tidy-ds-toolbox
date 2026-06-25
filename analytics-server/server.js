@@ -70,6 +70,23 @@ function normalize(e) {
 
 const app = express();
 app.disable("x-powered-by");
+
+// CORS (#43). The sender is the Figma plugin UI iframe — a cross-origin,
+// often `null`-origin caller — and the Authorization header makes POST /events
+// a preflighted request. Allow any origin (there is no cookie/credential auth,
+// only the bearer token) and answer the preflight, or events never arrive.
+app.use((req, res, next) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Max-Age", "86400");
+  if (req.method === "OPTIONS") {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
+
 app.use(express.json({ limit: "1mb" }));
 
 // Unauthenticated liveness probe for nginx / manual checks. Reveals nothing.

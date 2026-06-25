@@ -197,6 +197,10 @@ export function ShellProvider({ children }: { children: ReactNode }) {
           case "module-loaded":
             // Handle module loaded
             break;
+          case "usage-event":
+            // Analytics relay (#43) — consumed by the usage transport's own
+            // window listener, not the shell. Ignore here to avoid noise.
+            break;
           case "response":
             // Handle storage response
             if (message.requestId === "restore-module" && message.result) {

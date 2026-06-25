@@ -22,10 +22,16 @@ test/sample-events.json         a 2-event batch for curl testing
 
 ## Target box (recon, 2026-06)
 
-Ubuntu 24.04 · public IP `204.48.22.123` · Node v22.19.0 · nginx + certbot 5.6.0
+Ubuntu 24.04 · public IP `204.48.22.123` · **Node v19.9.0** (below package.json
+`engines >=20` — `npm ci` only warns, runs fine) · nginx 1.24 + certbot 5.6.0
 already fronting the `tidyframework.com` family · two Postgres clusters
-(`5432` primary, `5433`) · MySQL · ~367 MB RAM free + 2 GB swap. Reuse nginx and
-Postgres; **no Docker**. Free localhost port chosen: **8091**.
+(**PG 14 on `5432` primary**, PG 16 on `5433`) · MySQL · ~960 MB RAM total,
+~450 MB available + 2 GB swap. Reuse nginx and Postgres; **no Docker**. Free
+localhost port chosen: **8091**.
+
+> **As-deployed: 2026-06-25 — live at `https://toolbox-logs.wearekido.dev`.**
+> The deploy diverged from the original plan in four ways; each has a note inline
+> below (search "⚠️ gotcha"). RAM is tight — Metabase (#45) will need swap headroom.
 
 ---
 
@@ -51,8 +57,21 @@ npm ci --omit=dev   # or: npm install --omit=dev
 
 ### 2. Database
 
-Confirm the primary cluster first: `pg_lsclusters`. Pick a real password for
-each role, then:
+Confirm the primary cluster first: `pg_lsclusters` (here: PG 14 on `5432`).
+
+> **⚠️ gotcha — `sudo -u postgres psql` may demand a password.** This box's
+> `pg_hba.conf` singled out the `postgres` user for `md5` (line `local all
+> postgres md5`) while everyone else used `peer`, and the password was unknown.
+> Fix: switch that one line to `peer` (the Ubuntu default; sudo-gated, scoped to
+> the `postgres` user — the apps use TCP/scram and are unaffected):
+> ```bash
+> sudo cp /etc/postgresql/14/main/pg_hba.conf{,.bak}
+> sudo sed -i '/^local\s\+all\s\+postgres\s\+/s/md5/peer/' /etc/postgresql/14/main/pg_hba.conf
+> sudo systemctl reload postgresql@14-main
+> sudo -u postgres psql -p 5432 -c 'SELECT current_user;'   # no password now
+> ```
+
+Pick a real password for each role, then:
 
 ```bash
 sudo -u postgres psql -p 5432 -f /opt/toolbox-logs/sql/01_roles_and_db.sql
@@ -109,29 +128,90 @@ sudo -u postgres psql -p 5432 -d toolbox_logs \
 
 ### 6. nginx + TLS (needs DNS — the last acceptance criterion)
 
-Once `toolbox-logs.wearekido.dev` A-record → `204.48.22.123` resolves:
+Add the DNS A-record first: `toolbox-logs.wearekido.dev → 204.48.22.123`
+(Namecheap → wearekido.dev → Advanced DNS → A Record, host `toolbox-logs`).
+Verify with `dig +short toolbox-logs.wearekido.dev` before continuing.
+
+**Issue the cert without letting certbot edit nginx** (`certonly`, not the
+installer — see the gotcha below). The `--nginx` *authenticator* still answers
+the HTTP-01 challenge via the running nginx; it just won't rewrite any vhost:
 
 ```bash
-sudo cp /opt/toolbox-logs/deploy/nginx-toolbox-logs.conf \
-  /etc/nginx/sites-available/toolbox-logs.wearekido.dev
-sudo ln -s /etc/nginx/sites-available/toolbox-logs.wearekido.dev /etc/nginx/sites-enabled/
+sudo certbot certonly --nginx -d toolbox-logs.wearekido.dev
+```
+
+Now enable our vhost (which already carries the 443 block + cert paths) and wire
+up the explicit include:
+
+```bash
+sudo cp /opt/toolbox-logs/deploy/nginx-toolbox-logs.conf /etc/nginx/sites-available/toolbox-logs
+sudo ln -s /etc/nginx/sites-available/toolbox-logs /etc/nginx/sites-enabled/toolbox-logs
+sudo sed -i '/sites-enabled\/kido-staging;/a\    include /etc/nginx/sites-enabled/toolbox-logs;' /etc/nginx/nginx.conf
 sudo nginx -t && sudo systemctl reload nginx
-sudo certbot --nginx -d toolbox-logs.wearekido.dev   # adds the 443 block + redirect
 ```
 
-Then end-to-end:
+Confirm it loaded: `sudo nginx -T 2>/dev/null | grep -c 'server_name toolbox-logs.wearekido.dev'` should be ≥ 2 (the 80 + 443 blocks).
+
+> **⚠️ gotcha — this box does NOT use `include sites-enabled/*`.** `nginx.conf`
+> lists each vhost with its own `include` line, so the symlink is **not enough**
+> on its own — hence the `sed` that adds the include after the last existing one.
+
+> **⚠️ gotcha — why `certonly`, not plain `certbot --nginx`.** On the live deploy,
+> the `--nginx` *installer* injected the toolbox-logs `server` blocks into an
+> *unrelated* vhost file (`sites-available/tidyframework.com`) and made the 443
+> block a `return 301 https://$host$request_uri` **on the SSL listener itself** —
+> an infinite HTTPS→HTTPS redirect loop (`curl` returns 301 with `Location:` = the
+> same URL). Issuance succeeded, but routing was broken. `certonly` issues the
+> cert and leaves our hand-written vhost to own the domain, avoiding the whole
+> mess. If you ever do get bitten: `grep -rln toolbox-logs.wearekido.dev
+> /etc/nginx/sites-available/`, delete certbot's injected blocks, reload.
+
+Then end-to-end over the public endpoint (`--json` sets the content-type and
+implies POST; keeps the line short):
 
 ```bash
-curl -s -X POST https://toolbox-logs.wearekido.dev/events \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-  --data @/opt/toolbox-logs/test/sample-events.json
+TOKEN=$(sudo grep '^INGEST_TOKEN=' /etc/toolbox-logs.env | cut -d= -f2)
+curl -s https://toolbox-logs.wearekido.dev/events \
+  -H "Authorization: Bearer $TOKEN" --json @/opt/toolbox-logs/test/sample-events.json
 ```
 
-## Client contract (for #43)
+## Client (#43, shipped)
 
-The plugin UI thread sends `POST /events` with:
-- header `Authorization: Bearer <INGEST_TOKEN>` (same token baked into the build)
-- body: a JSON array of `UsageEvent` (camelCase, see `src/shared/analytics/types.ts`)
+The plugin transport is implemented and verified end-to-end (events flow
+Figma → Postgres). How it works:
 
-The service ignores the response (fire-and-forget); it returns `{inserted:n}` on
-2xx, `401` if the token is wrong, `400` if the body isn't an array.
+- The plugin thread can't do network, so `code.ts` registers a relay
+  (`setUsageRelay` in `src/shared/analytics/capture.ts`) that forwards every
+  captured `UsageEvent` to the UI thread via `figma.ui.postMessage`.
+- The UI thread (`src/shared/analytics/transport.ts`) listens for those messages
+  and does a **fire-and-forget** `POST /events`:
+  - header `Authorization: Bearer <INGEST_TOKEN>` (same token baked into the build)
+  - body: a JSON array of `UsageEvent` (camelCase, see `src/shared/analytics/types.ts`)
+  - one event per request in this slice; batching is #44.
+- The send is fully isolated: any failure (server down, offline, non-2xx) is
+  swallowed and never blocks, delays, or throws into a user action.
+
+The service ignores the response either way; it returns `{inserted:n}` on 2xx,
+`401` if the token is wrong, `400` if the body isn't an array.
+
+### Building the plugin with the token
+
+The endpoint + token are injected at build time by Vite `define` (see
+`vite.config.ts`). The token comes from the `TIDY_INGEST_TOKEN` env var and is
+**never committed**; a build without it ships an empty token, which disables
+sending entirely (safe for ordinary dev builds):
+
+```bash
+TIDY_INGEST_TOKEN="$(ssh tidy@204.48.22.123 'sudo grep ^INGEST_TOKEN= /etc/toolbox-logs.env | cut -d= -f2')" npm run build
+```
+
+`manifest.json` `networkAccess.allowedDomains` is the single ingest origin
+(`https://toolbox-logs.wearekido.dev`); production builds reach nothing else.
+
+### CORS
+
+The Figma plugin UI iframe is a cross-origin (`null`-origin) caller and the
+`Authorization` header makes `POST /events` a *preflighted* request, so the
+service answers `OPTIONS` and sends `Access-Control-Allow-Origin: *` plus the
+allowed headers/methods. Without this the browser preflight fails and **no
+events arrive** — see the CORS middleware in `server.js`.

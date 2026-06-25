@@ -9,7 +9,7 @@ import {
 } from "./shared/error-handler";
 import { createLogger } from "./shared/logging";
 import { bindSession } from "./shared/operations/registry";
-import { captureUsage } from "./shared/analytics/capture";
+import { captureUsage, setUsageRelay } from "./shared/analytics/capture";
 import { dumpUsageEvents } from "./shared/analytics/buffer";
 
 // Configuration
@@ -48,6 +48,14 @@ bindSession(`sess_${figma.fileKey ?? "unknown"}_${Date.now().toString(36)}`);
 // production (reads in-memory state only). See issues #36–#38 and
 // docs/prd-usage-analytics-phase1.md (FR8).
 (globalThis as Record<string, unknown>).__dumpUsageEvents = dumpUsageEvents;
+
+// Usage analytics (Phase 2, #43): the plugin thread cannot do network, so relay
+// each captured event to the UI thread, which POSTs it to the ingest endpoint.
+// figma.ui exists (showUI ran above); the send is fire-and-forget on the UI side
+// and the relay itself is wrapped so it can never affect a user action (FR4).
+setUsageRelay((event) => {
+  figma.ui.postMessage({ type: "usage-event", event });
+});
 
 // Module handlers map
 const handlers: Record<

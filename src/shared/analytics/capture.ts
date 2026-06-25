@@ -94,11 +94,32 @@ export function buildEvent(
   };
 }
 
+// Optional sink for shipping events off the plugin thread (#43). The plugin
+// thread cannot do network, so code.ts registers a relay that forwards each
+// event to the UI thread (which posts it to the ingest endpoint). Null by
+// default so tests and any non-figma context allocate/send nothing.
+let relaySink: ((event: UsageEvent) => void) | null = null;
+
+export function setUsageRelay(
+  relay: ((event: UsageEvent) => void) | null,
+): void {
+  relaySink = relay;
+}
+
 // FR8: emit a structured event to the console (clearly tagged) and the ring buffer.
 export function emitUsageEvent(event: UsageEvent): void {
   // eslint-disable-next-line no-console
   console.log("[usage]", JSON.stringify(event));
   appendUsageEvent(event);
+  // Relay to the UI for transmission (#43). Isolated: a relay failure must
+  // never propagate into the captured user action (FR9 / FR4).
+  if (relaySink) {
+    try {
+      relaySink(event);
+    } catch {
+      // swallow — instrumentation must never affect a user action.
+    }
+  }
 }
 
 // Single entry point from code.ts. Never throws (FR9).

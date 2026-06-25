@@ -7,7 +7,7 @@
   "editorType": ["figma"],
   "permissions": ["currentuser"],
   "networkAccess": {
-    "allowedDomains": ["none"],
+    "allowedDomains": ["https://toolbox-logs.wearekido.dev"],
     "devAllowedDomains": ["ws://localhost:9876"]
   }
 }

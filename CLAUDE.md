@@ -13,6 +13,7 @@ npm run build:main     # Build plugin code only
 # Quality
 npm run typecheck      # TypeScript type checking (no emit)
 npm run lint           # ESLint on src/**/*.{ts,tsx}
+npm run test           # Vitest (run mode) — unit tests for *.test.ts
 npm run format         # Prettier format
 npm run format:check   # Check formatting without changes
 
@@ -22,7 +23,9 @@ npm run release:minor  # Bump minor version + commit + tag
 npm run release:push   # Push commits and tags to remote
 ```
 
-There is no test suite.
+Tests run under Vitest (`*.test.ts`, co-located with sources). Coverage is
+partial — pure logic (analytics capture, operations) is tested; UI and Figma-API
+code largely is not.
 
 ## Architecture
 
@@ -77,7 +80,11 @@ Layout:
 - `mcp-server/` — Node MCP server that **listens** on `127.0.0.1:9876` and accepts the plugin's outbound connection (plugin sandbox can't accept inbound, hence inverted server/client roles).
 - `claude-plugin/` — canonical source of the **Claude Code plugin** (`.claude-plugin/plugin.json`, `commands/tidy-*.md`, `skills/`). `npm run build:plugin` bundles the MCP server into it and assembles an installable, marketplace-rooted tree under `dist-plugin/` (version synced from the root `package.json`). The `/tidy-*` commands live here (not in `.claude/commands/`); see `docs/plugin-dev.md` for the local-install dogfood loop. Tools from the plugin-bundled server are namespaced `mcp__plugin_tidy-ds_tidy-ds-toolbox__<op>`.
 
-Production builds disable the bridge: `manifest.json` has `allowedDomains: ["none"]` and the dev socket is allow-listed only under `devAllowedDomains`. Adding a new Operation: implement and register in the module's `operations.ts`, declare it in `mcp-server/src/catalogue.ts` (Zod input schema + summary), rebuild, reload the plugin in Figma.
+Production builds keep the dev WebSocket bridge disabled: the dev socket (`ws://localhost:9876`) is allow-listed only under `devAllowedDomains`, never `allowedDomains`. (`allowedDomains` now holds the single usage-analytics ingest origin — see below.) Adding a new Operation: implement and register in the module's `operations.ts`, declare it in `mcp-server/src/catalogue.ts` (Zod input schema + summary), rebuild, reload the plugin in Figma.
+
+### Usage Analytics (Phase 2)
+
+Anonymous usage events (module opens + actions) ship to a self-hosted pipeline. The plugin thread can't do network, so `src/code.ts` relays each captured event to the UI thread (`setUsageRelay` in `src/shared/analytics/capture.ts`), and `src/shared/analytics/transport.ts` does a **fire-and-forget** `POST /events` (any failure swallowed — never affects a user action). Endpoint + shared token are injected at build time via Vite `define` from `TIDY_INGEST_TOKEN` (never committed; empty token disables sending). The ingest service + deploy runbook live in [`analytics-server/`](analytics-server/README.md); it runs at `https://toolbox-logs.wearekido.dev`, which is the lone entry in `manifest.json` `allowedDomains`. See [`docs/prd-usage-analytics-phase2.md`](docs/prd-usage-analytics-phase2.md).
 
 ## Figma Plugin Development
 

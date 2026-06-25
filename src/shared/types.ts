@@ -31,7 +31,8 @@ export interface ShellMessage {
     | "response"
     | "analyze-png"
     | "no-selection"
-    | "loading";
+    | "loading"
+    | "usage-event";
   payload?: any;
   requestId?: string;
   result?: any;

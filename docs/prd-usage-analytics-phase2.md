@@ -1,7 +1,19 @@
 # PRD — Usage Analytics, Phase 2 (Server Pipeline & Dashboard)
 
-Status: **proposed** · Owner: Dmitri · Date: 2026-06-21 · Depends on: [Phase 1](prd-usage-analytics-phase1.md)
+Status: **in progress** · Owner: Dmitri · Date: 2026-06-21 · Depends on: [Phase 1](prd-usage-analytics-phase1.md)
 Background: [plan](usage-analytics-plan.md)
+
+> **Implementation status (2026-06-25):**
+> - ✅ **#42 — Server pipeline** (ingest + Postgres + TLS): deployed and live at
+>   `https://toolbox-logs.wearekido.dev`. Deploy runbook + gotchas in
+>   [`analytics-server/README.md`](../analytics-server/README.md).
+> - ✅ **#43 — Plugin transport**: relay (`code.ts` → UI) + fire-and-forget
+>   `POST /events` (`src/shared/analytics/transport.ts`), token baked in via
+>   `TIDY_INGEST_TOKEN`, `manifest.json` `allowedDomains` set, server CORS added.
+>   Verified end-to-end (Figma → Postgres).
+> - ⬜ **#44 — Batching** (10 events / ~15s, one POST per flush, in-memory only).
+> - ⬜ **#45 — Metabase dashboard** (views already built in `sql/02_schema.sql`;
+>   droplet RAM is tight — needs swap headroom).
 
 ## 1. Summary
 

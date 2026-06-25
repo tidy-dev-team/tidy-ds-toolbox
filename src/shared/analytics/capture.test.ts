@@ -7,8 +7,10 @@ import {
   getAnalyticsSessionId,
   initAnalyticsSession,
   resetAnalyticsSession,
+  setUsageRelay,
 } from "./capture";
 import { clearUsageBuffer, getBufferSize } from "./buffer";
+import type { UsageEvent } from "./types";
 
 const FIGMA_CTX = {
   fileKey: "abc123",
@@ -25,6 +27,7 @@ const NO_FILE_KEY_CTX = {
 beforeEach(() => {
   resetAnalyticsSession();
   clearUsageBuffer();
+  setUsageRelay(null);
 });
 
 describe("classifyMessage", () => {
@@ -227,5 +230,51 @@ describe("captureUsage (end-to-end)", () => {
       ),
     ).not.toThrow();
     expect(getBufferSize()).toBe(0);
+  });
+});
+
+describe("usage relay (#43)", () => {
+  it("forwards each emitted event to the registered relay", () => {
+    const relayed: UsageEvent[] = [];
+    setUsageRelay((e) => relayed.push(e));
+
+    captureUsage(
+      { target: "audit", action: "generate-report" },
+      FIGMA_CTX,
+      "1.7.0",
+    );
+
+    expect(relayed).toHaveLength(1);
+    expect(relayed[0]).toMatchObject({
+      type: "action",
+      module: "audit",
+      action: "generate-report",
+      fileKey: "abc123",
+    });
+  });
+
+  it("does not relay events that are classified as noise", () => {
+    const relayed: UsageEvent[] = [];
+    setUsageRelay((e) => relayed.push(e));
+
+    captureUsage({ target: "mcp-bridge", action: "dispatch" }, FIGMA_CTX, "x");
+
+    expect(relayed).toHaveLength(0);
+  });
+
+  it("swallows a throwing relay without throwing, still buffering the event (FR4)", () => {
+    setUsageRelay(() => {
+      throw new Error("network exploded");
+    });
+
+    expect(() =>
+      captureUsage(
+        { target: "utilities", action: "do-thing" },
+        FIGMA_CTX,
+        "1.7.0",
+      ),
+    ).not.toThrow();
+    // The relay failure must not stop the event reaching the local buffer.
+    expect(getBufferSize()).toBe(1);
   });
 });
