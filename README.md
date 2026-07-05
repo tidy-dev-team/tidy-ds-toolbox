@@ -13,6 +13,9 @@ A modular Figma plugin suite for design system management and component workflow
 - **Audit** — Annotate, generate, and export design-system audit reports
 - **Release Notes** — Author and publish release notes for a design system
 - **Off-Boarding** — Pack / unpack pages, find bound variables for handoff
+- **Icon Finder** — Search and place icons from the bundled icon database
+- **Color Finder** — Search and apply design-system colors
+- **Tidy Doc** — Generate a Documentation Page for a component or component set (see [`docs/tidy-doc.md`](docs/tidy-doc.md))
 
 ## 🚀 Installation
 
@@ -45,8 +48,11 @@ npm run build
 npm run build:ui      # Build UI (Vite)
 npm run build:main    # Build plugin code (esbuild)
 npm run typecheck     # Run TypeScript type checking
+npm run lint          # Run ESLint on src/**/*.{ts,tsx}
+npm run test          # Run unit tests (Vitest)
 npm run format        # Format code with Prettier
 npm run format:check  # Check code formatting
+npm run build:plugin  # Assemble the Claude Code plugin (mcp-server + claude-plugin/) into dist-plugin/
 npm run release:patch # Version bump (patch)
 npm run release:minor # Version bump (minor)
 npm run release:major # Version bump (major)
