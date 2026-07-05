@@ -63,4 +63,96 @@ describe("DocSpecSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  const validScene = {
+    layout: "row" as const,
+    instances: [{ props: { Type: "Primary" }, labelOverride: "Primary" }],
+  };
+
+  it("accepts a guidelines block with bullet lists and a doDonts pair", () => {
+    const result = DocSpecSchema.safeParse({
+      status: "IDEATION",
+      guidelines: {
+        whenToUse: ["When a single primary action is needed."],
+        doDonts: [
+          {
+            description: "Don't pair two primary buttons in the same row.",
+            good: validScene,
+            bad: { layout: "row", instances: [validScene.instances[0], validScene.instances[0]] },
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a present-but-empty guidelines object (presence-only minimum rule)", () => {
+    const result = DocSpecSchema.safeParse({ status: "LIVE", guidelines: {} });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a doDonts pair missing the bad scene", () => {
+    const result = DocSpecSchema.safeParse({
+      status: "IDEATION",
+      guidelines: { doDonts: [{ description: "ok", good: validScene }] },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a SpecimenScene with zero instances", () => {
+    const result = DocSpecSchema.safeParse({
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "ok",
+            good: { layout: "row", instances: [] },
+            bad: validScene,
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a SpecimenScene with more than 4 instances", () => {
+    const result = DocSpecSchema.safeParse({
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "ok",
+            good: { layout: "row", instances: Array(5).fill(validScene.instances[0]) },
+            bad: validScene,
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a doDonts array longer than 6 pairs", () => {
+    const pair = { description: "ok", good: validScene, bad: validScene };
+    const result = DocSpecSchema.safeParse({
+      status: "IDEATION",
+      guidelines: { doDonts: Array(7).fill(pair) },
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an invalid SpecimenScene layout", () => {
+    const result = DocSpecSchema.safeParse({
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "ok",
+            good: { layout: "diagonal", instances: [validScene.instances[0]] },
+            bad: validScene,
+          },
+        ],
+      },
+    });
+    expect(result.success).toBe(false);
+  });
 });

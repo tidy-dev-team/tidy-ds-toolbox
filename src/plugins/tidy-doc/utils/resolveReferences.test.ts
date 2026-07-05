@@ -65,4 +65,100 @@ describe("resolveDocSpecReferences", () => {
     const result = resolveDocSpecReferences(spec, facts);
     expect(result.unresolved).toEqual([]);
   });
+
+  it("resolves a doDonts SpecimenScene whose props match real axis values", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "Don't show two primaries side by side.",
+            good: { layout: "row", instances: [{ props: { Type: "Primary" } }] },
+            bad: {
+              layout: "row",
+              instances: [
+                { props: { Type: "Primary" } },
+                { props: { Type: "Primary" } },
+              ],
+            },
+          },
+        ],
+      },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toEqual([]);
+  });
+
+  it("flags an unknown axis name in a doDonts scene as kind=axisName", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "typo'd axis name",
+            good: { layout: "row", instances: [{ props: { Typ: "Primary" } }] },
+            bad: { layout: "row", instances: [{ props: { Type: "Primary" } }] },
+          },
+        ],
+      },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toHaveLength(1);
+    expect(result.unresolved[0]).toMatchObject({
+      kind: "axisName",
+      value: "Typ",
+      didYouMean: "Type",
+    });
+    expect(result.unresolved[0].slot).toBe("guidelines.doDonts[0].good.instances[0].props");
+  });
+
+  it("flags an unknown axis value in a doDonts scene as kind=axisValue", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "typo'd value",
+            good: { layout: "row", instances: [{ props: { Type: "Primry" } }] },
+            bad: { layout: "row", instances: [{ props: { Type: "Primary" } }] },
+          },
+        ],
+      },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toEqual([
+      {
+        slot: "guidelines.doDonts[0].good.instances[0].props.Type",
+        kind: "axisValue",
+        value: "Primry",
+        didYouMean: "Primary",
+      },
+    ]);
+  });
+
+  it("batches unresolved refs across both good and bad scenes of multiple pairs", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "pair 0",
+            good: { layout: "row", instances: [{ props: { Type: "Bogus" } }] },
+            bad: { layout: "row", instances: [{ props: { State: "Hover" } }] },
+          },
+          {
+            description: "pair 1",
+            good: { layout: "row", instances: [{ props: { Type: "Primary" } }] },
+            bad: { layout: "row", instances: [{ props: { State: "Zzzzz" } }] },
+          },
+        ],
+      },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toHaveLength(2);
+    expect(result.unresolved.map((u) => u.slot)).toEqual([
+      "guidelines.doDonts[0].good.instances[0].props.Type",
+      "guidelines.doDonts[1].bad.instances[0].props.State",
+    ]);
+  });
 });

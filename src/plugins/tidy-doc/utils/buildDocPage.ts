@@ -11,6 +11,7 @@ import { resolveDocSpecReferences } from "./resolveReferences";
 import { buildSectionCard } from "./buildChrome";
 import { buildVariantsSection } from "./buildVariantsSection";
 import { buildBreakdownSection } from "./buildBreakdownSection";
+import { buildGuidelinesSection } from "./buildGuidelinesSection";
 import type { DocSpec } from "./docSpec";
 
 const PLUGIN_DATA_KEY = "tidy:doc-page";
@@ -99,6 +100,18 @@ export async function buildDocPage(
     );
     breakdownBody.appendChild(breakdownSection);
     root.appendChild(breakdownCard);
+  }
+
+  const guidelinesSection = await buildGuidelinesSection(source, spec, facts);
+  if (guidelinesSection) {
+    const { card: guidelinesCard, body: guidelinesBody } = await buildSectionCard(
+      "guidelines",
+      "Usage Guidelines",
+      source.name,
+      spec.status,
+    );
+    guidelinesBody.appendChild(guidelinesSection);
+    root.appendChild(guidelinesCard);
   }
 
   page.appendChild(root);
