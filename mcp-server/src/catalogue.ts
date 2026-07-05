@@ -239,7 +239,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "tidy-doc",
     summary:
-      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus Variants, Component Breakdown, Mode, Usage Guidelines, and Related Components Sections when their Doc Spec keys and derived facts provide content. Re-running for the same source deletes the prior page and rebuilds fresh. Symbolic references (variant family values, Do/Don't axis values, related sibling names) are resolved against live derived facts and fail with a batched INVALID_PARAMS payload (`details.unresolved`, with `didYouMean` hints)."
+      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus Variants, Component Breakdown, Mode, Usage Guidelines, and Related Components Sections when their Doc Spec keys and derived facts provide content. Re-running for the same source deletes the prior page and rebuilds fresh. Symbolic references (variant family values, Do/Don't axis values, related sibling names) are resolved against live derived facts and fail with a batched INVALID_PARAMS payload (`details.unresolved`, with `didYouMean` hints).",
     inputSchema: {
       nodeId: z
         .string()

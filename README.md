@@ -96,12 +96,14 @@ The plugin ships with an MCP server that exposes a curated set of **Operations**
 | `tidy_ds_explorer_list_components` | Query | List the DS Explorer registry (name + library key + type), optionally filtered by a name glob. Names returned here are the valid inputs to `tidy_ds_explorer_get_component`. |
 | `tidy_ds_explorer_get_component` | Query | Import a DS Explorer component by name and return `{ properties, description, nestedInstances }`. Set `includeImage: true` for a base64 PNG preview (heavier — agent-only). Errors `INVALID_PARAMS` with `details.availableNames` on unknown name. Bridge timeout: 60 s. |
 | `tidy_ds_explorer_place_set` | Execute | Place a registered component SET onto a page as an editable clone, ready to be labelled by `tidy_component_labels_build`. Defaults to the current page and viewport centre. Returns the new `nodeId`. Errors `WRONG_NODE_TYPE` if the named component is a single component. Bridge timeout: 60 s. |
+| `tidy_doc_read_component` | Query | Read derived documentation facts for a selected/passed component: variant categorisation, anatomy breakdown facts, mode collections, and related-component candidates. |
+| `tidy_doc_build_page` | Execute | Build or replace a generated Documentation Page from a Doc Spec. Renders Variants, Component Breakdown, Mode, Usage Guidelines, and Related Components when present/applicable. Bridge timeout: 60 s. |
 
 Query / Plan / Execute are the three Operation flavours from [`ADR-0001`](docs/adr/0001-plan-execute-split-for-operations.md). Lookup via a Query, pass the resulting ids to an Execute.
 
 ### Slash commands
 
-Project-scoped wrappers in `.claude/commands/` expand into prompts that drive the tools above. They appear in `/` autocomplete after restarting Claude Code in this directory.
+Plugin-scoped wrappers in `claude-plugin/commands/` expand into prompts that drive the tools above. In the locally installed Claude Code plugin they appear namespaced as `/tidy-ds:<command>` after `/reload-plugins`.
 
 | Slash | What it does |
 | --- | --- |
@@ -110,6 +112,7 @@ Project-scoped wrappers in `.claude/commands/` expand into prompts that drive th
 | `/tidy-ds-template [--force]` | Wraps `tidy_ds_template_run`. Confirms first (since it's not idempotent); `--force` skips the prompt. |
 | `/tidy-labels [nodeId] [top=…] [left=…] [secondTop=…] [secondLeft=…] [groupSecondTop=true\|false] [groupSecondLeft=true\|false] [spacing=…] [fontSize=…] [extractElement=true\|false]` | Wraps `tidy_component_labels_get_variant_props` + `tidy_component_labels_build`. With no axis args, surfaces the variant properties and asks how to assign them. |
 | `/tidy-ds [name\|glob] [--image] [--place [x=…] [y=…] [pageId=…]]` | Wraps `tidy_ds_explorer_list_components`, `tidy_ds_explorer_get_component`, and `tidy_ds_explorer_place_set`. No args → lists registered names. A glob lists matches. An exact name fetches the component; `--image` adds a PNG preview; `--place` drops a clone of the set onto the page and returns a `nodeId` you can pipe into `/tidy-labels`. |
+| `/tidy-doc [nodeId] [status=…] [sections=…] [dry-run=true]` | Uses the bundled tidy-doc skill to call `tidy_doc_read_component`, author a Doc Spec, and call `tidy_doc_build_page`. See [`docs/tidy-doc.md`](docs/tidy-doc.md). |
 
 ### Troubleshooting
 

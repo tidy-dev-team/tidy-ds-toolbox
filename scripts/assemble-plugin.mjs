@@ -98,6 +98,10 @@ Update later with \`/plugin update\`.
 The \`/tidy-*\` commands are namespaced (\`/tidy-ds:tidy-find\`, …) and the MCP
 server starts automatically. The commands round-trip to the Tidy DS Toolbox
 Figma plugin over a localhost bridge — open that plugin in Figma for them to work.
+
+For component documentation, select a component or component set in Figma and run
+\`/tidy-ds:tidy-doc\` in Claude Code. See \`docs/tidy-doc.md\` in the source repo
+for the full usage guide.
 `;
 writeFileSync(join(outRoot, "README.md"), readme);
 
@@ -118,6 +122,7 @@ for (const cmd of [
   "tidy-labels",
   "tidy-ds",
   "tidy-ds-template",
+  "tidy-doc",
 ]) {
   assert(
     existsSync(join(pluginOut, "commands", `${cmd}.md`)),

@@ -37,7 +37,7 @@ dist-plugin/                          ← marketplace root
 
 Then `/reload-plugins` (or restart Claude Code). The commands appear namespaced:
 `/tidy-ds:tidy-find`, `/tidy-ds:tidy-misprint`, `/tidy-ds:tidy-labels`,
-`/tidy-ds:tidy-ds`, `/tidy-ds:tidy-ds-template`.
+`/tidy-ds:tidy-ds`, `/tidy-ds:tidy-ds-template`, `/tidy-ds:tidy-doc`.
 
 The plugin's MCP server starts automatically; its tools are exposed as
 `mcp__plugin_tidy-ds_tidy-ds-toolbox__<operation>`.
@@ -58,6 +58,8 @@ plugin open and connected over the bridge. To verify end-to-end:
    bridge on `9876`.
 2. In Claude Code (with the plugin installed), run `/tidy-ds:tidy-find` and
    confirm it returns components from the open file.
+3. Select a component/component set in Figma and run `/tidy-ds:tidy-doc dry-run=true`
+   to confirm the tidy-doc skill can read facts and author a Doc Spec without rendering.
 3. On `BRIDGE_DISCONNECTED`, the Figma plugin isn't running — open it.
 
 ## Inner loop (no plugin)
