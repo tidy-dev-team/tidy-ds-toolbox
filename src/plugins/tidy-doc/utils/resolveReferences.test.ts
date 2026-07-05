@@ -11,6 +11,7 @@ const facts: DerivedFacts = {
   sizeAxis: null,
   demoted: [],
   pinnedDefaults: { State: "Idle" },
+  breakdown: { heights: [], width: null, iconPlacement: null },
 };
 
 describe("resolveDocSpecReferences", () => {
