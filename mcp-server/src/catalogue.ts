@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import type { OperationKind } from "../../src/shared/operations/types.ts";
+import { DocSpecSchema } from "../../src/plugins/tidy-doc/utils/docSpec.ts";
 
 export interface CatalogueEntry {
   id: string;
@@ -215,6 +216,40 @@ export const CATALOGUE: CatalogueEntry[] = [
         .describe(
           "How far to de-link the clone from Kido-DS. 'none' = keep all links (old behavior); 'detach' = detach nested instances into frames; 'styles' = localize paint/text/effect styles; 'full' (default) = both. Variables/tokens are always left bound to Kido-DS.",
         ),
+    },
+    timeoutMs: 60_000,
+  },
+  {
+    id: "tidy_doc_read_component",
+    kind: "query",
+    module: "tidy-doc",
+    summary:
+      "Return the derived variant categorisation for a component or component set: chosen family axis + values, state axis + values, demoted axes (folded into pinned rest-state defaults), and pinned rest-state defaults for every non-family axis. Pass nodeId, or omit it to use the current selection. Authoring a Doc Spec's `variants` keys against `familyAxis.values` is the intended next step.",
+    inputSchema: {
+      nodeId: z
+        .string()
+        .optional()
+        .describe(
+          "Optional Figma node id of a COMPONENT or COMPONENT_SET. If omitted, the current selection is used.",
+        ),
+    },
+  },
+  {
+    id: "tidy_doc_build_page",
+    kind: "execute",
+    module: "tidy-doc",
+    summary:
+      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus a Variants Section with one specimen per keyed family value. Re-running for the same source deletes the prior page and rebuilds fresh. `docSpec.variants` keys must be real family-axis values from tidy_doc_read_component; an unresolved key fails the whole call with a batched INVALID_PARAMS error (`details.unresolved`, with `didYouMean` hints) rather than failing on the first bad key.",
+    inputSchema: {
+      nodeId: z
+        .string()
+        .optional()
+        .describe(
+          "Optional Figma node id of a COMPONENT or COMPONENT_SET. If omitted, the current selection is used.",
+        ),
+      docSpec: DocSpecSchema.describe(
+        "The Doc Spec. `status` is required; `variants` maps a family-axis value (from tidy_doc_read_component) to an authored description (+ optional whenToUse bullets). breakdown/mode/guidelines/related are accepted for forward-compatibility but not yet rendered.",
+      ),
     },
     timeoutMs: 60_000,
   },

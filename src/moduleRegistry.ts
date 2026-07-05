@@ -11,6 +11,7 @@ import {
   IconPackage,
   IconSearch,
   IconPalette,
+  IconFileDescription,
 } from "@tabler/icons-react";
 import { DSExplorerUI } from "./plugins/ds-explorer/ui";
 import { ComponentLabelsUI } from "./plugins/component-labels/ui";
@@ -23,6 +24,7 @@ import { ReleaseNotesUI } from "./plugins/release-notes/ui";
 import { OffBoardingUI } from "./plugins/off-boarding/ui";
 import { IconFinderUI } from "./plugins/iconfinder/ui";
 import { TidyColorFinderUI } from "./plugins/color-finder/ui";
+import { TidyDocUI } from "./plugins/tidy-doc/ui";
 import { moduleHandlers } from "./moduleHandlers";
 
 export const moduleRegistry: ModuleRegistry = {
@@ -293,5 +295,16 @@ export const moduleRegistry: ModuleRegistry = {
       "untokenized",
       "inventory",
     ],
+  },
+  "tidy-doc": {
+    id: "tidy-doc",
+    label: "Tidy Doc",
+    state: "alpha",
+    icon: IconFileDescription,
+    ui: TidyDocUI,
+    handler: moduleHandlers["tidy-doc"],
+    permissionRequirements: ["activeselection"],
+    agentified: true,
+    keywords: ["documentation", "doc", "component", "generate", "variants"],
   },
 };

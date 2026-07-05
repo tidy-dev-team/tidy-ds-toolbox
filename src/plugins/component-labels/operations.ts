@@ -3,56 +3,22 @@
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
+import { resolveComponentByIdOrSelection } from "../../shared/operations/resolveComponent";
 import { findAllVariantProps } from "./utils/getVariantProps";
 import { executeBuildLabels } from "./logic";
 import { LabelConfig, VariantProperty } from "./types";
+
+const COMPONENT_SET_ONLY = ["COMPONENT_SET"] as const;
 
 /**
  * Resolve the target component set from an optional nodeId, falling back to
  * the current selection. Throws typed errors if the target is missing or
  * not a component set.
  */
-async function resolveComponentSet(
+function resolveComponentSet(
   nodeId: string | undefined,
 ): Promise<ComponentSetNode> {
-  if (nodeId) {
-    const node = await figma.getNodeByIdAsync(nodeId);
-    if (!node) {
-      throw new OperationError(
-        ErrorCode.NOT_FOUND,
-        `node ${nodeId} not found`,
-        true,
-        { nodeId },
-      );
-    }
-    if (node.type !== "COMPONENT_SET") {
-      throw new OperationError(
-        ErrorCode.WRONG_NODE_TYPE,
-        `node ${nodeId} is ${node.type}, expected COMPONENT_SET`,
-        true,
-        { nodeId, type: node.type },
-      );
-    }
-    return node;
-  }
-
-  const selection = figma.currentPage.selection;
-  if (selection.length === 0) {
-    throw new OperationError(
-      ErrorCode.INVALID_PARAMS,
-      "no nodeId provided and nothing is selected — select a component set or pass nodeId",
-    );
-  }
-  const first = selection[0];
-  if (first.type !== "COMPONENT_SET") {
-    throw new OperationError(
-      ErrorCode.WRONG_NODE_TYPE,
-      `selected node is ${first.type}, expected COMPONENT_SET`,
-      true,
-      { nodeId: first.id, type: first.type },
-    );
-  }
-  return first;
+  return resolveComponentByIdOrSelection(nodeId, COMPONENT_SET_ONLY);
 }
 
 interface GetVariantPropsParams {

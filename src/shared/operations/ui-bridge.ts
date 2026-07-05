@@ -23,16 +23,20 @@ const MAX_BACKOFF_MS = 10_000;
 
 type DispatchFn = (req: BridgeRequest) => Promise<BridgeResponse>;
 
+export type BridgeStatus = "connecting" | "open" | "closed";
+
 interface BridgeOptions {
   url?: string;
   dispatch: DispatchFn;
   log?: (msg: string) => void;
+  onStatusChange?: (status: BridgeStatus) => void;
 }
 
 export class UiBridge {
   private url: string;
   private dispatch: DispatchFn;
   private log: (msg: string) => void;
+  private onStatusChange: (status: BridgeStatus) => void;
   private ws: WebSocket | null = null;
   private backoff = MIN_BACKOFF_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -42,6 +46,7 @@ export class UiBridge {
     this.url = opts.url ?? DEFAULT_URL;
     this.dispatch = opts.dispatch;
     this.log = opts.log ?? (() => {});
+    this.onStatusChange = opts.onStatusChange ?? (() => {});
   }
 
   start(): void {
@@ -63,11 +68,13 @@ export class UiBridge {
       }
       this.ws = null;
     }
+    this.onStatusChange("closed");
   }
 
   private connect(): void {
     if (this.stopped) return;
     this.log(`connecting to ${this.url}`);
+    this.onStatusChange("connecting");
     let ws: WebSocket;
     try {
       ws = new WebSocket(this.url);
@@ -81,6 +88,7 @@ export class UiBridge {
     ws.addEventListener("open", () => {
       this.log("connected");
       this.backoff = MIN_BACKOFF_MS;
+      this.onStatusChange("open");
     });
 
     ws.addEventListener("message", async (ev) => {
@@ -90,6 +98,7 @@ export class UiBridge {
     ws.addEventListener("close", () => {
       this.log("closed");
       this.ws = null;
+      this.onStatusChange("closed");
       this.scheduleReconnect();
     });
 

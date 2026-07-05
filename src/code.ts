@@ -28,6 +28,12 @@ const LONG_RUNNING_ACTIONS = new Set([
   // timeout on large files. Emits progress updates while it runs.
   "color-finder:scan-colors",
   "color-finder:scan-image-palette",
+  // Every MCP-invoked Operation arrives here as target "mcp-bridge", action
+  // "dispatch" — the specific operation id is opaque at this layer, so a
+  // single blanket exemption is the only way to honor a catalogue entry's
+  // own timeoutMs (mcp-server/src/catalogue.ts), enforced instead at the
+  // Bridge layer (mcp-server/src/bridge-server.ts).
+  "mcp-bridge:dispatch",
 ]);
 
 // Create logger for main thread
