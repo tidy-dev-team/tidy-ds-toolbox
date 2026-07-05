@@ -10,6 +10,7 @@ import { deriveFacts } from "./deriveFacts";
 import { resolveDocSpecReferences } from "./resolveReferences";
 import { buildSectionCard } from "./buildChrome";
 import { buildVariantsSection } from "./buildVariantsSection";
+import { buildGuidelinesSection } from "./buildGuidelinesSection";
 import type { DocSpec } from "./docSpec";
 
 const PLUGIN_DATA_KEY = "tidy:doc-page";
@@ -87,6 +88,18 @@ export async function buildDocPage(
   const variantsSection = await buildVariantsSection(source, spec, facts);
   if (variantsSection) body.appendChild(variantsSection);
   root.appendChild(card);
+
+  const guidelinesSection = await buildGuidelinesSection(source, spec, facts);
+  if (guidelinesSection) {
+    const { card: guidelinesCard, body: guidelinesBody } = await buildSectionCard(
+      "guidelines",
+      "Usage Guidelines",
+      source.name,
+      spec.status,
+    );
+    guidelinesBody.appendChild(guidelinesSection);
+    root.appendChild(guidelinesCard);
+  }
 
   page.appendChild(root);
   root.x = source.x + source.width + 200;
