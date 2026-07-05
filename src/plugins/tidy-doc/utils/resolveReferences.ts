@@ -4,8 +4,9 @@
 // fast; this runs second and collects *every* unresolved reference into one
 // batched payload rather than failing on the first (ADR-0003).
 //
-// v1 only resolves `variants` keys — the only reference kind this slice
-// renders. Sibling/mode reference kinds land with the Sections that use them.
+// Resolves `variants` keys (against the family axis) and `related` keys
+// (against the ranked sibling-candidate list). Mode reference kinds land
+// with the Section that uses them.
 
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -38,6 +39,20 @@ export function resolveDocSpecReferences(
           kind: "familyValue",
           value: key,
           didYouMean: didYouMean(key, familyValues),
+        });
+      }
+    }
+  }
+
+  if (spec.related) {
+    const candidateNames = facts.relatedCandidates.map((c) => c.name);
+    for (const key of Object.keys(spec.related)) {
+      if (!candidateNames.includes(key)) {
+        unresolved.push({
+          slot: "related",
+          kind: "siblingName",
+          value: key,
+          didYouMean: didYouMean(key, candidateNames),
         });
       }
     }

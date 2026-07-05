@@ -3,8 +3,10 @@
 // tests) can depend on it without pulling in the Figma runtime.
 
 import type { CategorizationResult } from "./categorizeAxes";
+import type { RelatedCandidate } from "./rankRelatedCandidates";
 
 export interface DerivedFacts extends CategorizationResult {
   componentId: string;
   componentName: string;
+  relatedCandidates: RelatedCandidate[];
 }

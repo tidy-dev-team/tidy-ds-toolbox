@@ -34,7 +34,7 @@ async function documentSelection(): Promise<DocumentSelectionResult> {
     );
   }
 
-  const facts = deriveFacts(source);
+  const facts = await deriveFacts(source);
   const spec: DocSpec = {
     status: "IDEATION",
     variants: Object.fromEntries(

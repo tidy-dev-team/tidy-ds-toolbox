@@ -10,6 +10,7 @@ import { deriveFacts } from "./deriveFacts";
 import { resolveDocSpecReferences } from "./resolveReferences";
 import { buildSectionCard } from "./buildChrome";
 import { buildVariantsSection } from "./buildVariantsSection";
+import { buildRelatedSection } from "./buildRelatedSection";
 import type { DocSpec } from "./docSpec";
 
 const PLUGIN_DATA_KEY = "tidy:doc-page";
@@ -47,7 +48,7 @@ export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
 ): Promise<FrameNode> {
-  const facts = deriveFacts(source);
+  const facts = await deriveFacts(source);
 
   const { unresolved } = resolveDocSpecReferences(spec, facts);
   if (unresolved.length > 0) {
@@ -86,6 +87,8 @@ export async function buildDocPage(
   );
   const variantsSection = await buildVariantsSection(source, spec, facts);
   if (variantsSection) body.appendChild(variantsSection);
+  const relatedSection = await buildRelatedSection(spec, facts);
+  if (relatedSection) body.appendChild(relatedSection);
   root.appendChild(card);
 
   page.appendChild(root);

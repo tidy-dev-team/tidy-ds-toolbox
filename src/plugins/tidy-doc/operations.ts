@@ -32,7 +32,7 @@ registerOperation<ReadComponentParams, DerivedFacts>(
   },
   async (params) => {
     const source = await resolveComponent(params.nodeId);
-    return deriveFacts(source);
+    return await deriveFacts(source);
   },
 );
 

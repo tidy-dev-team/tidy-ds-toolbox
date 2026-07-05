@@ -11,6 +11,10 @@ const facts: DerivedFacts = {
   sizeAxis: null,
   demoted: [],
   pinnedDefaults: { State: "Idle" },
+  relatedCandidates: [
+    { name: "Icon Button", matchedTokens: ["button"] },
+    { name: "Link Button", matchedTokens: ["button"] },
+  ],
 };
 
 describe("resolveDocSpecReferences", () => {
@@ -63,5 +67,41 @@ describe("resolveDocSpecReferences", () => {
     const spec: DocSpec = { status: "LIVE" };
     const result = resolveDocSpecReferences(spec, facts);
     expect(result.unresolved).toEqual([]);
+  });
+
+  it("resolves every related key that matches a ranked candidate", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      related: { "Icon Button": { guidance: "Use when the action has no text label." } },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toEqual([]);
+  });
+
+  it("fails resolution for a related key naming a non-existent component", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      related: { Zzzzzzzzzz: { guidance: "not a real sibling" } },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toEqual([
+      {
+        slot: "related",
+        kind: "siblingName",
+        value: "Zzzzzzzzzz",
+        didYouMean: undefined,
+      },
+    ]);
+  });
+
+  it("batches unresolved related keys alongside unresolved variant keys", () => {
+    const spec: DocSpec = {
+      status: "IDEATION",
+      variants: { Bogus: { description: "not a family value" } },
+      related: { Nope: { guidance: "not a real sibling" } },
+    };
+    const result = resolveDocSpecReferences(spec, facts);
+    expect(result.unresolved).toHaveLength(2);
+    expect(result.unresolved.map((u) => u.slot).sort()).toEqual(["related", "variants"]);
   });
 });

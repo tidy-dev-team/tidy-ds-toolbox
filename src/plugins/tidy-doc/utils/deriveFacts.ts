@@ -6,11 +6,12 @@
 // treat the Figma-API adapter as validated by manual/plugin verification.
 
 import { categorizeAxes, type AxisDescriptor } from "./categorizeAxes";
+import { findRelatedCandidates } from "./findRelatedCandidates";
 import type { DerivedFacts } from "./facts";
 
-export function deriveFacts(
+export async function deriveFacts(
   node: ComponentNode | ComponentSetNode,
-): DerivedFacts {
+): Promise<DerivedFacts> {
   const descriptors: AxisDescriptor[] = [];
 
   if (node.type === "COMPONENT_SET") {
@@ -28,10 +29,12 @@ export function deriveFacts(
   }
 
   const categorization = categorizeAxes(descriptors);
+  const relatedCandidates = await findRelatedCandidates(node);
 
   return {
     componentId: node.id,
     componentName: node.name,
+    relatedCandidates,
     ...categorization,
   };
 }
