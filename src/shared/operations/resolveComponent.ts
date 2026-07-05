@@ -9,7 +9,9 @@ import { ErrorCode, OperationError } from "./errors";
 
 type ComponentLike = ComponentNode | ComponentSetNode;
 
-function typeName<T extends ComponentLike["type"]>(types: readonly T[]): string {
+function typeName<T extends ComponentLike["type"]>(
+  types: readonly T[],
+): string {
   return types.join(" or ");
 }
 

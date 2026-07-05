@@ -8,7 +8,11 @@
 // backs the minimal in-plugin shell: a bound fileKey readout and the
 // fallback "Document selection" button.
 
-import { TidyDocAction, GetContextResult, DocumentSelectionResult } from "./types";
+import {
+  TidyDocAction,
+  GetContextResult,
+  DocumentSelectionResult,
+} from "./types";
 import { deriveFacts } from "./utils/deriveFacts";
 import { buildDocPage } from "./utils/buildDocPage";
 import type { DocSpec } from "./utils/docSpec";
@@ -25,7 +29,9 @@ function getContext(): GetContextResult {
 async function documentSelection(): Promise<DocumentSelectionResult> {
   const selection = figma.currentPage.selection;
   if (selection.length !== 1) {
-    throw new Error("Select exactly one component or component set to document.");
+    throw new Error(
+      "Select exactly one component or component set to document.",
+    );
   }
   const [source] = selection;
   if (source.type !== "COMPONENT" && source.type !== "COMPONENT_SET") {

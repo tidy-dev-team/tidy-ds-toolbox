@@ -44,8 +44,15 @@ describe("resolveDocSpecReferences", () => {
     };
     const result = resolveDocSpecReferences(spec, facts);
     expect(result.unresolved).toHaveLength(2);
-    expect(result.unresolved.map((u) => u.value).sort()).toEqual(["Bogus", "Primry"]);
-    expect(result.unresolved.every((u) => u.slot === "variants" && u.kind === "familyValue")).toBe(true);
+    expect(result.unresolved.map((u) => u.value).sort()).toEqual([
+      "Bogus",
+      "Primry",
+    ]);
+    expect(
+      result.unresolved.every(
+        (u) => u.slot === "variants" && u.kind === "familyValue",
+      ),
+    ).toBe(true);
   });
 
   it("attaches a didYouMean hint for a near-miss", () => {
@@ -79,7 +86,10 @@ describe("resolveDocSpecReferences", () => {
         doDonts: [
           {
             description: "Don't show two primaries side by side.",
-            good: { layout: "row", instances: [{ props: { Type: "Primary" } }] },
+            good: {
+              layout: "row",
+              instances: [{ props: { Type: "Primary" } }],
+            },
             bad: {
               layout: "row",
               instances: [
@@ -115,7 +125,9 @@ describe("resolveDocSpecReferences", () => {
       value: "Typ",
       didYouMean: "Type",
     });
-    expect(result.unresolved[0].slot).toBe("guidelines.doDonts[0].good.instances[0].props");
+    expect(result.unresolved[0].slot).toBe(
+      "guidelines.doDonts[0].good.instances[0].props",
+    );
   });
 
   it("flags an unknown axis value in a doDonts scene as kind=axisValue", () => {
@@ -154,7 +166,10 @@ describe("resolveDocSpecReferences", () => {
           },
           {
             description: "pair 1",
-            good: { layout: "row", instances: [{ props: { Type: "Primary" } }] },
+            good: {
+              layout: "row",
+              instances: [{ props: { Type: "Primary" } }],
+            },
             bad: { layout: "row", instances: [{ props: { State: "Zzzzz" } }] },
           },
         ],
@@ -171,7 +186,9 @@ describe("resolveDocSpecReferences", () => {
   it("resolves every related key that matches a ranked candidate", () => {
     const spec: DocSpec = {
       status: "IDEATION",
-      related: { "Icon Button": { guidance: "Use when the action has no text label." } },
+      related: {
+        "Icon Button": { guidance: "Use when the action has no text label." },
+      },
     };
     const result = resolveDocSpecReferences(spec, facts);
     expect(result.unresolved).toEqual([]);
@@ -201,14 +218,20 @@ describe("resolveDocSpecReferences", () => {
     };
     const result = resolveDocSpecReferences(spec, facts);
     expect(result.unresolved).toHaveLength(2);
-    expect(result.unresolved.map((u) => u.slot).sort()).toEqual(["related", "variants"]);
+    expect(result.unresolved.map((u) => u.slot).sort()).toEqual([
+      "related",
+      "variants",
+    ]);
   });
 
   it("resolves a Do/Don't scene that references a demoted axis", () => {
     const factsWithDemoted: DerivedFacts = {
       ...facts,
       demoted: ["Emphasis", "Icon"],
-      demotedAxisValues: { Emphasis: ["Bold", "Subtle"], Icon: ["Leading", "Trailing"] },
+      demotedAxisValues: {
+        Emphasis: ["Bold", "Subtle"],
+        Icon: ["Leading", "Trailing"],
+      },
     };
     const spec: DocSpec = {
       status: "IDEATION",
@@ -216,8 +239,14 @@ describe("resolveDocSpecReferences", () => {
         doDonts: [
           {
             description: "demoted axis in a scene",
-            good: { layout: "row", instances: [{ props: { Emphasis: "Bold", Icon: "Leading" } }] },
-            bad: { layout: "row", instances: [{ props: { Emphasis: "Subtle" } }] },
+            good: {
+              layout: "row",
+              instances: [{ props: { Emphasis: "Bold", Icon: "Leading" } }],
+            },
+            bad: {
+              layout: "row",
+              instances: [{ props: { Emphasis: "Subtle" } }],
+            },
           },
         ],
       },

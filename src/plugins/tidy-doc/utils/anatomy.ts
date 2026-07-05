@@ -81,7 +81,11 @@ export function detectIconPlacement(
 
   const swap = iconLike.find((d) => d.type === "INSTANCE_SWAP");
   if (swap) {
-    return { propertyName: swap.name, propertyType: "INSTANCE_SWAP", values: [] };
+    return {
+      propertyName: swap.name,
+      propertyType: "INSTANCE_SWAP",
+      values: [],
+    };
   }
 
   return null;

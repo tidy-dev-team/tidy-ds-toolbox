@@ -21,7 +21,10 @@ function collectVariableAliasIds(value: unknown, ids: Set<string>): void {
   if (value === null || typeof value !== "object") return;
 
   const maybeAlias = value as { type?: unknown; id?: unknown };
-  if (maybeAlias.type === "VARIABLE_ALIAS" && typeof maybeAlias.id === "string") {
+  if (
+    maybeAlias.type === "VARIABLE_ALIAS" &&
+    typeof maybeAlias.id === "string"
+  ) {
     ids.add(maybeAlias.id);
     return;
   }
@@ -64,8 +67,11 @@ async function deriveModeCollections(
   collectNodeBoundVariableIds(node, aliasIds);
   if (aliasIds.size === 0) return [];
 
-  const localCollections = await figma.variables.getLocalVariableCollectionsAsync();
-  const localById = new Map(localCollections.map((collection) => [collection.id, collection]));
+  const localCollections =
+    await figma.variables.getLocalVariableCollectionsAsync();
+  const localById = new Map(
+    localCollections.map((collection) => [collection.id, collection]),
+  );
 
   // Fetch all bound variables in one parallel batch (was N sequential awaits).
   const variableIds = [...aliasIds];
@@ -120,7 +126,8 @@ function deriveHeights(
   }
 
   const childDescriptors = node.children.map((child) => ({
-    variantProperties: child.type === "COMPONENT" ? child.variantProperties : null,
+    variantProperties:
+      child.type === "COMPONENT" ? child.variantProperties : null,
   }));
 
   const heights: SizeMeasurement[] = [];
@@ -182,11 +189,17 @@ export async function deriveFacts(
   const modeCollections = await deriveModeCollections(node);
   const relatedCandidates = await findRelatedCandidates(node);
 
-  const widthSource = node.type === "COMPONENT_SET" ? node.defaultVariant ?? node : node;
-  const width = deriveWidthFact(widthSource.minWidth ?? null, widthSource.maxWidth ?? null);
+  const widthSource =
+    node.type === "COMPONENT_SET" ? (node.defaultVariant ?? node) : node;
+  const width = deriveWidthFact(
+    widthSource.minWidth ?? null,
+    widthSource.maxWidth ?? null,
+  );
   const iconPlacement = detectIconPlacement(propertyDescriptors);
   const heights =
-    node.type === "COMPONENT_SET" ? deriveHeights(node, categorization, defaults) : [];
+    node.type === "COMPONENT_SET"
+      ? deriveHeights(node, categorization, defaults)
+      : [];
 
   return {
     componentId: node.id,

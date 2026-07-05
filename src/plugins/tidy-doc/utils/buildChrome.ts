@@ -37,12 +37,23 @@ export async function createText(
 
 async function buildStatusBadge(status: DocStatus): Promise<FrameNode> {
   const style = STATUS_BADGE[status];
-  const pill = buildAutoLayoutFrame(`status-badge — ${status}`, "HORIZONTAL", 10, 4, 6);
+  const pill = buildAutoLayoutFrame(
+    `status-badge — ${status}`,
+    "HORIZONTAL",
+    10,
+    4,
+    6,
+  );
   pill.cornerRadius = 999;
   pill.fills = [{ type: "SOLID", color: hexToRgb(style.hex), opacity: 0.16 }];
   pill.counterAxisAlignItems = "CENTER";
 
-  const label = await createText(`${style.emoji} ${status}`, 11, FONT_BOLD, style.hex);
+  const label = await createText(
+    `${style.emoji} ${status}`,
+    11,
+    FONT_BOLD,
+    style.hex,
+  );
   pill.appendChild(label);
   return pill;
 }
@@ -63,10 +74,22 @@ export async function buildSectionCard(
   card.strokeWeight = 1;
   card.cornerRadius = 12;
 
-  const header = buildAutoLayoutFrame(`${name} — header`, "HORIZONTAL", 0, 0, 12);
+  const header = buildAutoLayoutFrame(
+    `${name} — header`,
+    "HORIZONTAL",
+    0,
+    0,
+    12,
+  );
   header.counterAxisAlignItems = "CENTER";
 
-  const titleColumn = buildAutoLayoutFrame(`${name} — title`, "VERTICAL", 0, 0, 2);
+  const titleColumn = buildAutoLayoutFrame(
+    `${name} — title`,
+    "VERTICAL",
+    0,
+    0,
+    2,
+  );
   const titleText = await createText(title, 18, FONT_BOLD);
   const subtitleText = await createText(subtitle, 13, FONT_REGULAR, "#6B7280");
   titleColumn.appendChild(titleText);

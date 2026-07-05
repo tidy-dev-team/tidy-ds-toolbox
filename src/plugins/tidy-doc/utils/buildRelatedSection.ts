@@ -6,7 +6,10 @@
 // order (facts.relatedCandidates — resolveReferences already rejected any
 // key that isn't a real candidate before this runs).
 
-import { buildAutoLayoutFrame, setVariantProps } from "../../sticker-sheet-builder/utils/utilityFunctions";
+import {
+  buildAutoLayoutFrame,
+  setVariantProps,
+} from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { createText } from "./buildChrome";
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
 import type { DocSpec } from "./docSpec";
@@ -22,7 +25,9 @@ async function resolveAllSiblings(
 ): Promise<Map<string, ComponentNode | ComponentSetNode>> {
   await figma.loadAllPagesAsync();
   const result = new Map<string, ComponentNode | ComponentSetNode>();
-  for (const node of figma.root.findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })) {
+  for (const node of figma.root.findAllWithCriteria({
+    types: ["COMPONENT_SET", "COMPONENT"],
+  })) {
     // Skip variant children of component sets — only top-level peers
     // are valid resolved siblings.
     if (node.parent?.type === "COMPONENT_SET") continue;
@@ -33,13 +38,21 @@ async function resolveAllSiblings(
   return result;
 }
 
-function createSpecimenInstance(sibling: ComponentNode | ComponentSetNode): InstanceNode {
-  const base = sibling.type === "COMPONENT_SET" ? sibling.defaultVariant : sibling;
+function createSpecimenInstance(
+  sibling: ComponentNode | ComponentSetNode,
+): InstanceNode {
+  const base =
+    sibling.type === "COMPONENT_SET" ? sibling.defaultVariant : sibling;
   const instance = base.createInstance();
   // Pin the sibling to its own default-variant state, giving a neutral
   // designer-intended appearance rather than un-pinned/arbitrary defaults.
-  if (sibling.type === "COMPONENT_SET" && sibling.defaultVariant?.variantProperties) {
-    for (const [axis, value] of Object.entries(sibling.defaultVariant.variantProperties)) {
+  if (
+    sibling.type === "COMPONENT_SET" &&
+    sibling.defaultVariant?.variantProperties
+  ) {
+    for (const [axis, value] of Object.entries(
+      sibling.defaultVariant.variantProperties,
+    )) {
       setVariantProps(instance, axis, value);
     }
   }
@@ -63,10 +76,24 @@ export async function buildRelatedSection(
 
   for (const name of orderedNames) {
     const content = related[name];
-    const block = buildAutoLayoutFrame(`related — ${name}`, "VERTICAL", 0, 0, 8);
+    const block = buildAutoLayoutFrame(
+      `related — ${name}`,
+      "VERTICAL",
+      0,
+      0,
+      8,
+    );
 
-    const title = await createText(name, 14, { family: "Inter", style: "Bold" });
-    const guidance = await createText(content.guidance, 12, undefined, "#4B5563");
+    const title = await createText(name, 14, {
+      family: "Inter",
+      style: "Bold",
+    });
+    const guidance = await createText(
+      content.guidance,
+      12,
+      undefined,
+      "#4B5563",
+    );
     block.appendChild(title);
     block.appendChild(guidance);
 

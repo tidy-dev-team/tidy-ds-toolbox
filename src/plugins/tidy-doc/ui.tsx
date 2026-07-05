@@ -18,9 +18,8 @@ export function TidyDocUI() {
   const [fileKey, setFileKey] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [building, setBuilding] = useState(false);
-  const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>(
-    getBridgeStatus(),
-  );
+  const [bridgeStatus, setBridgeStatus] =
+    useState<BridgeStatus>(getBridgeStatus());
 
   useEffect(() => {
     postToFigma({
@@ -79,9 +78,10 @@ export function TidyDocUI() {
           Bound file: <code>{fileKey ?? "unknown"}</code>
         </p>
         <p className="status-message">
-          This module is primarily driven from Claude via the MCP bridge
-          (<code>tidy_doc_read_component</code> / <code>tidy_doc_build_page</code>).
-          The button below is a facts-only fallback with no authored prose.
+          This module is primarily driven from Claude via the MCP bridge (
+          <code>tidy_doc_read_component</code> /{" "}
+          <code>tidy_doc_build_page</code>). The button below is a facts-only
+          fallback with no authored prose.
         </p>
         <button disabled={building} onClick={documentSelection}>
           {building ? "Building…" : "Document selection"}

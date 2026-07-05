@@ -118,12 +118,13 @@ export async function buildDocPage(
 
   const guidelinesSection = await buildGuidelinesSection(source, spec, facts);
   if (guidelinesSection) {
-    const { card: guidelinesCard, body: guidelinesBody } = await buildSectionCard(
-      "guidelines",
-      "Usage Guidelines",
-      source.name,
-      spec.status,
-    );
+    const { card: guidelinesCard, body: guidelinesBody } =
+      await buildSectionCard(
+        "guidelines",
+        "Usage Guidelines",
+        source.name,
+        spec.status,
+      );
     guidelinesBody.appendChild(guidelinesSection);
     root.appendChild(guidelinesCard);
   }

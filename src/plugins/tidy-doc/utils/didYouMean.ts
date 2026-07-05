@@ -41,6 +41,9 @@ export function didYouMean(
   }
   if (!best) return undefined;
 
-  const threshold = Math.min(4, Math.ceil(Math.max(value.length, best.candidate.length) / 3));
+  const threshold = Math.min(
+    4,
+    Math.ceil(Math.max(value.length, best.candidate.length) / 3),
+  );
   return best.distance <= threshold ? best.candidate : undefined;
 }

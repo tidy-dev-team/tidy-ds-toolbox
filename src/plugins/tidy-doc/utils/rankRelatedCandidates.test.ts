@@ -80,7 +80,11 @@ describe("rankRelatedCandidates", () => {
   });
 
   it("returns an empty list when nothing shares a token", () => {
-    const result = rankRelatedCandidates("Button", ["Toggle", "Checkbox"], new Set());
+    const result = rankRelatedCandidates(
+      "Button",
+      ["Toggle", "Checkbox"],
+      new Set(),
+    );
     expect(result).toEqual([]);
   });
 });

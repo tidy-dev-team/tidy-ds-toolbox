@@ -31,7 +31,9 @@ async function collectBuildingBlockNames(
   return names;
 }
 
-function collectOwnFamilyNames(source: ComponentNode | ComponentSetNode): string[] {
+function collectOwnFamilyNames(
+  source: ComponentNode | ComponentSetNode,
+): string[] {
   if (source.type === "COMPONENT_SET") {
     return source.children.map((child) => child.name);
   }

@@ -46,7 +46,8 @@ function createSizeSpecimenInstance(
   if (facts.familyAxis.name) {
     const familyDefault =
       source.defaultVariant.variantProperties?.[facts.familyAxis.name];
-    if (familyDefault) setVariantProps(instance, facts.familyAxis.name, familyDefault);
+    if (familyDefault)
+      setVariantProps(instance, facts.familyAxis.name, familyDefault);
   }
   if (facts.sizeAxis?.name) {
     setVariantProps(instance, facts.sizeAxis.name, sizeValue);
@@ -101,7 +102,13 @@ async function buildHeightRow(
     "#4B5563",
   );
 
-  const row = buildAutoLayoutFrame(`height-row — ${measurement.value}`, "HORIZONTAL", 0, 0, 12);
+  const row = buildAutoLayoutFrame(
+    `height-row — ${measurement.value}`,
+    "HORIZONTAL",
+    0,
+    0,
+    12,
+  );
   row.counterAxisAlignItems = "CENTER";
   row.appendChild(wrapper);
   row.appendChild(label);
@@ -114,12 +121,20 @@ async function buildHeightSubSection(
   caption?: string,
 ): Promise<FrameNode> {
   const block = buildAutoLayoutFrame("breakdown — height", "VERTICAL", 0, 0, 8);
-  block.appendChild(await createText("Height", 14, { family: "Inter", style: "Bold" }));
+  block.appendChild(
+    await createText("Height", 14, { family: "Inter", style: "Bold" }),
+  );
   if (caption) {
     block.appendChild(await createText(caption, 12, undefined, "#4B5563"));
   }
 
-  const rows = buildAutoLayoutFrame("breakdown — height — rows", "VERTICAL", 0, 0, 12);
+  const rows = buildAutoLayoutFrame(
+    "breakdown — height — rows",
+    "VERTICAL",
+    0,
+    0,
+    12,
+  );
   for (const measurement of facts.breakdown.heights) {
     rows.appendChild(await buildHeightRow(source, facts, measurement));
   }
@@ -133,7 +148,9 @@ async function buildWidthSubSection(
   caption?: string,
 ): Promise<FrameNode> {
   const block = buildAutoLayoutFrame("breakdown — width", "VERTICAL", 0, 0, 8);
-  block.appendChild(await createText("Width", 14, { family: "Inter", style: "Bold" }));
+  block.appendChild(
+    await createText("Width", 14, { family: "Inter", style: "Bold" }),
+  );
   if (caption) {
     block.appendChild(await createText(caption, 12, undefined, "#4B5563"));
   }
@@ -141,12 +158,22 @@ async function buildWidthSubSection(
   const width = facts.breakdown.width!;
   if (width.minWidth !== null) {
     block.appendChild(
-      await createText(`Min width: ${Math.round(width.minWidth)}px`, 12, undefined, "#6B7280"),
+      await createText(
+        `Min width: ${Math.round(width.minWidth)}px`,
+        12,
+        undefined,
+        "#6B7280",
+      ),
     );
   }
   if (width.maxWidth !== null) {
     block.appendChild(
-      await createText(`Max width: ${Math.round(width.maxWidth)}px`, 12, undefined, "#6B7280"),
+      await createText(
+        `Max width: ${Math.round(width.maxWidth)}px`,
+        12,
+        undefined,
+        "#6B7280",
+      ),
     );
   }
 
@@ -157,8 +184,16 @@ async function buildIconPlacementSubSection(
   facts: DerivedFacts,
   caption?: string,
 ): Promise<FrameNode> {
-  const block = buildAutoLayoutFrame("breakdown — icon-placement", "VERTICAL", 0, 0, 8);
-  block.appendChild(await createText("Icon placement", 14, { family: "Inter", style: "Bold" }));
+  const block = buildAutoLayoutFrame(
+    "breakdown — icon-placement",
+    "VERTICAL",
+    0,
+    0,
+    8,
+  );
+  block.appendChild(
+    await createText("Icon placement", 14, { family: "Inter", style: "Bold" }),
+  );
   if (caption) {
     block.appendChild(await createText(caption, 12, undefined, "#4B5563"));
   }
@@ -189,17 +224,30 @@ export async function buildBreakdownSection(
     return null;
   }
 
-  const section = buildAutoLayoutFrame("breakdown-section", "VERTICAL", 0, 0, 24);
+  const section = buildAutoLayoutFrame(
+    "breakdown-section",
+    "VERTICAL",
+    0,
+    0,
+    24,
+  );
 
   if (heights.length > 0 && source.type === "COMPONENT_SET") {
-    section.appendChild(await buildHeightSubSection(source, facts, breakdownSpec.heightCaption));
+    section.appendChild(
+      await buildHeightSubSection(source, facts, breakdownSpec.heightCaption),
+    );
   }
   if (width) {
-    section.appendChild(await buildWidthSubSection(facts, breakdownSpec.widthCaption));
+    section.appendChild(
+      await buildWidthSubSection(facts, breakdownSpec.widthCaption),
+    );
   }
   if (iconPlacement) {
     section.appendChild(
-      await buildIconPlacementSubSection(facts, breakdownSpec.iconPlacementCaption),
+      await buildIconPlacementSubSection(
+        facts,
+        breakdownSpec.iconPlacementCaption,
+      ),
     );
   }
 

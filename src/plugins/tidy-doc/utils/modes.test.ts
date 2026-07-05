@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildModeCrossProduct, modeShowcaseLabel, type ModeCollectionFact } from "./modes";
+import {
+  buildModeCrossProduct,
+  modeShowcaseLabel,
+  type ModeCollectionFact,
+} from "./modes";
 
 const theme: ModeCollectionFact = {
   id: "collection-theme",

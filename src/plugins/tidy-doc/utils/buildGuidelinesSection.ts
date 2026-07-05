@@ -20,7 +20,10 @@ async function buildBulletList(
   items: string[],
 ): Promise<FrameNode> {
   const list = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, 6);
-  const heading = await createText(title, 13, { family: "Inter", style: "Bold" });
+  const heading = await createText(title, 13, {
+    family: "Inter",
+    style: "Bold",
+  });
   list.appendChild(heading);
   for (const item of items) {
     const bullet = await createText(`• ${item}`, 12, undefined, "#4B5563");
@@ -68,7 +71,12 @@ async function buildScene(
     const instance = createSceneInstance(source, instanceSpec.props, facts);
     frame.appendChild(instance);
     if (instanceSpec.labelOverride) {
-      const label = await createText(instanceSpec.labelOverride, 11, undefined, "#6B7280");
+      const label = await createText(
+        instanceSpec.labelOverride,
+        11,
+        undefined,
+        "#6B7280",
+      );
       frame.appendChild(label);
     }
   }
@@ -104,7 +112,9 @@ async function buildDoDontPair(
 ): Promise<FrameNode> {
   const name = `do/dont — ${index}`;
   const block = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, 8);
-  block.appendChild(await createText(pair.description, 12, undefined, "#111827"));
+  block.appendChild(
+    await createText(pair.description, 12, undefined, "#111827"),
+  );
   block.appendChild(
     await buildVerdictRow(source, "good", pair.good, facts, `${name} — good`),
   );
@@ -129,11 +139,21 @@ export async function buildGuidelinesSection(
     (guidelines.doDonts?.length ?? 0) > 0;
   if (!hasContent) return null;
 
-  const section = buildAutoLayoutFrame("guidelines-section", "VERTICAL", 0, 0, 16);
+  const section = buildAutoLayoutFrame(
+    "guidelines-section",
+    "VERTICAL",
+    0,
+    0,
+    16,
+  );
 
   if (guidelines.whenToUse?.length) {
     section.appendChild(
-      await buildBulletList("guidelines — when to use", "When to use", guidelines.whenToUse),
+      await buildBulletList(
+        "guidelines — when to use",
+        "When to use",
+        guidelines.whenToUse,
+      ),
     );
   }
   if (guidelines.whenNotToUse?.length) {
@@ -147,14 +167,26 @@ export async function buildGuidelinesSection(
   }
   if (guidelines.general?.length) {
     section.appendChild(
-      await buildBulletList("guidelines — general", "General", guidelines.general),
+      await buildBulletList(
+        "guidelines — general",
+        "General",
+        guidelines.general,
+      ),
     );
   }
 
   if (guidelines.doDonts?.length) {
-    const doDonts = buildAutoLayoutFrame("guidelines — do/dont", "VERTICAL", 0, 0, 20);
+    const doDonts = buildAutoLayoutFrame(
+      "guidelines — do/dont",
+      "VERTICAL",
+      0,
+      0,
+      20,
+    );
     for (let i = 0; i < guidelines.doDonts.length; i++) {
-      doDonts.appendChild(await buildDoDontPair(source, guidelines.doDonts[i], facts, i));
+      doDonts.appendChild(
+        await buildDoDontPair(source, guidelines.doDonts[i], facts, i),
+      );
     }
     section.appendChild(doDonts);
   }

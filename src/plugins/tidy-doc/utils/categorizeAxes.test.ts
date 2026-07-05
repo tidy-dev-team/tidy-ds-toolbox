@@ -67,7 +67,11 @@ describe("categorizeAxes", () => {
 
   it("excludes size from family candidates", () => {
     const descriptors: AxisDescriptor[] = [
-      { name: "Size", values: ["Small", "Medium", "Large"], defaultValue: "Medium" },
+      {
+        name: "Size",
+        values: ["Small", "Medium", "Large"],
+        defaultValue: "Medium",
+      },
       { name: "Type", values: ["Primary", "Secondary"] },
     ];
     const result = categorizeAxes(descriptors);

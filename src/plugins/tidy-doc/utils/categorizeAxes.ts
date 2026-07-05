@@ -90,7 +90,10 @@ function looksLikeType(descriptor: AxisDescriptor): boolean {
 }
 
 function pinnedDefaultFor(descriptor: AxisDescriptor): string {
-  if (descriptor.defaultValue && descriptor.values.includes(descriptor.defaultValue)) {
+  if (
+    descriptor.defaultValue &&
+    descriptor.values.includes(descriptor.defaultValue)
+  ) {
     return descriptor.defaultValue;
   }
   return descriptor.values[0];

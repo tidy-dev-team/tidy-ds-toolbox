@@ -16,16 +16,25 @@ describe("DocSpecSchema", () => {
     const result = DocSpecSchema.safeParse({
       status: "REVIEWING",
       variants: {
-        Primary: { description: "The default call to action.", whenToUse: ["Use for the main action on a page."] },
+        Primary: {
+          description: "The default call to action.",
+          whenToUse: ["Use for the main action on a page."],
+        },
       },
-      breakdown: { heightCaption: "Height scales with size.", widthCaption: "Width hugs content.", iconPlacementCaption: "Icons sit left of the label." },
+      breakdown: {
+        heightCaption: "Height scales with size.",
+        widthCaption: "Width hugs content.",
+        iconPlacementCaption: "Icons sit left of the label.",
+      },
       mode: { caption: "Adapts to light and dark themes." },
       guidelines: {
         whenToUse: ["When a single primary action is needed."],
         whenNotToUse: ["When multiple equal-weight actions are shown."],
         general: ["Keep labels short and action-oriented."],
       },
-      related: { "Icon Button": { guidance: "Use when the action has no text label." } },
+      related: {
+        "Icon Button": { guidance: "Use when the action has no text label." },
+      },
     });
     expect(result.success).toBe(true);
   });
@@ -51,7 +60,9 @@ describe("DocSpecSchema", () => {
   it("rejects an over-length whenToUse item", () => {
     const result = DocSpecSchema.safeParse({
       status: "IDEATION",
-      variants: { Primary: { description: "ok", whenToUse: ["x".repeat(121)] } },
+      variants: {
+        Primary: { description: "ok", whenToUse: ["x".repeat(121)] },
+      },
     });
     expect(result.success).toBe(false);
   });
@@ -59,7 +70,9 @@ describe("DocSpecSchema", () => {
   it("rejects a whenToUse array longer than 6 items", () => {
     const result = DocSpecSchema.safeParse({
       status: "IDEATION",
-      variants: { Primary: { description: "ok", whenToUse: Array(7).fill("short") } },
+      variants: {
+        Primary: { description: "ok", whenToUse: Array(7).fill("short") },
+      },
     });
     expect(result.success).toBe(false);
   });
@@ -78,7 +91,10 @@ describe("DocSpecSchema", () => {
           {
             description: "Don't pair two primary buttons in the same row.",
             good: validScene,
-            bad: { layout: "row", instances: [validScene.instances[0], validScene.instances[0]] },
+            bad: {
+              layout: "row",
+              instances: [validScene.instances[0], validScene.instances[0]],
+            },
           },
         ],
       },
@@ -122,7 +138,10 @@ describe("DocSpecSchema", () => {
         doDonts: [
           {
             description: "ok",
-            good: { layout: "row", instances: Array(5).fill(validScene.instances[0]) },
+            good: {
+              layout: "row",
+              instances: Array(5).fill(validScene.instances[0]),
+            },
             bad: validScene,
           },
         ],

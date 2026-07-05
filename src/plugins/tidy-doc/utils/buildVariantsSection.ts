@@ -22,8 +22,7 @@ function createSpecimenInstance(
   facts: DerivedFacts,
   stateValue?: string,
 ): InstanceNode {
-  const base =
-    source.type === "COMPONENT_SET" ? source.defaultVariant : source;
+  const base = source.type === "COMPONENT_SET" ? source.defaultVariant : source;
   const instance = base.createInstance();
 
   if (source.type === "COMPONENT_SET" && facts.familyAxis.name) {
@@ -36,7 +35,11 @@ function createSpecimenInstance(
   // rest-state default.
   const pinning: Record<string, string> = {};
   for (const [axisName, value] of Object.entries(facts.pinnedDefaults)) {
-    if (facts.stateAxis?.name && stateValue && axisName === facts.stateAxis.name) {
+    if (
+      facts.stateAxis?.name &&
+      stateValue &&
+      axisName === facts.stateAxis.name
+    ) {
       continue;
     }
     pinning[axisName] = value;
@@ -95,7 +98,12 @@ async function createSpecimenScene(
     );
     cell.counterAxisAlignItems = "CENTER";
 
-    const instance = createSpecimenInstance(source, familyValue, facts, stateValue);
+    const instance = createSpecimenInstance(
+      source,
+      familyValue,
+      facts,
+      stateValue,
+    );
     const label = await createText(stateValue, 10, undefined, "#6B7280");
 
     cell.appendChild(instance);
@@ -114,7 +122,13 @@ export async function buildVariantsSection(
   const variants = spec.variants;
   if (!variants || Object.keys(variants).length === 0) return null;
 
-  const section = buildAutoLayoutFrame("variants-section", "VERTICAL", 0, 0, 24);
+  const section = buildAutoLayoutFrame(
+    "variants-section",
+    "VERTICAL",
+    0,
+    0,
+    24,
+  );
 
   for (const [familyValue, content] of Object.entries(variants)) {
     const block = buildAutoLayoutFrame(
@@ -131,8 +145,16 @@ export async function buildVariantsSection(
     // literal word "default".
     const displayTitle =
       facts.familyAxis.name === null ? source.name : familyValue;
-    const title = await createText(displayTitle, 14, { family: "Inter", style: "Bold" });
-    const description = await createText(content.description, 12, undefined, "#4B5563");
+    const title = await createText(displayTitle, 14, {
+      family: "Inter",
+      style: "Bold",
+    });
+    const description = await createText(
+      content.description,
+      12,
+      undefined,
+      "#4B5563",
+    );
 
     block.appendChild(title);
     block.appendChild(description);

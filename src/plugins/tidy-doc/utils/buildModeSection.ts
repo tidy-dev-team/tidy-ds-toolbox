@@ -26,7 +26,9 @@ async function resolveCollections(
 ): Promise<Map<string, VariableCollection>> {
   const result = new Map<string, VariableCollection>();
   const fetched = await Promise.all(
-    collectionIds.map((id) => figma.variables.getVariableCollectionByIdAsync(id)),
+    collectionIds.map((id) =>
+      figma.variables.getVariableCollectionByIdAsync(id),
+    ),
   );
   for (const collection of fetched) {
     if (collection) result.set(collection.id, collection);
@@ -56,16 +58,23 @@ export async function buildModeSection(
   const section = buildAutoLayoutFrame("mode-section", "VERTICAL", 0, 0, 16);
 
   if (spec.mode.caption) {
-    section.appendChild(await createText(spec.mode.caption, 12, undefined, "#4B5563"));
+    section.appendChild(
+      await createText(spec.mode.caption, 12, undefined, "#4B5563"),
+    );
   }
 
-  const collectionIds = facts.modeCollections.map((collection) => collection.id);
+  const collectionIds = facts.modeCollections.map(
+    (collection) => collection.id,
+  );
   const collectionsById = await resolveCollections(collectionIds);
 
   for (const showcase of showcases) {
     const block = buildAutoLayoutFrame("mode-showcase", "VERTICAL", 0, 0, 8);
     block.appendChild(
-      await createText(modeShowcaseLabel(showcase), 13, { family: "Inter", style: "Bold" }),
+      await createText(modeShowcaseLabel(showcase), 13, {
+        family: "Inter",
+        style: "Bold",
+      }),
     );
 
     const container = buildAutoLayoutFrame(
@@ -86,7 +95,10 @@ export async function buildModeSection(
         );
         continue;
       }
-      container.setExplicitVariableModeForCollection(collection, selection.modeId);
+      container.setExplicitVariableModeForCollection(
+        collection,
+        selection.modeId,
+      );
     }
 
     container.appendChild(createSpecimenInstance(source));

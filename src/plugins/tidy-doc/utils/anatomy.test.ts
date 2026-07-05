@@ -12,11 +12,17 @@ describe("deriveWidthFact", () => {
   });
 
   it("returns the fact when only minWidth is set", () => {
-    expect(deriveWidthFact(120, null)).toEqual({ minWidth: 120, maxWidth: null });
+    expect(deriveWidthFact(120, null)).toEqual({
+      minWidth: 120,
+      maxWidth: null,
+    });
   });
 
   it("returns the fact when only maxWidth is set", () => {
-    expect(deriveWidthFact(null, 480)).toEqual({ minWidth: null, maxWidth: 480 });
+    expect(deriveWidthFact(null, 480)).toEqual({
+      minWidth: null,
+      maxWidth: 480,
+    });
   });
 
   it("returns the fact when both are set", () => {
@@ -35,7 +41,11 @@ describe("detectIconPlacement", () => {
   it("prefers a VARIANT icon-position axis over a BOOLEAN toggle", () => {
     const descriptors: PropertyDescriptor[] = [
       { name: "Has Icon", type: "BOOLEAN" },
-      { name: "Icon Position", type: "VARIANT", values: ["Leading", "Trailing", "None"] },
+      {
+        name: "Icon Position",
+        type: "VARIANT",
+        values: ["Leading", "Trailing", "None"],
+      },
     ];
     expect(detectIconPlacement(descriptors)).toEqual({
       propertyName: "Icon Position",
@@ -45,7 +55,9 @@ describe("detectIconPlacement", () => {
   });
 
   it("falls back to a BOOLEAN presence toggle when no VARIANT axis exists", () => {
-    const descriptors: PropertyDescriptor[] = [{ name: "Icon", type: "BOOLEAN" }];
+    const descriptors: PropertyDescriptor[] = [
+      { name: "Icon", type: "BOOLEAN" },
+    ];
     expect(detectIconPlacement(descriptors)).toEqual({
       propertyName: "Icon",
       propertyType: "BOOLEAN",
@@ -54,7 +66,9 @@ describe("detectIconPlacement", () => {
   });
 
   it("falls back to a bare INSTANCE_SWAP slot with no placement values", () => {
-    const descriptors: PropertyDescriptor[] = [{ name: "Icon Slot", type: "INSTANCE_SWAP" }];
+    const descriptors: PropertyDescriptor[] = [
+      { name: "Icon Slot", type: "INSTANCE_SWAP" },
+    ];
     expect(detectIconPlacement(descriptors)).toEqual({
       propertyName: "Icon Slot",
       propertyType: "INSTANCE_SWAP",
@@ -63,7 +77,9 @@ describe("detectIconPlacement", () => {
   });
 
   it("matches case-insensitively", () => {
-    const descriptors: PropertyDescriptor[] = [{ name: "ICON", type: "BOOLEAN" }];
+    const descriptors: PropertyDescriptor[] = [
+      { name: "ICON", type: "BOOLEAN" },
+    ];
     expect(detectIconPlacement(descriptors)?.propertyName).toBe("ICON");
   });
 });
