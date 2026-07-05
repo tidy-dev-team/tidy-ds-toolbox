@@ -224,7 +224,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "tidy-doc",
     summary:
-      "Return the derived facts for a component or component set: variant categorisation (chosen family axis + values, state axis + values, demoted axes, pinned defaults), `breakdown` anatomy facts (height/width/icon placement), and `relatedCandidates` (ranked sibling components from a file-wide token-overlap scan). Pass nodeId, or omit it to use the current selection. Authoring a Doc Spec's `variants` keys against `familyAxis.values`, and its `related` keys against `relatedCandidates`, is the intended next step.",
+      "Return the derived facts for a component or component set: variant categorisation (chosen family axis + values, state axis + values, demoted axes, pinned defaults), `breakdown` anatomy facts (height/width/icon placement), `modeCollections` (multi-mode variable collections the component is bound to), and `relatedCandidates` (ranked sibling components from a file-wide token-overlap scan). Pass nodeId, or omit it to use the current selection. Authoring a Doc Spec's `variants` keys against `familyAxis.values`, and its `related` keys against `relatedCandidates`, is the intended next step.",
     inputSchema: {
       nodeId: z
         .string()
@@ -239,7 +239,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "tidy-doc",
     summary:
-      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus Variants, Component Breakdown, Usage Guidelines, and Related Components Sections when their Doc Spec keys and derived facts provide content. Re-running for the same source deletes the prior page and rebuilds fresh. Symbolic references (variant family values, Do/Don't axis values, related sibling names) are resolved against live derived facts and fail with a batched INVALID_PARAMS payload (`details.unresolved`, with `didYouMean` hints).",
+      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus Variants, Component Breakdown, Mode, Usage Guidelines, and Related Components Sections when their Doc Spec keys and derived facts provide content. Re-running for the same source deletes the prior page and rebuilds fresh. Symbolic references (variant family values, Do/Don't axis values, related sibling names) are resolved against live derived facts and fail with a batched INVALID_PARAMS payload (`details.unresolved`, with `didYouMean` hints)."
     inputSchema: {
       nodeId: z
         .string()
@@ -248,7 +248,7 @@ export const CATALOGUE: CatalogueEntry[] = [
           "Optional Figma node id of a COMPONENT or COMPONENT_SET. If omitted, the current selection is used.",
         ),
       docSpec: DocSpecSchema.describe(
-        "The Doc Spec. `status` is required; `variants` maps family-axis values to authored descriptions (+ optional whenToUse bullets). `breakdown` triggers derived anatomy sub-sections when facts exist. `guidelines` renders bullet lists and Do/Don't SpecimenScenes. `related` maps exact sibling-candidate names to authored guidance. `mode` is accepted for forward-compatibility but not yet rendered.",
+        "The Doc Spec. `status` is required; `variants` maps family-axis values to authored descriptions (+ optional whenToUse bullets). `breakdown` triggers derived anatomy sub-sections when facts exist. `mode` triggers auto-detected, capped mode showcases with an optional caption. `guidelines` renders bullet lists and Do/Don't SpecimenScenes. `related` maps exact sibling-candidate names to authored guidance.",
       ),
     },
     timeoutMs: 60_000,

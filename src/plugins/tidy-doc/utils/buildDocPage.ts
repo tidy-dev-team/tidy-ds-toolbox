@@ -11,6 +11,7 @@ import { resolveDocSpecReferences } from "./resolveReferences";
 import { buildSectionCard } from "./buildChrome";
 import { buildVariantsSection } from "./buildVariantsSection";
 import { buildBreakdownSection } from "./buildBreakdownSection";
+import { buildModeSection } from "./buildModeSection";
 import { buildGuidelinesSection } from "./buildGuidelinesSection";
 import { buildRelatedSection } from "./buildRelatedSection";
 import type { DocSpec } from "./docSpec";
@@ -101,6 +102,18 @@ export async function buildDocPage(
     );
     breakdownBody.appendChild(breakdownSection);
     root.appendChild(breakdownCard);
+  }
+
+  const modeSection = await buildModeSection(source, spec, facts);
+  if (modeSection) {
+    const { card: modeCard, body: modeBody } = await buildSectionCard(
+      "mode",
+      "Mode",
+      source.name,
+      spec.status,
+    );
+    modeBody.appendChild(modeSection);
+    root.appendChild(modeCard);
   }
 
   const guidelinesSection = await buildGuidelinesSection(source, spec, facts);

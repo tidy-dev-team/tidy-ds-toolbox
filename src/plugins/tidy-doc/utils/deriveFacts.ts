@@ -15,6 +15,83 @@ import {
 } from "./anatomy";
 import { findRelatedCandidates } from "./findRelatedCandidates";
 import type { DerivedFacts } from "./facts";
+import type { ModeCollectionFact } from "./modes";
+
+function collectVariableAliasIds(value: unknown, ids: Set<string>): void {
+  if (value === null || typeof value !== "object") return;
+
+  const maybeAlias = value as { type?: unknown; id?: unknown };
+  if (maybeAlias.type === "VARIABLE_ALIAS" && typeof maybeAlias.id === "string") {
+    ids.add(maybeAlias.id);
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) collectVariableAliasIds(item, ids);
+    return;
+  }
+
+  for (const child of Object.values(value as Record<string, unknown>)) {
+    collectVariableAliasIds(child, ids);
+  }
+}
+
+function collectNodeBoundVariableIds(node: SceneNode, ids: Set<string>): void {
+  const candidate = node as unknown as {
+    boundVariables?: unknown;
+    fills?: unknown;
+    strokes?: unknown;
+    effects?: unknown;
+    layoutGrids?: unknown;
+    children?: readonly SceneNode[];
+  };
+
+  collectVariableAliasIds(candidate.boundVariables, ids);
+  collectVariableAliasIds(candidate.fills, ids);
+  collectVariableAliasIds(candidate.strokes, ids);
+  collectVariableAliasIds(candidate.effects, ids);
+  collectVariableAliasIds(candidate.layoutGrids, ids);
+
+  for (const child of candidate.children ?? []) {
+    collectNodeBoundVariableIds(child, ids);
+  }
+}
+
+async function deriveModeCollections(
+  node: ComponentNode | ComponentSetNode,
+): Promise<ModeCollectionFact[]> {
+  const aliasIds = new Set<string>();
+  collectNodeBoundVariableIds(node, aliasIds);
+  if (aliasIds.size === 0) return [];
+
+  const localCollections = await figma.variables.getLocalVariableCollectionsAsync();
+  const localById = new Map(localCollections.map((collection) => [collection.id, collection]));
+  const collectionIds = new Set<string>();
+
+  for (const variableId of aliasIds) {
+    const variable = await figma.variables.getVariableByIdAsync(variableId);
+    if (variable) collectionIds.add(variable.variableCollectionId);
+  }
+
+  const collections: ModeCollectionFact[] = [];
+  for (const collectionId of collectionIds) {
+    const collection =
+      localById.get(collectionId) ??
+      (await figma.variables.getVariableCollectionByIdAsync(collectionId));
+    if (!collection || collection.modes.length <= 1) continue;
+    collections.push({
+      id: collection.id,
+      name: collection.name,
+      defaultModeId: collection.defaultModeId,
+      modes: collection.modes.map((mode) => ({
+        modeId: mode.modeId,
+        name: mode.name,
+      })),
+    });
+  }
+
+  return collections;
+}
 
 function deriveHeights(
   node: ComponentSetNode,
@@ -90,6 +167,7 @@ export async function deriveFacts(
   }
 
   const categorization = categorizeAxes(descriptors);
+  const modeCollections = await deriveModeCollections(node);
   const relatedCandidates = await findRelatedCandidates(node);
 
   const widthSource = node.type === "COMPONENT_SET" ? node.defaultVariant ?? node : node;
@@ -103,6 +181,7 @@ export async function deriveFacts(
     componentName: node.name,
     ...categorization,
     breakdown: { heights, width, iconPlacement },
+    modeCollections,
     relatedCandidates,
   };
 }
