@@ -76,10 +76,10 @@ export async function buildDocPage(
 
   const root = buildAutoLayoutFrame(
     `Documentation — ${source.name}`,
-    "VERTICAL",
-    0,
-    0,
-    0,
+    "HORIZONTAL",
+    24,
+    24,
+    24,
   );
 
   const { card, body } = await buildSectionCard(
