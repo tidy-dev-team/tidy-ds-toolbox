@@ -10,6 +10,7 @@ const facts: DerivedFacts = {
   stateAxis: { name: "State", values: ["Hover", "Idle", "Pressed"] },
   sizeAxis: null,
   demoted: [],
+  demotedAxisValues: {},
   pinnedDefaults: { State: "Idle" },
   breakdown: { heights: [], width: null, iconPlacement: null },
   modeCollections: [],
@@ -201,5 +202,27 @@ describe("resolveDocSpecReferences", () => {
     const result = resolveDocSpecReferences(spec, facts);
     expect(result.unresolved).toHaveLength(2);
     expect(result.unresolved.map((u) => u.slot).sort()).toEqual(["related", "variants"]);
+  });
+
+  it("resolves a Do/Don't scene that references a demoted axis", () => {
+    const factsWithDemoted: DerivedFacts = {
+      ...facts,
+      demoted: ["Emphasis", "Icon"],
+      demotedAxisValues: { Emphasis: ["Bold", "Subtle"], Icon: ["Leading", "Trailing"] },
+    };
+    const spec: DocSpec = {
+      status: "IDEATION",
+      guidelines: {
+        doDonts: [
+          {
+            description: "demoted axis in a scene",
+            good: { layout: "row", instances: [{ props: { Emphasis: "Bold", Icon: "Leading" } }] },
+            bad: { layout: "row", instances: [{ props: { Emphasis: "Subtle" } }] },
+          },
+        ],
+      },
+    };
+    const result = resolveDocSpecReferences(spec, factsWithDemoted);
+    expect(result.unresolved).toEqual([]);
   });
 });

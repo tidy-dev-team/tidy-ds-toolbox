@@ -4,11 +4,9 @@
 // imports this schema directly) per ADR-0007: hard maximums, presence-only
 // minimums, no forced item counts.
 //
-// v1 (#52 tracer bullet) renders only `status` + `variants`; #56 adds
-// `guidelines` (bullet lists + `doDonts` Specimen Scenes). The remaining
-// Section keys are accepted here so a later slice (#51) doesn't need a
-// breaking schema change, but nothing builds them yet — see
-// utils/buildDocPage.ts.
+// All Section keys are now rendered: Variants (#53), Breakdown (#54),
+// Mode (#55), Guidelines (#56), and Related (#57). The build orchestrator
+// is in utils/buildDocPage.ts.
 
 import { z } from "zod";
 

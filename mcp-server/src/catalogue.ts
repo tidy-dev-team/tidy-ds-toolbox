@@ -233,6 +233,7 @@ export const CATALOGUE: CatalogueEntry[] = [
           "Optional Figma node id of a COMPONENT or COMPONENT_SET. If omitted, the current selection is used.",
         ),
     },
+    timeoutMs: 60_000,
   },
   {
     id: "tidy_doc_build_page",

@@ -66,18 +66,30 @@ async function deriveModeCollections(
 
   const localCollections = await figma.variables.getLocalVariableCollectionsAsync();
   const localById = new Map(localCollections.map((collection) => [collection.id, collection]));
-  const collectionIds = new Set<string>();
 
-  for (const variableId of aliasIds) {
-    const variable = await figma.variables.getVariableByIdAsync(variableId);
+  // Fetch all bound variables in one parallel batch (was N sequential awaits).
+  const variableIds = [...aliasIds];
+  const variables = await Promise.all(
+    variableIds.map((id) => figma.variables.getVariableByIdAsync(id)),
+  );
+  const collectionIds = new Set<string>();
+  for (const variable of variables) {
     if (variable) collectionIds.add(variable.variableCollectionId);
+  }
+
+  // Fetch any non-local collections in parallel (was N sequential awaits).
+  const remoteIds = [...collectionIds].filter((id) => !localById.has(id));
+  const remoteCollections = await Promise.all(
+    remoteIds.map((id) => figma.variables.getVariableCollectionByIdAsync(id)),
+  );
+  const allById = new Map(localCollections.map((c) => [c.id, c]));
+  for (const c of remoteCollections) {
+    if (c) allById.set(c.id, c);
   }
 
   const collections: ModeCollectionFact[] = [];
   for (const collectionId of collectionIds) {
-    const collection =
-      localById.get(collectionId) ??
-      (await figma.variables.getVariableCollectionByIdAsync(collectionId));
+    const collection = allById.get(collectionId);
     if (!collection || collection.modes.length <= 1) continue;
     collections.push({
       id: collection.id,

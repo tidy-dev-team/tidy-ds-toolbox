@@ -29,11 +29,36 @@ function createSpecimenInstance(
   if (source.type === "COMPONENT_SET" && facts.familyAxis.name) {
     setVariantProps(instance, facts.familyAxis.name, familyValue);
   }
+
+  // Pin non-spanned axes to rest-state defaults — but exclude the state
+  // axis when a per-cell stateValue is provided, so the state override
+  // below sets the correct cell state rather than being reverted to the
+  // rest-state default.
+  const pinning: Record<string, string> = {};
   for (const [axisName, value] of Object.entries(facts.pinnedDefaults)) {
+    if (facts.stateAxis?.name && stateValue && axisName === facts.stateAxis.name) {
+      continue;
+    }
+    pinning[axisName] = value;
+  }
+  for (const [axisName, value] of Object.entries(pinning)) {
     setVariantProps(instance, axisName, value);
   }
+
+  // State override: match the exact property name rather than relying on
+  // setVariantProps's substring matching, which can collide with other
+  // axes (e.g. a "Loading State" axis would match a substring search for
+  // "State").
   if (facts.stateAxis?.name && stateValue) {
-    setVariantProps(instance, facts.stateAxis.name, stateValue);
+    for (const property in instance.componentProperties) {
+      if (
+        instance.componentProperties[property].type === "VARIANT" &&
+        property === facts.stateAxis.name
+      ) {
+        instance.setProperties({ [property]: stateValue });
+        break;
+      }
+    }
   }
 
   return instance;

@@ -25,6 +25,8 @@ export interface CategorizationResult {
   stateAxis: Axis | null;
   sizeAxis: Axis | null;
   demoted: string[];
+  /** Full value lists for every demoted axis (needed for Do/Don't SpecimenScene validation). */
+  demotedAxisValues: Record<string, string[]>;
   pinnedDefaults: Record<string, string>;
 }
 
@@ -115,6 +117,7 @@ export function categorizeAxes(
 
   const pinnedDefaults: Record<string, string> = {};
   const demoted: string[] = [];
+  const demotedAxisValues: Record<string, string[]> = {};
   let familyAxis: Axis;
 
   if (remaining.length === 0) {
@@ -133,6 +136,7 @@ export function categorizeAxes(
       familyAxis = { name: null, values: ["default"] };
       for (const d of remaining) {
         pinnedDefaults[d.name] = pinnedDefaultFor(d);
+        demotedAxisValues[d.name] = d.values;
       }
     } else {
       const byPrecedence = FAMILY_NAME_PRECEDENCE.map((wanted) =>
@@ -145,6 +149,7 @@ export function categorizeAxes(
         if (d !== chosen) {
           demoted.push(d.name);
           pinnedDefaults[d.name] = pinnedDefaultFor(d);
+          demotedAxisValues[d.name] = d.values;
         }
       }
     }
@@ -166,6 +171,7 @@ export function categorizeAxes(
       ? { name: sizeDescriptor.name, values: sizeDescriptor.values }
       : null,
     demoted,
+    demotedAxisValues,
     pinnedDefaults,
   };
 }

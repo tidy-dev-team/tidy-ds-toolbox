@@ -25,9 +25,11 @@ async function resolveCollections(
   collectionIds: string[],
 ): Promise<Map<string, VariableCollection>> {
   const result = new Map<string, VariableCollection>();
-  for (const id of collectionIds) {
-    const collection = await figma.variables.getVariableCollectionByIdAsync(id);
-    if (collection) result.set(id, collection);
+  const fetched = await Promise.all(
+    collectionIds.map((id) => figma.variables.getVariableCollectionByIdAsync(id)),
+  );
+  for (const collection of fetched) {
+    if (collection) result.set(collection.id, collection);
   }
   return result;
 }

@@ -38,6 +38,9 @@ function resolvableAxes(facts: DerivedFacts): Map<string, string[]> {
   if (facts.sizeAxis?.name) {
     axes.set(facts.sizeAxis.name, facts.sizeAxis.values);
   }
+  for (const [name, values] of Object.entries(facts.demotedAxisValues)) {
+    axes.set(name, values);
+  }
   return axes;
 }
 

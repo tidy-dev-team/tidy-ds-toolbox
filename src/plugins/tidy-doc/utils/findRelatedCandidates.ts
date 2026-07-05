@@ -54,6 +54,10 @@ export async function findRelatedCandidates(
   await figma.loadAllPagesAsync();
   const allNames = figma.root
     .findAllWithCriteria({ types: ["COMPONENT_SET", "COMPONENT"] })
+    // Exclude variant children of component sets — findAllWithCriteria
+    // matches every nested component, but related-candidate ranking is
+    // about top-level peers, not internal variant children.
+    .filter((node) => node.parent?.type !== "COMPONENT_SET")
     .map((node) => node.name);
 
   return rankRelatedCandidates(source.name, allNames, excludeNames, cap);
