@@ -1,17 +1,13 @@
 // Reference resolution (ADR-0008): the Doc Spec carries symbolic references
-// to derived facts (here, family-axis values) rather than the facts
-// themselves. Structural Zod validation (docSpec.ts) runs first and fails
-// fast; this runs second and collects *every* unresolved reference into one
-// batched payload rather than failing on the first (ADR-0003).
+// to derived facts rather than the facts themselves. Structural Zod
+// validation (docSpec.ts) runs first and fails fast; this runs second and
+// collects *every* unresolved reference into one batched payload rather than
+// failing on the first (ADR-0003).
 //
-// v1 resolved only `variants` keys. #56 adds `guidelines.doDonts`: each
-// Do/Don't pair's good/bad SpecimenScene carries axis-value refs in its
-// instances' `props` — bare `{ axisName: value }` pairs resolved against the
-// component's *categorised* axes (family/state/size), per ADR-0008's
-// "references are bare-by-position; the slot declares the kind." An unknown
-// axis name and an unknown value on a known axis are distinct failure modes
-// so the batched payload stays actionable. Sibling/mode reference kinds land
-// with the Sections that use them.
+// Resolves `variants` keys (against the family axis), `guidelines.doDonts`
+// SpecimenScene props (axis-value refs against categorised axes), and
+// `related` keys (against the ranked sibling-candidate list). Mode reference
+// kinds land with the Mode Section.
 
 import type { DocSpec, SpecimenScene } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -111,6 +107,20 @@ export function resolveDocSpecReferences(
         unresolved,
       );
     });
+  }
+
+  if (spec.related) {
+    const candidateNames = facts.relatedCandidates.map((c) => c.name);
+    for (const key of Object.keys(spec.related)) {
+      if (!candidateNames.includes(key)) {
+        unresolved.push({
+          slot: "related",
+          kind: "siblingName",
+          value: key,
+          didYouMean: didYouMean(key, candidateNames),
+        });
+      }
+    }
   }
 
   return { resolved: spec, unresolved };

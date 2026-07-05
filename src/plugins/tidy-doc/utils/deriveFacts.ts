@@ -13,6 +13,7 @@ import {
   type PropertyDescriptor,
   type SizeMeasurement,
 } from "./anatomy";
+import { findRelatedCandidates } from "./findRelatedCandidates";
 import type { DerivedFacts } from "./facts";
 
 function deriveHeights(
@@ -53,9 +54,9 @@ function deriveHeights(
   return heights;
 }
 
-export function deriveFacts(
+export async function deriveFacts(
   node: ComponentNode | ComponentSetNode,
-): DerivedFacts {
+): Promise<DerivedFacts> {
   const descriptors: AxisDescriptor[] = [];
   const propertyDescriptors: PropertyDescriptor[] = [];
   let defaults: Record<string, string> = {};
@@ -89,6 +90,7 @@ export function deriveFacts(
   }
 
   const categorization = categorizeAxes(descriptors);
+  const relatedCandidates = await findRelatedCandidates(node);
 
   const widthSource = node.type === "COMPONENT_SET" ? node.defaultVariant ?? node : node;
   const width = deriveWidthFact(widthSource.minWidth ?? null, widthSource.maxWidth ?? null);
@@ -101,5 +103,6 @@ export function deriveFacts(
     componentName: node.name,
     ...categorization,
     breakdown: { heights, width, iconPlacement },
+    relatedCandidates,
   };
 }

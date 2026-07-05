@@ -4,6 +4,7 @@
 
 import type { CategorizationResult } from "./categorizeAxes";
 import type { IconPlacementFact, SizeMeasurement, WidthFact } from "./anatomy";
+import type { RelatedCandidate } from "./rankRelatedCandidates";
 
 export interface BreakdownFacts {
   heights: SizeMeasurement[];
@@ -15,4 +16,5 @@ export interface DerivedFacts extends CategorizationResult {
   componentId: string;
   componentName: string;
   breakdown: BreakdownFacts;
+  relatedCandidates: RelatedCandidate[];
 }

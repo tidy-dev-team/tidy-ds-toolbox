@@ -1,7 +1,7 @@
 /// <reference types="@figma/plugin-typings" />
 
 // Orchestrator: derive facts, resolve references, replace-wholesale rebuild,
-// render Chrome + Variants. Not unit tested (Figma-API adapter) — validated
+// render Chrome + Sections. Not unit tested (Figma-API adapter) — validated
 // by manual round-trip in Figma per the plan's verification section.
 
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
@@ -12,6 +12,7 @@ import { buildSectionCard } from "./buildChrome";
 import { buildVariantsSection } from "./buildVariantsSection";
 import { buildBreakdownSection } from "./buildBreakdownSection";
 import { buildGuidelinesSection } from "./buildGuidelinesSection";
+import { buildRelatedSection } from "./buildRelatedSection";
 import type { DocSpec } from "./docSpec";
 
 const PLUGIN_DATA_KEY = "tidy:doc-page";
@@ -49,7 +50,7 @@ export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
 ): Promise<FrameNode> {
-  const facts = deriveFacts(source);
+  const facts = await deriveFacts(source);
 
   const { unresolved } = resolveDocSpecReferences(spec, facts);
   if (unresolved.length > 0) {
@@ -112,6 +113,18 @@ export async function buildDocPage(
     );
     guidelinesBody.appendChild(guidelinesSection);
     root.appendChild(guidelinesCard);
+  }
+
+  const relatedSection = await buildRelatedSection(spec, facts);
+  if (relatedSection) {
+    const { card: relatedCard, body: relatedBody } = await buildSectionCard(
+      "related",
+      "Related Components",
+      source.name,
+      spec.status,
+    );
+    relatedBody.appendChild(relatedSection);
+    root.appendChild(relatedCard);
   }
 
   page.appendChild(root);
