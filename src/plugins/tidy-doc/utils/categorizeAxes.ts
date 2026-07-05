@@ -40,6 +40,33 @@ const STATE_VALUE_VOCAB = new Set([
   "default",
   "rest",
   "error",
+  "regular",
+]);
+
+// Widened from sticker-sheet-builder's getProps() (utils/getAllVariantProps.ts
+// `typeOptions = ["primary", "secondary"]`) so a "Kind"/"Style"/… axis is
+// recognised as type-like by its values, not only by its name.
+const TYPE_VALUE_VOCAB = new Set([
+  "primary",
+  "secondary",
+  "tertiary",
+  "ghost",
+  "outline",
+  "outlined",
+  "filled",
+  "solid",
+  "subtle",
+  "link",
+  "text",
+  "danger",
+  "warning",
+  "success",
+  "info",
+  "neutral",
+  "brand",
+  "accent",
+  "destructive",
+  "critical",
 ]);
 
 const FAMILY_NAME_PRECEDENCE = ["type", "kind", "variant"];
@@ -51,6 +78,13 @@ function lower(values: string[]): string[] {
 function looksLikeState(descriptor: AxisDescriptor): boolean {
   if (descriptor.name.toLowerCase() === "state") return true;
   return lower(descriptor.values).some((v) => STATE_VALUE_VOCAB.has(v));
+}
+
+function looksLikeType(descriptor: AxisDescriptor): boolean {
+  if (FAMILY_NAME_PRECEDENCE.includes(descriptor.name.toLowerCase())) {
+    return true;
+  }
+  return lower(descriptor.values).some((v) => TYPE_VALUE_VOCAB.has(v));
 }
 
 function pinnedDefaultFor(descriptor: AxisDescriptor): string {
@@ -86,19 +120,32 @@ export function categorizeAxes(
   if (remaining.length === 0) {
     familyAxis = { name: null, values: ["default"] };
   } else if (remaining.length === 1) {
+    // By elimination the sole non-size/non-state axis is the family axis —
+    // there is no other candidate to compare it against.
     const [only] = remaining;
     familyAxis = { name: only.name, values: only.values };
   } else {
-    const byPrecedence = FAMILY_NAME_PRECEDENCE.map((wanted) =>
-      remaining.find((d) => d.name.toLowerCase() === wanted),
-    ).find((d): d is AxisDescriptor => Boolean(d));
-    const chosen = byPrecedence ?? remaining[0];
-    familyAxis = { name: chosen.name, values: chosen.values };
+    const typeCandidates = remaining.filter(looksLikeType);
 
-    for (const d of remaining) {
-      if (d !== chosen) {
-        demoted.push(d.name);
+    if (typeCandidates.length === 0) {
+      // No axis categorises as type-like by name or value: never promote an
+      // arbitrary axis to family. Every remaining axis is pinned instead.
+      familyAxis = { name: null, values: ["default"] };
+      for (const d of remaining) {
         pinnedDefaults[d.name] = pinnedDefaultFor(d);
+      }
+    } else {
+      const byPrecedence = FAMILY_NAME_PRECEDENCE.map((wanted) =>
+        typeCandidates.find((d) => d.name.toLowerCase() === wanted),
+      ).find((d): d is AxisDescriptor => Boolean(d));
+      const chosen = byPrecedence ?? typeCandidates[0];
+      familyAxis = { name: chosen.name, values: chosen.values };
+
+      for (const d of remaining) {
+        if (d !== chosen) {
+          demoted.push(d.name);
+          pinnedDefaults[d.name] = pinnedDefaultFor(d);
+        }
       }
     }
   }
