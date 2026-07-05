@@ -224,7 +224,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "tidy-doc",
     summary:
-      "Return the derived variant categorisation for a component or component set: chosen family axis + values, state axis + values, demoted axes (folded into pinned rest-state defaults), and pinned rest-state defaults for every non-family axis. Pass nodeId, or omit it to use the current selection. Authoring a Doc Spec's `variants` keys against `familyAxis.values` is the intended next step.",
+      "Return the derived variant categorisation for a component or component set: chosen family axis + values, state axis + values, demoted axes (folded into pinned rest-state defaults), and pinned rest-state defaults for every non-family axis. Also returns `breakdown`: derived Component Breakdown facts — `heights` (real height + Fixed/Hug/Fill per size-axis value), `width` (minWidth/maxWidth, when set), and `iconPlacement` (detected icon property + values, when present). Pass nodeId, or omit it to use the current selection. Authoring a Doc Spec's `variants` keys against `familyAxis.values` is the intended next step.",
     inputSchema: {
       nodeId: z
         .string()
@@ -239,7 +239,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "tidy-doc",
     summary:
-      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus a Variants Section with one specimen per keyed family value. Re-running for the same source deletes the prior page and rebuilds fresh. `docSpec.variants` keys must be real family-axis values from tidy_doc_read_component; an unresolved key fails the whole call with a batched INVALID_PARAMS error (`details.unresolved`, with `didYouMean` hints) rather than failing on the first bad key.",
+      "Build (or replace) a Documentation Page next to the source component: Chrome (card + header + status badge) plus a Variants Section (one specimen per keyed family value) and a Component Breakdown Section (Height/Width/Icon placement sub-sections, each rendered only when the component exposes the fact). Re-running for the same source deletes the prior page and rebuilds fresh. `docSpec.variants` keys must be real family-axis values from tidy_doc_read_component; an unresolved key fails the whole call with a batched INVALID_PARAMS error (`details.unresolved`, with `didYouMean` hints) rather than failing on the first bad key.",
     inputSchema: {
       nodeId: z
         .string()
@@ -248,7 +248,7 @@ export const CATALOGUE: CatalogueEntry[] = [
           "Optional Figma node id of a COMPONENT or COMPONENT_SET. If omitted, the current selection is used.",
         ),
       docSpec: DocSpecSchema.describe(
-        "The Doc Spec. `status` is required; `variants` maps a family-axis value (from tidy_doc_read_component) to an authored description (+ optional whenToUse bullets). breakdown/mode/guidelines/related are accepted for forward-compatibility but not yet rendered.",
+        "The Doc Spec. `status` is required; `variants` maps a family-axis value (from tidy_doc_read_component) to an authored description (+ optional whenToUse bullets). `breakdown` (optional) triggers the Component Breakdown Section — presence-only optional captions (`heightCaption`/`widthCaption`/`iconPlacementCaption`); each sub-section still only renders when the corresponding derived fact exists, and the whole Section is dropped (and logged) if none do. mode/guidelines/related are accepted for forward-compatibility but not yet rendered.",
       ),
     },
     timeoutMs: 60_000,
