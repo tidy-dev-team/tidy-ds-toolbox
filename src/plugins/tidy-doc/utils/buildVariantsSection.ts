@@ -1,10 +1,12 @@
 /// <reference types="@figma/plugin-typings" />
 
-// Minimal Variants Section (CONTEXT.md "Variant Family"): one block per
-// keyed family value, each with an authored description and a single live
-// specimen instance pinned to that family value plus every other axis's
-// pinned rest-state default. State-spanning rows are deferred to the
-// Variants-complete slice (see issue #52 body).
+// Complete Variants Section (CONTEXT.md "Variant Family"): one block per
+// keyed family value, each with an authored description, an authored
+// "when to use" bullet list, and a Specimen Scene spanning the full state
+// axis (one specimen cell per state value, in the component's own option
+// order). Every non-spanned axis (size, a demoted type-like axis, any
+// incidental axis) is pinned to its derived rest-state default in every
+// cell — the scene never expands into a state×axis grid.
 
 import {
   buildAutoLayoutFrame,
@@ -18,6 +20,7 @@ function createSpecimenInstance(
   source: ComponentNode | ComponentSetNode,
   familyValue: string,
   facts: DerivedFacts,
+  stateValue?: string,
 ): InstanceNode {
   const base =
     source.type === "COMPONENT_SET" ? source.defaultVariant : source;
@@ -29,8 +32,53 @@ function createSpecimenInstance(
   for (const [axisName, value] of Object.entries(facts.pinnedDefaults)) {
     setVariantProps(instance, axisName, value);
   }
+  if (facts.stateAxis?.name && stateValue) {
+    setVariantProps(instance, facts.stateAxis.name, stateValue);
+  }
 
   return instance;
+}
+
+/**
+ * A family's Specimen Scene: one cell per state-axis value when the
+ * component exposes a state axis, else a single pinned-default specimen.
+ */
+async function createSpecimenScene(
+  source: ComponentNode | ComponentSetNode,
+  familyValue: string,
+  facts: DerivedFacts,
+): Promise<FrameNode | InstanceNode> {
+  if (!facts.stateAxis) {
+    return createSpecimenInstance(source, familyValue, facts);
+  }
+
+  const row = buildAutoLayoutFrame(
+    `variant — ${familyValue} — states`,
+    "HORIZONTAL",
+    0,
+    0,
+    24,
+  );
+
+  for (const stateValue of facts.stateAxis.values) {
+    const cell = buildAutoLayoutFrame(
+      `variant — ${familyValue} — state — ${stateValue}`,
+      "VERTICAL",
+      0,
+      0,
+      8,
+    );
+    cell.counterAxisAlignItems = "CENTER";
+
+    const instance = createSpecimenInstance(source, familyValue, facts, stateValue);
+    const label = await createText(stateValue, 10, undefined, "#6B7280");
+
+    cell.appendChild(instance);
+    cell.appendChild(label);
+    row.appendChild(cell);
+  }
+
+  return row;
 }
 
 export async function buildVariantsSection(
@@ -79,7 +127,7 @@ export async function buildVariantsSection(
       block.appendChild(list);
     }
 
-    const specimen = createSpecimenInstance(source, familyValue, facts);
+    const specimen = await createSpecimenScene(source, familyValue, facts);
     block.appendChild(specimen);
 
     section.appendChild(block);

@@ -34,14 +34,26 @@ describe("categorizeAxes", () => {
     expect(result.demoted).toEqual([]);
   });
 
-  it("picks the first-declared axis by declaration order when multiple axes are ambiguous and none match by name", () => {
+  it("picks the first-declared axis by declaration order when multiple axes are type-like by value but neither name matches the precedence list", () => {
     const descriptors: AxisDescriptor[] = [
-      { name: "Emphasis", values: ["Bold", "Subtle"] },
+      { name: "Style", values: ["Filled", "Outline"] },
+      { name: "Look", values: ["Solid", "Ghost"] },
+    ];
+    const result = categorizeAxes(descriptors);
+    expect(result.familyAxis.name).toBe("Style");
+    expect(result.demoted).toEqual(["Look"]);
+  });
+
+  it("collapses to a single unnamed family when several axes remain but none categorise as type-like by name or value", () => {
+    const descriptors: AxisDescriptor[] = [
+      { name: "Emphasis", values: ["Strong", "Weak"] },
       { name: "Flavor", values: ["Sweet", "Sour"] },
     ];
     const result = categorizeAxes(descriptors);
-    expect(result.familyAxis.name).toBe("Emphasis");
-    expect(result.demoted).toEqual(["Flavor"]);
+    expect(result.familyAxis).toEqual({ name: null, values: ["default"] });
+    expect(result.demoted).toEqual([]);
+    expect(result.pinnedDefaults.Emphasis).toBe("Strong");
+    expect(result.pinnedDefaults.Flavor).toBe("Sweet");
   });
 
   it("falls back to a single unnamed family when no type-like axis exists", () => {
@@ -71,6 +83,16 @@ describe("categorizeAxes", () => {
     ];
     const result = categorizeAxes(descriptors);
     expect(result.stateAxis?.name).toBe("Interaction");
+  });
+
+  it("recognises 'Regular/Hover/Pressed' values as state even on an unnamed axis", () => {
+    const descriptors: AxisDescriptor[] = [
+      { name: "Interaction", values: ["Regular", "Hover", "Pressed"] },
+      { name: "Kind", values: ["Ghost", "Outline"] },
+    ];
+    const result = categorizeAxes(descriptors);
+    expect(result.stateAxis?.name).toBe("Interaction");
+    expect(result.familyAxis.name).toBe("Kind");
   });
 
   it("pins non-family axes to defaultValue when present", () => {
