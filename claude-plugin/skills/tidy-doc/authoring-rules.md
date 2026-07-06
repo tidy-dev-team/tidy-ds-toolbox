@@ -73,6 +73,12 @@ Authoring:
 
 - Include at least one non-empty sub-part or omit `guidelines`.
 - Keep bullets concrete and non-overlapping.
+- Author **3–6 Do/Don't pairs** (schema max 6; prefer 4+). Select them from
+  `dodont-patterns.md`: apply every archetype pattern the component's axes support,
+  then top up from the universal kit. Fewer than 3 is acceptable only when the axes
+  genuinely cannot express more.
+- Each pair must teach a distinct rule; the good and bad scenes differ in exactly
+  the way the `description` names.
 - Do/Don't pairs require both `good` and `bad` scenes.
 - Each `SpecimenScene` uses 1–4 instances of the source component:
 

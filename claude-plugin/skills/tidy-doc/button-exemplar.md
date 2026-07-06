@@ -56,7 +56,7 @@ Good guidance is operational:
 - Avoid stacking multiple primary actions in the same decision area.
 - Keep labels action-oriented and concise.
 
-Do/Don't examples should be simple source-component scenes. If a Button example would require a full surrounding layout, illustration, or a second unrelated component, skip it.
+Do/Don't examples should be simple source-component scenes, and a full page targets 3–6 of them drawn from `dodont-patterns.md` (for Button: single primary per group, emphasis order, action-led labels, disabled misuse, destructive reservation). If a Button example would require a full surrounding layout, illustration, or a second unrelated component, skip it.
 
 ### Related Components
 
@@ -97,8 +97,23 @@ This is illustrative. Real values must come from `tidy_doc_read_component` for t
     "doDonts": [
       {
         "description": "Reserve Primary for the main action in a group.",
-        "good": { "layout": "row", "instances": [{ "props": { "Type": "Primary" }, "labelOverride": "Save" }] },
+        "good": { "layout": "row", "instances": [{ "props": { "Type": "Primary" }, "labelOverride": "Save" }, { "props": { "Type": "Secondary" }, "labelOverride": "Cancel" }] },
         "bad": { "layout": "row", "instances": [{ "props": { "Type": "Primary" }, "labelOverride": "Save" }, { "props": { "Type": "Primary" }, "labelOverride": "Cancel" }] }
+      },
+      {
+        "description": "Lead labels with the action so the outcome is clear before clicking.",
+        "good": { "layout": "row", "instances": [{ "props": { "Type": "Primary" }, "labelOverride": "Create project" }] },
+        "bad": { "layout": "row", "instances": [{ "props": { "Type": "Primary" }, "labelOverride": "OK" }] }
+      },
+      {
+        "description": "Keep one size per action group; don't mix sizes to fake hierarchy.",
+        "good": { "layout": "row", "instances": [{ "props": { "Size": "Medium", "Type": "Primary" }, "labelOverride": "Publish" }, { "props": { "Size": "Medium", "Type": "Secondary" }, "labelOverride": "Preview" }] },
+        "bad": { "layout": "row", "instances": [{ "props": { "Size": "Large", "Type": "Primary" }, "labelOverride": "Publish" }, { "props": { "Size": "Small", "Type": "Secondary" }, "labelOverride": "Preview" }] }
+      },
+      {
+        "description": "Show enabled actions by default; a disabled button hides why it can't be used.",
+        "good": { "layout": "row", "instances": [{ "props": { "Type": "Primary" }, "labelOverride": "Submit" }] },
+        "bad": { "layout": "row", "instances": [{ "props": { "State": "Disabled", "Type": "Primary" }, "labelOverride": "Submit" }] }
       }
     ]
   },
@@ -116,6 +131,7 @@ The current schema limits are intentionally short and match the exemplar's densi
 - variant bullets ≤6 × ≤120
 - breakdown/mode captions ≤200
 - guideline lists ≤8 items
+- doDonts ≤6 pairs (editorial target: 3–6, see `dodont-patterns.md`)
 - related guidance ≤160
 
 If real Button prose needs to exceed these limits, tune the schema and this exemplar together.

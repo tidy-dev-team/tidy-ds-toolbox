@@ -20,6 +20,7 @@ Before authoring, read these files in this skill directory:
 - `kido-editorial-standard.md` — voice, tone, length, and wording rules.
 - `authoring-rules.md` — per-Section slot rules and never-invent constraints.
 - `button-exemplar.md` — worked Button example and calibration notes.
+- `dodont-patterns.md` — Do/Don't pattern catalogue by component archetype; use it to author 3–6 pairs per page.
 
 ## Trigger phrases
 
@@ -45,6 +46,7 @@ Use this skill for requests like:
    - Include only Sections with meaningful content and/or derived renderable facts.
    - Keep prose within the schema limits and the editorial standard.
    - Use symbolic references exactly as returned by `read_component`.
+   - Author 3–6 Do/Don't pairs by classifying the component into a `dodont-patterns.md` archetype and applying every pattern its axes support; top up from the universal kit. For unique components, follow that file's "Unique components" procedure instead of skipping.
 5. Print/log the Doc Spec as compact JSON unless the user asked not to.
 6. Call `tidy_doc_build_page` with `{ nodeId?, docSpec }`.
 7. Report `pageFrameId`, `sourceComponentId`, and any Sections intentionally skipped.

@@ -33,7 +33,8 @@ Use the schema limits as hard maxima and these editorial targets as soft guidanc
 - Breakdown captions: 0–1 sentence, max 200. Omit when the measurement is self-explanatory.
 - Mode caption: 0–1 sentence, max 200. Explain what changes across modes, not the mode list itself.
 - Guidelines bullets: 2–5 bullets when present, never filler.
-- Do/Don't `description`: one short scenario/rationale, max 200.
+- Do/Don't pairs: 3–6 per page (see `dodont-patterns.md`), each teaching a distinct rule.
+- Do/Don't `description`: one short scenario/rationale, max 200. State the rule, not the scene.
 - Related `guidance`: 1 sentence in the form "Use X when …", max 160.
 
 ## Wording rules
