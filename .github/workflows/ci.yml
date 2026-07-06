@@ -74,6 +74,33 @@ jobs:
       - name: Assemble and structurally check the Claude Code plugin
         run: npm run build:plugin
 
+  mcp-smoketest-src:
+    name: MCP Server Smoketest (raw source)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # The raw-source path runs under --experimental-strip-types, which needs
+      # Node >=22.6 — this is the exact command the dev MCP config uses. Running
+      # it here catches ESM/CJS boundary regressions (an ESM mcp-server import
+      # reaching into a commonjs-scoped .ts) that the bundled smoketest cannot,
+      # because bundling erases the module boundary.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install MCP server dependencies
+        run: npm ci --prefix mcp-server
+
+      - name: Smoketest the MCP server from raw source
+        run: npm run mcp:smoketest:src
+
   build-validation:
     name: Build Validation
     runs-on: ubuntu-latest

@@ -1,11 +1,18 @@
-// CI gate for the bundled MCP server.
+// CI gate for the MCP server. Runs against two targets:
 //
-// Spawns the *bundled* server (dist/server.cjs — the exact artifact designers
-// run) as a subprocess, speaks MCP over its stdio, and asserts it starts and
-// serves the operation catalogue. This catches bundling regressions: a missing
-// dependency or broken `shared/operations` cross-import crashes on startup, and
-// `listTools` forces the catalogue to register and serialize its zod schemas to
-// JSON Schema — exercising zod end-to-end.
+//   • the *bundled* server (dist/server.cjs) — the exact artifact designers
+//     run, via `npm run mcp:smoketest`.
+//   • the *raw source* server (src/server.ts under --experimental-strip-types)
+//     — the exact command the dev MCP config runs, via `npm run
+//     mcp:smoketest:src`. This is the one that catches ESM/CJS boundary
+//     regressions: a cross-import from the ESM `mcp-server` into a commonjs
+//     package's `.ts` fails to load natively, and only the raw-source path
+//     reproduces it (the bundle erases the boundary). See fix/esm-module-type.
+//
+// Either way it spawns the server as a subprocess, speaks MCP over its stdio,
+// and asserts it starts and serves the operation catalogue. `listTools` forces
+// the catalogue to register and serialize its zod schemas to JSON Schema —
+// exercising zod end-to-end.
 //
 // It does NOT round-trip a real operation: that needs a connected Figma plugin
 // over the Bridge and can't run headless. A true end-to-end operation test
@@ -18,24 +25,30 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { CATALOGUE } from "./catalogue.ts";
 
-// Path to the bundled server is passed as the first arg (the npm script points
-// it at dist/server.cjs). Resolving it here avoids import.meta / __dirname,
-// which don't survive the same way through the CJS bundle.
+// Path to the server is passed as the first arg: dist/server.cjs (bundled) or
+// mcp-server/src/server.ts (raw source). Resolving it here avoids import.meta /
+// __dirname, which don't survive the same way through the CJS bundle.
 const serverArg = process.argv[2];
 if (!serverArg) {
   process.stderr.write(
-    "smoketest: missing server bundle path argument (e.g. dist/server.cjs)\n",
+    "smoketest: missing server path argument (dist/server.cjs or src/server.ts)\n",
   );
   process.exit(2);
 }
 const serverPath = resolve(serverArg);
+
+// A .ts target must be run through the type stripper, exactly as the dev MCP
+// config does; a bundled .cjs runs on plain node.
+const serverArgs = serverPath.endsWith(".ts")
+  ? ["--experimental-strip-types", serverPath]
+  : [serverPath];
 
 async function main(): Promise<void> {
   // Use an isolated bridge port so the smoketest never collides with a real
   // dev server (or another CI job) sitting on the default 9876.
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [serverPath],
+    args: serverArgs,
     stderr: "inherit",
     env: { ...process.env, TIDY_BRIDGE_PORT: "49876" } as Record<string, string>,
   });
@@ -64,7 +77,9 @@ async function main(): Promise<void> {
     );
   }
 
-  print(`\n✓ smoketest complete — ${expected.length} tools served from bundle`);
+  print(
+    `\n✓ smoketest complete — ${expected.length} tools served from ${serverArg}`,
+  );
 }
 
 function print(s: string): void {
