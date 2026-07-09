@@ -18,11 +18,31 @@ export interface IncomingMessage {
 }
 
 // Figma context needed to build an event. Passed in from code.ts so the
-// builder is testable without the figma global.
+// builder is testable without the figma global. Only the file identifier is
+// taken (for the one-way hash) — never the file name or any client-readable
+// context.
 export interface FigmaContext {
   fileKey: string | null;
   rootId: string;
-  rootName: string;
+}
+
+// One-way hash of the file identifier (FNV-1a, two passes with different
+// offset bases → 16 hex chars). The raw fileKey never leaves the plugin; the
+// server only ever sees this hash, which preserves distinct-file counts
+// (breadth of use) without identifying or locating a client file.
+export function hashFileKey(key: string): string {
+  const fnv1a = (seed: number): number => {
+    let h = seed >>> 0;
+    for (let i = 0; i < key.length; i++) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h >>> 0;
+  };
+  return (
+    fnv1a(0x811c9dc5).toString(16).padStart(8, "0") +
+    fnv1a(0xcbf29ce4).toString(16).padStart(8, "0")
+  );
 }
 
 let analyticsSessionId: string | null = null;
@@ -82,12 +102,11 @@ export function buildEvent(
   now: Date = new Date(),
 ): UsageEvent {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: identity.type,
     module: identity.module,
     action: identity.action,
-    fileKey: ctx.fileKey ?? ctx.rootId,
-    fileName: ctx.rootName,
+    fileHash: hashFileKey(ctx.fileKey ?? ctx.rootId),
     pluginVersion,
     sessionId,
     clientTs: now.toISOString(),

@@ -15,6 +15,16 @@ Background: [plan](usage-analytics-plan.md)
 > - ⬜ **#45 — Metabase dashboard** (views already built in `sql/02_schema.sql`;
 >   droplet RAM is tight — needs swap headroom).
 
+> **Privacy amendment (2026-07-09):** the original spec deliberately shipped
+> `fileName` and the raw `fileKey`. That decision is **reversed**: no
+> client-identifying data may be logged to the server. Event schema v2 drops
+> `fileName` entirely and replaces `fileKey` with `fileHash`, a one-way hash
+> computed client-side (`hashFileKey` in `src/shared/analytics/capture.ts`),
+> which keeps distinct-file counts working. The ingest service rejects v1
+> events, and `sql/03_privacy_drop_client_data.sql` purges previously stored
+> values. Field references below are amended in place; mentions of
+> `fileName`/`file_key` in the older background docs are historical.
+
 ## 1. Summary
 
 Deliver the version that actually answers the question: ship the Phase 1 usage events from
@@ -103,8 +113,7 @@ inserts rows. ~50 lines. Returns 2xx on accept; client ignores the response eith
 | type           | `action` \| `module_open`               |
 | module         | text                                    |
 | action         | text, nullable                          |
-| file_key       | text                                    |
-| file_name      | text                                    |
+| file_hash      | text (one-way hash, client-computed)    |
 | plugin_version | text                                    |
 | session_id     | text                                    |
 | client_ts      | timestamptz, nullable (ordering only)   |
@@ -112,7 +121,7 @@ inserts rows. ~50 lines. Returns 2xx on accept; client ignores the response eith
 
 **FR11 — Dashboard (Metabase).** Self-hosted on the droplet. Core views:
 - Events (and distinct sessions) per module over time.
-- **Distinct `file_key` per module** (breadth-of-use signal).
+- **Distinct `file_hash` per module** (breadth-of-use signal).
 - Opens vs actions per module (the "opened-but-never-actioned" tell).
 - Action breakdown within a module.
 
@@ -132,13 +141,15 @@ for our volume (hundreds of events/day). Metabase ~1–2 GB RAM. (PostHog/cloud 
       errors surfaced in the plugin.
 - [ ] Batches of up to 10 events POST as a single request; idle sessions flush within ~15s.
 - [ ] Metabase shows events-per-module, distinct-files-per-module, and opens-vs-actions.
-- [ ] `fileName` is present (accepted leak); no payload contents or user identity present.
+- [ ] No client-identifying data present: no file names, no raw file keys, no payload
+      contents, no user identity. `file_hash` is the only file-scoped field.
 - [ ] `allowedDomains` contains only the one ingest origin; production build still blocks all else.
 
 ## 8. Privacy & data governance
 
-- `fileName` is the single deliberate leak (may contain client/project names); accepted
-  because it is the actionable insight and the server is ours.
+- **No client-identifying data leaves the plugin** (amended 2026-07-09; the original
+  "`fileName` is an accepted leak" stance is reversed). File identity is reduced to a
+  client-side one-way hash whose only analytical use is distinct-file counting.
 - No user identity (none available). No payload contents.
 - All data resides on Kido's DigitalOcean infra; nothing sent to third parties.
 

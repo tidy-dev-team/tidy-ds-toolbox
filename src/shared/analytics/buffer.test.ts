@@ -10,12 +10,11 @@ import type { UsageEvent } from "./types";
 
 function makeEvent(module: string, action: string | null): UsageEvent {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     type: action === null ? "module_open" : "action",
     module,
     action,
-    fileKey: "abc",
-    fileName: "F",
+    fileHash: "0123456789abcdef",
     pluginVersion: "1.7.0",
     sessionId: "s",
     clientTs: "2026-06-21T10:00:00.000Z",

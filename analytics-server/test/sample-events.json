@@ -1,24 +1,22 @@
 [
   {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "type": "module_open",
     "module": "ds-explorer",
     "action": null,
-    "fileKey": "abc123filekey",
-    "fileName": "Kido DS — Components",
-    "pluginVersion": "1.7.0",
+    "fileHash": "a1b2c3d4e5f60718",
+    "pluginVersion": "1.12.0",
     "sessionId": "anon_test_0001",
-    "clientTs": "2026-06-22T10:00:00.000Z"
+    "clientTs": "2026-07-09T10:00:00.000Z"
   },
   {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "type": "action",
     "module": "component-labels",
     "action": "build",
-    "fileKey": "abc123filekey",
-    "fileName": "Kido DS — Components",
-    "pluginVersion": "1.7.0",
+    "fileHash": "a1b2c3d4e5f60718",
+    "pluginVersion": "1.12.0",
     "sessionId": "anon_test_0001",
-    "clientTs": "2026-06-22T10:00:05.000Z"
+    "clientTs": "2026-07-09T10:00:05.000Z"
   }
 ]

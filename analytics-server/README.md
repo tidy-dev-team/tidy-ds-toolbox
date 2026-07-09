@@ -8,12 +8,20 @@ into Postgres with a **server-set `received_at`**. It binds to `127.0.0.1` only;
 nginx terminates TLS and proxies to it. Sending is fire-and-forget on the client
 side — this service just needs to accept fast and never be publicly writable.
 
+> **Privacy amendment (2026-07-09):** events are schema **v2 only** — no
+> `fileName`, no raw `fileKey`; the single file-scoped field is `fileHash`, a
+> one-way hash computed in the plugin. v1 events are rejected. On a box
+> deployed before this change, run `sql/03_privacy_drop_client_data.sql` once
+> (drops `file_name`, renames `file_key` → `file_hash`, purges stored values)
+> and redeploy `server.js`.
+
 ## Layout
 
 ```
 server.js                       the service (~90 lines)
 sql/01_roles_and_db.sql         roles + database (run as superuser, on `postgres`)
 sql/02_schema.sql               events table, dashboard views, grants (on toolbox_logs)
+sql/03_privacy_drop_client_data.sql  one-time migration: drop/purge client-identifying columns
 deploy/toolbox-logs.service     systemd unit
 deploy/toolbox-logs.env.example env template (copy to /etc/toolbox-logs.env)
 deploy/nginx-toolbox-logs.conf  nginx vhost (HTTP; certbot adds TLS)

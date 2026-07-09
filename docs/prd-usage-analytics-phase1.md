@@ -3,6 +3,11 @@
 Status: **proposed** · Owner: Dmitri · Date: 2026-06-21 · Depends on: none
 Companion: [Phase 2 PRD](prd-usage-analytics-phase2.md) · Background: [plan](usage-analytics-plan.md)
 
+> **Privacy amendment (2026-07-09):** superseded on one point — `fileName` and the raw
+> `fileKey` are no longer captured or sent. Event schema v2 carries only `fileHash`, a
+> one-way hash computed in the plugin (`hashFileKey` in `src/shared/analytics/capture.ts`).
+> Mentions of `fileName`/`fileKey` in this document are historical.
+
 ## 1. Summary
 
 Instrument the Tidy DS Toolbox so that every real user **action** and every genuine

@@ -2,15 +2,17 @@
 -- Run as a SUPERUSER while connected to the toolbox_logs database:
 --     sudo -u postgres psql -p 5432 -d toolbox_logs -f 02_schema.sql
 
--- --- events table (PRD FR10) -------------------------------------------------
+-- --- events table (PRD FR10, amended 2026-07-09) ------------------------------
+-- Privacy amendment: no client-identifying columns. `file_hash` is a one-way
+-- hash computed in the plugin (schema v2); raw file keys and file names are
+-- never stored. Existing installs: apply sql/03_privacy_drop_client_data.sql.
 CREATE TABLE IF NOT EXISTS events (
   id              bigint      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   schema_version  integer     NOT NULL,
   type            text        NOT NULL CHECK (type IN ('action', 'module_open')),
   module          text        NOT NULL,
   action          text,
-  file_key        text,
-  file_name       text,
+  file_hash       text,
   plugin_version  text,
   session_id      text,
   client_ts       timestamptz,                        -- ordering only (client clock)
@@ -33,11 +35,11 @@ SELECT module,
 FROM events
 GROUP BY module, date_trunc('day', received_at);
 
--- Breadth of use: distinct files a module is touched in.
+-- Breadth of use: distinct files a module is touched in (hashed identifiers).
 CREATE OR REPLACE VIEW v_module_file_breadth AS
 SELECT module,
-       count(DISTINCT file_key) AS distinct_files,
-       count(*)                 AS events
+       count(DISTINCT file_hash) AS distinct_files,
+       count(*)                  AS events
 FROM events
 GROUP BY module;
 
