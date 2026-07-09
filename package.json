@@ -1,11 +1,11 @@
 {
   "name": "tidy-ds-toolbox",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "build:ui": "vite build",
-    "build:main": "node esbuild.config.js",
+    "build:main": "node esbuild.config.cjs",
     "build": "npm run build:ui && npm run build:main",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
@@ -22,13 +22,14 @@
     "build:mcp": "node mcp-server/build.js",
     "build:plugin": "node scripts/assemble-plugin.mjs",
     "mcp:smoketest": "npm run build:mcp && node mcp-server/dist/smoketest.cjs mcp-server/dist/server.cjs",
+    "mcp:smoketest:src": "node --experimental-strip-types mcp-server/src/smoketest.ts mcp-server/src/server.ts",
     "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts",
     "eval:icon-hash": "node --experimental-strip-types scripts/eval-icon-hash.mts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@figma/plugin-typings": "^1.121.0",

@@ -5,6 +5,7 @@ import {
   captureUsage,
   classifyMessage,
   getAnalyticsSessionId,
+  hashFileKey,
   initAnalyticsSession,
   resetAnalyticsSession,
   setUsageRelay,
@@ -15,13 +16,11 @@ import type { UsageEvent } from "./types";
 const FIGMA_CTX = {
   fileKey: "abc123",
   rootId: "root-id",
-  rootName: "Kido Mobile DS",
 };
 
 const NO_FILE_KEY_CTX = {
   fileKey: null,
   rootId: "root-id-fallback",
-  rootName: "Untitled",
 };
 
 beforeEach(() => {
@@ -101,8 +100,20 @@ describe("classifyMessage", () => {
   });
 });
 
+describe("hashFileKey", () => {
+  it("is deterministic and shaped like 16 hex chars", () => {
+    const a = hashFileKey("abc123");
+    expect(a).toBe(hashFileKey("abc123"));
+    expect(a).toMatch(/^[0-9a-f]{16}$/);
+  });
+
+  it("distinguishes different keys", () => {
+    expect(hashFileKey("abc123")).not.toBe(hashFileKey("abc124"));
+  });
+});
+
 describe("buildEvent", () => {
-  it("attaches all schema-v1 fields", () => {
+  it("attaches all schema-v2 fields and no client-identifying data", () => {
     const event = buildEvent(
       { type: "action", module: "audit", action: "generate-report" },
       FIGMA_CTX,
@@ -111,16 +122,16 @@ describe("buildEvent", () => {
       new Date("2026-06-21T10:00:00.000Z"),
     );
     expect(event).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       type: "action",
       module: "audit",
       action: "generate-report",
-      fileKey: "abc123",
-      fileName: "Kido Mobile DS",
+      fileHash: hashFileKey("abc123"),
       pluginVersion: "1.7.0",
       sessionId: "sess-1",
       clientTs: "2026-06-21T10:00:00.000Z",
     });
+    expect(JSON.stringify(event)).not.toContain("abc123");
   });
 
   it("falls back to root.id when fileKey is null (FR7)", () => {
@@ -130,7 +141,7 @@ describe("buildEvent", () => {
       "sess-1",
       "1.7.0",
     );
-    expect(event.fileKey).toBe("root-id-fallback");
+    expect(event.fileHash).toBe(hashFileKey("root-id-fallback"));
   });
 
   it("sets action to null for module_open", () => {
@@ -249,7 +260,7 @@ describe("usage relay (#43)", () => {
       type: "action",
       module: "audit",
       action: "generate-report",
-      fileKey: "abc123",
+      fileHash: hashFileKey("abc123"),
     });
   });
 

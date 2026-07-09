@@ -2,6 +2,11 @@
 
 Status: **planned** · Owner: Dmitri · Date: 2026-06-21
 
+> **Privacy amendment (2026-07-09):** superseded on one point — `fileName` and the raw
+> `fileKey` are no longer captured or sent. Event schema v2 carries only `fileHash`, a
+> one-way hash computed in the plugin (`hashFileKey` in `src/shared/analytics/capture.ts`).
+> Mentions of `fileName`/`fileKey` in this document are historical.
+
 ## Goal
 
 Understand **which sub-plugins (modules) are actually used and which are not**, so we

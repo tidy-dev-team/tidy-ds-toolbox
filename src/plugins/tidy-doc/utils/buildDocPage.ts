@@ -24,6 +24,11 @@ interface DocPageStamp {
   builtAt: number;
 }
 
+// Guards against two concurrent builds for the same source (e.g. a client
+// retrying after a timeout while the first call is still running): without
+// this, both calls see no existing stamped page and each builds its own.
+const buildsInFlight = new Set<string>();
+
 // Scans every page (not just the current one) and every depth (not just
 // top-level children), since re-runs must find a stamped page regardless of
 // which page or frame a designer moved it into between runs (#52 ACR).
@@ -48,6 +53,26 @@ async function findExistingDocPages(
 }
 
 export async function buildDocPage(
+  source: ComponentNode | ComponentSetNode,
+  spec: DocSpec,
+): Promise<FrameNode> {
+  if (buildsInFlight.has(source.id)) {
+    throw new OperationError(
+      ErrorCode.BUSY,
+      `A Documentation Page build for ${source.name} is already in progress`,
+      true,
+    );
+  }
+  buildsInFlight.add(source.id);
+
+  try {
+    return await buildDocPageUnguarded(source, spec);
+  } finally {
+    buildsInFlight.delete(source.id);
+  }
+}
+
+async function buildDocPageUnguarded(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
 ): Promise<FrameNode> {
@@ -80,6 +105,21 @@ export async function buildDocPage(
     24,
     24,
     24,
+  );
+
+  // Place and stamp the frame immediately, before the slow section builds
+  // below, so a concurrent/retried call's findExistingDocPages scan sees it
+  // and replaces it instead of building a second, independent page.
+  page.appendChild(root);
+  root.x = source.x + source.width + 200;
+  root.y = source.y;
+  root.setPluginData(
+    PLUGIN_DATA_KEY,
+    JSON.stringify({
+      version: 1,
+      sourceComponentId: source.id,
+      builtAt: Date.now(),
+    } satisfies DocPageStamp),
   );
 
   const { card, body } = await buildSectionCard(
@@ -140,19 +180,6 @@ export async function buildDocPage(
     relatedBody.appendChild(relatedSection);
     root.appendChild(relatedCard);
   }
-
-  page.appendChild(root);
-  root.x = source.x + source.width + 200;
-  root.y = source.y;
-
-  root.setPluginData(
-    PLUGIN_DATA_KEY,
-    JSON.stringify({
-      version: 1,
-      sourceComponentId: source.id,
-      builtAt: Date.now(),
-    } satisfies DocPageStamp),
-  );
 
   figma.viewport.scrollAndZoomIntoView([root]);
 

@@ -8,6 +8,7 @@ export const ErrorCode = {
   FILE_SWITCHED: "FILE_SWITCHED",
   UNSUPPORTED_OPERATION: "UNSUPPORTED_OPERATION",
   TIMEOUT: "TIMEOUT",
+  BUSY: "BUSY",
   INTERNAL: "INTERNAL",
 } as const;
 // Type + const declaration merge is intentional and valid TypeScript.

@@ -174,7 +174,6 @@ figma.ui.onmessage = async (msg: unknown) => {
     {
       fileKey: figma.fileKey ?? null,
       rootId: figma.root.id,
-      rootName: figma.root.name,
     },
     __APP_VERSION__,
   );

@@ -44,24 +44,26 @@ function authorized(req) {
 }
 
 const KNOWN_TYPES = new Set(["action", "module_open"]);
-const COLS = 9;
+const COLS = 8;
 
 // Map one raw client event to a column tuple, or null to drop it.
 // FR8: validate schemaVersion. We are lenient on optional fields (a malformed
 // optional must not sink an otherwise-valid event — the client never retries).
+// Schema v2 only: v1 events carried the raw fileKey and fileName (client-
+// identifying), so they are dropped rather than stored (privacy amendment,
+// 2026-07-09). v2 carries fileHash, a one-way hash computed in the plugin.
 function normalize(e) {
   if (!e || typeof e !== "object") return null;
-  if (e.schemaVersion !== 1) return null;
+  if (e.schemaVersion !== 2) return null;
   if (!KNOWN_TYPES.has(e.type)) return null;
   if (typeof e.module !== "string" || e.module.length === 0) return null;
   const str = (v) => (typeof v === "string" ? v : null);
   return [
-    1, // schema_version
+    2, // schema_version
     e.type,
     e.module,
     str(e.action),
-    str(e.fileKey),
-    str(e.fileName),
+    str(e.fileHash),
     str(e.pluginVersion),
     str(e.sessionId),
     str(e.clientTs),
@@ -116,7 +118,7 @@ app.post("/events", async (req, res) => {
     })
     .join(",");
   const sql = `INSERT INTO events
-    (schema_version, type, module, action, file_key, file_name, plugin_version, session_id, client_ts)
+    (schema_version, type, module, action, file_hash, plugin_version, session_id, client_ts)
     VALUES ${valuesSql}`;
 
   try {
