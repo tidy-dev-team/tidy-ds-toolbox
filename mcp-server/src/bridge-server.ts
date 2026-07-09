@@ -101,7 +101,11 @@ export class BridgeServer {
         this.pending.delete(id);
         reject({
           code: "TIMEOUT",
-          message: `Operation '${operation}' did not respond within ${effectiveTimeout}ms`,
+          message:
+            `Operation '${operation}' did not respond within ${effectiveTimeout}ms. ` +
+            "The plugin may still be working — if the Figma desktop app isn't the " +
+            "focused/foreground window, macOS throttles it and stalls plugin " +
+            "execution. Bring Figma to the front and retry.",
           recoverable: true,
         } satisfies BridgeError);
       }, effectiveTimeout);
