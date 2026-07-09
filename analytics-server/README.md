@@ -115,10 +115,17 @@ systemctl status toolbox-logs --no-pager
 ### 5. Local verification (no domain needed — covers 4 of 5 acceptance criteria)
 
 ```bash
-TOKEN=$(sudo grep INGEST_TOKEN /etc/toolbox-logs.env | cut -d= -f2)
+TOKEN=$(sudo grep -m1 '^INGEST_TOKEN=' /etc/toolbox-logs.env | cut -d= -f2 | tr -d '\r"')
 
 # health
 curl -s http://127.0.0.1:8091/health
+
+# ⚠️ gotcha — the env file can contain MORE THAN ONE line matching
+# INGEST_TOKEN; a naive `grep | cut` glues two lines together and the embedded
+# newline in the Authorization header makes Node's HTTP parser return a bare
+# `400 Bad Request` + `Connection: close` BEFORE Express ever runs (journalctl
+# shows nothing). Hence the `-m1 '^INGEST_TOKEN='` above. Sanity check:
+# `printf %s "$TOKEN" | wc -c` should be 64.
 
 # rejected without token  -> 401
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1:8091/events \
@@ -191,11 +198,15 @@ Figma → Postgres). How it works:
 - The plugin thread can't do network, so `code.ts` registers a relay
   (`setUsageRelay` in `src/shared/analytics/capture.ts`) that forwards every
   captured `UsageEvent` to the UI thread via `figma.ui.postMessage`.
-- The UI thread (`src/shared/analytics/transport.ts`) listens for those messages
-  and does a **fire-and-forget** `POST /events`:
+- The UI thread (`src/shared/analytics/transport.ts`) listens for those messages,
+  buffers them in memory, and does a **fire-and-forget batched** `POST /events`
+  (#44): one request per batch of up to 10 events, or ~15 s after the first
+  event enters an empty buffer, whichever comes first.
   - header `Authorization: Bearer <INGEST_TOKEN>` (same token baked into the build)
   - body: a JSON array of `UsageEvent` (camelCase, see `src/shared/analytics/types.ts`)
-  - one event per request in this slice; batching is #44.
+  - the buffer is memory-only — events pending at tab close are dropped by design.
+  - all events in one batch share the same `received_at` (one INSERT per flush),
+    which is also the tell-tale for verifying batching works (see below).
 - The send is fully isolated: any failure (server down, offline, non-2xx) is
   swallowed and never blocks, delays, or throws into a user action.
 
@@ -215,6 +226,36 @@ TIDY_INGEST_TOKEN="$(ssh tidy@204.48.22.123 'sudo grep ^INGEST_TOKEN= /etc/toolb
 
 `manifest.json` `networkAccess.allowedDomains` is the single ingest origin
 (`https://toolbox-logs.wearekido.dev`); production builds reach nothing else.
+
+## Checking results manually
+
+Until the Metabase dashboard (#45) exists, query Postgres directly from your
+laptop (uses the `tidy` SSH alias; `-t` allocates a TTY so `sudo` can prompt):
+
+```bash
+# Latest raw events — batched events share an identical received_at
+ssh -t tidy 'sudo -u postgres psql -p 5432 -d toolbox_logs \
+  -c "SELECT module, action, plugin_version, received_at FROM events ORDER BY received_at DESC LIMIT 20;"'
+
+# Which tools are used, and how often (the headline question)
+ssh -t tidy 'sudo -u postgres psql -p 5432 -d toolbox_logs \
+  -c "SELECT * FROM v_module_opens_vs_actions ORDER BY actions DESC;"'
+
+# Breadth: how many distinct files each module touches
+ssh -t tidy 'sudo -u postgres psql -p 5432 -d toolbox_logs \
+  -c "SELECT * FROM v_module_file_breadth;"'
+
+# Top actions per module
+ssh -t tidy 'sudo -u postgres psql -p 5432 -d toolbox_logs \
+  -c "SELECT * FROM v_action_breakdown LIMIT 25;"'
+
+# Daily usage per module
+ssh -t tidy 'sudo -u postgres psql -p 5432 -d toolbox_logs \
+  -c "SELECT * FROM v_module_daily ORDER BY day DESC LIMIT 25;"'
+```
+
+The dashboard views are defined in `sql/02_schema.sql`. Note `psql` pages long
+output through `less` — press `q` to exit the `(END)` prompt.
 
 ### CORS
 
