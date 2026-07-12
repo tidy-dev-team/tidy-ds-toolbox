@@ -12,6 +12,25 @@
 import { setVariantProps } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import type { DerivedFacts } from "./facts";
 
+// Exact property-name match, unlike setVariantProps's substring matching —
+// used wherever a caller pins a specific axis and a substring collision
+// (e.g. "State" matching "Loading State") would pin the wrong property.
+function setVariantPropExact(
+  instance: InstanceNode,
+  axisName: string,
+  value: string,
+): void {
+  for (const property in instance.componentProperties) {
+    if (
+      instance.componentProperties[property].type === "VARIANT" &&
+      property === axisName
+    ) {
+      instance.setProperties({ [property]: value });
+      break;
+    }
+  }
+}
+
 export function createSpecimenInstance(
   source: ComponentNode | ComponentSetNode,
   familyValue: string,
@@ -45,25 +64,17 @@ export function createSpecimenInstance(
     setVariantProps(instance, axisName, value);
   }
 
-  // State override: match the exact property name rather than relying on
-  // setVariantProps's substring matching, which can collide with other
-  // axes (e.g. a "Loading State" axis would match a substring search for
-  // "State").
   if (facts.stateAxis?.name && stateValue) {
-    for (const property in instance.componentProperties) {
-      if (
-        instance.componentProperties[property].type === "VARIANT" &&
-        property === facts.stateAxis.name
-      ) {
-        instance.setProperties({ [property]: stateValue });
-        break;
-      }
-    }
+    setVariantPropExact(instance, facts.stateAxis.name, stateValue);
   }
 
+  // Per-cell overrides must match exactly too — deriveConstraintWidths
+  // measures the variant it found via exact-match lookup, so the specimen
+  // rendered here has to pin the same axis, not whatever substring-collides
+  // with it (e.g. "Size" vs "Icon Size").
   if (overrides) {
     for (const [axisName, value] of Object.entries(overrides)) {
-      setVariantProps(instance, axisName, value);
+      setVariantPropExact(instance, axisName, value);
     }
   }
 
