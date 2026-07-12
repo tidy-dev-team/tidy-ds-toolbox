@@ -52,7 +52,7 @@ function createSceneInstance(
   return instance;
 }
 
-async function buildScene(
+export async function buildScene(
   source: ComponentNode | ComponentSetNode,
   scene: SpecimenScene,
   facts: DerivedFacts,
@@ -84,7 +84,9 @@ async function buildScene(
   return frame;
 }
 
-async function buildVerdictIcon(verdict: "good" | "bad"): Promise<TextNode> {
+export async function buildVerdictIcon(
+  verdict: "good" | "bad",
+): Promise<TextNode> {
   return verdict === "good"
     ? createText("✓", 16, { family: "Inter", style: "Bold" }, "#16A34A")
     : createText("✗", 16, { family: "Inter", style: "Bold" }, "#DC2626");

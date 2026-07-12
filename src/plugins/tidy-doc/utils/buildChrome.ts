@@ -35,7 +35,7 @@ export async function createText(
   return text;
 }
 
-async function buildStatusBadge(status: DocStatus): Promise<FrameNode> {
+export async function buildStatusBadge(status: DocStatus): Promise<FrameNode> {
   const style = STATUS_BADGE[status];
   const pill = buildAutoLayoutFrame(
     `status-badge — ${status}`,

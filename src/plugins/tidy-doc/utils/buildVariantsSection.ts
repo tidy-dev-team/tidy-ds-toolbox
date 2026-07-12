@@ -8,64 +8,11 @@
 // incidental axis) is pinned to its derived rest-state default in every
 // cell — the scene never expands into a state×axis grid.
 
-import {
-  buildAutoLayoutFrame,
-  setVariantProps,
-} from "../../sticker-sheet-builder/utils/utilityFunctions";
+import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { createText } from "./buildChrome";
+import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
-
-function createSpecimenInstance(
-  source: ComponentNode | ComponentSetNode,
-  familyValue: string,
-  facts: DerivedFacts,
-  stateValue?: string,
-): InstanceNode {
-  const base = source.type === "COMPONENT_SET" ? source.defaultVariant : source;
-  const instance = base.createInstance();
-
-  if (source.type === "COMPONENT_SET" && facts.familyAxis.name) {
-    setVariantProps(instance, facts.familyAxis.name, familyValue);
-  }
-
-  // Pin non-spanned axes to rest-state defaults — but exclude the state
-  // axis when a per-cell stateValue is provided, so the state override
-  // below sets the correct cell state rather than being reverted to the
-  // rest-state default.
-  const pinning: Record<string, string> = {};
-  for (const [axisName, value] of Object.entries(facts.pinnedDefaults)) {
-    if (
-      facts.stateAxis?.name &&
-      stateValue &&
-      axisName === facts.stateAxis.name
-    ) {
-      continue;
-    }
-    pinning[axisName] = value;
-  }
-  for (const [axisName, value] of Object.entries(pinning)) {
-    setVariantProps(instance, axisName, value);
-  }
-
-  // State override: match the exact property name rather than relying on
-  // setVariantProps's substring matching, which can collide with other
-  // axes (e.g. a "Loading State" axis would match a substring search for
-  // "State").
-  if (facts.stateAxis?.name && stateValue) {
-    for (const property in instance.componentProperties) {
-      if (
-        instance.componentProperties[property].type === "VARIANT" &&
-        property === facts.stateAxis.name
-      ) {
-        instance.setProperties({ [property]: stateValue });
-        break;
-      }
-    }
-  }
-
-  return instance;
-}
 
 /**
  * A family's Specimen Scene: one cell per state-axis value when the

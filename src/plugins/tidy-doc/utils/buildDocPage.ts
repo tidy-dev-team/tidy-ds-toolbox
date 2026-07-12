@@ -15,6 +15,7 @@ import { buildModeSection } from "./buildModeSection";
 import { buildGuidelinesSection } from "./buildGuidelinesSection";
 import { buildRelatedSection } from "./buildRelatedSection";
 import type { DocSpec } from "./docSpec";
+import type { DerivedFacts } from "./facts";
 
 const PLUGIN_DATA_KEY = "tidy:doc-page";
 
@@ -122,6 +123,24 @@ async function buildDocPageUnguarded(
     } satisfies DocPageStamp),
   );
 
+  await assembleHorizontalSections(root, source, spec, facts);
+
+  figma.viewport.scrollAndZoomIntoView([root]);
+
+  return root;
+}
+
+// The horizontal layout's Section assembly, moved verbatim out of
+// buildDocPageUnguarded (#63 prefactor) so a future layout branch can add a
+// sibling assembly routine without touching the shared scaffolding (fact
+// derivation, reference resolution, replace-wholesale find/stamp/placement,
+// the in-flight guard) above.
+async function assembleHorizontalSections(
+  root: FrameNode,
+  source: ComponentNode | ComponentSetNode,
+  spec: DocSpec,
+  facts: DerivedFacts,
+): Promise<void> {
   const { card, body } = await buildSectionCard(
     "variants",
     "Variants",
@@ -180,8 +199,4 @@ async function buildDocPageUnguarded(
     relatedBody.appendChild(relatedSection);
     root.appendChild(relatedCard);
   }
-
-  figma.viewport.scrollAndZoomIntoView([root]);
-
-  return root;
 }
