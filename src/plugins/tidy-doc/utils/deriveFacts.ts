@@ -10,10 +10,12 @@ import {
   deriveWidthFact,
   detectIconPlacement,
   findMatchingVariantIndex,
+  type ConstraintWidthFact,
   type PropertyDescriptor,
   type SizeMeasurement,
 } from "./anatomy";
 import { findRelatedCandidates } from "./findRelatedCandidates";
+import { deriveMatrixModel } from "./matrixModel";
 import type { DerivedFacts } from "./facts";
 import type { ModeCollectionFact } from "./modes";
 
@@ -150,6 +152,65 @@ function deriveHeights(
   return heights;
 }
 
+// Constraints redline facts (#66): one per (size × column-combination) cell
+// of the vertical layout's Component Variants matrix. Reuses
+// deriveMatrixModel — the same source of truth the matrix renderer uses —
+// so Constraints and the matrix always agree on which combinations exist.
+function deriveConstraintWidths(
+  node: ComponentSetNode,
+  categorization: ReturnType<typeof categorizeAxes>,
+  defaults: Record<string, string>,
+): ConstraintWidthFact[] {
+  const model = deriveMatrixModel({
+    sizeAxis: categorization.sizeAxis,
+    familyAxis: categorization.familyAxis,
+    demotedAxisValues: categorization.demotedAxisValues,
+    componentName: node.name,
+  });
+
+  const pinMap: Record<string, string> = { ...categorization.pinnedDefaults };
+  let familyValue: string | null = null;
+  if (categorization.familyAxis.name) {
+    const familyDefault = defaults[categorization.familyAxis.name];
+    if (familyDefault) {
+      pinMap[categorization.familyAxis.name] = familyDefault;
+      familyValue = familyDefault;
+    }
+  }
+
+  const childDescriptors = node.children.map((child) => ({
+    variantProperties:
+      child.type === "COMPONENT" ? child.variantProperties : null,
+  }));
+
+  const facts: ConstraintWidthFact[] = [];
+  for (const group of model.sizeGroups) {
+    for (const column of model.columns) {
+      const target = { ...pinMap, ...column.props };
+      if (categorization.sizeAxis?.name && group.sizeValue) {
+        target[categorization.sizeAxis.name] = group.sizeValue;
+      }
+
+      const index = findMatchingVariantIndex(childDescriptors, target);
+      if (index === null) {
+        console.warn(
+          `tidy-doc: no variant of "${node.name}" matched size "${group.label ?? "n/a"}" / column "${column.label || "n/a"}" under its pinned rest-state defaults; dropping from the Constraints section`,
+        );
+        continue;
+      }
+      const child = node.children[index] as ComponentNode;
+      facts.push({
+        sizeLabel: group.label,
+        columnLabel: column.label,
+        familyValue,
+        width: child.width,
+        horizontalSizing: child.layoutSizingHorizontal,
+      });
+    }
+  }
+  return facts;
+}
+
 export async function deriveFacts(
   node: ComponentNode | ComponentSetNode,
 ): Promise<DerivedFacts> {
@@ -200,12 +261,16 @@ export async function deriveFacts(
     node.type === "COMPONENT_SET"
       ? deriveHeights(node, categorization, defaults)
       : [];
+  const constraintWidths =
+    node.type === "COMPONENT_SET"
+      ? deriveConstraintWidths(node, categorization, defaults)
+      : [];
 
   return {
     componentId: node.id,
     componentName: node.name,
     ...categorization,
-    breakdown: { heights, width, iconPlacement },
+    breakdown: { heights, width, iconPlacement, constraintWidths },
     modeCollections,
     relatedCandidates,
   };

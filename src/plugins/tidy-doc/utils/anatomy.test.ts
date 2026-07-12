@@ -3,6 +3,7 @@ import {
   deriveWidthFact,
   detectIconPlacement,
   findMatchingVariantIndex,
+  widthConstraintLabel,
   type PropertyDescriptor,
 } from "./anatomy";
 
@@ -81,6 +82,21 @@ describe("detectIconPlacement", () => {
       { name: "ICON", type: "BOOLEAN" },
     ];
     expect(detectIconPlacement(descriptors)?.propertyName).toBe("ICON");
+  });
+});
+
+describe("widthConstraintLabel", () => {
+  it("labels a fixed-width variant as 'Fixed <rounded width>'", () => {
+    expect(widthConstraintLabel("FIXED", 128.4)).toBe("Fixed 128");
+    expect(widthConstraintLabel("FIXED", 128.6)).toBe("Fixed 129");
+  });
+
+  it("labels a hugging variant as 'Hug', never prefixed 'Fixed'", () => {
+    expect(widthConstraintLabel("HUG", 128)).toBe("Hug");
+  });
+
+  it("labels a filling variant as 'Fill', never prefixed 'Fixed'", () => {
+    expect(widthConstraintLabel("FILL", 128)).toBe("Fill");
   });
 });
 

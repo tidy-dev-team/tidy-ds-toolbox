@@ -16,7 +16,12 @@ function makeFacts(overrides: Partial<DerivedFacts> = {}): DerivedFacts {
       Size: "M",
       "Icon Position": "Leading",
     },
-    breakdown: { heights: [], width: null, iconPlacement: null },
+    breakdown: {
+      heights: [],
+      width: null,
+      iconPlacement: null,
+      constraintWidths: [],
+    },
     modeCollections: [],
     relatedCandidates: [],
     ...overrides,

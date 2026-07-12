@@ -8,6 +8,16 @@
 
 import type { DerivedFacts } from "./facts";
 
+// A structural subset of DerivedFacts — just the axis-role fields the model
+// needs — so deriveFacts.ts (the Figma-touching adapter) can build the model
+// from the categorization result before the rest of DerivedFacts (breakdown,
+// modeCollections, relatedCandidates) exists, to derive the Constraints
+// width facts (#66) that must agree with this same model.
+export type MatrixModelFacts = Pick<
+  DerivedFacts,
+  "sizeAxis" | "familyAxis" | "demotedAxisValues" | "componentName"
+>;
+
 export interface MatrixSizeGroup {
   label: string | null;
   sizeValue: string | null;
@@ -65,7 +75,7 @@ function columnLabel(props: Record<string, string>): string {
  * never a column dimension — it isn't a key in `demotedAxisValues` — so
  * every cell pins it to its rest-state default instead.
  */
-export function deriveMatrixModel(facts: DerivedFacts): MatrixModel {
+export function deriveMatrixModel(facts: MatrixModelFacts): MatrixModel {
   const sizeGroups: MatrixSizeGroup[] = facts.sizeAxis
     ? facts.sizeAxis.values.map((value) => ({
         label: value,

@@ -16,6 +16,7 @@ import { buildGuidelinesSection } from "./buildGuidelinesSection";
 import { buildRelatedSection } from "./buildRelatedSection";
 import { buildVerticalHeader } from "./buildVerticalHeader";
 import { buildVariantMatrixSection } from "./buildVariantMatrixSection";
+import { buildConstraintsSection } from "./buildConstraintsSection";
 import { getPersistedDocLayout, type DocLayout } from "./docLayout";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -144,8 +145,8 @@ async function buildDocPageUnguarded(
 }
 
 // The vertical layout's Section assembly (#64). This slice renders the
-// Header and the Component Variants matrix; the Constraints redline section
-// (#66) and Dos and Don'ts grid (#67) append here in later slices.
+// Header, the Component Variants matrix, and Constraints; the Dos and
+// Don'ts grid (#67) appends here in a later slice.
 async function assembleVerticalSections(
   root: FrameNode,
   source: ComponentNode | ComponentSetNode,
@@ -157,6 +158,9 @@ async function assembleVerticalSections(
 
   const matrixSection = await buildVariantMatrixSection(source, facts);
   root.appendChild(matrixSection);
+
+  const constraintsSection = await buildConstraintsSection(source, facts);
+  if (constraintsSection) root.appendChild(constraintsSection);
 }
 
 // The horizontal layout's Section assembly, moved verbatim out of

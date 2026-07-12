@@ -31,6 +31,21 @@ export interface PropertyDescriptor {
   values?: string[];
 }
 
+export type HorizontalSizingMode = "FIXED" | "HUG" | "FILL";
+
+/**
+ * Constraints redline fact (#66): the matching variant's width + horizontal
+ * sizing mode for one (size × column-combination) cell of the vertical
+ * layout's Component Variants matrix (matrixModel.ts). Component-set only.
+ */
+export interface ConstraintWidthFact {
+  sizeLabel: string | null;
+  columnLabel: string;
+  familyValue: string | null;
+  width: number;
+  horizontalSizing: HorizontalSizingMode;
+}
+
 export interface VariantChildDescriptor {
   variantProperties: Record<string, string> | null;
 }
@@ -98,6 +113,20 @@ export function detectIconPlacement(
  * the Height sub-section drops that size value and logs it (skip-when-empty,
  * one level down).
  */
+/**
+ * Width-label rule (#66, pure, unit-tested): a fixed-width variant is
+ * labeled `Fixed <rounded width>`; a hugging or filling variant is labeled
+ * `Hug`/`Fill` and is never prefixed "Fixed", so a content-driven width is
+ * never presented as a hard constraint to the engineer reading the page.
+ */
+export function widthConstraintLabel(
+  horizontalSizing: HorizontalSizingMode,
+  width: number,
+): string {
+  if (horizontalSizing === "FIXED") return `Fixed ${Math.round(width)}`;
+  return horizontalSizing === "HUG" ? "Hug" : "Fill";
+}
+
 export function findMatchingVariantIndex(
   children: VariantChildDescriptor[],
   target: Record<string, string>,

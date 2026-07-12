@@ -12,7 +12,12 @@ const facts: DerivedFacts = {
   demoted: [],
   demotedAxisValues: {},
   pinnedDefaults: { State: "Idle" },
-  breakdown: { heights: [], width: null, iconPlacement: null },
+  breakdown: {
+    heights: [],
+    width: null,
+    iconPlacement: null,
+    constraintWidths: [],
+  },
   modeCollections: [],
   relatedCandidates: [
     { name: "Icon Button", matchedTokens: ["button"] },
