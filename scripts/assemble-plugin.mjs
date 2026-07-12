@@ -122,11 +122,16 @@ for (const cmd of [
   "tidy-labels",
   "tidy-ds",
   "tidy-ds-template",
-  "tidy-doc",
 ]) {
   assert(
     existsSync(join(pluginOut, "commands", `${cmd}.md`)),
     `command ${cmd}.md present`,
+  );
+}
+for (const skill of ["tidy-doc"]) {
+  assert(
+    existsSync(join(pluginOut, "skills", skill, "SKILL.md")),
+    `skill ${skill}/SKILL.md present`,
   );
 }
 assert(

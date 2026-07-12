@@ -10,7 +10,9 @@ import { CATALOGUE } from "./catalogue.ts";
 import { BridgeServer } from "./bridge-server.ts";
 import type { BridgeError } from "./bridge-server.ts";
 
-const BRIDGE_HOST = process.env.TIDY_BRIDGE_HOST ?? "localhost";
+// Pin to the IPv4 loopback: "localhost" resolves to ::1 on modern Node, and a
+// ::1-only listener contradicts the documented 127.0.0.1:9876 bridge address.
+const BRIDGE_HOST = process.env.TIDY_BRIDGE_HOST ?? "127.0.0.1";
 const BRIDGE_PORT = Number(process.env.TIDY_BRIDGE_PORT ?? 9876);
 
 const log = (msg: string) => process.stderr.write(`[mcp-server] ${msg}\n`);
@@ -26,7 +28,17 @@ async function main(): Promise<void> {
     await bridge.listen();
     log("bridge listening; awaiting plugin connection");
   } catch (err) {
-    log(`bridge listen failed: ${(err as Error).message}`);
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "EADDRINUSE") {
+      log(
+        `port ${BRIDGE_PORT} is already taken — another tidy-ds MCP server ` +
+          `(e.g. from a second Claude Code session, or the plugin-bundled ` +
+          `server alongside the dev server) owns the Figma bridge. Close the ` +
+          `other session or its server, then reconnect this one.`,
+      );
+    } else {
+      log(`bridge listen failed: ${e.message}`);
+    }
     process.exit(1);
   }
 
