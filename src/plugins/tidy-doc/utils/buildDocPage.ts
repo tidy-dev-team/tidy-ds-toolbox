@@ -14,6 +14,8 @@ import { buildBreakdownSection } from "./buildBreakdownSection";
 import { buildModeSection } from "./buildModeSection";
 import { buildGuidelinesSection } from "./buildGuidelinesSection";
 import { buildRelatedSection } from "./buildRelatedSection";
+import { buildVerticalHeader } from "./buildVerticalHeader";
+import { getPersistedDocLayout, type DocLayout } from "./docLayout";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 
@@ -53,9 +55,13 @@ async function findExistingDocPages(
   return matches;
 }
 
+// An explicit layout override, for tests and future callers — both current
+// callers (the MCP operation and the panel fallback) pass nothing and rely
+// on the persisted panel setting resolved internally below.
 export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
+  layoutOverride?: DocLayout,
 ): Promise<FrameNode> {
   if (buildsInFlight.has(source.id)) {
     throw new OperationError(
@@ -67,7 +73,7 @@ export async function buildDocPage(
   buildsInFlight.add(source.id);
 
   try {
-    return await buildDocPageUnguarded(source, spec);
+    return await buildDocPageUnguarded(source, spec, layoutOverride);
   } finally {
     buildsInFlight.delete(source.id);
   }
@@ -76,7 +82,9 @@ export async function buildDocPage(
 async function buildDocPageUnguarded(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
+  layoutOverride?: DocLayout,
 ): Promise<FrameNode> {
+  const layout = layoutOverride ?? (await getPersistedDocLayout());
   const facts = await deriveFacts(source);
 
   const { unresolved } = resolveDocSpecReferences(spec, facts);
@@ -102,7 +110,7 @@ async function buildDocPageUnguarded(
 
   const root = buildAutoLayoutFrame(
     `Documentation — ${source.name}`,
-    "HORIZONTAL",
+    layout === "vertical" ? "VERTICAL" : "HORIZONTAL",
     24,
     24,
     24,
@@ -123,11 +131,28 @@ async function buildDocPageUnguarded(
     } satisfies DocPageStamp),
   );
 
-  await assembleHorizontalSections(root, source, spec, facts);
+  if (layout === "vertical") {
+    await assembleVerticalSections(root, source, spec, facts);
+  } else {
+    await assembleHorizontalSections(root, source, spec, facts);
+  }
 
   figma.viewport.scrollAndZoomIntoView([root]);
 
   return root;
+}
+
+// The vertical layout's Section assembly (#64). This slice renders the
+// Header only; the size-grouped Variants matrix (#65), Constraints redline
+// section (#66), and Dos and Don'ts grid (#67) append here in later slices.
+async function assembleVerticalSections(
+  root: FrameNode,
+  source: ComponentNode | ComponentSetNode,
+  spec: DocSpec,
+  _facts: DerivedFacts,
+): Promise<void> {
+  const header = await buildVerticalHeader(source.name, spec.status);
+  root.appendChild(header);
 }
 
 // The horizontal layout's Section assembly, moved verbatim out of

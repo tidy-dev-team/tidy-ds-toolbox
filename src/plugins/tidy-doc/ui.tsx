@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
-import { Card } from "@shell/components";
+import { Card, FormControl } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import {
   getBridgeStatus,
   subscribeBridgeStatus,
 } from "@shared/operations/ui-bridge-startup";
 import type { BridgeStatus } from "@shared/operations/ui-bridge";
-import type { GetContextResult, DocumentSelectionResult } from "./types";
+import type {
+  GetContextResult,
+  DocumentSelectionResult,
+  SetLayoutResult,
+  DocLayout,
+} from "./types";
 
 const BRIDGE_STATUS_LABEL: Record<BridgeStatus, string> = {
   open: "connected",
@@ -16,6 +21,7 @@ const BRIDGE_STATUS_LABEL: Record<BridgeStatus, string> = {
 
 export function TidyDocUI() {
   const [fileKey, setFileKey] = useState<string | null>(null);
+  const [layout, setLayout] = useState<DocLayout>("horizontal");
   const [log, setLog] = useState<string[]>([]);
   const [building, setBuilding] = useState(false);
   const [bridgeStatus, setBridgeStatus] =
@@ -38,7 +44,14 @@ export function TidyDocUI() {
       if (!message) return;
 
       if (message.type === "response" && message.requestId === "get-context") {
-        setFileKey((message.result as GetContextResult).fileKey);
+        const result = message.result as GetContextResult;
+        setFileKey(result.fileKey);
+        setLayout(result.layout);
+      } else if (
+        message.type === "response" &&
+        message.requestId === "set-layout"
+      ) {
+        setLayout((message.result as SetLayoutResult).layout);
       } else if (
         message.type === "response" &&
         message.requestId === "document-selection"
@@ -68,6 +81,16 @@ export function TidyDocUI() {
     });
   };
 
+  const changeLayout = (nextLayout: DocLayout) => {
+    setLayout(nextLayout);
+    postToFigma({
+      target: "tidy-doc",
+      action: "set-layout",
+      payload: { layout: nextLayout },
+      requestId: "set-layout",
+    });
+  };
+
   return (
     <div className="tidy-doc">
       <Card>
@@ -83,6 +106,17 @@ export function TidyDocUI() {
           <code>tidy_doc_build_page</code>). The button below is a facts-only
           fallback with no authored prose.
         </p>
+        <FormControl label="Page layout">
+          <select
+            value={layout}
+            onChange={(event) =>
+              changeLayout(event.target.value as DocLayout)
+            }
+          >
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
+        </FormControl>
         <button disabled={building} onClick={documentSelection}>
           {building ? "Building…" : "Document selection"}
         </button>

@@ -12,13 +12,31 @@ import {
   TidyDocAction,
   GetContextResult,
   DocumentSelectionResult,
+  SetLayoutPayload,
+  SetLayoutResult,
 } from "./types";
 import { deriveFacts } from "./utils/deriveFacts";
 import { buildDocPage } from "./utils/buildDocPage";
+import {
+  getPersistedDocLayout,
+  normalizeDocLayout,
+  setPersistedDocLayout,
+} from "./utils/docLayout";
 import type { DocSpec } from "./utils/docSpec";
 
-function getContext(): GetContextResult {
-  return { fileKey: figma.fileKey ?? null };
+async function getContext(): Promise<GetContextResult> {
+  return {
+    fileKey: figma.fileKey ?? null,
+    layout: await getPersistedDocLayout(),
+  };
+}
+
+async function setLayout(payload: unknown): Promise<SetLayoutResult> {
+  const layout = normalizeDocLayout(
+    (payload as Partial<SetLayoutPayload> | undefined)?.layout,
+  );
+  await setPersistedDocLayout(layout);
+  return { layout };
 }
 
 /**
@@ -66,12 +84,14 @@ async function documentSelection(): Promise<DocumentSelectionResult> {
 
 export async function tidyDocHandler(
   action: TidyDocAction,
-  _payload: unknown,
+  payload: unknown,
   _figma?: PluginAPI,
 ): Promise<unknown> {
   switch (action) {
     case "get-context":
-      return getContext();
+      return await getContext();
+    case "set-layout":
+      return await setLayout(payload);
     case "document-selection":
       return await documentSelection();
     default:
