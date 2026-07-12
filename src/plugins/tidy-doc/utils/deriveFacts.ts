@@ -205,6 +205,8 @@ function deriveConstraintWidths(
         familyValue,
         width: child.width,
         horizontalSizing: child.layoutSizingHorizontal,
+        minWidth: child.minWidth ?? null,
+        maxWidth: child.maxWidth ?? null,
       });
     }
   }

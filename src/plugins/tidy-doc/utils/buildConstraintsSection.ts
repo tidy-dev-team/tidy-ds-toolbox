@@ -16,10 +16,10 @@ import { deriveMatrixModel } from "./matrixModel";
 import { widthConstraintLabel } from "./anatomy";
 import type { DerivedFacts } from "./facts";
 
-const REDLINE_COLOR = "#EF4444";
-const REDLINE_BAR_HEIGHT = 1;
-const REDLINE_TICK_HEIGHT = 8;
-const REDLINE_WRAPPER_HEIGHT = 16;
+const MARKER_COLOR = "#8B5CF6";
+const MARKER_BAR_THICKNESS = 2;
+const MARKER_TICK_LENGTH = 12;
+const WIDTH_BRACKET_HEIGHT = 24;
 
 function hexToRgb(hex: string): RGB {
   const clean = hex.replace("#", "");
@@ -30,48 +30,105 @@ function hexToRgb(hex: string): RGB {
   };
 }
 
-function buildRedlineBracket(width: number): FrameNode {
-  const wrapperWidth = Math.max(width, 1);
+function markerRect(name: string, width: number, height: number): RectangleNode {
+  const rect = figma.createRectangle();
+  rect.name = name;
+  rect.resize(width, height);
+  rect.cornerRadius = Math.min(width, height) / 2;
+  rect.fills = [{ type: "SOLID", color: hexToRgb(MARKER_COLOR) }];
+  return rect;
+}
 
+async function buildMarkerPill(label: string): Promise<FrameNode> {
+  const pill = buildAutoLayoutFrame("marker-pill", "HORIZONTAL", 8, 3, 4);
+  pill.cornerRadius = 6;
+  pill.fills = [{ type: "SOLID", color: hexToRgb(MARKER_COLOR) }];
+  pill.appendChild(
+    await createText(label, 10, { family: "Inter", style: "Bold" }, "#FFFFFF"),
+  );
+  return pill;
+}
+
+// Horizontal measurement bracket: a bar with end ticks and the width label
+// in a pill centered on the bar (the original docs' redline style).
+async function buildWidthBracket(width: number, label: string): Promise<FrameNode> {
   const wrapper = figma.createFrame();
-  wrapper.name = "redline-bracket";
+  wrapper.name = "width-bracket";
   wrapper.layoutMode = "NONE";
   wrapper.fills = [];
-  wrapper.resize(wrapperWidth, REDLINE_WRAPPER_HEIGHT);
+  wrapper.clipsContent = false;
 
-  const bar = figma.createRectangle();
-  bar.name = "redline-bracket — bar";
-  bar.resize(wrapperWidth, REDLINE_BAR_HEIGHT);
+  const pill = await buildMarkerPill(label);
+  const wrapperWidth = Math.max(width, pill.width + 8, 1);
+  const wrapperHeight = Math.max(WIDTH_BRACKET_HEIGHT, pill.height);
+  wrapper.resize(wrapperWidth, wrapperHeight);
+
+  const bar = markerRect(
+    "width-bracket — bar",
+    wrapperWidth,
+    MARKER_BAR_THICKNESS,
+  );
   bar.x = 0;
-  bar.y = (REDLINE_WRAPPER_HEIGHT - REDLINE_BAR_HEIGHT) / 2;
-  bar.fills = [{ type: "SOLID", color: hexToRgb(REDLINE_COLOR) }];
+  bar.y = (wrapperHeight - MARKER_BAR_THICKNESS) / 2;
   wrapper.appendChild(bar);
 
-  for (const x of [0, wrapperWidth]) {
-    const tick = figma.createRectangle();
-    tick.name = "redline-bracket — tick";
-    tick.resize(REDLINE_BAR_HEIGHT, REDLINE_TICK_HEIGHT);
-    tick.x = Math.min(Math.max(x - REDLINE_BAR_HEIGHT / 2, 0), wrapperWidth);
-    tick.y = (REDLINE_WRAPPER_HEIGHT - REDLINE_TICK_HEIGHT) / 2;
-    tick.fills = [{ type: "SOLID", color: hexToRgb(REDLINE_COLOR) }];
+  for (const x of [0, wrapperWidth - MARKER_BAR_THICKNESS]) {
+    const tick = markerRect(
+      "width-bracket — tick",
+      MARKER_BAR_THICKNESS,
+      MARKER_TICK_LENGTH,
+    );
+    tick.x = x;
+    tick.y = (wrapperHeight - MARKER_TICK_LENGTH) / 2;
     wrapper.appendChild(tick);
   }
+
+  wrapper.appendChild(pill);
+  pill.x = (wrapperWidth - pill.width) / 2;
+  pill.y = (wrapperHeight - pill.height) / 2;
 
   return wrapper;
 }
 
-async function buildHeightChip(
-  heightFact: { height: number; verticalSizing: "FIXED" | "HUG" | "FILL" },
-): Promise<FrameNode> {
-  const chip = buildAutoLayoutFrame("height-chip", "HORIZONTAL", 8, 4, 4);
-  chip.cornerRadius = 6;
-  chip.fills = [{ type: "SOLID", color: hexToRgb("#F3F4F6") }];
-  const label =
-    heightFact.verticalSizing === "FIXED"
-      ? `H: ${Math.round(heightFact.height)}`
-      : `H: ${heightFact.verticalSizing === "HUG" ? "Hug" : "Fill"}`;
-  chip.appendChild(await createText(label, 10, undefined, "#4B5563"));
-  return chip;
+// Vertical measurement bracket beside the specimen: a bar spanning the
+// specimen's height, end ticks, and the height number in a centered pill.
+async function buildHeightBracket(specimenHeight: number, label: string): Promise<FrameNode> {
+  const wrapper = figma.createFrame();
+  wrapper.name = "height-bracket";
+  wrapper.layoutMode = "NONE";
+  wrapper.fills = [];
+  wrapper.clipsContent = false;
+
+  const pill = await buildMarkerPill(label);
+  const wrapperWidth = Math.max(MARKER_TICK_LENGTH, pill.width);
+  const wrapperHeight = Math.max(specimenHeight, pill.height, 1);
+  wrapper.resize(wrapperWidth, wrapperHeight);
+
+  const bar = markerRect(
+    "height-bracket — bar",
+    MARKER_BAR_THICKNESS,
+    wrapperHeight,
+  );
+  bar.x = (wrapperWidth - MARKER_BAR_THICKNESS) / 2;
+  bar.y = 0;
+  wrapper.appendChild(bar);
+
+  for (const y of [0, wrapperHeight - MARKER_BAR_THICKNESS]) {
+    const tick = markerRect(
+      "height-bracket — tick",
+      MARKER_TICK_LENGTH,
+      MARKER_BAR_THICKNESS,
+    );
+    tick.x = (wrapperWidth - MARKER_TICK_LENGTH) / 2;
+    tick.y = y;
+    wrapper.appendChild(tick);
+  }
+
+  wrapper.appendChild(pill);
+  pill.x = (wrapperWidth - pill.width) / 2;
+  pill.y = (wrapperHeight - pill.height) / 2;
+
+  return wrapper;
 }
 
 export async function buildConstraintsSection(
@@ -118,9 +175,6 @@ export async function buildConstraintsSection(
     const height = facts.breakdown.heights.find(
       (h) => h.value === group.sizeValue,
     );
-    if (height) {
-      groupFrame.appendChild(await buildHeightChip(height));
-    }
 
     const row = buildAutoLayoutFrame(
       `constraints — ${groupName} — row`,
@@ -141,19 +195,23 @@ export async function buildConstraintsSection(
         "VERTICAL",
         0,
         0,
-        4,
+        8,
       );
-      cell.counterAxisAlignItems = "CENTER";
+      // Left-aligned so the width bracket tracks the specimen's edge even
+      // when the height bracket widens the specimen row beneath it.
+      cell.counterAxisAlignItems = "MIN";
 
       cell.appendChild(
-        await createText(
-          widthConstraintLabel(widthFact.horizontalSizing, widthFact.width),
-          10,
-          undefined,
-          "#DC2626",
+        await buildWidthBracket(
+          widthFact.width,
+          widthConstraintLabel(
+            widthFact.horizontalSizing,
+            widthFact.width,
+            widthFact.minWidth,
+            widthFact.maxWidth,
+          ),
         ),
       );
-      cell.appendChild(buildRedlineBracket(widthFact.width));
 
       const overrides: Record<string, string> = { ...column.props };
       if (facts.sizeAxis?.name && group.sizeValue) {
@@ -166,7 +224,29 @@ export async function buildConstraintsSection(
         undefined,
         overrides,
       );
-      cell.appendChild(instance);
+
+      // The height bracket rides beside the first specimen of each size
+      // group only — one height marker per size, as in the original docs.
+      if (height && row.children.length === 0) {
+        const specimenRow = buildAutoLayoutFrame(
+          `constraints — ${groupName} — specimen`,
+          "HORIZONTAL",
+          0,
+          0,
+          12,
+        );
+        specimenRow.counterAxisAlignItems = "CENTER";
+        specimenRow.appendChild(instance);
+        specimenRow.appendChild(
+          await buildHeightBracket(
+            instance.height,
+            `${Math.round(height.height)}`,
+          ),
+        );
+        cell.appendChild(specimenRow);
+      } else {
+        cell.appendChild(instance);
+      }
 
       if (column.label) {
         cell.appendChild(

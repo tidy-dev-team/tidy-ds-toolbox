@@ -86,17 +86,28 @@ describe("detectIconPlacement", () => {
 });
 
 describe("widthConstraintLabel", () => {
-  it("labels a fixed-width variant as 'Fixed <rounded width>'", () => {
-    expect(widthConstraintLabel("FIXED", 128.4)).toBe("Fixed 128");
-    expect(widthConstraintLabel("FIXED", 128.6)).toBe("Fixed 129");
+  it("labels a fixed-width variant as 'fixed <rounded width>'", () => {
+    expect(widthConstraintLabel("FIXED", 128.4)).toBe("fixed 128");
+    expect(widthConstraintLabel("FIXED", 128.6)).toBe("fixed 129");
   });
 
-  it("labels a hugging variant as 'Hug', never prefixed 'Fixed'", () => {
-    expect(widthConstraintLabel("HUG", 128)).toBe("Hug");
+  it("labels a hugging variant as 'hug', never prefixed 'fixed'", () => {
+    expect(widthConstraintLabel("HUG", 128)).toBe("hug");
   });
 
-  it("labels a filling variant as 'Fill', never prefixed 'Fixed'", () => {
-    expect(widthConstraintLabel("FILL", 128)).toBe("Fill");
+  it("labels a filling variant as 'fill', never prefixed 'fixed'", () => {
+    expect(widthConstraintLabel("FILL", 128)).toBe("fill");
+  });
+
+  it("labels a variant clamped to minWidth === maxWidth as fixed at the clamp", () => {
+    expect(widthConstraintLabel("HUG", 128, 160, 160)).toBe("fixed 160");
+    expect(widthConstraintLabel("FILL", 128, 160, 160)).toBe("fixed 160");
+  });
+
+  it("keeps hug/fill when the min/max clamp leaves room to resize", () => {
+    expect(widthConstraintLabel("HUG", 128, 120, 200)).toBe("hug");
+    expect(widthConstraintLabel("HUG", 128, 160, null)).toBe("hug");
+    expect(widthConstraintLabel("FILL", 128, null, 200)).toBe("fill");
   });
 });
 

@@ -44,6 +44,8 @@ export interface ConstraintWidthFact {
   familyValue: string | null;
   width: number;
   horizontalSizing: HorizontalSizingMode;
+  minWidth: number | null;
+  maxWidth: number | null;
 }
 
 export interface VariantChildDescriptor {
@@ -122,9 +124,16 @@ export function detectIconPlacement(
 export function widthConstraintLabel(
   horizontalSizing: HorizontalSizingMode,
   width: number,
+  minWidth: number | null = null,
+  maxWidth: number | null = null,
 ): string {
-  if (horizontalSizing === "FIXED") return `Fixed ${Math.round(width)}`;
-  return horizontalSizing === "HUG" ? "Hug" : "Fill";
+  if (horizontalSizing === "FIXED") return `fixed ${Math.round(width)}`;
+  // A HUG/FILL variant clamped to minWidth === maxWidth cannot actually
+  // resize — its width is fixed by the constraint, so label it as such.
+  if (minWidth !== null && maxWidth !== null && minWidth === maxWidth) {
+    return `fixed ${Math.round(minWidth)}`;
+  }
+  return horizontalSizing === "HUG" ? "hug" : "fill";
 }
 
 export function findMatchingVariantIndex(
