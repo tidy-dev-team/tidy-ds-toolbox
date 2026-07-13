@@ -22,6 +22,7 @@ function makeFacts(overrides: Partial<DerivedFacts> = {}): DerivedFacts {
       iconPlacement: null,
       constraintWidths: [],
     },
+    booleanProperties: [],
     modeCollections: [],
     relatedCandidates: [],
     ...overrides,

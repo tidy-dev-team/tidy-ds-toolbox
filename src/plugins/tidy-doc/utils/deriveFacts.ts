@@ -8,6 +8,7 @@
 import { categorizeAxes, type AxisDescriptor } from "./categorizeAxes";
 import {
   deriveWidthFact,
+  deriveBooleanProperties,
   dedupeConstraintFacts,
   detectIconPlacement,
   findMatchingVariantIndex,
@@ -214,7 +215,7 @@ function deriveConstraintWidths(
       }
     }
   }
-  return dedupeConstraintFacts(candidates);
+  return dedupeConstraintFacts(candidates, familyName);
 }
 
 export async function deriveFacts(
@@ -263,6 +264,13 @@ export async function deriveFacts(
     widthSource.maxWidth ?? null,
   );
   const iconPlacement = detectIconPlacement(propertyDescriptors);
+  const booleanProperties = deriveBooleanProperties(
+    Object.entries(node.componentPropertyDefinitions).map(([key, def]) => ({
+      key,
+      type: def.type,
+      defaultValue: def.defaultValue,
+    })),
+  );
   const heights =
     node.type === "COMPONENT_SET"
       ? deriveHeights(node, categorization, defaults)
@@ -277,6 +285,7 @@ export async function deriveFacts(
     componentName: node.name,
     ...categorization,
     breakdown: { heights, width, iconPlacement, constraintWidths },
+    booleanProperties,
     modeCollections,
     relatedCandidates,
   };

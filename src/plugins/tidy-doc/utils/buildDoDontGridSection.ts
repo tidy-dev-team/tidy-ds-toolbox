@@ -13,9 +13,7 @@ import { buildScene, buildVerdictIcon } from "./buildGuidelinesSection";
 import type { DocSpec, SpecimenScene } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 
-const GOOD_FILL = "#F0FDF4";
 const GOOD_BORDER = "#16A34A";
-const BAD_FILL = "#FEF2F2";
 const BAD_BORDER = "#DC2626";
 
 function hexToRgb(hex: string): RGB {
@@ -38,9 +36,8 @@ async function buildFramedPanel(
   const panel = buildAutoLayoutFrame(name, "VERTICAL", 16, 16, 8);
   panel.cornerRadius = 8;
   panel.strokeWeight = 1;
-  panel.fills = [
-    { type: "SOLID", color: hexToRgb(verdict === "good" ? GOOD_FILL : BAD_FILL) },
-  ];
+  // Border only — no fill; the colored stroke alone signals good vs bad.
+  panel.fills = [];
   panel.strokes = [
     {
       type: "SOLID",
@@ -56,11 +53,14 @@ async function buildFramedPanel(
     8,
   );
   header.counterAxisAlignItems = "CENTER";
+  header.fills = []; // transparent — no default white background
   header.appendChild(await buildVerdictIcon(verdict));
   header.appendChild(await createText(caption, 12, undefined, "#111827"));
   panel.appendChild(header);
 
-  panel.appendChild(await buildScene(source, scene, facts, `${name} — scene`));
+  const sceneFrame = await buildScene(source, scene, facts, `${name} — scene`);
+  sceneFrame.fills = []; // transparent — no default white background
+  panel.appendChild(sceneFrame);
 
   return panel;
 }

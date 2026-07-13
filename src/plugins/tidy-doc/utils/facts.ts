@@ -4,6 +4,7 @@
 
 import type { CategorizationResult } from "./categorizeAxes";
 import type {
+  BooleanPropertyFact,
   ConstraintWidthFact,
   IconPlacementFact,
   SizeMeasurement,
@@ -24,6 +25,8 @@ export interface DerivedFacts extends CategorizationResult {
   componentId: string;
   componentName: string;
   breakdown: BreakdownFacts;
+  /** BOOLEAN component properties, for one-toggle-on Component Variants examples. */
+  booleanProperties: BooleanPropertyFact[];
   modeCollections: ModeCollectionFact[];
   relatedCandidates: RelatedCandidate[];
 }

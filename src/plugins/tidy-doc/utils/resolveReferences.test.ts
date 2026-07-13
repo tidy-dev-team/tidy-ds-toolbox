@@ -18,6 +18,7 @@ const facts: DerivedFacts = {
     iconPlacement: null,
     constraintWidths: [],
   },
+  booleanProperties: [],
   modeCollections: [],
   relatedCandidates: [
     { name: "Icon Button", matchedTokens: ["button"] },

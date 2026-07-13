@@ -93,6 +93,44 @@ export async function buildSectionTitle(title: string): Promise<FrameNode> {
   return frame;
 }
 
+// Internal size-group separator, matching the original DS docs' `dsc-subtitle`:
+// a centered Heebo Bold 16 label flanked by full-width 2px black rules.
+const SIZE_SEPARATOR_COLOR = "#000000";
+const SIZE_SEPARATOR_LINE_THICKNESS = 2;
+const SIZE_SEPARATOR_LINE_MIN = 16;
+
+function separatorLine(): RectangleNode {
+  const line = figma.createRectangle();
+  line.name = "size-separator — line";
+  line.resize(SIZE_SEPARATOR_LINE_MIN, SIZE_SEPARATOR_LINE_THICKNESS);
+  line.fills = [{ type: "SOLID", color: hexToRgb(SIZE_SEPARATOR_COLOR) }];
+  line.layoutGrow = 1; // fill the space either side of the centered label
+  return line;
+}
+
+/**
+ * Internal size-group separator: `——— <label> ———`. Returns a STRETCH-aligned
+ * horizontal frame so, appended to an auto-layout group, the rules span the
+ * full width with the label centered between them.
+ */
+export async function buildSizeSeparator(label: string): Promise<FrameNode> {
+  const frame = buildAutoLayoutFrame("size-separator", "HORIZONTAL", 0, 0, 8);
+  frame.layoutAlign = "STRETCH";
+  // Fill the parent's width (STRETCH), and fix the primary axis so the flanking
+  // rules' layoutGrow actually has room to expand instead of the frame hugging
+  // to the label.
+  frame.primaryAxisSizingMode = "FIXED";
+  frame.counterAxisAlignItems = "CENTER";
+
+  frame.appendChild(separatorLine());
+  frame.appendChild(
+    await createText(label, 16, { family: "Heebo", style: "Bold" }, SIZE_SEPARATOR_COLOR),
+  );
+  frame.appendChild(separatorLine());
+
+  return frame;
+}
+
 /**
  * One Section's Chrome: a card frame with a header row (title + component
  * subtitle + status badge) ready to receive Section-specific content.

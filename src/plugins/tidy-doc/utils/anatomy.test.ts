@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   dedupeConstraintFacts,
+  deriveBooleanProperties,
   deriveWidthFact,
   detectIconPlacement,
   findMatchingVariantIndex,
@@ -180,43 +181,60 @@ describe("dedupeConstraintFacts", () => {
     expect(facts[0].familyValue).toBe("Primary");
   });
 
-  it("labels each distinct width with its family value(s)", () => {
+  it("labels each distinct width with '<axis> = <value>'", () => {
     // A button group whose 1- and 2-button variants differ in width.
+    const facts = dedupeConstraintFacts(
+      [
+        cand({ familyValue: "1", width: 160, minWidth: 160, maxWidth: 160 }),
+        cand({ familyValue: "2", width: 332, minWidth: 332, maxWidth: 332 }),
+      ],
+      "BtnAmount",
+    );
+    expect(facts.map((f) => [f.label, f.width])).toEqual([
+      ["BtnAmount = 1", 160],
+      ["BtnAmount = 2", 332],
+    ]);
+  });
+
+  it("omits the axis prefix when there is no family axis name", () => {
     const facts = dedupeConstraintFacts([
       cand({ familyValue: "1", width: 160, minWidth: 160, maxWidth: 160 }),
       cand({ familyValue: "2", width: 332, minWidth: 332, maxWidth: 332 }),
     ]);
-    expect(facts.map((f) => [f.label, f.width])).toEqual([
-      ["1", 160],
-      ["2", 332],
-    ]);
+    expect(facts.map((f) => f.label)).toEqual(["1", "2"]);
   });
 
   it("groups per size, preserving size and first-seen order", () => {
-    const facts = dedupeConstraintFacts([
-      cand({ sizeLabel: "s", familyValue: "1", width: 160, minWidth: 160, maxWidth: 160 }),
-      cand({ sizeLabel: "s", familyValue: "2", width: 332, minWidth: 332, maxWidth: 332 }),
-      cand({ sizeLabel: "m", familyValue: "1", width: 220, minWidth: 220, maxWidth: 220 }),
-      cand({ sizeLabel: "m", familyValue: "2", width: 452, minWidth: 452, maxWidth: 452 }),
-    ]);
+    const facts = dedupeConstraintFacts(
+      [
+        cand({ sizeLabel: "s", familyValue: "1", width: 160, minWidth: 160, maxWidth: 160 }),
+        cand({ sizeLabel: "s", familyValue: "2", width: 332, minWidth: 332, maxWidth: 332 }),
+        cand({ sizeLabel: "m", familyValue: "1", width: 220, minWidth: 220, maxWidth: 220 }),
+        cand({ sizeLabel: "m", familyValue: "2", width: 452, minWidth: 452, maxWidth: 452 }),
+      ],
+      "BtnAmount",
+    );
     expect(facts.map((f) => [f.sizeLabel, f.label, f.width])).toEqual([
-      ["s", "1", 160],
-      ["s", "2", 332],
-      ["m", "1", 220],
-      ["m", "2", 452],
+      ["s", "BtnAmount = 1", 160],
+      ["s", "BtnAmount = 2", 332],
+      ["m", "BtnAmount = 1", 220],
+      ["m", "BtnAmount = 2", 452],
     ]);
   });
 
   it("merges family values that share one width into a single labeled cell", () => {
     // Primary + Secondary share a width; Tertiary differs.
-    const facts = dedupeConstraintFacts([
-      cand({ familyValue: "Primary", width: 100, minWidth: 100, maxWidth: 100 }),
-      cand({ familyValue: "Secondary", width: 100, minWidth: 100, maxWidth: 100 }),
-      cand({ familyValue: "Tertiary", width: 140, minWidth: 140, maxWidth: 140 }),
-    ]);
+    const facts = dedupeConstraintFacts(
+      [
+        cand({ familyValue: "Primary", width: 100, minWidth: 100, maxWidth: 100 }),
+        cand({ familyValue: "Secondary", width: 100, minWidth: 100, maxWidth: 100 }),
+        cand({ familyValue: "Tertiary", width: 140, minWidth: 140, maxWidth: 140 }),
+      ],
+      "Type",
+    );
     expect(facts.map((f) => [f.label, f.width])).toEqual([
-      ["Primary, Secondary", 100],
-      ["Tertiary", 140],
+      ["Type = Primary, Secondary", 100],
+      ["Type = Tertiary", 140],
     ]);
   });
 
@@ -230,5 +248,27 @@ describe("dedupeConstraintFacts", () => {
       ["False", 100],
       ["True", 130],
     ]);
+  });
+});
+
+describe("deriveBooleanProperties", () => {
+  it("picks BOOLEAN properties, stripping the #id suffix for the name", () => {
+    expect(
+      deriveBooleanProperties([
+        { key: "Type", type: "VARIANT" },
+        { key: "validation#12:3", type: "BOOLEAN", defaultValue: false },
+        { key: "Label#4:5", type: "TEXT" },
+        { key: "hasIcon#6:7", type: "BOOLEAN", defaultValue: true },
+      ]),
+    ).toEqual([
+      { key: "validation#12:3", name: "validation", defaultValue: false },
+      { key: "hasIcon#6:7", name: "hasIcon", defaultValue: true },
+    ]);
+  });
+
+  it("returns an empty list when there are no BOOLEAN properties", () => {
+    expect(
+      deriveBooleanProperties([{ key: "Size", type: "VARIANT" }]),
+    ).toEqual([]);
   });
 });

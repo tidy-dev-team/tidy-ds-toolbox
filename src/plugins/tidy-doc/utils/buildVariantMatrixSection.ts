@@ -8,10 +8,16 @@
 // (matrixModel.ts), the single source of truth reused by Constraints (#66).
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, buildSectionTitle } from "./buildChrome";
+import { createText, buildSectionTitle, buildSizeSeparator } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { deriveMatrixModel, type MatrixSizeGroup } from "./matrixModel";
 import type { DerivedFacts } from "./facts";
+
+// "s" → "Size S", "small" → "Size Small". The separator reads as a size-group
+// header (these groups exist only when there is a size axis).
+function sizeSeparatorLabel(value: string): string {
+  return `Size ${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
 
 function cellOverrides(
   facts: DerivedFacts,
@@ -50,11 +56,10 @@ export async function buildVariantMatrixSection(
       0,
       12,
     );
+    groupFrame.layoutAlign = "STRETCH";
 
     if (group.label) {
-      groupFrame.appendChild(
-        await createText(group.label, 14, { family: "Inter", style: "Bold" }),
-      );
+      groupFrame.appendChild(await buildSizeSeparator(sizeSeparatorLabel(group.label)));
     }
 
     for (const row of model.rows) {
@@ -67,7 +72,13 @@ export async function buildVariantMatrixSection(
       );
       rowFrame.counterAxisAlignItems = "CENTER";
 
-      const rowLabel = await createText(row.label, 12, undefined, "#6B7280");
+      // Prefix the family axis name so the row reads e.g. "BtnAmount = 1"
+      // rather than a bare "1"; a nameless family (single unnamed row labeled
+      // with the component name) is left as-is.
+      const rowLabelText = model.rowAxisName
+        ? `${model.rowAxisName} = ${row.label}`
+        : row.label;
+      const rowLabel = await createText(rowLabelText, 12, undefined, "#6B7280");
       rowFrame.appendChild(rowLabel);
 
       for (const column of model.columns) {
@@ -102,6 +113,70 @@ export async function buildVariantMatrixSection(
     }
 
     section.appendChild(groupFrame);
+  }
+
+  // One off/on PAIR per BOOLEAN property: the default variant with the property
+  // forced off and forced on. A pair (rather than a single "on" example) is
+  // needed because a property may default to on — showing only "on" would look
+  // identical to the default. Stacked vertically below the normal variants (not
+  // as extra columns) since a component may declare any number of them.
+  if (facts.booleanProperties.length > 0) {
+    const defaultFamilyValue =
+      source.type === "COMPONENT_SET" && facts.familyAxis.name
+        ? (source.defaultVariant?.variantProperties?.[facts.familyAxis.name] ??
+          facts.familyAxis.values[0] ??
+          "")
+        : (facts.familyAxis.values[0] ?? "");
+
+    const boolGroup = buildAutoLayoutFrame(
+      "matrix — boolean props",
+      "VERTICAL",
+      0,
+      0,
+      16,
+    );
+
+    for (const prop of facts.booleanProperties) {
+      const rowFrame = buildAutoLayoutFrame(
+        `matrix — boolean — ${prop.name}`,
+        "HORIZONTAL",
+        0,
+        0,
+        16,
+      );
+      rowFrame.counterAxisAlignItems = "CENTER";
+      rowFrame.appendChild(await createText(prop.name, 12, undefined, "#6B7280"));
+
+      for (const value of [false, true]) {
+        const cell = buildAutoLayoutFrame(
+          `matrix — boolean — ${prop.name} — ${value ? "on" : "off"}`,
+          "VERTICAL",
+          0,
+          0,
+          4,
+        );
+        cell.counterAxisAlignItems = "CENTER";
+
+        const instance = createSpecimenInstance(
+          source,
+          defaultFamilyValue,
+          facts,
+          undefined,
+          undefined,
+          { [prop.key]: value },
+        );
+        cell.appendChild(instance);
+        cell.appendChild(
+          await createText(value ? "on" : "off", 10, undefined, "#9CA3AF"),
+        );
+
+        rowFrame.appendChild(cell);
+      }
+
+      boolGroup.appendChild(rowFrame);
+    }
+
+    section.appendChild(boolGroup);
   }
 
   return section;

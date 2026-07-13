@@ -37,6 +37,7 @@ export function createSpecimenInstance(
   facts: DerivedFacts,
   stateValue?: string,
   overrides?: Record<string, string>,
+  booleanOverrides?: Record<string, boolean>,
 ): InstanceNode {
   const base = source.type === "COMPONENT_SET" ? source.defaultVariant : source;
   const instance = base.createInstance();
@@ -75,6 +76,17 @@ export function createSpecimenInstance(
   if (overrides) {
     for (const [axisName, value] of Object.entries(overrides)) {
       setVariantPropExact(instance, axisName, value);
+    }
+  }
+
+  // BOOLEAN component properties are not variant axes — set them by their full
+  // property key (with the #id suffix) via setProperties, guarding against a
+  // key the instance doesn't expose.
+  if (booleanOverrides) {
+    for (const [key, value] of Object.entries(booleanOverrides)) {
+      if (key in instance.componentProperties) {
+        instance.setProperties({ [key]: value });
+      }
     }
   }
 

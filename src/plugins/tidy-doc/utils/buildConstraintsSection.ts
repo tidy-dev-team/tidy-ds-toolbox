@@ -171,10 +171,15 @@ export async function buildConstraintsSection(
       0,
       12,
     );
-
     if (group.label) {
+      // Same "Size M" wording as the Variants section's separator, but keeping
+      // this section's plain bold label design.
       groupFrame.appendChild(
-        await createText(group.label, 14, { family: "Inter", style: "Bold" }),
+        await createText(
+          `Size ${group.label.charAt(0).toUpperCase()}${group.label.slice(1)}`,
+          14,
+          { family: "Inter", style: "Bold" },
+        ),
       );
     }
 
