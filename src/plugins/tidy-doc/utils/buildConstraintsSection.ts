@@ -226,11 +226,11 @@ export async function buildConstraintsSection(
         overrides,
       );
 
-      // The height bracket rides beside the first specimen of each size
-      // group only — one height marker per size, as in the original docs.
-      if (height && row.children.length === 0) {
+      // The height bracket rides beside every specimen — one per redlined
+      // variant, so each cell reads as a complete width × height measurement.
+      if (height) {
         const specimenRow = buildAutoLayoutFrame(
-          `constraints — ${groupName} — specimen`,
+          `constraints — ${groupName} — ${widthFact.label || "cell"} — specimen`,
           "HORIZONTAL",
           0,
           0,
