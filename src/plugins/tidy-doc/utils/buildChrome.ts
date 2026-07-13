@@ -11,6 +11,13 @@ import type { DocStatus } from "./docSpec";
 const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
 const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
+// Vertical-layout section title, matching the original DS docs' `dsc-title`:
+// Heebo SemiBold 40px in #202257 with a full-width 4px bottom rule.
+const SECTION_TITLE_FONT: FontName = { family: "Heebo", style: "SemiBold" };
+const SECTION_TITLE_SIZE = 40;
+const SECTION_TITLE_COLOR = "#202257";
+const SECTION_TITLE_DIVIDER_THICKNESS = 4;
+
 function hexToRgb(hex: string): RGB {
   const clean = hex.replace("#", "");
   return {
@@ -56,6 +63,34 @@ export async function buildStatusBadge(status: DocStatus): Promise<FrameNode> {
   );
   pill.appendChild(label);
   return pill;
+}
+
+/**
+ * Vertical-layout section title: the heading text over a full-width 4px rule,
+ * reproducing the original DS docs' `dsc-title`. Returns a STRETCH-aligned
+ * frame so, appended to an auto-layout section, the rule spans the section's
+ * full width (the divider itself also STRETCHes to fill the frame).
+ */
+export async function buildSectionTitle(title: string): Promise<FrameNode> {
+  const frame = buildAutoLayoutFrame("section-title", "VERTICAL", 0, 0, 8);
+  frame.layoutAlign = "STRETCH";
+
+  const text = await createText(
+    title,
+    SECTION_TITLE_SIZE,
+    SECTION_TITLE_FONT,
+    SECTION_TITLE_COLOR,
+  );
+  frame.appendChild(text);
+
+  const divider = figma.createRectangle();
+  divider.name = "section-title — divider";
+  divider.resize(text.width, SECTION_TITLE_DIVIDER_THICKNESS);
+  divider.fills = [{ type: "SOLID", color: hexToRgb(SECTION_TITLE_COLOR) }];
+  divider.layoutAlign = "STRETCH";
+  frame.appendChild(divider);
+
+  return frame;
 }
 
 /**

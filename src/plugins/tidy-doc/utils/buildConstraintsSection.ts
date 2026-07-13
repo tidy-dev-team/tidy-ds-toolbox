@@ -1,16 +1,19 @@
 /// <reference types="@figma/plugin-typings" />
 
 // Vertical layout — Constraints redline section (#66): per size group, a
-// redline bracket + width label above a live specimen for each column
-// combination, plus a height chip. Component-set only — omitted when
-// deriveFacts.ts left breakdown.constraintWidths empty (a single component).
+// redline bracket + width label above a live specimen for each DISTINCT
+// measured width, plus a height chip. deriveFacts.ts collapses variants that
+// share the same geometry (dedupeConstraintFacts), so a family whose values
+// are all the same width shows one unlabeled redline, while a family whose
+// values differ (e.g. a 1- vs 2-button group) shows one labeled redline each.
+// Component-set only — omitted when breakdown.constraintWidths is empty.
 // Redline brackets are raw primitive nodes (a thin bar + two end ticks) in
 // an absolutely-positioned, fixed-size wrapper, since Figma auto-layout
 // cannot overlay an annotation above a specimen. All colors/dimensions are
 // literal, code-owned constants.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, buildSectionTitle } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { deriveMatrixModel } from "./matrixModel";
 import { widthConstraintLabel } from "./anatomy";
@@ -138,12 +141,13 @@ export async function buildConstraintsSection(
   if (facts.breakdown.constraintWidths.length === 0) return null;
 
   const model = deriveMatrixModel(facts);
-  const widthByKey = new Map(
-    facts.breakdown.constraintWidths.map((fact) => [
-      `${fact.sizeLabel ?? ""}::${fact.columnLabel}`,
-      fact,
-    ]),
-  );
+  const factsBySize = new Map<string, typeof facts.breakdown.constraintWidths>();
+  for (const fact of facts.breakdown.constraintWidths) {
+    const key = fact.sizeLabel ?? "";
+    const bucket = factsBySize.get(key);
+    if (bucket) bucket.push(fact);
+    else factsBySize.set(key, [fact]);
+  }
 
   const section = buildAutoLayoutFrame(
     "constraints-section",
@@ -152,12 +156,14 @@ export async function buildConstraintsSection(
     0,
     24,
   );
-  section.appendChild(
-    await createText("Constraints", 18, { family: "Inter", style: "Bold" }),
-  );
+  section.layoutAlign = "STRETCH";
+  section.appendChild(await buildSectionTitle("Constraints"));
 
   for (const group of model.sizeGroups) {
     const groupName = group.label ?? "all sizes";
+    const groupFacts = factsBySize.get(group.label ?? "");
+    if (!groupFacts || groupFacts.length === 0) continue;
+
     const groupFrame = buildAutoLayoutFrame(
       `constraints — ${groupName}`,
       "VERTICAL",
@@ -184,14 +190,9 @@ export async function buildConstraintsSection(
       24,
     );
 
-    for (const column of model.columns) {
-      const widthFact = widthByKey.get(
-        `${group.label ?? ""}::${column.label}`,
-      );
-      if (!widthFact) continue;
-
+    for (const widthFact of groupFacts) {
       const cell = buildAutoLayoutFrame(
-        `constraints — ${groupName} — ${column.label || "cell"}`,
+        `constraints — ${groupName} — ${widthFact.label || "cell"}`,
         "VERTICAL",
         0,
         0,
@@ -213,7 +214,7 @@ export async function buildConstraintsSection(
         ),
       );
 
-      const overrides: Record<string, string> = { ...column.props };
+      const overrides: Record<string, string> = { ...widthFact.columnProps };
       if (facts.sizeAxis?.name && group.sizeValue) {
         overrides[facts.sizeAxis.name] = group.sizeValue;
       }
@@ -248,9 +249,9 @@ export async function buildConstraintsSection(
         cell.appendChild(instance);
       }
 
-      if (column.label) {
+      if (widthFact.label) {
         cell.appendChild(
-          await createText(column.label, 10, undefined, "#9CA3AF"),
+          await createText(widthFact.label, 10, undefined, "#9CA3AF"),
         );
       }
 

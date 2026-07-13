@@ -8,7 +8,7 @@
 // authored content, no schema change. Omitted when there is none.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, buildSectionTitle } from "./buildChrome";
 import { buildScene, buildVerdictIcon } from "./buildGuidelinesSection";
 import type { DocSpec, SpecimenScene } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -80,9 +80,8 @@ export async function buildDoDontGridSection(
     0,
     24,
   );
-  section.appendChild(
-    await createText("Dos and Don'ts", 18, { family: "Inter", style: "Bold" }),
-  );
+  section.layoutAlign = "STRETCH";
+  section.appendChild(await buildSectionTitle("Dos and Don'ts"));
 
   for (let i = 0; i < doDonts.length; i++) {
     const pair = doDonts[i];

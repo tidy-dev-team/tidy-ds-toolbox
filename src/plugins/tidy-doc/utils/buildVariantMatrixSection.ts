@@ -8,7 +8,7 @@
 // (matrixModel.ts), the single source of truth reused by Constraints (#66).
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, buildSectionTitle } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { deriveMatrixModel, type MatrixSizeGroup } from "./matrixModel";
 import type { DerivedFacts } from "./facts";
@@ -38,12 +38,8 @@ export async function buildVariantMatrixSection(
     0,
     24,
   );
-  section.appendChild(
-    await createText("Component Variants", 18, {
-      family: "Inter",
-      style: "Bold",
-    }),
-  );
+  section.layoutAlign = "STRETCH";
+  section.appendChild(await buildSectionTitle("Component Variants"));
 
   for (const group of model.sizeGroups) {
     const groupName = group.label ?? "all sizes";

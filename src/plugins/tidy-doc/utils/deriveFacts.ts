@@ -8,8 +8,10 @@
 import { categorizeAxes, type AxisDescriptor } from "./categorizeAxes";
 import {
   deriveWidthFact,
+  dedupeConstraintFacts,
   detectIconPlacement,
   findMatchingVariantIndex,
+  type ConstraintCandidate,
   type ConstraintWidthFact,
   type PropertyDescriptor,
   type SizeMeasurement,
@@ -152,14 +154,15 @@ function deriveHeights(
   return heights;
 }
 
-// Constraints redline facts (#66): one per (size × column-combination) cell
-// of the vertical layout's Component Variants matrix. Reuses
-// deriveMatrixModel — the same source of truth the matrix renderer uses —
-// so Constraints and the matrix always agree on which combinations exist.
+// Constraints redline facts (#66): the vertical layout's width redlines.
+// Reuses deriveMatrixModel — the same source of truth the matrix renderer
+// uses — so the two agree on which size/column combinations exist. Unlike the
+// matrix, Constraints varies the FAMILY axis too (not just size × columns) and
+// then collapses variants that share the same measured geometry, so a redline
+// appears once per distinct width — not once per variant (dedupeConstraintFacts).
 function deriveConstraintWidths(
   node: ComponentSetNode,
   categorization: ReturnType<typeof categorizeAxes>,
-  defaults: Record<string, string>,
 ): ConstraintWidthFact[] {
   const model = deriveMatrixModel({
     sizeAxis: categorization.sizeAxis,
@@ -168,49 +171,50 @@ function deriveConstraintWidths(
     componentName: node.name,
   });
 
+  // Pinned rest-state defaults (e.g. the state axis) hold steady; the family
+  // and size axes are enumerated below so each variant gets measured.
   const pinMap: Record<string, string> = { ...categorization.pinnedDefaults };
-  let familyValue: string | null = null;
-  if (categorization.familyAxis.name) {
-    const familyDefault = defaults[categorization.familyAxis.name];
-    if (familyDefault) {
-      pinMap[categorization.familyAxis.name] = familyDefault;
-      familyValue = familyDefault;
-    }
-  }
+  const familyName = categorization.familyAxis.name;
+  const familyValues: Array<string | null> = familyName
+    ? categorization.familyAxis.values
+    : [null];
 
   const childDescriptors = node.children.map((child) => ({
     variantProperties:
       child.type === "COMPONENT" ? child.variantProperties : null,
   }));
 
-  const facts: ConstraintWidthFact[] = [];
+  const candidates: ConstraintCandidate[] = [];
   for (const group of model.sizeGroups) {
-    for (const column of model.columns) {
-      const target = { ...pinMap, ...column.props };
-      if (categorization.sizeAxis?.name && group.sizeValue) {
-        target[categorization.sizeAxis.name] = group.sizeValue;
-      }
+    for (const familyValue of familyValues) {
+      for (const column of model.columns) {
+        const target = { ...pinMap, ...column.props };
+        if (familyName && familyValue) target[familyName] = familyValue;
+        if (categorization.sizeAxis?.name && group.sizeValue) {
+          target[categorization.sizeAxis.name] = group.sizeValue;
+        }
 
-      const index = findMatchingVariantIndex(childDescriptors, target);
-      if (index === null) {
-        console.warn(
-          `tidy-doc: no variant of "${node.name}" matched size "${group.label ?? "n/a"}" / column "${column.label || "n/a"}" under its pinned rest-state defaults; dropping from the Constraints section`,
-        );
-        continue;
+        const index = findMatchingVariantIndex(childDescriptors, target);
+        if (index === null) {
+          console.warn(
+            `tidy-doc: no variant of "${node.name}" matched size "${group.label ?? "n/a"}" / family "${familyValue ?? "n/a"}" / column "${column.label || "n/a"}" under its pinned rest-state defaults; dropping from the Constraints section`,
+          );
+          continue;
+        }
+        const child = node.children[index] as ComponentNode;
+        candidates.push({
+          sizeLabel: group.label,
+          familyValue,
+          columnProps: column.props,
+          width: child.width,
+          horizontalSizing: child.layoutSizingHorizontal,
+          minWidth: child.minWidth ?? null,
+          maxWidth: child.maxWidth ?? null,
+        });
       }
-      const child = node.children[index] as ComponentNode;
-      facts.push({
-        sizeLabel: group.label,
-        columnLabel: column.label,
-        familyValue,
-        width: child.width,
-        horizontalSizing: child.layoutSizingHorizontal,
-        minWidth: child.minWidth ?? null,
-        maxWidth: child.maxWidth ?? null,
-      });
     }
   }
-  return facts;
+  return dedupeConstraintFacts(candidates);
 }
 
 export async function deriveFacts(
@@ -265,7 +269,7 @@ export async function deriveFacts(
       : [];
   const constraintWidths =
     node.type === "COMPONENT_SET"
-      ? deriveConstraintWidths(node, categorization, defaults)
+      ? deriveConstraintWidths(node, categorization)
       : [];
 
   return {
