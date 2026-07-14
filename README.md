@@ -245,16 +245,68 @@ Choose the appropriate version bump based on your changes:
 - Attach `plugin-bundle.zip` for distribution
 - Manual deployment available via scripts/deploy-to-drive.sh
 
-### Manual Deployment to Google Drive (Optional)
+### Distributing to a designer via Google Drive (Option B)
 
-For team distribution via Google Drive:
+Use this to get a designer set up **without** a published GitHub marketplace. It
+ships two things to `Shared drives/shared kido/Tidy/plugins/`:
+
+- the **Figma plugin** bundle (`Tidy-DS-Toolbox-latest/`, `releases/vX/`), and
+- the **Claude Code plugin** — the marketplace tree `claude-plugin-latest/`
+  (bundled MCP server + `/tidy-ds:*` commands/skills) plus a one-click
+  `Install Tidy DS (Claude Code).command`.
+
+> The GitHub marketplace channel (`/plugin marketplace add …`) is the durable
+> alternative — see [`docs/plugin-distribution.md`](docs/plugin-distribution.md).
+> It is not live until the distribution repo is seeded; until then, use this
+> Drive channel.
+
+#### Publish (team member, Google Drive mounted)
 
 ```bash
-# 1. Make sure Google Drive is mounted and synced
-# 2. Deploy current build
-npm run build
+npm run build          # Figma bundle → dist/ + manifest.json (deploy script requires these)
+npm run build:plugin   # Claude Code marketplace tree → dist-plugin/
 ./scripts/deploy-to-drive.sh
 ```
+
+Notes:
+
+- Run `build:plugin` **explicitly**. The deploy script only re-assembles the
+  plugin when `dist-plugin/` is missing, so a stale tree would otherwise be
+  published as-is.
+- The script auto-locates the shared drive under `~/Library/CloudStorage/GoogleDrive-*`;
+  override with `GOOGLE_DRIVE_PATH=/path/to/plugins` if your mount differs.
+- Publishing writes to a **shared** team folder — everyone with access sees the
+  update. Releases normally ship from a `main` tag; deploying off a feature
+  branch publishes unreleased work.
+
+#### Install (the designer, in Claude Code)
+
+Prerequisites: **Claude Code** installed (`claude` on PATH — it brings Node with
+it, which the bundled MCP server needs), and the **Tidy DS Toolbox Figma plugin**
+available in Figma.
+
+1. In Finder, open the synced `…/Shared drives/shared kido/Tidy/plugins/` folder.
+2. Double-click **`Install Tidy DS (Claude Code).command`**. (First run on macOS:
+   right-click → **Open** to get past Gatekeeper.) It registers the Drive folder
+   as a local marketplace and installs `tidy-ds`, adding the `/tidy-ds:*`
+   commands and wiring up the MCP server automatically — no JSON editing.
+3. Open the **Tidy DS Toolbox** plugin in Figma and keep the Figma window
+   focused while the agent runs (backgrounded Figma is throttled by macOS and
+   calls time out).
+4. **Update later:** let Google Drive re-sync, then double-click the `.command`
+   again.
+
+Fallback — if that Claude Code version can't add a local-path marketplace, wire
+the MCP server directly (tools only, no `/tidy-ds:*` commands):
+
+```bash
+claude mcp add tidy-ds-toolbox -- node "<drive>/Tidy/plugins/claude-plugin-latest/tidy-ds/mcp/server.cjs"
+```
+
+> **Claude Desktop (chat app) is not supported here.** The plugin/marketplace
+> flow is a Claude **Code** feature. On the plain Desktop app you'd hand-edit
+> `claude_desktop_config.json` and would get MCP tools only (no `/tidy-ds:*`
+> commands or skills).
 
 ## 📂 Project Structure
 
