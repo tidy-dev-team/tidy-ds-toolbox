@@ -13,7 +13,13 @@
 // literal, code-owned constants.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, buildSectionTitle, fill, FONT_BOLD, TOKENS } from "./buildChrome";
+import {
+  createText,
+  buildSectionTitle,
+  fill,
+  FONT_BOLD,
+  TOKENS,
+} from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { deriveMatrixModel } from "./matrixModel";
 import { widthConstraintLabel } from "./anatomy";
@@ -23,7 +29,11 @@ const MARKER_BAR_THICKNESS = 2;
 const MARKER_TICK_LENGTH = 12;
 const WIDTH_BRACKET_HEIGHT = 24;
 
-function markerRect(name: string, width: number, height: number): RectangleNode {
+function markerRect(
+  name: string,
+  width: number,
+  height: number,
+): RectangleNode {
   const rect = figma.createRectangle();
   rect.name = name;
   rect.resize(width, height);
@@ -36,15 +46,16 @@ async function buildMarkerPill(label: string): Promise<FrameNode> {
   const pill = buildAutoLayoutFrame("marker-pill", "HORIZONTAL", 8, 3, 4);
   pill.cornerRadius = 6;
   fill(pill, TOKENS.marker);
-  pill.appendChild(
-    await createText(label, 10, FONT_BOLD, TOKENS.card),
-  );
+  pill.appendChild(await createText(label, 10, FONT_BOLD, TOKENS.card));
   return pill;
 }
 
 // Horizontal measurement bracket: a bar with end ticks and the width label
 // in a pill centered on the bar (the original docs' redline style).
-async function buildWidthBracket(width: number, label: string): Promise<FrameNode> {
+async function buildWidthBracket(
+  width: number,
+  label: string,
+): Promise<FrameNode> {
   const wrapper = figma.createFrame();
   wrapper.name = "width-bracket";
   wrapper.layoutMode = "NONE";
@@ -85,7 +96,10 @@ async function buildWidthBracket(width: number, label: string): Promise<FrameNod
 
 // Vertical measurement bracket beside the specimen: a bar spanning the
 // specimen's height, end ticks, and the height number in a centered pill.
-async function buildHeightBracket(specimenHeight: number, label: string): Promise<FrameNode> {
+async function buildHeightBracket(
+  specimenHeight: number,
+  label: string,
+): Promise<FrameNode> {
   const wrapper = figma.createFrame();
   wrapper.name = "height-bracket";
   wrapper.layoutMode = "NONE";
@@ -135,7 +149,10 @@ export async function buildConstraintsSection(
   facts: DerivedFacts,
 ): Promise<FrameNode> {
   const model = deriveMatrixModel(facts);
-  const factsBySize = new Map<string, typeof facts.breakdown.constraintWidths>();
+  const factsBySize = new Map<
+    string,
+    typeof facts.breakdown.constraintWidths
+  >();
   for (const fact of facts.breakdown.constraintWidths) {
     const key = fact.sizeLabel ?? "";
     const bucket = factsBySize.get(key);

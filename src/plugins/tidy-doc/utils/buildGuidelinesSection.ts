@@ -21,7 +21,12 @@ async function buildBulletList(
   const heading = await createText(title, 13, FONT_BOLD);
   list.appendChild(heading);
   for (const item of items) {
-    const bullet = await createText(`• ${item}`, 12, undefined, TOKENS.mutedDark);
+    const bullet = await createText(
+      `• ${item}`,
+      12,
+      undefined,
+      TOKENS.mutedDark,
+    );
     list.appendChild(bullet);
   }
   return list;

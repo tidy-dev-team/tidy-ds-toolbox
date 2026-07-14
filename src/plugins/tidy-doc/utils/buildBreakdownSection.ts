@@ -114,11 +114,11 @@ async function buildHeightSubSection(
   caption?: string,
 ): Promise<FrameNode> {
   const block = buildAutoLayoutFrame("breakdown — height", "VERTICAL", 0, 0, 8);
-  block.appendChild(
-    await createText("Height", 14, FONT_BOLD),
-  );
+  block.appendChild(await createText("Height", 14, FONT_BOLD));
   if (caption) {
-    block.appendChild(await createText(caption, 12, undefined, TOKENS.mutedDark));
+    block.appendChild(
+      await createText(caption, 12, undefined, TOKENS.mutedDark),
+    );
   }
 
   const rows = buildAutoLayoutFrame(
@@ -141,11 +141,11 @@ async function buildWidthSubSection(
   caption?: string,
 ): Promise<FrameNode> {
   const block = buildAutoLayoutFrame("breakdown — width", "VERTICAL", 0, 0, 8);
-  block.appendChild(
-    await createText("Width", 14, FONT_BOLD),
-  );
+  block.appendChild(await createText("Width", 14, FONT_BOLD));
   if (caption) {
-    block.appendChild(await createText(caption, 12, undefined, TOKENS.mutedDark));
+    block.appendChild(
+      await createText(caption, 12, undefined, TOKENS.mutedDark),
+    );
   }
 
   const width = facts.breakdown.width!;
@@ -184,11 +184,11 @@ async function buildIconPlacementSubSection(
     0,
     8,
   );
-  block.appendChild(
-    await createText("Icon placement", 14, FONT_BOLD),
-  );
+  block.appendChild(await createText("Icon placement", 14, FONT_BOLD));
   if (caption) {
-    block.appendChild(await createText(caption, 12, undefined, TOKENS.mutedDark));
+    block.appendChild(
+      await createText(caption, 12, undefined, TOKENS.mutedDark),
+    );
   }
 
   const icon = facts.breakdown.iconPlacement!;

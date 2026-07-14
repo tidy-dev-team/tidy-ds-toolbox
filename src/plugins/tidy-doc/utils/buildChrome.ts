@@ -53,7 +53,11 @@ export function paint(hex: string, opacity?: number): SolidPaint {
   };
 }
 
-export function fill(node: MinimalFillsMixin, hex: string, opacity?: number): void {
+export function fill(
+  node: MinimalFillsMixin,
+  hex: string,
+  opacity?: number,
+): void {
   node.fills = [paint(hex, opacity)];
 }
 
@@ -157,7 +161,12 @@ export async function buildSizeSeparator(label: string): Promise<FrameNode> {
 
   frame.appendChild(separatorLine());
   frame.appendChild(
-    await createText(label, 16, { family: "Heebo", style: "Bold" }, TOKENS.black),
+    await createText(
+      label,
+      16,
+      { family: "Heebo", style: "Bold" },
+      TOKENS.black,
+    ),
   );
   frame.appendChild(separatorLine());
 
@@ -197,7 +206,12 @@ export async function buildSectionCard(
     2,
   );
   const titleText = await createText(title, 18, FONT_BOLD);
-  const subtitleText = await createText(subtitle, 13, FONT_REGULAR, TOKENS.muted);
+  const subtitleText = await createText(
+    subtitle,
+    13,
+    FONT_REGULAR,
+    TOKENS.muted,
+  );
   titleColumn.appendChild(titleText);
   titleColumn.appendChild(subtitleText);
 

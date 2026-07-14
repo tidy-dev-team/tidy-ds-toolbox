@@ -44,7 +44,10 @@ async function resolveCollections(
 // Pure skip predicate (#72) — whether the Mode Section has anything to
 // render: an authored `mode` key, at least one bound-variable collection,
 // and at least one showcase surviving the cross-product cap.
-export function appliesModeSection(facts: DerivedFacts, spec: DocSpec): boolean {
+export function appliesModeSection(
+  facts: DerivedFacts,
+  spec: DocSpec,
+): boolean {
   if (!spec.mode) return false;
   if (facts.modeCollections.length === 0) return false;
   return (

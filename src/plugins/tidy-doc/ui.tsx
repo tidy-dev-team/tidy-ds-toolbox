@@ -109,9 +109,7 @@ export function TidyDocUI() {
         <FormControl label="Page layout">
           <select
             value={layout}
-            onChange={(event) =>
-              changeLayout(event.target.value as DocLayout)
-            }
+            onChange={(event) => changeLayout(event.target.value as DocLayout)}
           >
             <option value="horizontal">Horizontal</option>
             <option value="vertical">Vertical</option>

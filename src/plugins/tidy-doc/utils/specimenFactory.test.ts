@@ -56,7 +56,12 @@ function baseFacts(overrides: Partial<DerivedFacts> = {}): DerivedFacts {
     demoted: [],
     demotedAxisValues: {},
     pinnedDefaults: {},
-    breakdown: { heights: [], width: null, iconPlacement: null, constraintWidths: [] },
+    breakdown: {
+      heights: [],
+      width: null,
+      iconPlacement: null,
+      constraintWidths: [],
+    },
     booleanProperties: [],
     modeCollections: [],
     relatedCandidates: [],
@@ -73,7 +78,9 @@ describe("createSpecimenInstance", () => {
 
   it("pins the family axis when facts + familyValue are given", () => {
     const source = fakeComponentSet(["Type", "State"]);
-    const facts = baseFacts({ familyAxis: { name: "Type", values: ["a", "b"] } });
+    const facts = baseFacts({
+      familyAxis: { name: "Type", values: ["a", "b"] },
+    });
     const instance = createSpecimenInstance(source, {
       facts,
       familyValue: "b",

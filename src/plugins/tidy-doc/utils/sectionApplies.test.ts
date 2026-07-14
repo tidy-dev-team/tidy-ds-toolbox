@@ -95,9 +95,7 @@ describe("appliesModeSection", () => {
   });
 
   it("is false when spec.mode is present but there are no mode collections", () => {
-    expect(
-      appliesModeSection(baseFacts(), baseSpec({ mode: {} })),
-    ).toBe(false);
+    expect(appliesModeSection(baseFacts(), baseSpec({ mode: {} }))).toBe(false);
   });
 
   it("is true when spec.mode is present and at least one mode collection exists", () => {

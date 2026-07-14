@@ -9,15 +9,33 @@ import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityF
 import { deriveFacts } from "./deriveFacts";
 import { resolveDocSpecReferences } from "./resolveReferences";
 import { buildSectionCard } from "./buildChrome";
-import { buildVariantsSection, appliesVariantsSection } from "./buildVariantsSection";
-import { buildBreakdownSection, appliesBreakdownSection } from "./buildBreakdownSection";
+import {
+  buildVariantsSection,
+  appliesVariantsSection,
+} from "./buildVariantsSection";
+import {
+  buildBreakdownSection,
+  appliesBreakdownSection,
+} from "./buildBreakdownSection";
 import { buildModeSection, appliesModeSection } from "./buildModeSection";
-import { buildGuidelinesSection, appliesGuidelinesSection } from "./buildGuidelinesSection";
-import { buildRelatedSection, appliesRelatedSection } from "./buildRelatedSection";
+import {
+  buildGuidelinesSection,
+  appliesGuidelinesSection,
+} from "./buildGuidelinesSection";
+import {
+  buildRelatedSection,
+  appliesRelatedSection,
+} from "./buildRelatedSection";
 import { buildVerticalHeader } from "./buildVerticalHeader";
 import { buildVariantMatrixSection } from "./buildVariantMatrixSection";
-import { buildConstraintsSection, appliesConstraintsSection } from "./buildConstraintsSection";
-import { buildDoDontGridSection, appliesDoDontGridSection } from "./buildDoDontGridSection";
+import {
+  buildConstraintsSection,
+  appliesConstraintsSection,
+} from "./buildConstraintsSection";
+import {
+  buildDoDontGridSection,
+  appliesDoDontGridSection,
+} from "./buildDoDontGridSection";
 import { getPersistedDocLayout, type DocLayout } from "./docLayout";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";

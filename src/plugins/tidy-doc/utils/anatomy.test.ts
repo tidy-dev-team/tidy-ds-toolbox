@@ -207,10 +207,34 @@ describe("dedupeConstraintFacts", () => {
   it("groups per size, preserving size and first-seen order", () => {
     const facts = dedupeConstraintFacts(
       [
-        cand({ sizeLabel: "s", familyValue: "1", width: 160, minWidth: 160, maxWidth: 160 }),
-        cand({ sizeLabel: "s", familyValue: "2", width: 332, minWidth: 332, maxWidth: 332 }),
-        cand({ sizeLabel: "m", familyValue: "1", width: 220, minWidth: 220, maxWidth: 220 }),
-        cand({ sizeLabel: "m", familyValue: "2", width: 452, minWidth: 452, maxWidth: 452 }),
+        cand({
+          sizeLabel: "s",
+          familyValue: "1",
+          width: 160,
+          minWidth: 160,
+          maxWidth: 160,
+        }),
+        cand({
+          sizeLabel: "s",
+          familyValue: "2",
+          width: 332,
+          minWidth: 332,
+          maxWidth: 332,
+        }),
+        cand({
+          sizeLabel: "m",
+          familyValue: "1",
+          width: 220,
+          minWidth: 220,
+          maxWidth: 220,
+        }),
+        cand({
+          sizeLabel: "m",
+          familyValue: "2",
+          width: 452,
+          minWidth: 452,
+          maxWidth: 452,
+        }),
       ],
       "BtnAmount",
     );
@@ -226,9 +250,24 @@ describe("dedupeConstraintFacts", () => {
     // Primary + Secondary share a width; Tertiary differs.
     const facts = dedupeConstraintFacts(
       [
-        cand({ familyValue: "Primary", width: 100, minWidth: 100, maxWidth: 100 }),
-        cand({ familyValue: "Secondary", width: 100, minWidth: 100, maxWidth: 100 }),
-        cand({ familyValue: "Tertiary", width: 140, minWidth: 140, maxWidth: 140 }),
+        cand({
+          familyValue: "Primary",
+          width: 100,
+          minWidth: 100,
+          maxWidth: 100,
+        }),
+        cand({
+          familyValue: "Secondary",
+          width: 100,
+          minWidth: 100,
+          maxWidth: 100,
+        }),
+        cand({
+          familyValue: "Tertiary",
+          width: 140,
+          minWidth: 140,
+          maxWidth: 140,
+        }),
       ],
       "Type",
     );
@@ -241,8 +280,20 @@ describe("dedupeConstraintFacts", () => {
   it("falls back to the column combination when the family axis does not distinguish", () => {
     // No family axis; a demoted column drives the width difference.
     const facts = dedupeConstraintFacts([
-      cand({ familyValue: null, columnProps: { Icon: "False" }, width: 100, minWidth: 100, maxWidth: 100 }),
-      cand({ familyValue: null, columnProps: { Icon: "True" }, width: 130, minWidth: 130, maxWidth: 130 }),
+      cand({
+        familyValue: null,
+        columnProps: { Icon: "False" },
+        width: 100,
+        minWidth: 100,
+        maxWidth: 100,
+      }),
+      cand({
+        familyValue: null,
+        columnProps: { Icon: "True" },
+        width: 130,
+        minWidth: 130,
+        maxWidth: 130,
+      }),
     ]);
     expect(facts.map((f) => [f.label, f.width])).toEqual([
       ["False", 100],
@@ -267,8 +318,8 @@ describe("deriveBooleanProperties", () => {
   });
 
   it("returns an empty list when there are no BOOLEAN properties", () => {
-    expect(
-      deriveBooleanProperties([{ key: "Size", type: "VARIANT" }]),
-    ).toEqual([]);
+    expect(deriveBooleanProperties([{ key: "Size", type: "VARIANT" }])).toEqual(
+      [],
+    );
   });
 });

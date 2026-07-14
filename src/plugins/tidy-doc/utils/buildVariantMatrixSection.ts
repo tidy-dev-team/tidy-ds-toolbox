@@ -8,7 +8,12 @@
 // (matrixModel.ts), the single source of truth reused by Constraints (#66).
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, buildSectionTitle, buildSizeSeparator, TOKENS } from "./buildChrome";
+import {
+  createText,
+  buildSectionTitle,
+  buildSizeSeparator,
+  TOKENS,
+} from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { deriveMatrixModel, type MatrixSizeGroup } from "./matrixModel";
 import type { DerivedFacts } from "./facts";
@@ -59,7 +64,9 @@ export async function buildVariantMatrixSection(
     groupFrame.layoutAlign = "STRETCH";
 
     if (group.label) {
-      groupFrame.appendChild(await buildSizeSeparator(sizeSeparatorLabel(group.label)));
+      groupFrame.appendChild(
+        await buildSizeSeparator(sizeSeparatorLabel(group.label)),
+      );
     }
 
     for (const row of model.rows) {
@@ -78,7 +85,12 @@ export async function buildVariantMatrixSection(
       const rowLabelText = model.rowAxisName
         ? `${model.rowAxisName} = ${row.label}`
         : row.label;
-      const rowLabel = await createText(rowLabelText, 12, undefined, TOKENS.muted);
+      const rowLabel = await createText(
+        rowLabelText,
+        12,
+        undefined,
+        TOKENS.muted,
+      );
       rowFrame.appendChild(rowLabel);
 
       for (const column of model.columns) {
@@ -143,7 +155,9 @@ export async function buildVariantMatrixSection(
         16,
       );
       rowFrame.counterAxisAlignItems = "CENTER";
-      rowFrame.appendChild(await createText(prop.name, 12, undefined, TOKENS.muted));
+      rowFrame.appendChild(
+        await createText(prop.name, 12, undefined, TOKENS.muted),
+      );
 
       for (const value of [false, true]) {
         const cell = buildAutoLayoutFrame(

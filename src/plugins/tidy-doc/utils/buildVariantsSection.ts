@@ -118,7 +118,12 @@ export async function buildVariantsSection(
         4,
       );
       for (const item of content.whenToUse) {
-        const bullet = await createText(`• ${item}`, 12, undefined, TOKENS.muted);
+        const bullet = await createText(
+          `• ${item}`,
+          12,
+          undefined,
+          TOKENS.muted,
+        );
         list.appendChild(bullet);
       }
       block.appendChild(list);
