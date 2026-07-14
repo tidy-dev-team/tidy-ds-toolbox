@@ -63,6 +63,10 @@ export function buildAutoLayoutFrame(
   frame.paddingTop = paddingVertical;
   frame.itemSpacing = itemSpacing;
   frame.counterAxisSizingMode = "AUTO";
+  // These are hug-content wrapper frames — nothing legitimate to clip, and
+  // Figma's default (true) would cut the drop shadows of specimen/component
+  // instances that overflow the hug bounds.
+  frame.clipsContent = false;
   frame.name = name;
   return frame;
 }
