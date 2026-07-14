@@ -10,7 +10,7 @@ import {
   buildAutoLayoutFrame,
   setVariantProps,
 } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -84,15 +84,12 @@ export async function buildRelatedSection(
       8,
     );
 
-    const title = await createText(name, 14, {
-      family: "Inter",
-      style: "Bold",
-    });
+    const title = await createText(name, 14, FONT_BOLD);
     const guidance = await createText(
       content.guidance,
       12,
       undefined,
-      "#4B5563",
+      TOKENS.mutedDark,
     );
     block.appendChild(title);
     block.appendChild(guidance);

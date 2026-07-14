@@ -9,7 +9,7 @@
 // cell — the scene never expands into a state×axis grid.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -51,7 +51,7 @@ async function createSpecimenScene(
       facts,
       stateValue,
     );
-    const label = await createText(stateValue, 10, undefined, "#6B7280");
+    const label = await createText(stateValue, 10, undefined, TOKENS.muted);
 
     cell.appendChild(instance);
     cell.appendChild(label);
@@ -92,15 +92,12 @@ export async function buildVariantsSection(
     // literal word "default".
     const displayTitle =
       facts.familyAxis.name === null ? source.name : familyValue;
-    const title = await createText(displayTitle, 14, {
-      family: "Inter",
-      style: "Bold",
-    });
+    const title = await createText(displayTitle, 14, FONT_BOLD);
     const description = await createText(
       content.description,
       12,
       undefined,
-      "#4B5563",
+      TOKENS.mutedDark,
     );
 
     block.appendChild(title);
@@ -115,7 +112,7 @@ export async function buildVariantsSection(
         4,
       );
       for (const item of content.whenToUse) {
-        const bullet = await createText(`• ${item}`, 12, undefined, "#6B7280");
+        const bullet = await createText(`• ${item}`, 12, undefined, TOKENS.muted);
         list.appendChild(bullet);
       }
       block.appendChild(list);

@@ -8,22 +8,10 @@
 // authored content, no schema change. Omitted when there is none.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, buildSectionTitle } from "./buildChrome";
+import { createText, buildSectionTitle, stroke, TOKENS } from "./buildChrome";
 import { buildScene, buildVerdictIcon } from "./buildGuidelinesSection";
 import type { DocSpec, SpecimenScene } from "./docSpec";
 import type { DerivedFacts } from "./facts";
-
-const GOOD_BORDER = "#16A34A";
-const BAD_BORDER = "#DC2626";
-
-function hexToRgb(hex: string): RGB {
-  const clean = hex.replace("#", "");
-  return {
-    r: parseInt(clean.slice(0, 2), 16) / 255,
-    g: parseInt(clean.slice(2, 4), 16) / 255,
-    b: parseInt(clean.slice(4, 6), 16) / 255,
-  };
-}
 
 async function buildFramedPanel(
   source: ComponentNode | ComponentSetNode,
@@ -38,12 +26,7 @@ async function buildFramedPanel(
   panel.strokeWeight = 1;
   // Border only — no fill; the colored stroke alone signals good vs bad.
   panel.fills = [];
-  panel.strokes = [
-    {
-      type: "SOLID",
-      color: hexToRgb(verdict === "good" ? GOOD_BORDER : BAD_BORDER),
-    },
-  ];
+  stroke(panel, verdict === "good" ? TOKENS.good : TOKENS.bad);
 
   const header = buildAutoLayoutFrame(
     `${name} — header`,
@@ -55,7 +38,7 @@ async function buildFramedPanel(
   header.counterAxisAlignItems = "CENTER";
   header.fills = []; // transparent — no default white background
   header.appendChild(await buildVerdictIcon(verdict));
-  header.appendChild(await createText(caption, 12, undefined, "#111827"));
+  header.appendChild(await createText(caption, 12, undefined, TOKENS.ink));
   panel.appendChild(header);
 
   const sceneFrame = await buildScene(source, scene, facts, `${name} — scene`);

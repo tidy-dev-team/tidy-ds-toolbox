@@ -10,7 +10,7 @@ import {
   buildAutoLayoutFrame,
   setVariantProps,
 } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
 import type { DocSpec, DoDontPair, SpecimenScene } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 
@@ -20,13 +20,10 @@ async function buildBulletList(
   items: string[],
 ): Promise<FrameNode> {
   const list = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, 6);
-  const heading = await createText(title, 13, {
-    family: "Inter",
-    style: "Bold",
-  });
+  const heading = await createText(title, 13, FONT_BOLD);
   list.appendChild(heading);
   for (const item of items) {
-    const bullet = await createText(`• ${item}`, 12, undefined, "#4B5563");
+    const bullet = await createText(`• ${item}`, 12, undefined, TOKENS.mutedDark);
     list.appendChild(bullet);
   }
   return list;
@@ -75,7 +72,7 @@ export async function buildScene(
         instanceSpec.labelOverride,
         11,
         undefined,
-        "#6B7280",
+        TOKENS.muted,
       );
       frame.appendChild(label);
     }
@@ -88,8 +85,8 @@ export async function buildVerdictIcon(
   verdict: "good" | "bad",
 ): Promise<TextNode> {
   return verdict === "good"
-    ? createText("✓", 16, { family: "Inter", style: "Bold" }, "#16A34A")
-    : createText("✗", 16, { family: "Inter", style: "Bold" }, "#DC2626");
+    ? createText("✓", 16, FONT_BOLD, TOKENS.good)
+    : createText("✗", 16, FONT_BOLD, TOKENS.bad);
 }
 
 async function buildVerdictRow(
@@ -115,7 +112,7 @@ async function buildDoDontPair(
   const name = `do/dont — ${index}`;
   const block = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, 8);
   block.appendChild(
-    await createText(pair.description, 12, undefined, "#111827"),
+    await createText(pair.description, 12, undefined, TOKENS.ink),
   );
   block.appendChild(
     await buildVerdictRow(source, "good", pair.good, facts, `${name} — good`),

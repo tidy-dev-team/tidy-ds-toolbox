@@ -8,16 +8,34 @@ import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityF
 import { STATUS_BADGE } from "./statusBadge";
 import type { DocStatus } from "./docSpec";
 
-const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
-const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
+// Doc-canvas colour scale (#73): the single home for every hex literal drawn
+// by a tidy-doc section builder. Call sites import TOKENS.<name> instead of
+// repeating a hex string, so the scale changes in one place.
+export const TOKENS = {
+  ink: "#111827",
+  muted: "#6B7280",
+  mutedDark: "#4B5563",
+  faint: "#9CA3AF",
+  card: "#FFFFFF",
+  border: "#E5E7EB",
+  marker: "#8B5CF6",
+  good: "#16A34A",
+  bad: "#DC2626",
+  brand: "#202257",
+  black: "#000000",
+} as const;
+
+export const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
+export const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
 // Vertical-layout section title, matching the original DS docs' `dsc-title`:
 // Heebo SemiBold 40px in #202257 with a full-width 4px bottom rule.
 const SECTION_TITLE_FONT: FontName = { family: "Heebo", style: "SemiBold" };
 const SECTION_TITLE_SIZE = 40;
-const SECTION_TITLE_COLOR = "#202257";
 const SECTION_TITLE_DIVIDER_THICKNESS = 4;
 
+// The doc canvas's one hexToRgb — every fill/stroke on the canvas routes
+// through paint()/fill()/stroke() below, which route through this.
 function hexToRgb(hex: string): RGB {
   const clean = hex.replace("#", "");
   return {
@@ -27,18 +45,34 @@ function hexToRgb(hex: string): RGB {
   };
 }
 
+export function paint(hex: string, opacity?: number): SolidPaint {
+  return {
+    type: "SOLID",
+    color: hexToRgb(hex),
+    ...(opacity === undefined ? {} : { opacity }),
+  };
+}
+
+export function fill(node: MinimalFillsMixin, hex: string, opacity?: number): void {
+  node.fills = [paint(hex, opacity)];
+}
+
+export function stroke(node: MinimalStrokesMixin, hex: string): void {
+  node.strokes = [paint(hex)];
+}
+
 export async function createText(
   content: string,
   fontSize: number,
   font: FontName = FONT_REGULAR,
-  hex = "#111827",
+  hex: string = TOKENS.ink,
 ): Promise<TextNode> {
   await figma.loadFontAsync(font);
   const text = figma.createText();
   text.fontName = font;
   text.fontSize = fontSize;
   text.characters = content;
-  text.fills = [{ type: "SOLID", color: hexToRgb(hex) }];
+  fill(text, hex);
   return text;
 }
 
@@ -52,7 +86,7 @@ export async function buildStatusBadge(status: DocStatus): Promise<FrameNode> {
     6,
   );
   pill.cornerRadius = 999;
-  pill.fills = [{ type: "SOLID", color: hexToRgb(style.hex), opacity: 0.16 }];
+  fill(pill, style.hex, 0.16);
   pill.counterAxisAlignItems = "CENTER";
 
   const label = await createText(
@@ -79,14 +113,14 @@ export async function buildSectionTitle(title: string): Promise<FrameNode> {
     title,
     SECTION_TITLE_SIZE,
     SECTION_TITLE_FONT,
-    SECTION_TITLE_COLOR,
+    TOKENS.brand,
   );
   frame.appendChild(text);
 
   const divider = figma.createRectangle();
   divider.name = "section-title — divider";
   divider.resize(text.width, SECTION_TITLE_DIVIDER_THICKNESS);
-  divider.fills = [{ type: "SOLID", color: hexToRgb(SECTION_TITLE_COLOR) }];
+  fill(divider, TOKENS.brand);
   divider.layoutAlign = "STRETCH";
   frame.appendChild(divider);
 
@@ -95,7 +129,6 @@ export async function buildSectionTitle(title: string): Promise<FrameNode> {
 
 // Internal size-group separator, matching the original DS docs' `dsc-subtitle`:
 // a centered Heebo Bold 16 label flanked by full-width 2px black rules.
-const SIZE_SEPARATOR_COLOR = "#000000";
 const SIZE_SEPARATOR_LINE_THICKNESS = 2;
 const SIZE_SEPARATOR_LINE_MIN = 16;
 
@@ -103,7 +136,7 @@ function separatorLine(): RectangleNode {
   const line = figma.createRectangle();
   line.name = "size-separator — line";
   line.resize(SIZE_SEPARATOR_LINE_MIN, SIZE_SEPARATOR_LINE_THICKNESS);
-  line.fills = [{ type: "SOLID", color: hexToRgb(SIZE_SEPARATOR_COLOR) }];
+  fill(line, TOKENS.black);
   line.layoutGrow = 1; // fill the space either side of the centered label
   return line;
 }
@@ -124,7 +157,7 @@ export async function buildSizeSeparator(label: string): Promise<FrameNode> {
 
   frame.appendChild(separatorLine());
   frame.appendChild(
-    await createText(label, 16, { family: "Heebo", style: "Bold" }, SIZE_SEPARATOR_COLOR),
+    await createText(label, 16, { family: "Heebo", style: "Bold" }, TOKENS.black),
   );
   frame.appendChild(separatorLine());
 
@@ -142,8 +175,8 @@ export async function buildSectionCard(
   status: DocStatus,
 ): Promise<{ card: FrameNode; body: FrameNode }> {
   const card = buildAutoLayoutFrame(name, "VERTICAL", 24, 24, 16);
-  card.fills = [{ type: "SOLID", color: hexToRgb("#FFFFFF") }];
-  card.strokes = [{ type: "SOLID", color: hexToRgb("#E5E7EB") }];
+  fill(card, TOKENS.card);
+  stroke(card, TOKENS.border);
   card.strokeWeight = 1;
   card.cornerRadius = 12;
 
@@ -164,7 +197,7 @@ export async function buildSectionCard(
     2,
   );
   const titleText = await createText(title, 18, FONT_BOLD);
-  const subtitleText = await createText(subtitle, 13, FONT_REGULAR, "#6B7280");
+  const subtitleText = await createText(subtitle, 13, FONT_REGULAR, TOKENS.muted);
   titleColumn.appendChild(titleText);
   titleColumn.appendChild(subtitleText);
 

@@ -7,7 +7,7 @@
 // modeId) using the dynamic-page-safe overload.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText } from "./buildChrome";
+import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 import { buildModeCrossProduct, modeShowcaseLabel } from "./modes";
@@ -59,7 +59,7 @@ export async function buildModeSection(
 
   if (spec.mode.caption) {
     section.appendChild(
-      await createText(spec.mode.caption, 12, undefined, "#4B5563"),
+      await createText(spec.mode.caption, 12, undefined, TOKENS.mutedDark),
     );
   }
 
@@ -71,10 +71,7 @@ export async function buildModeSection(
   for (const showcase of showcases) {
     const block = buildAutoLayoutFrame("mode-showcase", "VERTICAL", 0, 0, 8);
     block.appendChild(
-      await createText(modeShowcaseLabel(showcase), 13, {
-        family: "Inter",
-        style: "Bold",
-      }),
+      await createText(modeShowcaseLabel(showcase), 13, FONT_BOLD),
     );
 
     const container = buildAutoLayoutFrame(

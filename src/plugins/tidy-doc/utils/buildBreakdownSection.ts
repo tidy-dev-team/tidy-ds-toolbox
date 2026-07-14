@@ -15,7 +15,7 @@ import {
 import { buildSizeMarks } from "../../tags-spacings/utils/sizeMarks";
 import { loadInterFont } from "../../tags-spacings/utils/fontLoader";
 import type { SpacingsConfig } from "../../tags-spacings/types";
-import { createText } from "./buildChrome";
+import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 import type { SizeMeasurement } from "./anatomy";
@@ -99,7 +99,7 @@ async function buildHeightRow(
     )}`,
     12,
     undefined,
-    "#4B5563",
+    TOKENS.mutedDark,
   );
 
   const row = buildAutoLayoutFrame(
@@ -122,10 +122,10 @@ async function buildHeightSubSection(
 ): Promise<FrameNode> {
   const block = buildAutoLayoutFrame("breakdown — height", "VERTICAL", 0, 0, 8);
   block.appendChild(
-    await createText("Height", 14, { family: "Inter", style: "Bold" }),
+    await createText("Height", 14, FONT_BOLD),
   );
   if (caption) {
-    block.appendChild(await createText(caption, 12, undefined, "#4B5563"));
+    block.appendChild(await createText(caption, 12, undefined, TOKENS.mutedDark));
   }
 
   const rows = buildAutoLayoutFrame(
@@ -149,10 +149,10 @@ async function buildWidthSubSection(
 ): Promise<FrameNode> {
   const block = buildAutoLayoutFrame("breakdown — width", "VERTICAL", 0, 0, 8);
   block.appendChild(
-    await createText("Width", 14, { family: "Inter", style: "Bold" }),
+    await createText("Width", 14, FONT_BOLD),
   );
   if (caption) {
-    block.appendChild(await createText(caption, 12, undefined, "#4B5563"));
+    block.appendChild(await createText(caption, 12, undefined, TOKENS.mutedDark));
   }
 
   const width = facts.breakdown.width!;
@@ -162,7 +162,7 @@ async function buildWidthSubSection(
         `Min width: ${Math.round(width.minWidth)}px`,
         12,
         undefined,
-        "#6B7280",
+        TOKENS.muted,
       ),
     );
   }
@@ -172,7 +172,7 @@ async function buildWidthSubSection(
         `Max width: ${Math.round(width.maxWidth)}px`,
         12,
         undefined,
-        "#6B7280",
+        TOKENS.muted,
       ),
     );
   }
@@ -192,10 +192,10 @@ async function buildIconPlacementSubSection(
     8,
   );
   block.appendChild(
-    await createText("Icon placement", 14, { family: "Inter", style: "Bold" }),
+    await createText("Icon placement", 14, FONT_BOLD),
   );
   if (caption) {
-    block.appendChild(await createText(caption, 12, undefined, "#4B5563"));
+    block.appendChild(await createText(caption, 12, undefined, TOKENS.mutedDark));
   }
 
   const icon = facts.breakdown.iconPlacement!;
@@ -203,7 +203,7 @@ async function buildIconPlacementSubSection(
     icon.values.length > 0
       ? `${icon.propertyName} (${icon.propertyType.toLowerCase()}) — ${icon.values.join(", ")}`
       : `${icon.propertyName} (${icon.propertyType.toLowerCase()})`;
-  block.appendChild(await createText(detail, 12, undefined, "#6B7280"));
+  block.appendChild(await createText(detail, 12, undefined, TOKENS.muted));
 
   return block;
 }

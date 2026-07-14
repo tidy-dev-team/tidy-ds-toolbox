@@ -13,41 +13,31 @@
 // literal, code-owned constants.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, buildSectionTitle } from "./buildChrome";
+import { createText, buildSectionTitle, fill, FONT_BOLD, TOKENS } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { deriveMatrixModel } from "./matrixModel";
 import { widthConstraintLabel } from "./anatomy";
 import type { DerivedFacts } from "./facts";
 
-const MARKER_COLOR = "#8B5CF6";
 const MARKER_BAR_THICKNESS = 2;
 const MARKER_TICK_LENGTH = 12;
 const WIDTH_BRACKET_HEIGHT = 24;
-
-function hexToRgb(hex: string): RGB {
-  const clean = hex.replace("#", "");
-  return {
-    r: parseInt(clean.slice(0, 2), 16) / 255,
-    g: parseInt(clean.slice(2, 4), 16) / 255,
-    b: parseInt(clean.slice(4, 6), 16) / 255,
-  };
-}
 
 function markerRect(name: string, width: number, height: number): RectangleNode {
   const rect = figma.createRectangle();
   rect.name = name;
   rect.resize(width, height);
   rect.cornerRadius = Math.min(width, height) / 2;
-  rect.fills = [{ type: "SOLID", color: hexToRgb(MARKER_COLOR) }];
+  fill(rect, TOKENS.marker);
   return rect;
 }
 
 async function buildMarkerPill(label: string): Promise<FrameNode> {
   const pill = buildAutoLayoutFrame("marker-pill", "HORIZONTAL", 8, 3, 4);
   pill.cornerRadius = 6;
-  pill.fills = [{ type: "SOLID", color: hexToRgb(MARKER_COLOR) }];
+  fill(pill, TOKENS.marker);
   pill.appendChild(
-    await createText(label, 10, { family: "Inter", style: "Bold" }, "#FFFFFF"),
+    await createText(label, 10, FONT_BOLD, TOKENS.card),
   );
   return pill;
 }
@@ -178,7 +168,7 @@ export async function buildConstraintsSection(
         await createText(
           `Size ${group.label.charAt(0).toUpperCase()}${group.label.slice(1)}`,
           14,
-          { family: "Inter", style: "Bold" },
+          FONT_BOLD,
         ),
       );
     }
@@ -256,7 +246,7 @@ export async function buildConstraintsSection(
 
       if (widthFact.label) {
         cell.appendChild(
-          await createText(widthFact.label, 10, undefined, "#9CA3AF"),
+          await createText(widthFact.label, 10, undefined, TOKENS.faint),
         );
       }
 
