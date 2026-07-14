@@ -8,14 +8,12 @@
 // live component (deriveFacts.ts) and rendered raw; this builder never
 // invents a fact the component doesn't expose.
 
-import {
-  buildAutoLayoutFrame,
-  setVariantProps,
-} from "../../sticker-sheet-builder/utils/utilityFunctions";
+import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { buildSizeMarks } from "../../tags-spacings/utils/sizeMarks";
 import { loadInterFont } from "../../tags-spacings/utils/fontLoader";
 import type { SpacingsConfig } from "../../tags-spacings/types";
 import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 import type { SizeMeasurement } from "./anatomy";
@@ -38,22 +36,17 @@ function createSizeSpecimenInstance(
   facts: DerivedFacts,
   sizeValue: string,
 ): InstanceNode {
-  const instance = source.defaultVariant.createInstance();
+  const familyDefault = facts.familyAxis.name
+    ? source.defaultVariant.variantProperties?.[facts.familyAxis.name]
+    : undefined;
 
-  for (const [axisName, value] of Object.entries(facts.pinnedDefaults)) {
-    setVariantProps(instance, axisName, value);
-  }
-  if (facts.familyAxis.name) {
-    const familyDefault =
-      source.defaultVariant.variantProperties?.[facts.familyAxis.name];
-    if (familyDefault)
-      setVariantProps(instance, facts.familyAxis.name, familyDefault);
-  }
-  if (facts.sizeAxis?.name) {
-    setVariantProps(instance, facts.sizeAxis.name, sizeValue);
-  }
-
-  return instance;
+  return createSpecimenInstance(source, {
+    facts,
+    familyValue: familyDefault,
+    overrides: facts.sizeAxis?.name
+      ? { [facts.sizeAxis.name]: sizeValue }
+      : undefined,
+  });
 }
 
 // Builds one specimen + code-generated size markers (tags-spacings,
@@ -208,21 +201,33 @@ async function buildIconPlacementSubSection(
   return block;
 }
 
-export async function buildBreakdownSection(
-  source: ComponentNode | ComponentSetNode,
-  spec: DocSpec,
+// Pure skip predicate (#72) — whether the Breakdown Section has anything to
+// render. Warns (but still reports `false`) when the spec asks for this
+// Section but the component exposes none of the anatomy facts it needs.
+export function appliesBreakdownSection(
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  const breakdownSpec = spec.breakdown;
-  if (!breakdownSpec) return null;
+  spec: DocSpec,
+): boolean {
+  if (!spec.breakdown) return false;
 
   const { heights, width, iconPlacement } = facts.breakdown;
   if (heights.length === 0 && !width && !iconPlacement) {
     console.warn(
       `tidy-doc: "breakdown" key present but no derived anatomy facts for "${facts.componentName}" (${facts.componentId}); dropping the Component Breakdown Section.`,
     );
-    return null;
+    return false;
   }
+
+  return true;
+}
+
+export async function buildBreakdownSection(
+  source: ComponentNode | ComponentSetNode,
+  spec: DocSpec,
+  facts: DerivedFacts,
+): Promise<FrameNode> {
+  const breakdownSpec = spec.breakdown!;
+  const { heights, width, iconPlacement } = facts.breakdown;
 
   const section = buildAutoLayoutFrame(
     "breakdown-section",

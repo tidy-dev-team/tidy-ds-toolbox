@@ -9,18 +9,98 @@ import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityF
 import { deriveFacts } from "./deriveFacts";
 import { resolveDocSpecReferences } from "./resolveReferences";
 import { buildSectionCard } from "./buildChrome";
-import { buildVariantsSection } from "./buildVariantsSection";
-import { buildBreakdownSection } from "./buildBreakdownSection";
-import { buildModeSection } from "./buildModeSection";
-import { buildGuidelinesSection } from "./buildGuidelinesSection";
-import { buildRelatedSection } from "./buildRelatedSection";
+import { buildVariantsSection, appliesVariantsSection } from "./buildVariantsSection";
+import { buildBreakdownSection, appliesBreakdownSection } from "./buildBreakdownSection";
+import { buildModeSection, appliesModeSection } from "./buildModeSection";
+import { buildGuidelinesSection, appliesGuidelinesSection } from "./buildGuidelinesSection";
+import { buildRelatedSection, appliesRelatedSection } from "./buildRelatedSection";
 import { buildVerticalHeader } from "./buildVerticalHeader";
 import { buildVariantMatrixSection } from "./buildVariantMatrixSection";
-import { buildConstraintsSection } from "./buildConstraintsSection";
-import { buildDoDontGridSection } from "./buildDoDontGridSection";
+import { buildConstraintsSection, appliesConstraintsSection } from "./buildConstraintsSection";
+import { buildDoDontGridSection, appliesDoDontGridSection } from "./buildDoDontGridSection";
 import { getPersistedDocLayout, type DocLayout } from "./docLayout";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
+
+// One Section, as the orchestrator sees it (#72): a pure `applies` predicate
+// deciding whether it renders at all, and a `render` that builds its body —
+// the two concerns the four `assemble*` copy-paste blocks used to fuse
+// together per Section. `id`/`title` feed the horizontal layout's Chrome
+// card (buildSectionCard); the vertical layout ignores them.
+interface SectionContext {
+  source: ComponentNode | ComponentSetNode;
+  spec: DocSpec;
+  facts: DerivedFacts;
+}
+
+interface SectionDescriptor {
+  id: string;
+  title: string;
+  applies: (ctx: SectionContext) => boolean;
+  render: (ctx: SectionContext) => Promise<FrameNode>;
+}
+
+// Vertical layout's Sections (#64/#66/#67): Component Variants matrix always
+// applies; Constraints and Dos/Don'ts render un-chromed, directly on root.
+const VERTICAL_SECTIONS: SectionDescriptor[] = [
+  {
+    id: "matrix",
+    title: "Component Variants",
+    applies: () => true,
+    render: ({ source, facts }) => buildVariantMatrixSection(source, facts),
+  },
+  {
+    id: "constraints",
+    title: "Constraints",
+    applies: ({ facts }) => appliesConstraintsSection(facts),
+    render: ({ source, facts }) => buildConstraintsSection(source, facts),
+  },
+  {
+    id: "dodont",
+    title: "Dos and Don'ts",
+    applies: ({ spec }) => appliesDoDontGridSection(spec),
+    render: ({ source, spec, facts }) =>
+      buildDoDontGridSection(source, spec, facts),
+  },
+];
+
+// Horizontal layout's Sections: each renders inside its own Chrome card
+// (#63), skipped wholesale — card included — when it has nothing to show.
+const HORIZONTAL_SECTIONS: SectionDescriptor[] = [
+  {
+    id: "variants",
+    title: "Variants",
+    applies: ({ spec }) => appliesVariantsSection(spec),
+    render: ({ source, spec, facts }) =>
+      buildVariantsSection(source, spec, facts),
+  },
+  {
+    id: "breakdown",
+    title: "Component Breakdown",
+    applies: ({ facts, spec }) => appliesBreakdownSection(facts, spec),
+    render: ({ source, spec, facts }) =>
+      buildBreakdownSection(source, spec, facts),
+  },
+  {
+    id: "mode",
+    title: "Mode",
+    applies: ({ facts, spec }) => appliesModeSection(facts, spec),
+    render: ({ source, spec, facts }) => buildModeSection(source, spec, facts),
+  },
+  {
+    id: "guidelines",
+    title: "Usage Guidelines",
+    applies: ({ spec }) => appliesGuidelinesSection(spec),
+    render: ({ source, spec, facts }) =>
+      buildGuidelinesSection(source, spec, facts),
+  },
+  {
+    id: "related",
+    title: "Related Components",
+    applies: ({ spec }) => appliesRelatedSection(spec),
+    render: ({ spec, facts }) => buildRelatedSection(spec, facts),
+  },
+];
 
 const PLUGIN_DATA_KEY = "tidy:doc-page";
 
@@ -134,10 +214,13 @@ async function buildDocPageUnguarded(
     } satisfies DocPageStamp),
   );
 
+  const ctx: SectionContext = { source, spec, facts };
   if (layout === "vertical") {
-    await assembleVerticalSections(root, source, spec, facts);
+    const header = await buildVerticalHeader(source.name, spec.status);
+    root.appendChild(header);
+    await assembleSections(root, ctx, VERTICAL_SECTIONS, { chrome: false });
   } else {
-    await assembleHorizontalSections(root, source, spec, facts);
+    await assembleSections(root, ctx, HORIZONTAL_SECTIONS, { chrome: true });
   }
 
   figma.viewport.scrollAndZoomIntoView([root]);
@@ -145,94 +228,32 @@ async function buildDocPageUnguarded(
   return root;
 }
 
-// The vertical layout's Section assembly (#64): Header, Component Variants
-// matrix, Constraints, and Dos and Don'ts.
-async function assembleVerticalSections(
+// One loop, either layout (#72): test `applies`, skip wholesale (Chrome card
+// included) when it doesn't, else render and attach — chromed via
+// buildSectionCard for the horizontal layout, appended directly for the
+// vertical one. Replaces the two hand-unrolled assemble* routines that used
+// to thread each Section's identity through repeated string literals and a
+// 5×-repeated Chrome-wrap block.
+async function assembleSections(
   root: FrameNode,
-  source: ComponentNode | ComponentSetNode,
-  spec: DocSpec,
-  facts: DerivedFacts,
+  ctx: SectionContext,
+  descriptors: SectionDescriptor[],
+  options: { chrome: boolean },
 ): Promise<void> {
-  const header = await buildVerticalHeader(source.name, spec.status);
-  root.appendChild(header);
-
-  const matrixSection = await buildVariantMatrixSection(source, facts);
-  root.appendChild(matrixSection);
-
-  const constraintsSection = await buildConstraintsSection(source, facts);
-  if (constraintsSection) root.appendChild(constraintsSection);
-
-  const doDontSection = await buildDoDontGridSection(source, spec, facts);
-  if (doDontSection) root.appendChild(doDontSection);
-}
-
-// The horizontal layout's Section assembly, moved verbatim out of
-// buildDocPageUnguarded (#63 prefactor) so a future layout branch can add a
-// sibling assembly routine without touching the shared scaffolding (fact
-// derivation, reference resolution, replace-wholesale find/stamp/placement,
-// the in-flight guard) above.
-async function assembleHorizontalSections(
-  root: FrameNode,
-  source: ComponentNode | ComponentSetNode,
-  spec: DocSpec,
-  facts: DerivedFacts,
-): Promise<void> {
-  const { card, body } = await buildSectionCard(
-    "variants",
-    "Variants",
-    source.name,
-    spec.status,
-  );
-  const variantsSection = await buildVariantsSection(source, spec, facts);
-  if (variantsSection) body.appendChild(variantsSection);
-  root.appendChild(card);
-
-  const breakdownSection = await buildBreakdownSection(source, spec, facts);
-  if (breakdownSection) {
-    const { card: breakdownCard, body: breakdownBody } = await buildSectionCard(
-      "breakdown",
-      "Component Breakdown",
-      source.name,
-      spec.status,
-    );
-    breakdownBody.appendChild(breakdownSection);
-    root.appendChild(breakdownCard);
-  }
-
-  const modeSection = await buildModeSection(source, spec, facts);
-  if (modeSection) {
-    const { card: modeCard, body: modeBody } = await buildSectionCard(
-      "mode",
-      "Mode",
-      source.name,
-      spec.status,
-    );
-    modeBody.appendChild(modeSection);
-    root.appendChild(modeCard);
-  }
-
-  const guidelinesSection = await buildGuidelinesSection(source, spec, facts);
-  if (guidelinesSection) {
-    const { card: guidelinesCard, body: guidelinesBody } =
-      await buildSectionCard(
-        "guidelines",
-        "Usage Guidelines",
-        source.name,
-        spec.status,
+  for (const descriptor of descriptors) {
+    if (!descriptor.applies(ctx)) continue;
+    const rendered = await descriptor.render(ctx);
+    if (options.chrome) {
+      const { card, body } = await buildSectionCard(
+        descriptor.id,
+        descriptor.title,
+        ctx.source.name,
+        ctx.spec.status,
       );
-    guidelinesBody.appendChild(guidelinesSection);
-    root.appendChild(guidelinesCard);
-  }
-
-  const relatedSection = await buildRelatedSection(spec, facts);
-  if (relatedSection) {
-    const { card: relatedCard, body: relatedBody } = await buildSectionCard(
-      "related",
-      "Related Components",
-      source.name,
-      spec.status,
-    );
-    relatedBody.appendChild(relatedSection);
-    root.appendChild(relatedCard);
+      body.appendChild(rendered);
+      root.appendChild(card);
+    } else {
+      root.appendChild(rendered);
+    }
   }
 }

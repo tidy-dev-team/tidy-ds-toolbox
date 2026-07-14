@@ -124,12 +124,16 @@ async function buildHeightBracket(specimenHeight: number, label: string): Promis
   return wrapper;
 }
 
+// Pure skip predicate (#72) — whether the Constraints Section has any
+// redlined widths to render.
+export function appliesConstraintsSection(facts: DerivedFacts): boolean {
+  return facts.breakdown.constraintWidths.length > 0;
+}
+
 export async function buildConstraintsSection(
   source: ComponentNode | ComponentSetNode,
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  if (facts.breakdown.constraintWidths.length === 0) return null;
-
+): Promise<FrameNode> {
   const model = deriveMatrixModel(facts);
   const factsBySize = new Map<string, typeof facts.breakdown.constraintWidths>();
   for (const fact of facts.breakdown.constraintWidths) {
@@ -213,13 +217,11 @@ export async function buildConstraintsSection(
       if (facts.sizeAxis?.name && group.sizeValue) {
         overrides[facts.sizeAxis.name] = group.sizeValue;
       }
-      const instance = createSpecimenInstance(
-        source,
-        widthFact.familyValue ?? facts.familyAxis.values[0] ?? "",
+      const instance = createSpecimenInstance(source, {
+        familyValue: widthFact.familyValue ?? facts.familyAxis.values[0] ?? "",
         facts,
-        undefined,
         overrides,
-      );
+      });
 
       // The height bracket rides beside every specimen — one per redlined
       // variant, so each cell reads as a complete width × height measurement.

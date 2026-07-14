@@ -91,13 +91,11 @@ export async function buildVariantMatrixSection(
         );
         cell.counterAxisAlignItems = "CENTER";
 
-        const instance = createSpecimenInstance(
-          source,
-          row.familyValue ?? "",
+        const instance = createSpecimenInstance(source, {
+          familyValue: row.familyValue ?? "",
           facts,
-          undefined,
-          cellOverrides(facts, group, column.props),
-        );
+          overrides: cellOverrides(facts, group, column.props),
+        });
         cell.appendChild(instance);
 
         if (column.label) {
@@ -157,14 +155,11 @@ export async function buildVariantMatrixSection(
         );
         cell.counterAxisAlignItems = "CENTER";
 
-        const instance = createSpecimenInstance(
-          source,
-          defaultFamilyValue,
+        const instance = createSpecimenInstance(source, {
+          familyValue: defaultFamilyValue,
           facts,
-          undefined,
-          undefined,
-          { [prop.key]: value },
-        );
+          booleanOverrides: { [prop.key]: value },
+        });
         cell.appendChild(instance);
         cell.appendChild(
           await createText(value ? "on" : "off", 10, undefined, TOKENS.faint),

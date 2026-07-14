@@ -48,13 +48,18 @@ async function buildFramedPanel(
   return panel;
 }
 
+// Pure skip predicate (#72) — whether there are any authored Do/Don't
+// pairs to render.
+export function appliesDoDontGridSection(spec: DocSpec): boolean {
+  return (spec.guidelines?.doDonts?.length ?? 0) > 0;
+}
+
 export async function buildDoDontGridSection(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  const doDonts = spec.guidelines?.doDonts;
-  if (!doDonts?.length) return null;
+): Promise<FrameNode> {
+  const doDonts = spec.guidelines!.doDonts!;
 
   const section = buildAutoLayoutFrame(
     "dodont-grid-section",

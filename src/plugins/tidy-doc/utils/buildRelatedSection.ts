@@ -6,11 +6,9 @@
 // order (facts.relatedCandidates — resolveReferences already rejected any
 // key that isn't a real candidate before this runs).
 
-import {
-  buildAutoLayoutFrame,
-  setVariantProps,
-} from "../../sticker-sheet-builder/utils/utilityFunctions";
+import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import { createSpecimenInstance } from "./specimenFactory";
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -38,33 +36,33 @@ async function resolveAllSiblings(
   return result;
 }
 
-function createSpecimenInstance(
+// The sibling was never `deriveFacts`'d (it isn't the doc's own source), so
+// there's no DerivedFacts to route family/state pinning through — pin its
+// own default-variant properties directly via exact-match overrides,
+// giving a neutral designer-intended appearance rather than un-pinned/
+// arbitrary defaults.
+function createRelatedSpecimenInstance(
   sibling: ComponentNode | ComponentSetNode,
 ): InstanceNode {
-  const base =
-    sibling.type === "COMPONENT_SET" ? sibling.defaultVariant : sibling;
-  const instance = base.createInstance();
-  // Pin the sibling to its own default-variant state, giving a neutral
-  // designer-intended appearance rather than un-pinned/arbitrary defaults.
-  if (
-    sibling.type === "COMPONENT_SET" &&
-    sibling.defaultVariant?.variantProperties
-  ) {
-    for (const [axis, value] of Object.entries(
-      sibling.defaultVariant.variantProperties,
-    )) {
-      setVariantProps(instance, axis, value);
-    }
-  }
-  return instance;
+  const overrides =
+    sibling.type === "COMPONENT_SET"
+      ? (sibling.defaultVariant?.variantProperties ?? {})
+      : {};
+  return createSpecimenInstance(sibling, { overrides });
+}
+
+// Pure skip predicate (#72) — whether there are any authored `related` keys
+// to render.
+export function appliesRelatedSection(spec: DocSpec): boolean {
+  const related = spec.related;
+  return !!related && Object.keys(related).length > 0;
 }
 
 export async function buildRelatedSection(
   spec: DocSpec,
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  const related = spec.related;
-  if (!related || Object.keys(related).length === 0) return null;
+): Promise<FrameNode> {
+  const related = spec.related!;
 
   const section = buildAutoLayoutFrame("related-section", "VERTICAL", 0, 0, 24);
 
@@ -103,7 +101,7 @@ export async function buildRelatedSection(
         { name },
       );
     }
-    const specimen = createSpecimenInstance(sibling);
+    const specimen = createRelatedSpecimenInstance(sibling);
     block.appendChild(specimen);
 
     section.appendChild(block);

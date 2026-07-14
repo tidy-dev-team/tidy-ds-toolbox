@@ -8,17 +8,22 @@
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 import { buildModeCrossProduct, modeShowcaseLabel } from "./modes";
 
 const MAX_MODE_SHOWCASES = 8;
 
-function createSpecimenInstance(
+function defaultFamilyValue(
   source: ComponentNode | ComponentSetNode,
-): InstanceNode {
-  const base = source.type === "COMPONENT_SET" ? source.defaultVariant : source;
-  return base.createInstance();
+  facts: DerivedFacts,
+): string | undefined {
+  if (!facts.familyAxis.name) return undefined;
+  return source.type === "COMPONENT_SET"
+    ? (source.defaultVariant?.variantProperties?.[facts.familyAxis.name] ??
+        facts.familyAxis.values[0])
+    : facts.familyAxis.values[0];
 }
 
 async function resolveCollections(
@@ -36,19 +41,27 @@ async function resolveCollections(
   return result;
 }
 
+// Pure skip predicate (#72) — whether the Mode Section has anything to
+// render: an authored `mode` key, at least one bound-variable collection,
+// and at least one showcase surviving the cross-product cap.
+export function appliesModeSection(facts: DerivedFacts, spec: DocSpec): boolean {
+  if (!spec.mode) return false;
+  if (facts.modeCollections.length === 0) return false;
+  return (
+    buildModeCrossProduct(facts.modeCollections, MAX_MODE_SHOWCASES).showcases
+      .length > 0
+  );
+}
+
 export async function buildModeSection(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  if (!spec.mode) return null;
-  if (facts.modeCollections.length === 0) return null;
-
+): Promise<FrameNode> {
   const { showcases, dropped } = buildModeCrossProduct(
     facts.modeCollections,
     MAX_MODE_SHOWCASES,
   );
-  if (showcases.length === 0) return null;
   if (dropped > 0) {
     console.warn(
       `tidy-doc: Mode Section capped at ${MAX_MODE_SHOWCASES} showcases; dropped ${dropped} additional mode combination(s)`,
@@ -57,7 +70,7 @@ export async function buildModeSection(
 
   const section = buildAutoLayoutFrame("mode-section", "VERTICAL", 0, 0, 16);
 
-  if (spec.mode.caption) {
+  if (spec.mode?.caption) {
     section.appendChild(
       await createText(spec.mode.caption, 12, undefined, TOKENS.mutedDark),
     );
@@ -98,7 +111,12 @@ export async function buildModeSection(
       );
     }
 
-    container.appendChild(createSpecimenInstance(source));
+    container.appendChild(
+      createSpecimenInstance(source, {
+        facts,
+        familyValue: defaultFamilyValue(source, facts),
+      }),
+    );
     block.appendChild(container);
     section.appendChild(block);
   }

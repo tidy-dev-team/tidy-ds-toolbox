@@ -6,11 +6,9 @@
 // live source-component instances in a row/stack, each with a verdict icon
 // (code-generated glyph, no library linkage, per ADR-0006).
 
-import {
-  buildAutoLayoutFrame,
-  setVariantProps,
-} from "../../sticker-sheet-builder/utils/utilityFunctions";
+import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec, DoDontPair, SpecimenScene } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 
@@ -34,19 +32,7 @@ function createSceneInstance(
   props: Record<string, string>,
   facts: DerivedFacts,
 ): InstanceNode {
-  const base = source.type === "COMPONENT_SET" ? source.defaultVariant : source;
-  const instance = base.createInstance();
-
-  if (source.type === "COMPONENT_SET") {
-    for (const [axisName, value] of Object.entries(facts.pinnedDefaults)) {
-      setVariantProps(instance, axisName, value);
-    }
-    for (const [axisName, value] of Object.entries(props)) {
-      setVariantProps(instance, axisName, value);
-    }
-  }
-
-  return instance;
+  return createSpecimenInstance(source, { facts, overrides: props });
 }
 
 export async function buildScene(
@@ -123,20 +109,25 @@ async function buildDoDontPair(
   return block;
 }
 
+// Pure skip predicate (#72) — whether the Usage Guidelines Section has any
+// authored content to render.
+export function appliesGuidelinesSection(spec: DocSpec): boolean {
+  const guidelines = spec.guidelines;
+  if (!guidelines) return false;
+  return (
+    (guidelines.whenToUse?.length ?? 0) > 0 ||
+    (guidelines.whenNotToUse?.length ?? 0) > 0 ||
+    (guidelines.general?.length ?? 0) > 0 ||
+    (guidelines.doDonts?.length ?? 0) > 0
+  );
+}
+
 export async function buildGuidelinesSection(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  const guidelines = spec.guidelines;
-  if (!guidelines) return null;
-
-  const hasContent =
-    (guidelines.whenToUse?.length ?? 0) > 0 ||
-    (guidelines.whenNotToUse?.length ?? 0) > 0 ||
-    (guidelines.general?.length ?? 0) > 0 ||
-    (guidelines.doDonts?.length ?? 0) > 0;
-  if (!hasContent) return null;
+): Promise<FrameNode> {
+  const guidelines = spec.guidelines!;
 
   const section = buildAutoLayoutFrame(
     "guidelines-section",

@@ -24,7 +24,7 @@ async function createSpecimenScene(
   facts: DerivedFacts,
 ): Promise<FrameNode | InstanceNode> {
   if (!facts.stateAxis) {
-    return createSpecimenInstance(source, familyValue, facts);
+    return createSpecimenInstance(source, { familyValue, facts });
   }
 
   const row = buildAutoLayoutFrame(
@@ -45,12 +45,11 @@ async function createSpecimenScene(
     );
     cell.counterAxisAlignItems = "CENTER";
 
-    const instance = createSpecimenInstance(
-      source,
+    const instance = createSpecimenInstance(source, {
       familyValue,
       facts,
       stateValue,
-    );
+    });
     const label = await createText(stateValue, 10, undefined, TOKENS.muted);
 
     cell.appendChild(instance);
@@ -61,13 +60,20 @@ async function createSpecimenScene(
   return row;
 }
 
+// Pure skip predicate (#72) — whether the Variants Section has anything to
+// render. Operates on plain data so it's unit-testable without building a
+// Figma node.
+export function appliesVariantsSection(spec: DocSpec): boolean {
+  const variants = spec.variants;
+  return !!variants && Object.keys(variants).length > 0;
+}
+
 export async function buildVariantsSection(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
   facts: DerivedFacts,
-): Promise<FrameNode | null> {
-  const variants = spec.variants;
-  if (!variants || Object.keys(variants).length === 0) return null;
+): Promise<FrameNode> {
+  const variants = spec.variants ?? {};
 
   const section = buildAutoLayoutFrame(
     "variants-section",
