@@ -190,3 +190,7 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Intent:** Confirm that no component ships to production without its corresponding implementation manual.
 * **Automated Plugin Action:**
 * Check for the presence of a dedicated text or linked reference block containing usage guidelines, code behavior expectations, and engineering specs. Components lacking a minimum threshold of instructional content will trigger a documentation warning flag.
+
+
+Framelist design:
+https://www.figma.com/design/CdytzPWDTc7npImeQG0Pnc/%F0%9F%91%BA-Dima-s-other-tests?node-id=2950-606&t=jpvLZa9PFBh039Mk-11
