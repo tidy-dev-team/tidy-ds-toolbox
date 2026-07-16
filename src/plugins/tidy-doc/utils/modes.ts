@@ -30,36 +30,50 @@ export interface ModeCrossProductResult {
   dropped: number;
 }
 
-export function buildModeCrossProduct(
+// The primary theme collection to drive the Mode Section: the collection with
+// the most modes, tie-broken by derivation order (first wins). Crossing every
+// bound collection (the old behaviour) exploded meaningless combinations — a
+// component bound to a theme collection, a light/dark collection, and a unit
+// (rem/px) collection produced their full cartesian product, and the showcase
+// cap then hid the very variation it was meant to show. A theme collection
+// (brand × scheme) is almost always the widest, so "most modes" picks it and
+// leaves the incidental collections at their default mode.
+export function selectPrimaryCollection(
+  collections: ModeCollectionFact[],
+): ModeCollectionFact | null {
+  let best: ModeCollectionFact | null = null;
+  for (const collection of collections) {
+    if (best === null || collection.modes.length > best.modes.length) {
+      best = collection;
+    }
+  }
+  return best;
+}
+
+// One showcase per mode of the primary collection; every other bound collection
+// is left at its default mode (not pinned). Capped like before, though a single
+// collection rarely exceeds the cap.
+export function buildModeShowcases(
   collections: ModeCollectionFact[],
   cap = 8,
 ): ModeCrossProductResult {
-  if (collections.length === 0) return { showcases: [], dropped: 0 };
+  const primary = selectPrimaryCollection(collections);
+  if (!primary) return { showcases: [], dropped: 0 };
 
-  let combos: ModeShowcaseFact[] = [{ selections: [] }];
-  for (const collection of collections) {
-    const next: ModeShowcaseFact[] = [];
-    for (const combo of combos) {
-      for (const mode of collection.modes) {
-        next.push({
-          selections: [
-            ...combo.selections,
-            {
-              collectionId: collection.id,
-              collectionName: collection.name,
-              modeId: mode.modeId,
-              modeName: mode.name,
-            },
-          ],
-        });
-      }
-    }
-    combos = next;
-  }
+  const showcases: ModeShowcaseFact[] = primary.modes.map((mode) => ({
+    selections: [
+      {
+        collectionId: primary.id,
+        collectionName: primary.name,
+        modeId: mode.modeId,
+        modeName: mode.name,
+      },
+    ],
+  }));
 
   return {
-    showcases: combos.slice(0, cap),
-    dropped: Math.max(0, combos.length - cap),
+    showcases: showcases.slice(0, cap),
+    dropped: Math.max(0, showcases.length - cap),
   };
 }
 

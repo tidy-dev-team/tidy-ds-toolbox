@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildModeCrossProduct,
+  buildModeShowcases,
   modeShowcaseLabel,
+  selectPrimaryCollection,
   type ModeCollectionFact,
 } from "./modes";
 
@@ -25,13 +26,43 @@ const density: ModeCollectionFact = {
   ],
 };
 
-describe("buildModeCrossProduct", () => {
-  it("returns no showcases for no multi-mode collections", () => {
-    expect(buildModeCrossProduct([])).toEqual({ showcases: [], dropped: 0 });
+// A wide multi-brand theme collection (brand × scheme) — the shape the Mode
+// Section should latch onto over incidental collections.
+const brandTheme: ModeCollectionFact = {
+  id: "collection-brand-theme",
+  name: "xSA - Vertical",
+  defaultModeId: "industrial-light",
+  modes: [
+    { modeId: "industrial-light", name: "Industrial Light" },
+    { modeId: "industrial-dark", name: "Industrial Dark" },
+    { modeId: "healthcare-light", name: "Healthcare Light" },
+    { modeId: "healthcare-dark", name: "Healthcare Dark" },
+  ],
+};
+
+describe("selectPrimaryCollection", () => {
+  it("returns null for no collections", () => {
+    expect(selectPrimaryCollection([])).toBeNull();
   });
 
-  it("renders one showcase per mode for a single collection", () => {
-    const result = buildModeCrossProduct([theme]);
+  it("picks the collection with the most modes", () => {
+    expect(selectPrimaryCollection([theme, brandTheme, density])).toBe(
+      brandTheme,
+    );
+  });
+
+  it("tie-breaks by derivation order (first wins)", () => {
+    expect(selectPrimaryCollection([theme, density])).toBe(theme);
+  });
+});
+
+describe("buildModeShowcases", () => {
+  it("returns no showcases for no multi-mode collections", () => {
+    expect(buildModeShowcases([])).toEqual({ showcases: [], dropped: 0 });
+  });
+
+  it("renders one showcase per mode of the single collection", () => {
+    const result = buildModeShowcases([theme]);
     expect(result.dropped).toBe(0);
     expect(result.showcases.map(modeShowcaseLabel)).toEqual([
       "Theme: Light",
@@ -39,30 +70,31 @@ describe("buildModeCrossProduct", () => {
     ]);
   });
 
-  it("crosses multiple collections in collection/mode order", () => {
-    const result = buildModeCrossProduct([theme, density]);
+  it("showcases only the widest collection, leaving the rest at default", () => {
+    const result = buildModeShowcases([theme, brandTheme, density]);
     expect(result.dropped).toBe(0);
+    // Every showcase pins exactly one collection — the primary — and nothing else.
+    expect(result.showcases.every((s) => s.selections.length === 1)).toBe(true);
     expect(result.showcases.map(modeShowcaseLabel)).toEqual([
-      "Theme: Light · Density: Regular",
-      "Theme: Light · Density: Compact",
-      "Theme: Dark · Density: Regular",
-      "Theme: Dark · Density: Compact",
+      "xSA - Vertical: Industrial Light",
+      "xSA - Vertical: Industrial Dark",
+      "xSA - Vertical: Healthcare Light",
+      "xSA - Vertical: Healthcare Dark",
     ]);
   });
 
   it("caps showcases and reports the dropped remainder", () => {
-    const state: ModeCollectionFact = {
-      id: "collection-state",
-      name: "State",
-      defaultModeId: "rest",
-      modes: [
-        { modeId: "rest", name: "Rest" },
-        { modeId: "hover", name: "Hover" },
-        { modeId: "pressed", name: "Pressed" },
-      ],
+    const wide: ModeCollectionFact = {
+      id: "collection-wide",
+      name: "Wide",
+      defaultModeId: "m0",
+      modes: Array.from({ length: 10 }, (_, i) => ({
+        modeId: `m${i}`,
+        name: `Mode ${i}`,
+      })),
     };
-    const result = buildModeCrossProduct([theme, density, state], 8);
+    const result = buildModeShowcases([wide], 8);
     expect(result.showcases).toHaveLength(8);
-    expect(result.dropped).toBe(4);
+    expect(result.dropped).toBe(2);
   });
 });
