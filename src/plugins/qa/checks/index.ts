@@ -12,6 +12,7 @@ import { checkSetNameCasing } from "./set-name-casing";
 import { checkInteractionHoverOnly } from "./interaction-hover-only";
 import { checkNoConflicts } from "./no-conflicts";
 import { checkDescription } from "./description";
+import { checkPreferredValues } from "./preferred-values";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -25,6 +26,7 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "interaction-hover-only": checkInteractionHoverOnly,
   "no-conflicts": checkNoConflicts,
   description: checkDescription,
+  "preferred-values": checkPreferredValues,
 };
 
 export interface RunOutcome {
