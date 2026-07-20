@@ -61,11 +61,11 @@ describe("runChecks", () => {
   });
 
   it("honours the checks filter", () => {
-    const outcome = runChecks(FIXTURE, ["tokens", "no-conflicts"] as CheckId[]);
+    const outcome = runChecks(FIXTURE, ["tokens", "prop-order"] as CheckId[]);
     expect([
       ...outcome.results.map((r) => r.checkId),
       ...outcome.notImplemented,
-    ]).toEqual(["tokens", "no-conflicts"]);
+    ]).toEqual(["tokens", "prop-order"]);
   });
 
   it("runs a registered check function against the snapshot", () => {
