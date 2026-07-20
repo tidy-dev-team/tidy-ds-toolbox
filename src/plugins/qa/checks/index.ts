@@ -9,6 +9,7 @@ import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckId, CheckResult } from "../types";
 import { CHECKS, getCheck } from "../types";
 import { checkSetNameCasing } from "./set-name-casing";
+import { checkInteractionHoverOnly } from "./interaction-hover-only";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -19,6 +20,7 @@ export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
  */
 export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "set-name-casing": checkSetNameCasing,
+  "interaction-hover-only": checkInteractionHoverOnly,
 };
 
 export interface RunOutcome {
