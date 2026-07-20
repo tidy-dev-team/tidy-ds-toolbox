@@ -8,6 +8,7 @@
 import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckId, CheckResult } from "../types";
 import { CHECKS, getCheck } from "../types";
+import { checkSetNameCasing } from "./set-name-casing";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -16,7 +17,9 @@ export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
  *   "set-name-casing": checkSetNameCasing,
  *   ...
  */
-export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {};
+export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
+  "set-name-casing": checkSetNameCasing,
+};
 
 export interface RunOutcome {
   results: CheckResult[];
