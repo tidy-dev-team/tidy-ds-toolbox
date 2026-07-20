@@ -130,7 +130,9 @@ export const CATALOGUE: CatalogueEntry[] = [
       spacing: z
         .number()
         .optional()
-        .describe("Pixel spacing between labels and the component set. Defaults to 16."),
+        .describe(
+          "Pixel spacing between labels and the component set. Defaults to 16.",
+        ),
       fontSize: z
         .number()
         .optional()
@@ -251,6 +253,34 @@ export const CATALOGUE: CatalogueEntry[] = [
       docSpec: DocSpecSchema.describe(
         "The Doc Spec. `status` is required; `variants` maps family-axis values to authored descriptions (+ optional whenToUse bullets). `breakdown` triggers derived anatomy sub-sections when facts exist. `mode` triggers auto-detected, capped mode showcases with an optional caption. `guidelines` renders bullet lists and Do/Don't SpecimenScenes. `related` maps exact sibling-candidate names to authored guidance.",
       ),
+    },
+    timeoutMs: 60_000,
+  },
+  {
+    id: "tidy_qa_run",
+    kind: "query",
+    module: "qa",
+    summary:
+      "Run the DS Component QA checklist against a component set (static checks — never mutates the file). Target by nodeId or by name/glob; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding) plus the ids of requested checks not implemented yet.",
+    inputSchema: {
+      nodeId: z
+        .string()
+        .optional()
+        .describe(
+          "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Pass this or `name`.",
+        ),
+      name: z
+        .string()
+        .optional()
+        .describe(
+          "Name or glob (e.g. 'Button', 'Notification*') matched against components/sets in the file. Must resolve to exactly one component set — ambiguous matches error with the candidate list.",
+        ),
+      checks: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: set-name-casing, prop-order, tokens, layer-naming-structure, grid-4px, interaction-hover-only, description, no-conflicts, preferred-values.",
+        ),
     },
     timeoutMs: 60_000,
   },
