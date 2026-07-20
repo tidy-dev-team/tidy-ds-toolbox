@@ -13,6 +13,7 @@ import { checkInteractionHoverOnly } from "./interaction-hover-only";
 import { checkNoConflicts } from "./no-conflicts";
 import { checkDescription } from "./description";
 import { checkPreferredValues } from "./preferred-values";
+import { checkTokens } from "./tokens";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -27,6 +28,7 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "no-conflicts": checkNoConflicts,
   description: checkDescription,
   "preferred-values": checkPreferredValues,
+  tokens: checkTokens,
 };
 
 export interface RunOutcome {
