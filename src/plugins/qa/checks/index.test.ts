@@ -51,21 +51,33 @@ describe("check catalogue", () => {
 });
 
 describe("runChecks", () => {
-  it("reports every unimplemented requested check (Tier 0: all of them)", () => {
+  it("partitions the catalogue into implemented results and not-implemented ids", () => {
     const outcome = runChecks(FIXTURE);
-    const implemented = Object.keys(CHECK_REGISTRY);
-    expect(outcome.results.map((r) => r.checkId)).toEqual(implemented);
+    const implemented = new Set(Object.keys(CHECK_REGISTRY));
+    const order = CHECKS.map((c) => c.id);
+    // Results come back in PRD (CHECKS) order, restricted to implemented checks;
+    // everything else in the catalogue lands in notImplemented, same order.
+    expect(outcome.results.map((r) => r.checkId)).toEqual(
+      order.filter((id) => implemented.has(id)),
+    );
+    expect(outcome.notImplemented).toEqual(
+      order.filter((id) => !implemented.has(id)),
+    );
     expect(outcome.results.length + outcome.notImplemented.length).toBe(
       CHECKS.length,
     );
   });
 
   it("honours the checks filter", () => {
-    const outcome = runChecks(FIXTURE, ["tokens", "prop-order"] as CheckId[]);
-    expect([
+    const requested = ["tokens", "prop-order"] as CheckId[];
+    const outcome = runChecks(FIXTURE, requested);
+    // Only the requested ids flow through, whether implemented or not.
+    const seen = [
       ...outcome.results.map((r) => r.checkId),
       ...outcome.notImplemented,
-    ]).toEqual(["tokens", "prop-order"]);
+    ];
+    expect(new Set(seen)).toEqual(new Set(requested));
+    expect(seen).toHaveLength(requested.length);
   });
 
   it("runs a registered check function against the snapshot", () => {
