@@ -9,11 +9,13 @@ import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckId, CheckResult } from "../types";
 import { CHECKS, getCheck } from "../types";
 import { checkSetNameCasing } from "./set-name-casing";
+import { checkPropOrder } from "./prop-order";
 import { checkInteractionHoverOnly } from "./interaction-hover-only";
 import { checkNoConflicts } from "./no-conflicts";
 import { checkDescription } from "./description";
 import { checkPreferredValues } from "./preferred-values";
 import { checkTokens } from "./tokens";
+import { checkGrid4px } from "./grid-4px";
 import { checkLayerNamingStructure } from "./layer-naming-structure";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
@@ -25,11 +27,13 @@ export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
  */
 export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "set-name-casing": checkSetNameCasing,
+  "prop-order": checkPropOrder,
   "interaction-hover-only": checkInteractionHoverOnly,
   "no-conflicts": checkNoConflicts,
   description: checkDescription,
   "preferred-values": checkPreferredValues,
   tokens: checkTokens,
+  "grid-4px": checkGrid4px,
   "layer-naming-structure": checkLayerNamingStructure,
 };
 
