@@ -9,6 +9,7 @@ import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckId, CheckResult } from "../types";
 import { CHECKS, getCheck } from "../types";
 import { checkSetNameCasing } from "./set-name-casing";
+import { checkPreferredValues } from "./preferred-values";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -19,6 +20,7 @@ export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
  */
 export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "set-name-casing": checkSetNameCasing,
+  "preferred-values": checkPreferredValues,
 };
 
 export interface RunOutcome {
