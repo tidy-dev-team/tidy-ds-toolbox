@@ -14,6 +14,7 @@ import { checkNoConflicts } from "./no-conflicts";
 import { checkDescription } from "./description";
 import { checkPreferredValues } from "./preferred-values";
 import { checkTokens } from "./tokens";
+import { checkLayerNamingStructure } from "./layer-naming-structure";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -29,6 +30,7 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   description: checkDescription,
   "preferred-values": checkPreferredValues,
   tokens: checkTokens,
+  "layer-naming-structure": checkLayerNamingStructure,
 };
 
 export interface RunOutcome {
