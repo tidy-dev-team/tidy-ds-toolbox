@@ -3,15 +3,16 @@
 /**
  * The QA checklist renderer (PRD §7). The single Figma-touching entry point for
  * drawing a ChecklistReport onto the canvas — kept isolated so the visual design
- * can be swapped without touching the checking logic. #92 renders the minimal
- * tracer: a titled card with one row per checklist item, each showing its number,
- * title, and a status chip. Grouped findings (#93), manual checkboxes (#94), and
- * idempotent rebuild (#95) land in sibling tickets; this frame is stamped now so
- * #95 can find and replace it.
+ * can be swapped without touching the checking logic. #92 rendered the minimal
+ * tracer (one row per item with a status chip); #93 adds grouped finding lines
+ * under automated rows with findings. Manual checkboxes (#94) and idempotent
+ * rebuild (#95) land in sibling tickets; this frame is stamped now so #95 can
+ * find and replace it.
  */
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import type { ChecklistReport } from "../types";
+import { groupFindings } from "../grouped-findings";
+import type { ChecklistReport, SeverityLevel } from "../types";
 import { statusStyle } from "./status-style";
 
 // Local drawing palette — deliberately self-contained (not shared with tidy-doc)
@@ -78,6 +79,33 @@ function summaryLine(counts: ChecklistReport["counts"]): string {
   return `${counts.pass} pass · ${counts.warn} warn · ${counts.fail} fail · ${counts.manual} manual · ${counts.notImplemented} pending`;
 }
 
+const SEVERITY_COLOR: Record<SeverityLevel, string> = {
+  critical: "#DC2626",
+  high: "#EA580C",
+  medium: "#D97706",
+  low: "#6B7280",
+};
+
+function wrap(node: TextNode): TextNode {
+  node.textAutoResize = "HEIGHT";
+  node.layoutSizingHorizontal = "FILL";
+  return node;
+}
+
+function findingLine(message: string, count: number, severity: SeverityLevel): FrameNode {
+  const line = buildAutoLayoutFrame("finding", "HORIZONTAL", 0, 6, 8);
+  line.layoutAlign = "STRETCH";
+
+  const badge = text(`×${count}`, 11, FONT_BOLD, SEVERITY_COLOR[severity]);
+  badge.resize(28, badge.height);
+
+  const label = text(message, 11, FONT_REGULAR, MUTED);
+  line.appendChild(badge);
+  line.appendChild(label);
+  wrap(label);
+  return line;
+}
+
 /**
  * Render `report` as a checklist frame placed next to `anchor` (the instance the
  * run started from, or the resolved component set). Returns the created frame.
@@ -115,14 +143,17 @@ export async function renderChecklist(
   const rows = buildAutoLayoutFrame("rows", "VERTICAL", 0, 0, 0);
   rows.layoutAlign = "STRETCH";
   for (const item of report.items) {
-    const row = buildAutoLayoutFrame(`item-${item.n}`, "HORIZONTAL", 0, 12, 12);
+    const itemBlock = buildAutoLayoutFrame(`item-${item.n}`, "VERTICAL", 0, 12, 8);
+    itemBlock.layoutAlign = "STRETCH";
+    itemBlock.strokes = [{ type: "SOLID", color: hexToRgb(ROW_BORDER) }];
+    itemBlock.strokeTopWeight = 1;
+    itemBlock.strokeBottomWeight = 0;
+    itemBlock.strokeLeftWeight = 0;
+    itemBlock.strokeRightWeight = 0;
+
+    const row = buildAutoLayoutFrame(`item-${item.n}-header`, "HORIZONTAL", 0, 0, 12);
     row.layoutAlign = "STRETCH";
     row.counterAxisAlignItems = "CENTER";
-    row.strokes = [{ type: "SOLID", color: hexToRgb(ROW_BORDER) }];
-    row.strokeTopWeight = 1;
-    row.strokeBottomWeight = 0;
-    row.strokeLeftWeight = 0;
-    row.strokeRightWeight = 0;
 
     const number = text(String(item.n), 12, FONT_BOLD, MUTED);
     number.resize(24, number.height);
@@ -134,7 +165,28 @@ export async function renderChecklist(
     row.appendChild(number);
     row.appendChild(title);
     row.appendChild(statusChip(style.label, style.hex));
-    rows.appendChild(row);
+    itemBlock.appendChild(row);
+
+    if (item.findings.length > 0) {
+      const groups = groupFindings(item.findings);
+      const findingsBlock = buildAutoLayoutFrame(
+        `item-${item.n}-findings`,
+        "VERTICAL",
+        0,
+        0,
+        4,
+      );
+      findingsBlock.layoutAlign = "STRETCH";
+      findingsBlock.paddingLeft = 36;
+      for (const group of groups) {
+        findingsBlock.appendChild(
+          findingLine(group.message, group.count, group.severity),
+        );
+      }
+      itemBlock.appendChild(findingsBlock);
+    }
+
+    rows.appendChild(itemBlock);
   }
   root.appendChild(rows);
 
