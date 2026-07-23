@@ -122,6 +122,7 @@ for (const cmd of [
   "tidy-labels",
   "tidy-ds",
   "tidy-ds-template",
+  "tidy-qa",
 ]) {
   assert(
     existsSync(join(pluginOut, "commands", `${cmd}.md`)),

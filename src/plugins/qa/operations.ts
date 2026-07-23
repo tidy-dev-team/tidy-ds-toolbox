@@ -47,6 +47,20 @@ async function resolveUp(node: BaseNode): Promise<QaSubject | null> {
   }
 }
 
+/** Resolve a concrete node up to its owning set, or throw WRONG_NODE_TYPE. */
+async function subjectFromNode(node: BaseNode): Promise<QaSubject> {
+  const subject = await resolveUp(node);
+  if (!subject) {
+    throw new OperationError(
+      ErrorCode.WRONG_NODE_TYPE,
+      `node ${node.id} (${node.type}) does not resolve to a component set`,
+      true,
+      { nodeId: node.id, nodeType: node.type },
+    );
+  }
+  return subject;
+}
+
 async function resolveTarget(params: QaRunParams): Promise<QaSubject> {
   if (params.nodeId) {
     const node = await figma.getNodeByIdAsync(params.nodeId);
@@ -58,20 +72,23 @@ async function resolveTarget(params: QaRunParams): Promise<QaSubject> {
         { nodeId: params.nodeId },
       );
     }
-    const subject = await resolveUp(node);
-    if (!subject) {
+    return subjectFromNode(node);
+  }
+
+  // no explicit target → fall back to the current selection
+  if (!params.name) {
+    const selection = figma.currentPage.selection;
+    if (selection.length === 0) {
       throw new OperationError(
-        ErrorCode.WRONG_NODE_TYPE,
-        `node ${params.nodeId} (${node.type}) does not resolve to a component set`,
-        true,
-        { nodeId: params.nodeId, nodeType: node.type },
+        ErrorCode.INVALID_PARAMS,
+        "no target and nothing selected — select a component/component set/instance, or pass a nodeId or name",
       );
     }
-    return subject;
+    return subjectFromNode(selection[0]);
   }
 
   // name / glob path
-  const pattern = globToRegex(params.name as string);
+  const pattern = globToRegex(params.name);
   await figma.loadAllPagesAsync();
   const candidates = figma.root.findAllWithCriteria({
     types: ["COMPONENT", "COMPONENT_SET"],
@@ -114,16 +131,10 @@ registerOperation<QaRunParams, QaRunResult>(
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist (static Tier 1 checks) against a component set. Static — never mutates the file.",
+      "Run the DS Component QA checklist (static Tier 1 checks) against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Static — never mutates the file.",
     paramsExample: { name: "Button" },
   },
   async (params) => {
-    if (!params.nodeId && !params.name) {
-      throw new OperationError(
-        ErrorCode.INVALID_PARAMS,
-        "pass a target: nodeId or name (glob allowed)",
-      );
-    }
     if (params.checks) {
       const unknown = unknownCheckIds(params.checks);
       if (unknown.length > 0) {

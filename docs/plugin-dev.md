@@ -37,7 +37,8 @@ dist-plugin/                          ← marketplace root
 
 Then `/reload-plugins` (or restart Claude Code). The commands appear namespaced:
 `/tidy-ds:tidy-find`, `/tidy-ds:tidy-misprint`, `/tidy-ds:tidy-labels`,
-`/tidy-ds:tidy-ds`, `/tidy-ds:tidy-ds-template`, `/tidy-ds:tidy-doc`.
+`/tidy-ds:tidy-ds`, `/tidy-ds:tidy-ds-template`, `/tidy-ds:tidy-doc`,
+`/tidy-ds:tidy-qa`.
 
 The plugin's MCP server starts automatically; its tools are exposed as
 `mcp__plugin_tidy-ds_tidy-ds-toolbox__<operation>`.

@@ -261,19 +261,19 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set (static checks — never mutates the file). Target by nodeId or by name/glob; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding) plus the ids of requested checks not implemented yet.",
+      "Run the DS Component QA checklist against a component set (static checks — never mutates the file). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding) plus the ids of requested checks not implemented yet.",
     inputSchema: {
       nodeId: z
         .string()
         .optional()
         .describe(
-          "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Pass this or `name`.",
+          "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Pass this, `name`, or neither (falls back to the current selection).",
         ),
       name: z
         .string()
         .optional()
         .describe(
-          "Name or glob (e.g. 'Button', 'Notification*') matched against components/sets in the file. Must resolve to exactly one component set — ambiguous matches error with the candidate list.",
+          "Name or glob (e.g. 'Button', 'Notification*') matched against components/sets in the file. Must resolve to exactly one component set — ambiguous matches error with the candidate list. Omit `name` and `nodeId` to use the current selection.",
         ),
       checks: z
         .array(z.string())

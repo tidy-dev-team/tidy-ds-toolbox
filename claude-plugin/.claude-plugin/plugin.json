@@ -1,7 +1,7 @@
 {
   "name": "tidy-ds",
   "version": "0.0.0",
-  "description": "Tidy DS Toolbox agent surface — slash commands + bundled MCP server exposing Tidy DS Operations (DS Explorer, component labels, misprint, DS template, tidy-doc component documentation) to Claude Code over the localhost Figma bridge.",
+  "description": "Tidy DS Toolbox agent surface — slash commands + bundled MCP server exposing Tidy DS Operations (DS Explorer, component labels, misprint, DS template, tidy-doc component documentation, component QA checklist) to Claude Code over the localhost Figma bridge.",
   "author": { "name": "Kido" },
   "keywords": ["figma", "design-system", "documentation", "mcp", "tidy-ds"],
   "mcpServers": {
