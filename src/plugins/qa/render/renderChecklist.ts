@@ -5,9 +5,10 @@
  * drawing a ChecklistReport onto the canvas — kept isolated so the visual design
  * can be swapped without touching the checking logic. #92 rendered the minimal
  * tracer (one row per item with a status chip); #93 adds grouped finding lines
- * under automated rows with findings. Manual checkboxes (#94) and idempotent
- * rebuild (#95) land in sibling tickets; this frame is stamped now so #95 can
- * find and replace it.
+ * under automated rows with findings; #94 renders the 10 non-automated items as
+ * empty tickable checkboxes with a tinted row background instead of a status
+ * chip. Idempotent rebuild (#95) lands in a sibling ticket; this frame is
+ * stamped now so #95 can find and replace it.
  */
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
@@ -22,6 +23,8 @@ const MUTED = "#6B7280";
 const CARD = "#FFFFFF";
 const BORDER = "#E5E7EB";
 const ROW_BORDER = "#F3F4F6";
+const MANUAL_TINT = "#FAFAFA";
+const CHECKBOX_BORDER = "#9CA3AF";
 
 const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
 const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
@@ -73,6 +76,21 @@ function statusChip(label: string, hex: string): FrameNode {
   fill(chip, hex, 0.16);
   chip.appendChild(text(label, 11, FONT_BOLD, hex));
   return chip;
+}
+
+/**
+ * An empty, tickable checkbox for manual (non-automated) items — a plain
+ * bordered square left for the designer to mark up themselves on canvas.
+ */
+function checkbox(): FrameNode {
+  const box = figma.createFrame();
+  box.name = "checkbox";
+  box.resize(16, 16);
+  box.cornerRadius = 4;
+  fill(box, CARD);
+  box.strokes = [{ type: "SOLID", color: hexToRgb(CHECKBOX_BORDER) }];
+  box.strokeWeight = 1.5;
+  return box;
 }
 
 function summaryLine(counts: ChecklistReport["counts"]): string {
@@ -150,6 +168,9 @@ export async function renderChecklist(
     itemBlock.strokeBottomWeight = 0;
     itemBlock.strokeLeftWeight = 0;
     itemBlock.strokeRightWeight = 0;
+    if (!item.automated) {
+      fill(itemBlock, MANUAL_TINT);
+    }
 
     const row = buildAutoLayoutFrame(`item-${item.n}-header`, "HORIZONTAL", 0, 0, 12);
     row.layoutAlign = "STRETCH";
@@ -161,10 +182,14 @@ export async function renderChecklist(
     const title = text(item.title, 13, FONT_REGULAR, INK);
     title.layoutGrow = 1;
 
-    const style = statusStyle(item.status);
     row.appendChild(number);
     row.appendChild(title);
-    row.appendChild(statusChip(style.label, style.hex));
+    if (item.automated) {
+      const style = statusStyle(item.status);
+      row.appendChild(statusChip(style.label, style.hex));
+    } else {
+      row.appendChild(checkbox());
+    }
     itemBlock.appendChild(row);
 
     if (item.findings.length > 0) {
