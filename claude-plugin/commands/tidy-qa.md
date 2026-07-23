@@ -59,8 +59,8 @@ Examples:
 takes only `{ nodeId?, checks?, anchorNodeId? }` — **no `name`/glob lookup**. If
 target-name tokens were parsed above:
 
-1. Call `tidy_qa_run { name, checks }` first (or `tidy_find`) purely to resolve
-   the name/glob to `target.id` — ignore its findings payload in canvas mode.
+1. Call `tidy_qa_run { name, checks }` first purely to resolve the name/glob to
+   `target.id` — ignore its findings payload in canvas mode.
 2. Then call `tidy_qa_build_checklist { nodeId: target.id, checks }`.
 
 If a `nodeId` token was found, or no target was given (selection fallback),
@@ -108,12 +108,12 @@ Same error contract for both `tidy_qa_run` and `tidy_qa_build_checklist`:
 
 - **`INVALID_PARAMS` "no target and nothing selected"** — the user passed no
   target and nothing is selected in Figma. Ask them to select a component /
-  component set / instance, or pass a name or node id (name only via
-  `tidy_qa_run`/`tidy_find` in canvas mode — see above).
+  component set / instance, or pass a name or node id (name only via the
+  resolving `tidy_qa_run` call in canvas mode — see above).
 - **`INVALID_PARAMS` ambiguous** — a name/glob matched more than one set (from
-  the resolving `tidy_qa_run`/`tidy_find` call in canvas mode). The
-  `details.candidates` array lists `{ id, name }`; show it and ask the user to
-  pick (re-run with a node id or a narrower glob).
+  the resolving `tidy_qa_run` call in canvas mode). The `details.candidates`
+  array lists `{ id, name }`; show it and ask the user to pick (re-run with a
+  node id or a narrower glob).
 - **`INVALID_PARAMS` "unknown check id(s)"** — a check filter was misspelled;
   `details.unknown` lists them. Show the valid check ids above.
 - **`NOT_FOUND`** — the node id or name matched nothing.

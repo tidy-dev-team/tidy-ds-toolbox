@@ -236,7 +236,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items — automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run or tidy_find and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items — automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
     paramsExample: {},
   },
   async (params) => {

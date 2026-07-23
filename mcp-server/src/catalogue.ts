@@ -289,7 +289,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all 19 checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target — re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings payload. Takes an explicit nodeId (or the current selection) — no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run or tidy_find first if needed.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all 19 checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target — re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings payload. Takes an explicit nodeId (or the current selection) — no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.",
     inputSchema: {
       nodeId: z
         .string()
