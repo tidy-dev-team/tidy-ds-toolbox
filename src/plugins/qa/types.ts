@@ -85,6 +85,7 @@ export type ItemStatus =
   | "pass"
   | "warn"
   | "fail"
+  | "not_applicable"
   | "manual"
   | "not_implemented"
   | "not_run";
@@ -96,7 +97,10 @@ export interface ChecklistItem {
   checkId?: CheckId;
   automated: boolean;
   status: ItemStatus;
-  /** Engine findings; empty for manual / pass / not_implemented / not_run. */
+  /**
+   * Engine findings; empty for everything except warn / fail (manual, pass,
+   * not_applicable, not_implemented, and not_run carry no findings).
+   */
   findings: Finding[];
 }
 

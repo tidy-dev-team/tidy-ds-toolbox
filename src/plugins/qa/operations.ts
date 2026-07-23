@@ -62,7 +62,18 @@ async function subjectFromNode(node: BaseNode): Promise<QaSubject> {
   return subject;
 }
 
-async function resolveTarget(params: QaRunParams): Promise<QaSubject> {
+/**
+ * The QA subject plus the node the run actually started from (`origin`) — an
+ * instance/component/set for the nodeId and selection paths, or null for the
+ * name/glob path. Carrying the origin here avoids a second node fetch just to
+ * discover whether the run began at an instance.
+ */
+interface ResolvedTarget {
+  subject: QaSubject;
+  origin: BaseNode | null;
+}
+
+async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
   if (params.nodeId) {
     const node = await figma.getNodeByIdAsync(params.nodeId);
     if (!node) {
@@ -73,7 +84,7 @@ async function resolveTarget(params: QaRunParams): Promise<QaSubject> {
         { nodeId: params.nodeId },
       );
     }
-    return subjectFromNode(node);
+    return { subject: await subjectFromNode(node), origin: node };
   }
 
   // no explicit target → fall back to the current selection
@@ -85,7 +96,7 @@ async function resolveTarget(params: QaRunParams): Promise<QaSubject> {
         "no target and nothing selected — select a component/component set/instance, or pass a nodeId or name",
       );
     }
-    return subjectFromNode(selection[0]);
+    return { subject: await subjectFromNode(selection[0]), origin: selection[0] };
   }
 
   // name / glob path
@@ -123,7 +134,10 @@ async function resolveTarget(params: QaRunParams): Promise<QaSubject> {
       },
     );
   }
-  return subjects.values().next().value as QaSubject;
+  return {
+    subject: subjects.values().next().value as QaSubject,
+    origin: null,
+  };
 }
 
 registerOperation<QaRunParams, QaRunResult>(
@@ -148,11 +162,13 @@ registerOperation<QaRunParams, QaRunResult>(
       }
     }
 
-    const subject = await resolveTarget(params);
+    const { subject, origin } = await resolveTarget(params);
     const snapshot = collectSnapshot(subject);
     const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
     const target = { id: subject.id, name: subject.name };
-    const generatedFor = await instanceOrigin(params);
+    // Record the instance the run started from, if any (for canvas placement).
+    const generatedFor =
+      origin?.type === "INSTANCE" ? { instanceId: origin.id } : undefined;
 
     return {
       target,
@@ -167,15 +183,3 @@ registerOperation<QaRunParams, QaRunResult>(
     };
   },
 );
-
-/** If the run started from an instance (nodeId or selection), record its id. */
-async function instanceOrigin(
-  params: QaRunParams,
-): Promise<{ instanceId?: string } | undefined> {
-  if (params.name && !params.nodeId) return undefined;
-  const node = params.nodeId
-    ? await figma.getNodeByIdAsync(params.nodeId)
-    : figma.currentPage.selection[0];
-  if (node?.type === "INSTANCE") return { instanceId: node.id };
-  return undefined;
-}

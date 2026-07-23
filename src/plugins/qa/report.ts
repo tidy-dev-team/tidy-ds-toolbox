@@ -24,9 +24,9 @@ export interface BuildChecklistReportInput {
 }
 
 function mapEngineStatus(status: CheckStatus): ItemStatus {
-  // Engine not_applicable means the check has nothing to say — treat as pass
-  // on the designer-facing checklist (PRD ItemStatus has no not_applicable).
-  if (status === "not_applicable") return "pass";
+  // Engine statuses map 1:1 onto the checklist. not_applicable stays distinct
+  // (the check ran but had nothing to evaluate) rather than folding into pass,
+  // which would inflate the pass count for checks that never actually validated.
   return status;
 }
 
@@ -39,7 +39,7 @@ function emptyCounts(): ChecklistReport["counts"] {
  *
  * Status resolution:
  * - no checkId → manual
- * - checkId in results → pass/warn/fail (not_applicable → pass)
+ * - checkId in results → pass/warn/fail/not_applicable (1:1 from the engine)
  * - checkId in notImplemented → not_implemented
  * - checkId absent from both (filtered out) → not_run
  */
@@ -61,8 +61,8 @@ export function buildChecklistReport(
       const engine = byId.get(entry.checkId);
       if (engine) {
         status = mapEngineStatus(engine.status);
-        // PRD §6: findings empty for manual/pass; keep them for warn/fail.
-        findings = status === "pass" ? [] : engine.findings;
+        // Findings are only meaningful for warn/fail; pass/not_applicable carry none.
+        findings = status === "warn" || status === "fail" ? engine.findings : [];
       } else if (notImplemented.has(entry.checkId)) {
         status = "not_implemented";
       } else {
@@ -86,7 +86,8 @@ export function buildChecklistReport(
       case "not_implemented":
         counts.notImplemented += 1;
         break;
-      // not_run is intentionally omitted from counts (PRD §6).
+      // not_applicable and not_run carry no actionable state and are
+      // intentionally omitted from counts (so counts.pass stays honest).
     }
 
     return {

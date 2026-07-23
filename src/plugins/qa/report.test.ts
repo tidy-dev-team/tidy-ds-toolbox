@@ -72,15 +72,18 @@ describe("buildChecklistReport", () => {
     expect(grid.findings).toHaveLength(1);
   });
 
-  it("maps engine not_applicable to pass", () => {
+  it("keeps engine not_applicable distinct (not folded into pass) and carries no findings", () => {
     const report = buildChecklistReport({
       target: TARGET,
       results: [result("preferred-values", "not_applicable")],
       notImplemented: [],
     });
     const preferred = report.items.find((i) => i.n === 15)!;
-    expect(preferred.status).toBe("pass");
+    expect(preferred.status).toBe("not_applicable");
     expect(preferred.findings).toEqual([]);
+    // not_applicable must not inflate the pass count.
+    expect(report.counts.pass).toBe(0);
+    expect(report.counts).not.toHaveProperty("not_applicable");
   });
 
   it("strips findings on pass even if the engine attached any", () => {
