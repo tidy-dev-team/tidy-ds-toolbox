@@ -1,22 +1,23 @@
 /**
  * #12 — component set description must document searchability aliases: an
  * `Also known as:` line and the misprint scrambled-keyword marker. Empty
- * description → `fail`. Missing alias line or missing misprint marker are
- * reported as separate findings (each → `warn`).
+ * description → `fail`. A missing alias line, a missing marker, or a marker
+ * whose payload doesn't match the node's current name are reported as separate
+ * findings (each → `warn`).
+ *
+ * Marker detection + payload validation come from `shared/misprint` (issue
+ * #98) — the single source of truth shared with the writer, so the check stays
+ * in lockstep with the format and catches stale/renamed misprints, not just
+ * missing ones.
  */
 
 import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckResult } from "../types";
 import { ALSO_KNOWN_AS_PREFIX } from "../qa-config";
-
-/**
- * Prefix of the line `addMisprintToDescription` writes
- * (src/plugins/utilities/utils/misprint.ts: `createMisprintText`). Kept as a
- * literal here — this file may only import from ../snapshot, ../types, and
- * ../qa-config — so update both in lockstep if the misprint format changes.
- */
-const MISPRINT_MARKER_PREFIX =
-  "---------------------------------------------------- misprint:";
+import {
+  MISPRINT_MARKER,
+  parseMisprintMarker,
+} from "../../../shared/misprint";
 
 export function checkDescription(
   snapshot: ComponentSetSnapshot,
@@ -45,9 +46,7 @@ export function checkDescription(
   const hasAliasLine = lines.some((line) =>
     line.startsWith(ALSO_KNOWN_AS_PREFIX),
   );
-  const hasMisprintMarker = lines.some((line) =>
-    line.startsWith(MISPRINT_MARKER_PREFIX),
-  );
+  const marker = parseMisprintMarker(description, snapshot.name);
 
   const findings: CheckResult["findings"] = [];
 
@@ -62,14 +61,25 @@ export function checkDescription(
     });
   }
 
-  if (!hasMisprintMarker) {
+  if (!marker.present) {
     findings.push({
       severity: "low",
       nodeId: snapshot.id,
       nodeName: snapshot.name,
       message: `Component set "${snapshot.name}" description is missing the misprint searchability marker.`,
-      expected: `${MISPRINT_MARKER_PREFIX} <scrambled text>`,
+      expected: `${MISPRINT_MARKER} <scrambled text>`,
       actual: description,
+    });
+  } else if (!marker.correct) {
+    // Present but wrong — a stale/renamed/mis-applied misprint. Distinct from
+    // "missing" so it surfaces as its own finding.
+    findings.push({
+      severity: "low",
+      nodeId: snapshot.id,
+      nodeName: snapshot.name,
+      message: `Component set "${snapshot.name}" misprint marker does not match the current name (stale or mis-applied).`,
+      expected: marker.expected,
+      actual: marker.actual,
     });
   }
 

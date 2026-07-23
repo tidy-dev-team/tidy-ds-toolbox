@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { checkDescription } from "./description";
+import { createMisprintText, scrambleName } from "../../../shared/misprint";
 import type { ComponentSetSnapshot } from "../snapshot";
 
 /**
@@ -24,8 +25,8 @@ function fixture(
 }
 
 const ALIAS_LINE = "Also known as: Btn, Button CTA";
-const MISPRINT_LINE =
-  "---------------------------------------------------- misprint: abc123";
+// A *correct* marker for a node named "Button" (real scramble payload).
+const MISPRINT_LINE = createMisprintText("Button");
 
 describe("checkDescription", () => {
   it("fails an empty description", () => {
@@ -71,5 +72,40 @@ describe("checkDescription", () => {
     );
     expect(result.status).toBe("pass");
     expect(result.findings).toEqual([]);
+  });
+
+  it("warns when the marker payload does not match the current name (stale misprint)", () => {
+    // Marker was written for the old name "Btn", node is now "Button".
+    const stale = createMisprintText("Btn");
+    const result = checkDescription(
+      fixture("1:6", "Button", `Some notes.\n${ALIAS_LINE}\n${stale}`),
+    );
+    expect(result.status).toBe("warn");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toMatch(/misprint/i);
+    expect(result.findings[0].message).toMatch(/does not match|stale|wrong/i);
+    expect(result.findings[0].actual).toBe(scrambleName("Btn"));
+    expect(result.findings[0].expected).toBe(scrambleName("Button"));
+  });
+
+  it("treats a casing/prefix-variant marker as present, and validates its payload", () => {
+    // No dash prefix, capitalised label — still the marker, and payload is correct.
+    const variant = `Misprint: ${scrambleName("Button")}`;
+    const result = checkDescription(
+      fixture("1:7", "Button", `Some notes.\n${ALIAS_LINE}\n${variant}`),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("flags a prefix-variant marker whose payload is wrong", () => {
+    const variant = "-- Misprint: zzz";
+    const result = checkDescription(
+      fixture("1:8", "Button", `Some notes.\n${ALIAS_LINE}\n${variant}`),
+    );
+    expect(result.status).toBe("warn");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toMatch(/misprint/i);
+    expect(result.findings[0].actual).toBe("zzz");
   });
 });

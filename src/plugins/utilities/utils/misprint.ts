@@ -1,24 +1,18 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { UtilityResult } from "../types";
-import { keyboardsMap } from "./keyboardsMap";
-
-/**
- * Creates a scrambled "misprint" string from the component name
- * using Hebrew keyboard mapping
- */
-function createMisprintText(name: string): string {
-  const scrambled = name
-    .split("")
-    .map((char) => keyboardsMap[char] ?? char)
-    .join("");
-
-  return `---------------------------------------------------- misprint: ${scrambled}`;
-}
+import {
+  createMisprintText,
+  parseMisprintMarker,
+} from "../../../shared/misprint";
 
 /**
  * Adds misprint text to a component or component set description.
  * Exported so the MCP `misprint.apply` Operation can reuse it.
+ *
+ * Marker format + detection live in `shared/misprint` (issue #98) — reapply
+ * finds any existing marker-shaped line (tolerant of prefix/casing) and
+ * replaces it, so a stale/renamed misprint is corrected in place.
  */
 export function addMisprintToDescription(
   element: ComponentNode | ComponentSetNode,
@@ -26,9 +20,9 @@ export function addMisprintToDescription(
   const misprint = createMisprintText(element.name);
   const descriptionLines = element.description?.split("\n") ?? [];
 
-  // Check if misprint line already exists and update it
-  const misprintIndex = descriptionLines.findIndex((line) =>
-    line.startsWith("----------------------------------------------------"),
+  // Check if a misprint line already exists (any prefix/casing) and update it
+  const misprintIndex = descriptionLines.findIndex(
+    (line) => parseMisprintMarker(line, element.name).present,
   );
 
   if (misprintIndex >= 0) {
