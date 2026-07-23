@@ -261,7 +261,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set (static checks — never mutates the file). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding) plus the ids of requested checks not implemented yet.",
+      "Run the DS Component QA checklist against a component set (static checks — never mutates the file). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding), ids of requested checks not implemented yet, and a 19-item `checklist` model (PRD order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run).",
     inputSchema: {
       nodeId: z
         .string()

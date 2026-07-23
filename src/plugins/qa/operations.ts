@@ -2,14 +2,15 @@
 // global Operation registry at module load via
 // src/shared/operations/register-all.ts.
 //
-// Single agent-facing surface: `tidy_qa_run`. The checklist itself is the
-// report — structured CheckResults returned to the caller. All checks are
-// static: nothing in this module mutates the file.
+// Single agent-facing surface: `tidy_qa_run`. Returns structured CheckResults
+// plus a 19-item ChecklistReport (PRD catalogue merge). All checks are static:
+// nothing in this module mutates the file.
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
 import { collectSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
+import { buildChecklistReport } from "./report";
 import type { CheckId, QaRunResult } from "./types";
 
 interface QaRunParams {
@@ -131,7 +132,7 @@ registerOperation<QaRunParams, QaRunResult>(
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist (static Tier 1 checks) against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Static — never mutates the file.",
+      "Run the DS Component QA checklist (static Tier 1 checks) against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Static — never mutates the file.",
     paramsExample: { name: "Button" },
   },
   async (params) => {
@@ -150,11 +151,31 @@ registerOperation<QaRunParams, QaRunResult>(
     const subject = await resolveTarget(params);
     const snapshot = collectSnapshot(subject);
     const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
+    const target = { id: subject.id, name: subject.name };
+    const generatedFor = await instanceOrigin(params);
 
     return {
-      target: { id: subject.id, name: subject.name },
+      target,
       results: outcome.results,
       notImplemented: outcome.notImplemented,
+      checklist: buildChecklistReport({
+        target,
+        results: outcome.results,
+        notImplemented: outcome.notImplemented,
+        generatedFor,
+      }),
     };
   },
 );
+
+/** If the run started from an instance (nodeId or selection), record its id. */
+async function instanceOrigin(
+  params: QaRunParams,
+): Promise<{ instanceId?: string } | undefined> {
+  if (params.name && !params.nodeId) return undefined;
+  const node = params.nodeId
+    ? await figma.getNodeByIdAsync(params.nodeId)
+    : figma.currentPage.selection[0];
+  if (node?.type === "INSTANCE") return { instanceId: node.id };
+  return undefined;
+}

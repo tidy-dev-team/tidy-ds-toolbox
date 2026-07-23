@@ -81,9 +81,37 @@ export function getCheck(id: string): CheckDefinition | undefined {
   return CHECKS.find((c) => c.id === id);
 }
 
+export type ItemStatus =
+  | "pass"
+  | "warn"
+  | "fail"
+  | "manual"
+  | "not_implemented"
+  | "not_run";
+
+export interface ChecklistItem {
+  n: number;
+  title: string;
+  tier: 1 | 2 | null;
+  checkId?: CheckId;
+  automated: boolean;
+  status: ItemStatus;
+  /** Engine findings; empty for manual / pass / not_implemented / not_run. */
+  findings: Finding[];
+}
+
+export interface ChecklistReport {
+  target: { id: string; name: string };
+  generatedFor: { instanceId?: string };
+  items: ChecklistItem[];
+  counts: Record<"pass" | "warn" | "fail" | "manual" | "notImplemented", number>;
+}
+
 export interface QaRunResult {
   target: { id: string; name: string };
   results: CheckResult[];
   /** Requested checks whose pure check function hasn't shipped yet. */
   notImplemented: CheckId[];
+  /** 19-item checklist model merging engine results with the PRD catalogue. */
+  checklist: ChecklistReport;
 }
