@@ -76,9 +76,10 @@ Three new pieces, plus one operation:
    source that maps PRD sections to the engine's check ids.
 2. **Report model** (`src/plugins/qa/report.ts`, pure) — merges the engine's
    `CheckResult[]` with the catalogue into a `ChecklistReport`: one row per item,
-   with a resolved `status` (`pass` / `warn` / `fail` for automated items that
-   ran; `manual` for un-automated items; `not_implemented` for catalogued-but-
-   unbuilt automated items). Fully unit-testable, no Figma.
+   with a resolved `status` (`pass` / `warn` / `fail` / `not_applicable` for
+   automated items that ran, per the engine's own `CheckStatus`; `manual` for
+   un-automated items; `not_implemented` for catalogued-but-unbuilt automated
+   items). Fully unit-testable, no Figma.
 3. **Renderer** (`src/plugins/qa/render/`, Figma-touching, **isolated**) — takes a
    `ChecklistReport` + the target instance and builds the frame, positioning it
    beside the instance. The only piece that touches `figma.*` for output; the
@@ -147,7 +148,16 @@ Three new pieces, plus one operation:
 ## 6. Report model (sketch)
 
 ```ts
-type ItemStatus = "pass" | "warn" | "fail" | "manual" | "not_implemented" | "not_run";
+type ItemStatus =
+  | "pass"
+  | "warn"
+  | "fail"
+  | "not_applicable" // the check ran but had nothing to evaluate (e.g. no
+                      // instance-swap properties) — kept distinct from
+                      // `pass`, which would otherwise overstate coverage
+  | "manual"
+  | "not_implemented"
+  | "not_run";
 
 interface ChecklistItem {
   n: number;              // 1..19
@@ -156,7 +166,7 @@ interface ChecklistItem {
   checkId?: CheckId;      // present when an engine check backs it
   automated: boolean;
   status: ItemStatus;
-  findings: Finding[];    // from the engine; empty for manual/pass
+  findings: Finding[];    // from the engine; empty for manual/pass/not_applicable
 }
 
 interface ChecklistReport {

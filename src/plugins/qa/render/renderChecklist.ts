@@ -67,6 +67,15 @@ function hexToRgb(hex: string): RGB {
   };
 }
 
+/** Walks up from `node` to the PageNode it lives on. */
+function pageOf(node: BaseNode): PageNode {
+  let current: BaseNode | null = node;
+  while (current && current.type !== "PAGE") {
+    current = current.parent;
+  }
+  return (current as PageNode | null) ?? figma.currentPage;
+}
+
 function fill(node: MinimalFillsMixin, hex: string, opacity?: number): void {
   node.fills = [
     {
@@ -126,11 +135,17 @@ const SEVERITY_COLOR: Record<SeverityLevel, string> = {
   low: "#6B7280",
 };
 
-function wrap(node: TextNode): TextNode {
+/** Lets `node` wrap onto multiple lines by filling its auto-layout parent's width. */
+function enableTextWrap(node: TextNode): TextNode {
   node.textAutoResize = "HEIGHT";
   node.layoutSizingHorizontal = "FILL";
   return node;
 }
+
+// Caps distinct finding *kinds* shown per row — per-node repeats already
+// collapse via groupFindings, but a set with many genuinely distinct kinds
+// could still grow a row without limit otherwise.
+const MAX_FINDING_GROUPS = 8;
 
 function findingLine(message: string, count: number, severity: SeverityLevel): FrameNode {
   const line = buildAutoLayoutFrame("finding", "HORIZONTAL", 0, 6, 8);
@@ -142,7 +157,7 @@ function findingLine(message: string, count: number, severity: SeverityLevel): F
   const label = text(message, 11, FONT_REGULAR, MUTED);
   line.appendChild(badge);
   line.appendChild(label);
-  wrap(label);
+  enableTextWrap(label);
   return line;
 }
 
@@ -225,9 +240,15 @@ export async function renderChecklist(
       );
       findingsBlock.layoutAlign = "STRETCH";
       findingsBlock.paddingLeft = 36;
-      for (const group of groups) {
+      for (const group of groups.slice(0, MAX_FINDING_GROUPS)) {
         findingsBlock.appendChild(
           findingLine(group.message, group.count, group.severity),
+        );
+      }
+      const overflow = groups.length - MAX_FINDING_GROUPS;
+      if (overflow > 0) {
+        findingsBlock.appendChild(
+          text(`+${overflow} more finding kind${overflow === 1 ? "" : "s"}…`, 11, FONT_REGULAR, MUTED),
         );
       }
       itemBlock.appendChild(findingsBlock);
@@ -247,13 +268,25 @@ export async function renderChecklist(
     for (const frame of existing) frame.remove();
   }
 
-  const page = figma.currentPage;
+  // Place on the anchor's own page — it may not be figma.currentPage (e.g. a
+  // cross-page anchorNodeId) — and switch to it so scrollAndZoomIntoView below
+  // (which only works for nodes on the current page) actually lands on it.
+  const page = pageOf(anchor);
+  if (page !== figma.currentPage) {
+    figma.currentPage = page;
+  }
   page.appendChild(root);
 
   const box = anchor.absoluteBoundingBox;
   if (box) {
     root.x = box.x + box.width + 120;
     root.y = box.y;
+  } else {
+    // No bounding box (e.g. an empty group) — fall back to the viewport
+    // centre rather than silently landing at the frame's default (0, 0).
+    const center = figma.viewport.center;
+    root.x = center.x;
+    root.y = center.y;
   }
 
   root.setPluginData(

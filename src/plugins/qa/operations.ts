@@ -68,10 +68,14 @@ async function subjectFromNode(node: BaseNode): Promise<QaSubject> {
  * instance/component/set for the nodeId and selection paths, or null for the
  * name/glob path. Carrying the origin here avoids a second node fetch just to
  * discover whether the run began at an instance.
+ *
+ * `origin` is typed as `SceneNode` (not `BaseNode`) because it is only ever
+ * set from a node that `subjectFromNode` has already accepted — which only
+ * succeeds for COMPONENT_SET / COMPONENT / INSTANCE, all SceneNode subtypes.
  */
 interface ResolvedTarget {
   subject: QaSubject;
-  origin: BaseNode | null;
+  origin: SceneNode | null;
 }
 
 async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
@@ -85,7 +89,8 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
         { nodeId: params.nodeId },
       );
     }
-    return { subject: await subjectFromNode(node), origin: node };
+    const subject = await subjectFromNode(node);
+    return { subject, origin: node as SceneNode };
   }
 
   // no explicit target → fall back to the current selection
@@ -149,7 +154,7 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
  */
 async function runQa(
   params: QaRunParams,
-): Promise<{ subject: QaSubject; origin: BaseNode | null; result: QaRunResult }> {
+): Promise<{ subject: QaSubject; origin: SceneNode | null; result: QaRunResult }> {
   if (params.checks) {
     const unknown = unknownCheckIds(params.checks);
     if (unknown.length > 0) {
@@ -205,7 +210,14 @@ interface BuildChecklistResult {
   counts: QaRunResult["checklist"]["counts"];
 }
 
-interface BuildChecklistParams extends QaRunParams {
+// No `name`/glob field: per CONTEXT.md, Execute Operations take explicit ids
+// (selection is the only fallback) — lookup-by-name belongs to a Query
+// Operation (tidy_qa_run), not embedded here.
+interface BuildChecklistParams {
+  /** Figma node id of the target (instance / component / component set). Omit to use the current selection. */
+  nodeId?: string;
+  /** Optional filter; defaults to all catalogue checks. */
+  checks?: string[];
   /**
    * Optional: place the checklist next to this node instead of the resolved
    * target/origin — lets the designer keep the frame by the instance even
@@ -214,21 +226,25 @@ interface BuildChecklistParams extends QaRunParams {
   anchorNodeId?: string;
 }
 
+function isSceneNode(node: BaseNode): node is SceneNode {
+  return "absoluteBoundingBox" in node;
+}
+
 registerOperation<BuildChecklistParams, BuildChecklistResult>(
   {
     id: "tidy_qa_build_checklist",
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items — automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId or name/glob, or omit both to use the current selection; optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items — automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run or tidy_find and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
     paramsExample: {},
   },
   async (params) => {
     const { subject, origin, result } = await runQa(params);
-    let anchor: SceneNode = (origin as SceneNode | null) ?? subject;
+    let anchor: SceneNode = origin ?? subject;
     if (params.anchorNodeId) {
       const anchorNode = await figma.getNodeByIdAsync(params.anchorNodeId);
-      if (!anchorNode || !("absoluteBoundingBox" in anchorNode)) {
+      if (!anchorNode || !isSceneNode(anchorNode)) {
         throw new OperationError(
           ErrorCode.NOT_FOUND,
           `anchor node ${params.anchorNodeId} not found`,
@@ -236,7 +252,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
           { anchorNodeId: params.anchorNodeId },
         );
       }
-      anchor = anchorNode as SceneNode;
+      anchor = anchorNode;
     }
     const frame = await renderChecklist(result.checklist, anchor);
     return {

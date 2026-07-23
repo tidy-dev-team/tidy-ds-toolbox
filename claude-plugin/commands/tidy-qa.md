@@ -49,16 +49,27 @@ Examples:
 - `/tidy-ds:tidy-qa Button` → `tidy_qa_run { name: "Button" }`
 - `/tidy-ds:tidy-qa Notification*` → `tidy_qa_run { name: "Notification*" }`
 - `/tidy-ds:tidy-qa 2625:10445 tokens grid-4px` → `tidy_qa_run { nodeId: "2625:10445", checks: ["tokens", "grid-4px"] }`
-- `/tidy-ds:tidy-qa --canvas Button` → `tidy_qa_build_checklist { name: "Button" }`
+- `/tidy-ds:tidy-qa --canvas` → `tidy_qa_build_checklist {}` (current selection)
+- `/tidy-ds:tidy-qa --canvas 2625:10445` → `tidy_qa_build_checklist { nodeId: "2625:10445" }`
+- `/tidy-ds:tidy-qa --canvas Button` → resolve `Button` to a nodeId first (see below), then `tidy_qa_build_checklist { nodeId }`
 
 ## Canvas mode (`--canvas`)
 
-Call `tidy_qa_build_checklist` instead of `tidy_qa_run`, with the same
-`{ nodeId | name, checks }` params parsed above (drop the flag itself). This
-draws a checklist frame on the canvas next to the target — every automated
-item with grouped findings, every manual item as an empty checkbox — and is
-**idempotent**: re-running for the same target replaces its prior frame rather
-than duplicating it.
+`tidy_qa_build_checklist` is an **Execute** operation and, unlike `tidy_qa_run`,
+takes only `{ nodeId?, checks?, anchorNodeId? }` — **no `name`/glob lookup**. If
+target-name tokens were parsed above:
+
+1. Call `tidy_qa_run { name, checks }` first (or `tidy_find`) purely to resolve
+   the name/glob to `target.id` — ignore its findings payload in canvas mode.
+2. Then call `tidy_qa_build_checklist { nodeId: target.id, checks }`.
+
+If a `nodeId` token was found, or no target was given (selection fallback),
+skip straight to `tidy_qa_build_checklist` with `{ nodeId?, checks? }`.
+
+This draws a checklist frame on the canvas next to the target — every
+automated item with grouped findings, every manual item as an empty checkbox —
+and is **idempotent**: re-running for the same target replaces its prior frame
+rather than duplicating it.
 
 The response is a small stub only:
 `{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented } }`.
@@ -97,8 +108,10 @@ Same error contract for both `tidy_qa_run` and `tidy_qa_build_checklist`:
 
 - **`INVALID_PARAMS` "no target and nothing selected"** — the user passed no
   target and nothing is selected in Figma. Ask them to select a component /
-  component set / instance, or pass a name or node id.
-- **`INVALID_PARAMS` ambiguous** — a name/glob matched more than one set. The
+  component set / instance, or pass a name or node id (name only via
+  `tidy_qa_run`/`tidy_find` in canvas mode — see above).
+- **`INVALID_PARAMS` ambiguous** — a name/glob matched more than one set (from
+  the resolving `tidy_qa_run`/`tidy_find` call in canvas mode). The
   `details.candidates` array lists `{ id, name }`; show it and ask the user to
   pick (re-run with a node id or a narrower glob).
 - **`INVALID_PARAMS` "unknown check id(s)"** — a check filter was misspelled;

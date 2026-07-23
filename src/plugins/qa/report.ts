@@ -7,7 +7,6 @@ import { CHECKLIST_CATALOGUE } from "./checklist-catalogue";
 import type {
   CheckId,
   CheckResult,
-  CheckStatus,
   ChecklistItem,
   ChecklistReport,
   Finding,
@@ -21,13 +20,6 @@ export interface BuildChecklistReportInput {
   results: CheckResult[];
   notImplemented: CheckId[];
   generatedFor?: { instanceId?: string };
-}
-
-function mapEngineStatus(status: CheckStatus): ItemStatus {
-  // Engine statuses map 1:1 onto the checklist. not_applicable stays distinct
-  // (the check ran but had nothing to evaluate) rather than folding into pass,
-  // which would inflate the pass count for checks that never actually validated.
-  return status;
 }
 
 function emptyCounts(): ChecklistReport["counts"] {
@@ -60,7 +52,11 @@ export function buildChecklistReport(
     } else {
       const engine = byId.get(entry.checkId);
       if (engine) {
-        status = mapEngineStatus(engine.status);
+        // Engine statuses map 1:1 onto the checklist. not_applicable stays
+        // distinct (the check ran but had nothing to evaluate) rather than
+        // folding into pass, which would inflate the pass count for checks
+        // that never actually validated anything.
+        status = engine.status;
         // Findings are only meaningful for warn/fail; pass/not_applicable carry none.
         findings = status === "warn" || status === "fail" ? engine.findings : [];
       } else if (notImplemented.has(entry.checkId)) {
