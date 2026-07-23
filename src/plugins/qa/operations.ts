@@ -11,6 +11,7 @@ import { registerOperation } from "../../shared/operations/registry";
 import { collectSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
+import { renderChecklist } from "./render/renderChecklist";
 import type { CheckId, QaRunResult } from "./types";
 
 interface QaRunParams {
@@ -140,6 +141,49 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
   };
 }
 
+/**
+ * Shared pipeline for both QA operations: validate the check filter, resolve the
+ * target up to its set, snapshot it, run the checks, and build the full
+ * QaRunResult (results + 19-item checklist). Returns the resolved subject and
+ * origin node too, so the canvas op can place its frame next to the instance.
+ */
+async function runQa(
+  params: QaRunParams,
+): Promise<{ subject: QaSubject; origin: BaseNode | null; result: QaRunResult }> {
+  if (params.checks) {
+    const unknown = unknownCheckIds(params.checks);
+    if (unknown.length > 0) {
+      throw new OperationError(
+        ErrorCode.INVALID_PARAMS,
+        `unknown check id(s): ${unknown.join(", ")}`,
+        true,
+        { unknown },
+      );
+    }
+  }
+
+  const { subject, origin } = await resolveTarget(params);
+  const snapshot = collectSnapshot(subject);
+  const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
+  const target = { id: subject.id, name: subject.name };
+  // Record the instance the run started from, if any (for canvas placement).
+  const generatedFor =
+    origin?.type === "INSTANCE" ? { instanceId: origin.id } : undefined;
+
+  const result: QaRunResult = {
+    target,
+    results: outcome.results,
+    notImplemented: outcome.notImplemented,
+    checklist: buildChecklistReport({
+      target,
+      results: outcome.results,
+      notImplemented: outcome.notImplemented,
+      generatedFor,
+    }),
+  };
+  return { subject, origin, result };
+}
+
 registerOperation<QaRunParams, QaRunResult>(
   {
     id: "tidy_qa_run",
@@ -150,36 +194,34 @@ registerOperation<QaRunParams, QaRunResult>(
     paramsExample: { name: "Button" },
   },
   async (params) => {
-    if (params.checks) {
-      const unknown = unknownCheckIds(params.checks);
-      if (unknown.length > 0) {
-        throw new OperationError(
-          ErrorCode.INVALID_PARAMS,
-          `unknown check id(s): ${unknown.join(", ")}`,
-          true,
-          { unknown },
-        );
-      }
-    }
+    const { result } = await runQa(params);
+    return result;
+  },
+);
 
-    const { subject, origin } = await resolveTarget(params);
-    const snapshot = collectSnapshot(subject);
-    const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
-    const target = { id: subject.id, name: subject.name };
-    // Record the instance the run started from, if any (for canvas placement).
-    const generatedFor =
-      origin?.type === "INSTANCE" ? { instanceId: origin.id } : undefined;
+interface BuildChecklistResult {
+  frameId: string;
+  target: { id: string; name: string };
+  counts: QaRunResult["checklist"]["counts"];
+}
 
+registerOperation<QaRunParams, BuildChecklistResult>(
+  {
+    id: "tidy_qa_build_checklist",
+    kind: "execute",
+    module: "qa",
+    summary:
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items with a status chip each. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId or name/glob, or omit both to use the current selection.",
+    paramsExample: {},
+  },
+  async (params) => {
+    const { subject, origin, result } = await runQa(params);
+    const anchor = (origin as SceneNode | null) ?? subject;
+    const frame = await renderChecklist(result.checklist, anchor);
     return {
-      target,
-      results: outcome.results,
-      notImplemented: outcome.notImplemented,
-      checklist: buildChecklistReport({
-        target,
-        results: outcome.results,
-        notImplemented: outcome.notImplemented,
-        generatedFor,
-      }),
+      frameId: frame.id,
+      target: result.target,
+      counts: result.checklist.counts,
     };
   },
 );

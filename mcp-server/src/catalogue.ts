@@ -284,4 +284,32 @@ export const CATALOGUE: CatalogueEntry[] = [
     },
     timeoutMs: 60_000,
   },
+  {
+    id: "tidy_qa_build_checklist",
+    kind: "execute",
+    module: "qa",
+    summary:
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all 19 checklist items with a status chip each. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings payload.",
+    inputSchema: {
+      nodeId: z
+        .string()
+        .optional()
+        .describe(
+          "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Pass this, `name`, or neither (falls back to the current selection). The checklist frame is placed next to this node.",
+        ),
+      name: z
+        .string()
+        .optional()
+        .describe(
+          "Name or glob (e.g. 'Button', 'Notification*') matched against components/sets in the file. Must resolve to exactly one component set. Omit `name` and `nodeId` to use the current selection.",
+        ),
+      checks: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional check-id filter (same ids as tidy_qa_run). Filtered-out automated rows render as skipped rather than pass/fail.",
+        ),
+    },
+    timeoutMs: 60_000,
+  },
 ];
