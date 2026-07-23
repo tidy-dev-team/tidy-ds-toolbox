@@ -1,11 +1,15 @@
 /**
  * #10 — 4px grid alignment. Audits width, height, all four paddings, item
- * gap, corner radius, and stroke weight against `isOnGrid` (qa-config.ts):
- * a multiple of 4, or exactly 2. Applied uniformly.
+ * gap, and corner radius against `isOnGrid` (qa-config.ts): a multiple of 4,
+ * or exactly 2. Applied uniformly.
+ *
+ * Stroke weight is deliberately NOT grid-checked — border widths (1px, 2px,
+ * 3px) are legitimate design values governed by the border scale, not the
+ * spatial layout grid, and flagging them buried the real findings in noise.
  *
  * Only *fixed* dimensions are grid-checked — width is exempt when
  * `layoutSizingHorizontal` is Hug/Fill, height likewise for vertical sizing.
- * MIXED corner radius / stroke weight are skipped rather than flagged.
+ * MIXED corner radius is skipped rather than flagged.
  * Off-grid → warn severity (legit optical exceptions exist).
  */
 
@@ -60,7 +64,6 @@ function walk(node: NodeSnapshot, findings: Finding[]): void {
     ["paddingLeft", node.paddingLeft],
     ["itemSpacing", node.itemSpacing],
     ["cornerRadius", node.cornerRadius],
-    ["strokeWeight", node.strokeWeight],
   ];
 
   for (const [field, value] of fields) {

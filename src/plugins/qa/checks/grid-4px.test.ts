@@ -39,7 +39,7 @@ function fixture(
 }
 
 describe("checkGrid4px", () => {
-  it("passes when all fixed dims/padding/gap/radius/stroke are on-grid", () => {
+  it("passes when all fixed dims/padding/gap/radius are on-grid", () => {
     const result = checkGrid4px(
       fixture("1:1", "Button", {
         width: 120,
@@ -52,7 +52,6 @@ describe("checkGrid4px", () => {
         paddingLeft: 16,
         itemSpacing: 4,
         cornerRadius: 2,
-        strokeWeight: 4,
       }),
     );
     expect(result.checkId).toBe("grid-4px");
@@ -60,7 +59,7 @@ describe("checkGrid4px", () => {
     expect(result.findings).toEqual([]);
   });
 
-  it("warns with per-node findings for off-grid fixed dims/padding/gap/radius/stroke", () => {
+  it("warns with per-node findings for off-grid fixed dims/padding/gap/radius", () => {
     const result = checkGrid4px(
       fixture("1:2", "Button", {
         width: 121,
@@ -73,15 +72,28 @@ describe("checkGrid4px", () => {
         paddingLeft: 5,
         itemSpacing: 3,
         cornerRadius: 6,
-        strokeWeight: 10,
       }),
     );
     expect(result.status).toBe("warn");
-    expect(result.findings.length).toBeGreaterThanOrEqual(9);
+    expect(result.findings.length).toBeGreaterThanOrEqual(8);
     for (const finding of result.findings) {
       expect(finding.severity).toBe("low");
       expect(finding.nodeId).toBe("1:2-variant");
     }
+  });
+
+  it("does NOT flag an off-grid stroke weight (1px/3px borders are legit)", () => {
+    const result = checkGrid4px(
+      fixture("1:2b", "Button", {
+        width: 120,
+        height: 40,
+        layoutSizingHorizontal: "FIXED",
+        layoutSizingVertical: "FIXED",
+        strokeWeight: 1,
+      }),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
   });
 
   it("exempts width when horizontal sizing is Hug, and height when vertical sizing is Fill", () => {
@@ -97,11 +109,10 @@ describe("checkGrid4px", () => {
     expect(result.findings).toEqual([]);
   });
 
-  it("handles MIXED corner radius and stroke weight without crashing", () => {
+  it("handles MIXED corner radius without crashing", () => {
     const result = checkGrid4px(
       fixture("1:4", "Button", {
         cornerRadius: "MIXED",
-        strokeWeight: "MIXED",
       }),
     );
     expect(result.status).toBe("pass");
