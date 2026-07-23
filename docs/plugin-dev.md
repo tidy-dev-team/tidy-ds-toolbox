@@ -61,7 +61,10 @@ plugin open and connected over the bridge. To verify end-to-end:
    confirm it returns components from the open file.
 3. Select a component/component set in Figma and run `/tidy-ds:tidy-doc dry-run=true`
    to confirm the tidy-doc skill can read facts and author a Doc Spec without rendering.
-3. On `BRIDGE_DISCONNECTED`, the Figma plugin isn't running — open it.
+4. Select a component/instance and run `/tidy-ds:tidy-qa --canvas` to confirm the
+   checklist frame renders next to it; re-run it to confirm the prior frame is
+   replaced rather than duplicated.
+5. On `BRIDGE_DISCONNECTED`, the Figma plugin isn't running — open it.
 
 ## Inner loop (no plugin)
 

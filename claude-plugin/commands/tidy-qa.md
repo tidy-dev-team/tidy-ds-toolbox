@@ -1,12 +1,16 @@
 ---
-description: Run the DS Component QA checklist against a component set via the Tidy DS Toolbox MCP server. Target by node id, name, or glob — or omit to use the current selection. Read-only.
+description: Run the DS Component QA checklist against a component set via the Tidy DS Toolbox MCP server. Target by node id, name, or glob — or omit to use the current selection. Read-only by default; `--canvas` renders the checklist on canvas instead.
 allowed-tools:
   - "mcp__tidy-ds-toolbox__tidy_qa_run"
   - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_qa_run"
+  - "mcp__tidy-ds-toolbox__tidy_qa_build_checklist"
+  - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_qa_build_checklist"
 ---
 
-Run the Tidy DS Toolbox QA checklist (`tidy_qa_run`) against a component set. The
-operation is **static** — it never mutates the Figma file, only reports findings.
+Run the Tidy DS Toolbox QA checklist against a component set — as a JSON report
+(`tidy_qa_run`, the default) or, with `--canvas`, as a checklist frame drawn on
+the Figma canvas (`tidy_qa_build_checklist`). `tidy_qa_run` never mutates the
+file; `tidy_qa_build_checklist` only adds/replaces its own checklist frame.
 
 User-supplied arguments (may be empty): $ARGUMENTS
 
@@ -14,6 +18,8 @@ User-supplied arguments (may be empty): $ARGUMENTS
 
 Split `$ARGUMENTS` on whitespace into tokens, then classify each:
 
+- **Canvas flag** — the token `--canvas` (or `--render`). Switches to canvas
+  mode. Remove it from the token list before parsing the rest.
 - **Check-id** — a token that exactly matches one of the known check ids:
   `set-name-casing`, `prop-order`, `tokens`, `layer-naming-structure`,
   `grid-4px`, `interaction-hover-only`, `description`, `no-conflicts`,
@@ -39,10 +45,26 @@ Then build the call params:
   the full catalogue.
 
 Examples:
-- `/tidy-ds:tidy-qa` → `{}` (current selection, all checks)
-- `/tidy-ds:tidy-qa Button` → `{ name: "Button" }`
-- `/tidy-ds:tidy-qa Notification*` → `{ name: "Notification*" }`
-- `/tidy-ds:tidy-qa 2625:10445 tokens grid-4px` → `{ nodeId: "2625:10445", checks: ["tokens", "grid-4px"] }`
+- `/tidy-ds:tidy-qa` → `tidy_qa_run {}` (current selection, all checks)
+- `/tidy-ds:tidy-qa Button` → `tidy_qa_run { name: "Button" }`
+- `/tidy-ds:tidy-qa Notification*` → `tidy_qa_run { name: "Notification*" }`
+- `/tidy-ds:tidy-qa 2625:10445 tokens grid-4px` → `tidy_qa_run { nodeId: "2625:10445", checks: ["tokens", "grid-4px"] }`
+- `/tidy-ds:tidy-qa --canvas Button` → `tidy_qa_build_checklist { name: "Button" }`
+
+## Canvas mode (`--canvas`)
+
+Call `tidy_qa_build_checklist` instead of `tidy_qa_run`, with the same
+`{ nodeId | name, checks }` params parsed above (drop the flag itself). This
+draws a checklist frame on the canvas next to the target — every automated
+item with grouped findings, every manual item as an empty checkbox — and is
+**idempotent**: re-running for the same target replaces its prior frame rather
+than duplicating it.
+
+The response is a small stub only:
+`{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented } }`.
+Report it directly — do not invent findings detail that isn't in the stub;
+tell the user to look at the frame on canvas (e.g. "Checklist for Button: 4
+pass, 3 warn, 1 fail, 10 manual — see the frame next to it on canvas.").
 
 ## Presenting the result
 
@@ -70,6 +92,8 @@ A full-set run on a large component (e.g. a 64-variant Button) can return
 > Scoping the run to a single instance is tracked separately (issue #90).
 
 ## Errors
+
+Same error contract for both `tidy_qa_run` and `tidy_qa_build_checklist`:
 
 - **`INVALID_PARAMS` "no target and nothing selected"** — the user passed no
   target and nothing is selected in Figma. Ask them to select a component /
