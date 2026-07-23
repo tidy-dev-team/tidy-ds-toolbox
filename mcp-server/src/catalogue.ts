@@ -289,13 +289,13 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all 19 checklist items with a status chip each. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings payload.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all 19 checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target — re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings payload.",
     inputSchema: {
       nodeId: z
         .string()
         .optional()
         .describe(
-          "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Pass this, `name`, or neither (falls back to the current selection). The checklist frame is placed next to this node.",
+          "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Pass this, `name`, or neither (falls back to the current selection). The checklist frame is placed next to this node unless `anchorNodeId` is given.",
         ),
       name: z
         .string()
@@ -308,6 +308,12 @@ export const CATALOGUE: CatalogueEntry[] = [
         .optional()
         .describe(
           "Optional check-id filter (same ids as tidy_qa_run). Filtered-out automated rows render as skipped rather than pass/fail.",
+        ),
+      anchorNodeId: z
+        .string()
+        .optional()
+        .describe(
+          "Optional: place the checklist frame next to this node instead of the resolved target — lets the frame stay by the instance even though checks ran against its owning component set.",
         ),
     },
     timeoutMs: 60_000,

@@ -7,8 +7,9 @@
  * tracer (one row per item with a status chip); #93 adds grouped finding lines
  * under automated rows with findings; #94 renders the 10 non-automated items as
  * empty tickable checkboxes with a tinted row background instead of a status
- * chip. Idempotent rebuild (#95) lands in a sibling ticket; this frame is
- * stamped now so #95 can find and replace it.
+ * chip. #95 makes rebuilds idempotent: a prior checklist frame for the same
+ * target (found via its plugin-data stamp, mirroring tidy-doc's
+ * findExistingDocPages) is deleted before the new one is placed.
  */
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
@@ -34,6 +35,27 @@ const PLUGIN_DATA_KEY = "tidy:qa-checklist";
 interface ChecklistStamp {
   version: number;
   targetId: string;
+  builtAt: number;
+}
+
+// Scans every page and every depth, since a rebuild must find a stamped
+// checklist regardless of which page or frame a designer moved it into.
+async function findExistingChecklists(targetId: string): Promise<FrameNode[]> {
+  await figma.loadAllPagesAsync();
+  const matches: FrameNode[] = [];
+  for (const frame of figma.root.findAllWithCriteria({ types: ["FRAME"] })) {
+    const raw = frame.getPluginData(PLUGIN_DATA_KEY);
+    if (!raw) continue;
+    try {
+      const stamp = JSON.parse(raw) as ChecklistStamp;
+      if (stamp.targetId === targetId) {
+        matches.push(frame);
+      }
+    } catch {
+      // Not a checklist stamp we understand — ignore.
+    }
+  }
+  return matches;
 }
 
 function hexToRgb(hex: string): RGB {
@@ -215,6 +237,16 @@ export async function renderChecklist(
   }
   root.appendChild(rows);
 
+  const existing = await findExistingChecklists(report.target.id);
+  if (existing.length > 0) {
+    if (existing.length > 1) {
+      console.warn(
+        `tidy-qa: found ${existing.length} existing checklist frames for ${report.target.id}; deleting all before rebuild`,
+      );
+    }
+    for (const frame of existing) frame.remove();
+  }
+
   const page = figma.currentPage;
   page.appendChild(root);
 
@@ -229,6 +261,7 @@ export async function renderChecklist(
     JSON.stringify({
       version: 1,
       targetId: report.target.id,
+      builtAt: Date.now(),
     } satisfies ChecklistStamp),
   );
 

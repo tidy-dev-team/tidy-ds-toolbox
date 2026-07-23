@@ -205,18 +205,39 @@ interface BuildChecklistResult {
   counts: QaRunResult["checklist"]["counts"];
 }
 
-registerOperation<QaRunParams, BuildChecklistResult>(
+interface BuildChecklistParams extends QaRunParams {
+  /**
+   * Optional: place the checklist next to this node instead of the resolved
+   * target/origin — lets the designer keep the frame by the instance even
+   * though checks ran against the owning set.
+   */
+  anchorNodeId?: string;
+}
+
+registerOperation<BuildChecklistParams, BuildChecklistResult>(
   {
     id: "tidy_qa_build_checklist",
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items with a status chip each. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId or name/glob, or omit both to use the current selection.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items — automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId or name/glob, or omit both to use the current selection; optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
     paramsExample: {},
   },
   async (params) => {
     const { subject, origin, result } = await runQa(params);
-    const anchor = (origin as SceneNode | null) ?? subject;
+    let anchor: SceneNode = (origin as SceneNode | null) ?? subject;
+    if (params.anchorNodeId) {
+      const anchorNode = await figma.getNodeByIdAsync(params.anchorNodeId);
+      if (!anchorNode || !("absoluteBoundingBox" in anchorNode)) {
+        throw new OperationError(
+          ErrorCode.NOT_FOUND,
+          `anchor node ${params.anchorNodeId} not found`,
+          true,
+          { anchorNodeId: params.anchorNodeId },
+        );
+      }
+      anchor = anchorNode as SceneNode;
+    }
     const frame = await renderChecklist(result.checklist, anchor);
     return {
       frameId: frame.id,
