@@ -135,21 +135,24 @@ const SEVERITY_COLOR: Record<SeverityLevel, string> = {
   low: "#6B7280",
 };
 
-/** Lets `node` wrap onto multiple lines by filling its auto-layout parent's width. */
-function enableTextWrap(node: TextNode): TextNode {
-  node.textAutoResize = "HEIGHT";
-  node.layoutSizingHorizontal = "FILL";
-  return node;
-}
-
 // Caps distinct finding *kinds* shown per row — per-node repeats already
 // collapse via groupFindings, but a set with many genuinely distinct kinds
 // could still grow a row without limit otherwise.
 const MAX_FINDING_GROUPS = 8;
 
-function findingLine(message: string, count: number, severity: SeverityLevel): FrameNode {
+/**
+ * Build a finding line (`×count  message`) and append it to `parent`. The label
+ * wraps instead of overflowing the card: Figma only honours `FILL` once the
+ * node has an auto-layout parent whose own cross-size is fixed, so we parent the
+ * line first, fix its width to the parent, and only then let the label fill it.
+ */
+function appendFindingLine(
+  parent: FrameNode,
+  message: string,
+  count: number,
+  severity: SeverityLevel,
+): void {
   const line = buildAutoLayoutFrame("finding", "HORIZONTAL", 0, 6, 8);
-  line.layoutAlign = "STRETCH";
 
   const badge = text(`×${count}`, 11, FONT_BOLD, SEVERITY_COLOR[severity]);
   badge.resize(28, badge.height);
@@ -157,8 +160,11 @@ function findingLine(message: string, count: number, severity: SeverityLevel): F
   const label = text(message, 11, FONT_REGULAR, MUTED);
   line.appendChild(badge);
   line.appendChild(label);
-  enableTextWrap(label);
-  return line;
+
+  parent.appendChild(line);
+  line.layoutSizingHorizontal = "FILL";
+  label.textAutoResize = "HEIGHT";
+  label.layoutSizingHorizontal = "FILL";
 }
 
 /**
@@ -241,8 +247,11 @@ export async function renderChecklist(
       findingsBlock.layoutAlign = "STRETCH";
       findingsBlock.paddingLeft = 36;
       for (const group of groups.slice(0, MAX_FINDING_GROUPS)) {
-        findingsBlock.appendChild(
-          findingLine(group.message, group.count, group.severity),
+        appendFindingLine(
+          findingsBlock,
+          group.message,
+          group.count,
+          group.severity,
         );
       }
       const overflow = groups.length - MAX_FINDING_GROUPS;

@@ -34,6 +34,20 @@ describe("groupFindings", () => {
     });
   });
 
+  it("blanks the node name but keeps other quoted literals in the message", () => {
+    const groups = groupFindings([
+      finding({
+        nodeName: "Nissim-V2",
+        message: `Component set "Nissim-V2" description is missing an "Also known as:" line.`,
+      }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].message).toBe(
+      `Component set "…" description is missing an "Also known as:" line.`,
+    );
+  });
+
   it("keeps distinct kinds as separate groups", () => {
     const findings = [
       finding({ message: `width (14) on "Layer A" is off the 4px grid.` }),
@@ -66,8 +80,8 @@ describe("groupFindings", () => {
 
   it("escalates a group's severity to the highest seen among its members", () => {
     const findings = [
-      finding({ message: `stroke on "Layer A"`, severity: "low" }),
-      finding({ message: `stroke on "Layer B"`, severity: "high" }),
+      finding({ nodeName: "Layer A", message: `stroke on "Layer A"`, severity: "low" }),
+      finding({ nodeName: "Layer B", message: `stroke on "Layer B"`, severity: "high" }),
     ];
 
     const groups = groupFindings(findings);
@@ -79,9 +93,9 @@ describe("groupFindings", () => {
 
   it("breaks severity ties by larger count first", () => {
     const findings = [
-      finding({ message: `a on "X"`, severity: "low" }),
-      finding({ message: `b on "Y1"`, severity: "low" }),
-      finding({ message: `b on "Y2"`, severity: "low" }),
+      finding({ nodeName: "X", message: `a on "X"`, severity: "low" }),
+      finding({ nodeName: "Y1", message: `b on "Y1"`, severity: "low" }),
+      finding({ nodeName: "Y2", message: `b on "Y2"`, severity: "low" }),
     ];
 
     const groups = groupFindings(findings);
