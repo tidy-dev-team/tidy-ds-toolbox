@@ -15,6 +15,7 @@
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { groupFindings } from "../grouped-findings";
 import type { ChecklistReport, SeverityLevel } from "../types";
+import { decidePlacement } from "./placement";
 import { statusStyle } from "./status-style";
 
 // Local drawing palette — deliberately self-contained (not shared with tidy-doc)
@@ -35,21 +36,35 @@ const PLUGIN_DATA_KEY = "tidy:qa-checklist";
 interface ChecklistStamp {
   version: number;
   targetId: string;
+  /** v2+: the node the frame was originally placed beside, so rebuilds can
+   * re-anchor to it (usually the *instance*) rather than to whatever node the
+   * caller happened to target this time (usually the *set*). */
+  anchorId?: string;
   builtAt: number;
+}
+
+/** Where a rebuild should put the frame, recovered from the frame it replaces. */
+interface PriorPlacement {
+  parent: BaseNode & ChildrenMixin;
+  x: number;
+  y: number;
+  anchorId?: string;
 }
 
 // Scans every page and every depth, since a rebuild must find a stamped
 // checklist regardless of which page or frame a designer moved it into.
-async function findExistingChecklists(targetId: string): Promise<FrameNode[]> {
+async function findExistingChecklists(
+  targetId: string,
+): Promise<Array<{ frame: FrameNode; stamp: ChecklistStamp }>> {
   await figma.loadAllPagesAsync();
-  const matches: FrameNode[] = [];
+  const matches: Array<{ frame: FrameNode; stamp: ChecklistStamp }> = [];
   for (const frame of figma.root.findAllWithCriteria({ types: ["FRAME"] })) {
     const raw = frame.getPluginData(PLUGIN_DATA_KEY);
     if (!raw) continue;
     try {
       const stamp = JSON.parse(raw) as ChecklistStamp;
       if (stamp.targetId === targetId) {
-        matches.push(frame);
+        matches.push({ frame, stamp });
       }
     } catch {
       // Not a checklist stamp we understand — ignore.
@@ -65,6 +80,18 @@ function hexToRgb(hex: string): RGB {
     g: parseInt(clean.slice(2, 4), 16) / 255,
     b: parseInt(clean.slice(4, 6), 16) / 255,
   };
+}
+
+/**
+ * A remembered anchor id may now point at something unplaceable — a deleted
+ * node returns null, and a page/document has no bounding box to sit beside.
+ */
+function isPlaceableAnchor(node: BaseNode): node is SceneNode {
+  return (
+    node.type !== "PAGE" &&
+    node.type !== "DOCUMENT" &&
+    "absoluteBoundingBox" in node
+  );
 }
 
 /** Walks up from `node` to the PageNode it lives on. */
@@ -174,6 +201,13 @@ function appendFindingLine(
 export async function renderChecklist(
   report: ChecklistReport,
   anchor: SceneNode,
+  /**
+   * True when the caller expressed real placement intent — an explicit
+   * `anchorNodeId`, or a target that is a *placed* node rather than the
+   * component set itself. Only then does a rebuild move an existing checklist;
+   * otherwise it stays where it is. See the placement block below.
+   */
+  relocate = false,
 ): Promise<FrameNode> {
   await Promise.all([
     figma.loadFontAsync(FONT_REGULAR),
@@ -294,42 +328,109 @@ export async function renderChecklist(
   }
   root.appendChild(rows);
 
+  // Idempotency keys on the *component set*, but a checklist is rebuilt from
+  // many entry points — a designer selecting their instance, an agent passing
+  // the set's own id. Without stickiness the second kind silently drags the
+  // frame off the instance's page and parks it beside the set, so a rebuild
+  // reuses where the frame already lives (and what it was anchored to) unless
+  // the caller explicitly asked for a different anchor.
   const existing = await findExistingChecklists(report.target.id);
+  let prior: PriorPlacement | null = null;
   if (existing.length > 0) {
     if (existing.length > 1) {
       console.warn(
         `tidy-qa: found ${existing.length} existing checklist frames for ${report.target.id}; deleting all before rebuild`,
       );
     }
-    for (const frame of existing) frame.remove();
+    const [first] = existing;
+    if (first.frame.parent) {
+      prior = {
+        parent: first.frame.parent,
+        x: first.frame.x,
+        y: first.frame.y,
+        anchorId: first.stamp.anchorId,
+      };
+    }
+    for (const { frame } of existing) frame.remove();
   }
 
-  // Place on the anchor's own page — it may not be figma.currentPage (e.g. a
-  // cross-page anchorNodeId) — and switch to it so scrollAndZoomIntoView below
-  // (which only works for nodes on the current page) actually lands on it.
-  const page = pageOf(anchor);
-  if (page !== figma.currentPage) {
-    figma.currentPage = page;
-  }
-  page.appendChild(root);
+  const decision = decidePlacement({
+    relocate,
+    hasPrior: prior !== null,
+    rememberedAnchorId: prior?.anchorId,
+  });
 
-  const box = anchor.absoluteBoundingBox;
-  if (box) {
-    root.x = box.x + box.width + 120;
-    root.y = box.y;
+  let placementAnchor: SceneNode | null =
+    decision.kind === "anchor" ? anchor : null;
+  if (decision.kind === "remembered") {
+    // The remembered node may have been deleted since — fall back to rebuilding
+    // in place (or beside this call's anchor if we don't even have a prior).
+    const remembered = await figma.getNodeByIdAsync(decision.anchorId);
+    if (remembered && isPlaceableAnchor(remembered)) {
+      placementAnchor = remembered;
+    } else if (!prior) {
+      placementAnchor = anchor;
+    }
+  }
+
+  if (placementAnchor) {
+    // Place on the anchor's own page — it may not be figma.currentPage (e.g. a
+    // cross-page anchorNodeId) — and switch to it so scrollAndZoomIntoView
+    // below (which only works for nodes on the current page) lands on it.
+    const page = pageOf(placementAnchor);
+    if (page !== figma.currentPage) {
+      figma.currentPage = page;
+    }
+    page.appendChild(root);
+
+    const box = placementAnchor.absoluteBoundingBox;
+    if (box) {
+      root.x = box.x + box.width + 120;
+      root.y = box.y;
+    } else {
+      // No bounding box (e.g. an empty group) — fall back to the viewport
+      // centre rather than silently landing at the frame's default (0, 0).
+      const center = figma.viewport.center;
+      root.x = center.x;
+      root.y = center.y;
+    }
+  } else if (prior) {
+    // Rebuild in place: same parent (which may be a frame the designer dragged
+    // it into, not just the page) and same offset within it.
+    const page = pageOf(prior.parent);
+    if (page !== figma.currentPage) {
+      figma.currentPage = page;
+    }
+    prior.parent.appendChild(root);
+    root.x = prior.x;
+    root.y = prior.y;
   } else {
-    // No bounding box (e.g. an empty group) — fall back to the viewport
-    // centre rather than silently landing at the frame's default (0, 0).
-    const center = figma.viewport.center;
-    root.x = center.x;
-    root.y = center.y;
+    const page = pageOf(anchor);
+    if (page !== figma.currentPage) {
+      figma.currentPage = page;
+    }
+    page.appendChild(root);
+
+    const box = anchor.absoluteBoundingBox;
+    if (box) {
+      root.x = box.x + box.width + 120;
+      root.y = box.y;
+    } else {
+      const center = figma.viewport.center;
+      root.x = center.x;
+      root.y = center.y;
+    }
   }
 
   root.setPluginData(
     PLUGIN_DATA_KEY,
     JSON.stringify({
-      version: 1,
+      version: 2,
       targetId: report.target.id,
+      // Keep the *first* anchor across rebuilds, so an agent run that targets
+      // the set doesn't overwrite the designer's instance anchor. An explicit
+      // anchorNodeId is a deliberate move, so it does replace it.
+      anchorId: relocate ? anchor.id : (prior?.anchorId ?? anchor.id),
       builtAt: Date.now(),
     } satisfies ChecklistStamp),
   );

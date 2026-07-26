@@ -155,9 +155,7 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
  * QaRunResult (results + 19-item checklist). Returns the resolved subject and
  * origin node too, so the canvas op can place its frame next to the instance.
  */
-async function runQa(
-  params: QaRunParams,
-): Promise<{
+async function runQa(params: QaRunParams): Promise<{
   subject: QaSubject;
   origin: SceneNode | null;
   result: QaRunResult;
@@ -261,7 +259,16 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       }
       anchor = anchorNode;
     }
-    const frame = await renderChecklist(result.checklist, anchor);
+    // Whether this call should *move* an existing checklist. Pointing at a
+    // placed node — a selected instance, an explicit anchorNodeId — is a
+    // deliberate "put it here". Targeting the component set itself (an agent
+    // passing the set's id, or the set being selected) is not: it resolves to
+    // the same node the checklist is keyed on, carries no placement intent,
+    // and must not drag the designer's frame off the instance's page.
+    const relocate =
+      params.anchorNodeId !== undefined ||
+      (origin !== null && origin.id !== result.target.id);
+    const frame = await renderChecklist(result.checklist, anchor, relocate);
     return {
       frameId: frame.id,
       target: result.target,
