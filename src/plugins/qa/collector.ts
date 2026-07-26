@@ -9,10 +9,21 @@
 import type {
   ComponentPropertySnapshot,
   ComponentSetSnapshot,
+  ExposedInstanceSnapshot,
   NodeSnapshot,
   PaintSnapshot,
   VariantSnapshot,
 } from "./snapshot";
+
+function snapshotExposedInstance(
+  instance: InstanceNode,
+): ExposedInstanceSnapshot {
+  return {
+    id: instance.id,
+    name: instance.name,
+    exposedInstances: instance.exposedInstances.map(snapshotExposedInstance),
+  };
+}
 
 function toHex(color: RGB): string {
   const channel = (v: number) =>
@@ -55,8 +66,14 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
 
   if (node.type === "INSTANCE") {
     // Interiors of nested instances are deliberately not collected — their
-    // guts belong to the source component (#8 handles provenance).
+    // guts belong to the source component (#8 handles provenance). Only the
+    // exposed-instance side-tree is captured (#14 nesting depth).
     snap.mainComponentId = node.mainComponent?.id;
+    if (node.exposedInstances.length > 0) {
+      snap.exposedInstances = node.exposedInstances.map(
+        snapshotExposedInstance,
+      );
+    }
   } else if ("children" in node) {
     snap.children = node.children.map(snapshotNode);
   }

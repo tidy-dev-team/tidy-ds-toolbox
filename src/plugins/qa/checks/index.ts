@@ -17,6 +17,7 @@ import { checkPreferredValues } from "./preferred-values";
 import { checkTokens } from "./tokens";
 import { checkGrid4px } from "./grid-4px";
 import { checkLayerNamingStructure } from "./layer-naming-structure";
+import { checkNestingDepth } from "./nesting-depth";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -35,6 +36,7 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   tokens: checkTokens,
   "grid-4px": checkGrid4px,
   "layer-naming-structure": checkLayerNamingStructure,
+  "nesting-depth": checkNestingDepth,
 };
 
 export interface RunOutcome {

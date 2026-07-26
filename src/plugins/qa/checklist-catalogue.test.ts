@@ -56,7 +56,12 @@ const PRD_ITEMS: ReadonlyArray<{
     checkId: "description",
   },
   { n: 13, title: "No Conflicts", tier: 1, checkId: "no-conflicts" },
-  { n: 14, title: "Easy to Use (Nested Components)", tier: null },
+  {
+    n: 14,
+    title: "Easy to Use (Nested Components)",
+    tier: 2,
+    checkId: "nesting-depth",
+  },
   {
     n: 15,
     title: "Preferred (Instance Swapping)",
@@ -88,12 +93,12 @@ describe("CHECKLIST_CATALOGUE", () => {
     ).toEqual(PRD_ITEMS);
   });
 
-  it("gives every automated Tier 1 item a unique checkId", () => {
+  it("gives every automated item a unique checkId, tiered 1 or 2", () => {
     const automated = CHECKLIST_CATALOGUE.filter((item) => item.checkId);
-    expect(automated).toHaveLength(9);
-    expect(new Set(automated.map((item) => item.checkId)).size).toBe(9);
+    expect(automated).toHaveLength(10);
+    expect(new Set(automated.map((item) => item.checkId)).size).toBe(10);
     for (const item of automated) {
-      expect(item.tier).toBe(1);
+      expect(item.tier === 1 || item.tier === 2).toBe(true);
     }
   });
 });

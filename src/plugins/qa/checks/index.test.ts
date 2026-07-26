@@ -35,12 +35,12 @@ const FIXTURE: ComponentSetSnapshot = {
 };
 
 describe("check catalogue", () => {
-  it("lists the 9 Tier 1 checks with unique ids", () => {
-    expect(CHECKS).toHaveLength(9);
-    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(9);
-    // The static Tier 1 PRD sections, per issue #76.
+  it("lists the 9 Tier 1 checks plus Tier 2's nesting-depth, with unique ids", () => {
+    expect(CHECKS).toHaveLength(10);
+    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(10);
+    // The static Tier 1 PRD sections (issue #76) plus #14 (issue #99).
     expect(CHECKS.map((c) => c.prdSection)).toEqual([
-      2, 4, 5, 9, 10, 11, 12, 13, 15,
+      2, 4, 5, 9, 10, 11, 12, 13, 15, 14,
     ]);
   });
 
