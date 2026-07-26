@@ -18,6 +18,19 @@ export interface PaintSnapshot {
   boundVariableId?: string;
 }
 
+/**
+ * A recursive side-tree of exposed nested instances rooted at an INSTANCE
+ * node (#14 nesting depth). Captured alongside `NodeSnapshot.children`
+ * staying empty for INSTANCE nodes — this tracks only what surfaces
+ * properties in the parent configuration panel, not the instance's full
+ * interior.
+ */
+export interface ExposedInstanceSnapshot {
+  id: string;
+  name: string;
+  exposedInstances: ExposedInstanceSnapshot[];
+}
+
 export interface NodeSnapshot {
   id: string;
   name: string;
@@ -34,6 +47,8 @@ export interface NodeSnapshot {
   children: NodeSnapshot[];
   /** INSTANCE nodes only: the main component this instance points to. */
   mainComponentId?: string;
+  /** INSTANCE nodes only: recursive exposed-instance side-tree (#14). */
+  exposedInstances?: ExposedInstanceSnapshot[];
 
   // --- paints & styles (#5 tokens) ---
   fills?: PaintSnapshot[];

@@ -37,3 +37,9 @@ export const ALLOWED_TRIGGER_TYPES: readonly string[] = ["ON_HOVER"];
 
 /** #12 — required alias line in the component description. */
 export const ALSO_KNOWN_AS_PREFIX = "Also known as:";
+
+/**
+ * #14 — max allowed depth of an exposed nested-instance chain before it warns
+ * for cluttering the parent configuration panel.
+ */
+export const NESTING_DEPTH_WARN_THRESHOLD = 2;

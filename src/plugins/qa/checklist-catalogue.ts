@@ -63,7 +63,12 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     checkId: "description",
   },
   { n: 13, title: "No Conflicts", tier: 1, checkId: "no-conflicts" },
-  { n: 14, title: "Easy to Use (Nested Components)", tier: null },
+  {
+    n: 14,
+    title: "Easy to Use (Nested Components)",
+    tier: 2,
+    checkId: "nesting-depth",
+  },
   {
     n: 15,
     title: "Preferred (Instance Swapping)",
