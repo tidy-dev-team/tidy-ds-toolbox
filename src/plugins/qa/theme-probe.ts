@@ -89,12 +89,18 @@ export async function probeThemeResolution(
       unavailable.push(id);
     }
   }
-  if (variables.size === 0) {
-    // Nothing resolvable means no bound collection to call "the theme", so the
-    // modes are unknown. The dead bindings are still reported.
-    return unavailable.length > 0
+  // No modes to evaluate against, but the dead bindings still have to reach the
+  // check: dropping them let a set with one broken binding report `pass` on the
+  // strength of its remaining healthy variables.
+  const withoutModes = (): ThemeSnapshot | undefined =>
+    unavailable.length > 0
       ? { modes: [], variables: {}, unavailableVariableIds: unavailable }
       : undefined;
+
+  if (variables.size === 0) {
+    // Nothing resolvable means no bound collection to call "the theme", so the
+    // modes are unknown.
+    return withoutModes();
   }
 
   // Which collection counts as "the theme" is decided from the set's *own*
@@ -104,8 +110,16 @@ export async function probeThemeResolution(
   // full run, leaving the two disagreeing about the same component. Style
   // variables are only a fallback for a set that binds nothing directly, where
   // no themes-only run has an answer to disagree with.
-  const decidingIds = boundIds.length > 0 ? boundIds : styleIds;
-  const deciding = new Set(decidingIds);
+  // Only ids that actually *resolved* can decide it. Filtering on the raw
+  // `boundIds` instead would let a set whose every direct binding is broken pick
+  // an empty collection list and bail out, throwing away both the dead bindings
+  // #17 must fail on and the perfectly good style colours #16 could have used.
+  const resolvedBound = boundIds.filter((id) => variables.has(id));
+  const deciding = new Set(
+    resolvedBound.length > 0
+      ? resolvedBound
+      : styleIds.filter((id) => variables.has(id)),
+  );
 
   const collections = new Map<string, VariableCollection>();
   for (const [id, variable] of variables) {
@@ -126,10 +140,10 @@ export async function probeThemeResolution(
   // Same helper the generated documentation pages use, so QA and the docs
   // cannot disagree about what "the theme" is.
   const primary = selectPrimaryCollection(facts);
-  if (!primary) return undefined;
+  if (!primary) return withoutModes();
 
   const themeCollection = collections.get(primary.id);
-  if (!themeCollection) return undefined;
+  if (!themeCollection) return withoutModes();
 
   const resolved: Record<string, VariableResolutionSnapshot> = {};
   for (const [id, variable] of variables) {
