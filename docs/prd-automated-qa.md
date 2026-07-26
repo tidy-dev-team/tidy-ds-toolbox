@@ -193,6 +193,20 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 
 ### 17. Themes (Core / DNA / OldNews)
 
+> Shipped as check `themes` (issue #102), covering **resolution integrity only**.
+> It reports a bound variable with **no value for some theme mode** (the missing override on an extended collection) and an **alias chain that cannot be resolved** in some mode.
+> Invisible text is deliberately *not* reported here: it is contrast 1.0, so #16 owns it, and reporting it twice would describe one defect in two rows.
+> Raw unbound values stay with the `tokens` check.
+>
+> Nothing switches modes on the page or the component.
+> Per-mode values come from a **resolution probe**: one temporary off-canvas frame with explicit modes pinned on it, each used variable resolved against it once per mode, removed in a `finally`.
+> Figma does the resolving, so the values are faithful rather than a reimplementation of mode inheritance, and cost scales with variables used rather than variants x modes x nodes.
+> This is a documented carve-out from ADR-0001's read-only Query definition.
+>
+> The theme collection is **not configured by name**: it is the bound collection with the most modes (the shared helper the generated doc pages use), and the result states which collection and modes it evaluated so a wrong pick is visible instead of silently green.
+> Where nodes pin their own explicit modes the probe cannot speak for them, and the check `warn`s rather than reporting a confidently wrong value.
+> Flagging colours bound to a *single-mode* collection as "not theme-aware" is a candidate follow-up, not v1 work: a false-positive factory until narrowed much harder.
+
 * **Intent:** Validate that variables map cleanly across dynamic display scenarios without visual bugs.
 * **Automated Plugin Action:**
 * Programmatically switch the parent page or component frame through all designated Design System theme collection modes (`Core`, `DNA`, `OldNews`).

@@ -121,6 +121,19 @@ export interface NodeSnapshot {
 
   /** Fields on this node bound to variables, e.g. ["paddingLeft", "itemSpacing"]. */
   boundVariableKeys?: string[];
+  /**
+   * Ids of the variables bound on this node's fields, deduped (#17). Kept
+   * separate from `boundVariableKeys`, which records only *which* fields are
+   * bound: counting how many usages a variable has needs the ids.
+   */
+  boundVariableIds?: string[];
+  /**
+   * Explicit variable modes pinned on this node itself, collection id → mode
+   * id (#17). Present only when non-empty. A node that pins its own mode
+   * renders in that mode whatever its ancestors say, which is what makes the
+   * probe's answer unverifiable for it.
+   */
+  explicitVariableModes?: Record<string, string>;
 
   /** Prototype trigger types on this node, e.g. ["ON_HOVER"] (#11). */
   reactionTriggers?: string[];
@@ -133,6 +146,26 @@ export interface ComponentPropertySnapshot {
   type: string;
   /** INSTANCE_SWAP properties only (#15). */
   preferredValuesCount?: number;
+  /**
+   * Variables bound to the property itself (#17).
+   * These bindings live on the component property definition, not on any
+   * layer, so a set whose only variable use is a bound property would
+   * otherwise look like it uses no variables at all.
+   */
+  boundVariableIds?: string[];
+}
+
+/**
+ * An ancestor (or the subject itself) pinning explicit variable modes (#17).
+ * A pin here sets the mode context for everything below it, including every
+ * variant, so the probe cannot speak for the set's real rendering.
+ * The snapshot's node trees begin at the variants, which is below any of this,
+ * so the ancestry has to be captured separately.
+ */
+export interface PinnedAncestorSnapshot {
+  id: string;
+  name: string;
+  explicitVariableModes: Record<string, string>;
 }
 
 export interface VariantSnapshot {
@@ -141,6 +174,62 @@ export interface VariantSnapshot {
   /** e.g. { Size: "Medium", State: "Default" } — empty for standalone components (#13). */
   variantProperties: Record<string, string>;
   tree: NodeSnapshot;
+}
+
+/** One mode of the evaluated theme collection (#17). */
+export interface ThemeModeSnapshot {
+  modeId: string;
+  name: string;
+}
+
+/**
+ * How one variable resolved in one mode of the theme collection, as observed
+ * through the resolution probe (#17).
+ *
+ * `ok: false` is split by reason because the two are different defects with
+ * different fixes: `no-value` means the variable itself has no entry for that
+ * mode (a missing override, typically on an extended collection), while
+ * `unresolved-alias` means Figma could not follow the alias chain to a concrete
+ * value (dangling target, or a broken remote variable).
+ */
+export interface ModeResolutionSnapshot {
+  ok: boolean;
+  reason?: "no-value" | "unresolved-alias";
+  /** Resolved type Figma reported, e.g. "COLOR" | "FLOAT" (present when ok). */
+  type?: string;
+  /** COLOR variables only: the resolved colour, for #16 to build contrast on. */
+  hex?: string;
+  /** COLOR variables only: resolved alpha, 0–1. */
+  alpha?: number;
+}
+
+/** A variable used by the set, resolved once per theme mode (#17). */
+export interface VariableResolutionSnapshot {
+  name: string;
+  /** Collection the variable itself belongs to - not necessarily the theme. */
+  collectionId: string;
+  /** Keyed by mode id of the theme collection. */
+  byMode: Record<string, ModeResolutionSnapshot>;
+}
+
+/**
+ * Per-mode resolution table for the theme collection (#17), produced by the
+ * resolution probe: one temporary frame, explicit modes set on it, each
+ * variable resolved against it once per mode, frame removed in a `finally`.
+ * Figma does the resolving, so these values are faithful by construction
+ * rather than a reimplementation of mode inheritance.
+ *
+ * Absent when the set binds no variables, or when no bound collection has
+ * modes to evaluate - the check reports `not_applicable` rather than inventing
+ * a theme.
+ */
+export interface ThemeSnapshot {
+  /** Which collection was treated as "the theme" (most modes - see shared/theme-collection). */
+  collectionId: string;
+  collectionName: string;
+  modes: ThemeModeSnapshot[];
+  /** Variable id → per-mode resolution. */
+  variables: Record<string, VariableResolutionSnapshot>;
 }
 
 export interface ComponentSetSnapshot {
@@ -153,4 +242,11 @@ export interface ComponentSetSnapshot {
   propertyNames: string[];
   properties: ComponentPropertySnapshot[];
   variants: VariantSnapshot[];
+  /**
+   * The subject and any ancestor pinning explicit variable modes (#17).
+   * Absent when nothing in the ancestry pins a mode.
+   */
+  pinnedAncestors?: PinnedAncestorSnapshot[];
+  /** Per-mode variable resolution (#17). Absent when the probe didn't run. */
+  theme?: ThemeSnapshot;
 }

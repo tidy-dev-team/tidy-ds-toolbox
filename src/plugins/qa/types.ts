@@ -23,7 +23,8 @@ export type CheckId =
   | "no-conflicts"
   | "preferred-values"
   | "nesting-depth"
-  | "asset-provenance";
+  | "asset-provenance"
+  | "themes";
 
 export interface Finding {
   severity: SeverityLevel;
@@ -100,6 +101,11 @@ export const CHECKS: readonly CheckDefinition[] = [
     id: "asset-provenance",
     prdSection: 8,
     title: "Icons / illustrations / logos from Foundations",
+  },
+  {
+    id: "themes",
+    prdSection: 17,
+    title: "Themes (per-mode variable resolution)",
   },
 ];
 

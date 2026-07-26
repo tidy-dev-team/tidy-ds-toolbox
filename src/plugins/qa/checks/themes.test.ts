@@ -1,0 +1,367 @@
+import { describe, it, expect } from "vitest";
+import { checkThemes } from "./themes";
+import type {
+  ComponentSetSnapshot,
+  NodeSnapshot,
+  ThemeSnapshot,
+  VariableResolutionSnapshot,
+} from "../snapshot";
+
+let seq = 0;
+
+function node(overrides: Partial<NodeSnapshot> = {}): NodeSnapshot {
+  seq += 1;
+  return {
+    id: `1:${seq}`,
+    name: "layer",
+    type: "FRAME",
+    visible: true,
+    width: 24,
+    height: 24,
+    children: [],
+    ...overrides,
+  };
+}
+
+/** A variable resolving cleanly in every listed mode. */
+function resolved(
+  name: string,
+  modeIds: string[],
+  collectionId = "c-theme",
+): VariableResolutionSnapshot {
+  return {
+    name,
+    collectionId,
+    byMode: Object.fromEntries(
+      modeIds.map((m) => [m, { ok: true, type: "COLOR", hex: "#123456" }]),
+    ),
+  };
+}
+
+const THEME_MODES = [
+  { modeId: "m-core", name: "Core" },
+  { modeId: "m-dna", name: "DNA" },
+];
+
+function theme(overrides: Partial<ThemeSnapshot> = {}): ThemeSnapshot {
+  return {
+    collectionId: "c-theme",
+    collectionName: "Theme",
+    modes: THEME_MODES,
+    variables: {},
+    ...overrides,
+  };
+}
+
+function fixture(
+  trees: NodeSnapshot[][],
+  themeSnapshot?: ThemeSnapshot,
+): ComponentSetSnapshot {
+  return {
+    id: "1:0",
+    name: "Button",
+    type: "COMPONENT_SET",
+    description: "",
+    propertyNames: [],
+    properties: [],
+    variants: trees.map((kids, i) => ({
+      id: `v:${i}`,
+      name: `Button-${i}`,
+      variantProperties: {},
+      tree: node({ id: `v:${i}`, type: "COMPONENT", children: kids }),
+    })),
+    ...(themeSnapshot ? { theme: themeSnapshot } : {}),
+  };
+}
+
+/** A node consuming `variableId` through a fill. */
+function filled(variableId: string, name = "bg"): NodeSnapshot {
+  return node({
+    name,
+    fills: [
+      {
+        type: "SOLID",
+        visible: true,
+        opacity: 1,
+        hex: "#123456",
+        boundVariableId: variableId,
+      },
+    ],
+  });
+}
+
+describe("checkThemes", () => {
+  it("is not_applicable when the probe produced no theme table", () => {
+    const result = checkThemes(fixture([[node()]]));
+    expect(result.checkId).toBe("themes");
+    expect(result.status).toBe("not_applicable");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("passes when every used variable resolves in every mode, and says what it evaluated", () => {
+    const result = checkThemes(
+      fixture(
+        [[filled("v-bg")]],
+        theme({
+          variables: { "v-bg": resolved("bg/default", ["m-core", "m-dna"]) },
+        }),
+      ),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+    // The collection pick is a heuristic, so a wrong pick has to be visible
+    // rather than silently producing green rows.
+    expect(result.note).toContain("Theme");
+    expect(result.note).toContain("Core");
+    expect(result.note).toContain("DNA");
+  });
+
+  it("fails a variable with no value for one mode, naming the variable and the mode", () => {
+    const result = checkThemes(
+      fixture(
+        [[filled("v-bg")]],
+        theme({
+          variables: {
+            "v-bg": {
+              name: "bg/default",
+              collectionId: "c-theme",
+              byMode: {
+                "m-core": { ok: true, type: "COLOR", hex: "#FFFFFF" },
+                "m-dna": { ok: false, reason: "no-value" },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toContain("bg/default");
+    expect(result.findings[0].message).toContain("DNA");
+    expect(result.findings[0].message).toMatch(/no value/i);
+  });
+
+  it("fails an unresolvable alias chain, distinguishing it from a missing value", () => {
+    const result = checkThemes(
+      fixture(
+        [[filled("v-fg")]],
+        theme({
+          variables: {
+            "v-fg": {
+              name: "fg/muted",
+              collectionId: "c-semantic",
+              byMode: {
+                "m-core": { ok: true, type: "COLOR", hex: "#000000" },
+                "m-dna": { ok: false, reason: "unresolved-alias" },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toMatch(/alias/i);
+    expect(result.findings[0].message).toContain("fg/muted");
+    expect(result.findings[0].message).toContain("DNA");
+  });
+
+  it("emits one finding per variable × mode, not per consuming node", () => {
+    // Same variable broken in both modes, consumed by three layers across two
+    // variants: two findings (one per mode), each counting three usages.
+    const broken: VariableResolutionSnapshot = {
+      name: "bg/default",
+      collectionId: "c-theme",
+      byMode: {
+        "m-core": { ok: false, reason: "no-value" },
+        "m-dna": { ok: false, reason: "no-value" },
+      },
+    };
+    const result = checkThemes(
+      fixture(
+        [[filled("v-bg", "a"), filled("v-bg", "b")], [filled("v-bg", "c")]],
+        theme({ variables: { "v-bg": broken } }),
+      ),
+    );
+    expect(result.findings).toHaveLength(2);
+    expect(result.findings.map((f) => f.count)).toEqual([3, 3]);
+    const modes = result.findings.map((f) => f.message);
+    expect(modes.some((m) => m.includes("Core"))).toBe(true);
+    expect(modes.some((m) => m.includes("DNA"))).toBe(true);
+  });
+
+  it("counts usages bound on node fields, not just paints", () => {
+    const result = checkThemes(
+      fixture(
+        [
+          [
+            node({ name: "row", boundVariableIds: ["v-gap"] }),
+            node({ name: "row2", boundVariableIds: ["v-gap"] }),
+          ],
+        ],
+        theme({
+          variables: {
+            "v-gap": {
+              name: "space/200",
+              collectionId: "c-theme",
+              byMode: {
+                "m-core": { ok: true, type: "FLOAT" },
+                "m-dna": { ok: false, reason: "no-value" },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].count).toBe(2);
+  });
+
+  it("ignores variables the set does not actually use", () => {
+    // The probe may resolve a variable that only a style references; without a
+    // usage in this set there is nothing to report against.
+    const result = checkThemes(
+      fixture(
+        [[node()]],
+        theme({
+          variables: {
+            "v-unused": {
+              name: "bg/legacy",
+              collectionId: "c-theme",
+              byMode: {
+                "m-core": { ok: true, type: "COLOR" },
+                "m-dna": { ok: false, reason: "no-value" },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("warns when a layer pins its own mode for the theme collection", () => {
+    const result = checkThemes(
+      fixture(
+        [
+          [
+            filled("v-bg"),
+            node({
+              id: "1:9",
+              name: "pinned",
+              explicitVariableModes: { "c-theme": "m-core" },
+            }),
+          ],
+        ],
+        theme({
+          variables: { "v-bg": resolved("bg/default", ["m-core", "m-dna"]) },
+        }),
+      ),
+    );
+    expect(result.status).toBe("warn");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toMatch(/explicit mode/i);
+    expect(result.findings[0].nodeId).toBe("1:9");
+  });
+
+  it("ignores a layer pinning some other collection's mode", () => {
+    // A density or rem/px pin says nothing about whether the theme resolved,
+    // so raising the caveat for it would flag verifiable components.
+    const result = checkThemes(
+      fixture(
+        [
+          [
+            filled("v-bg"),
+            node({
+              name: "compact",
+              explicitVariableModes: { "c-density": "m-compact" },
+            }),
+          ],
+        ],
+        theme({
+          variables: { "v-bg": resolved("bg/default", ["m-core", "m-dna"]) },
+        }),
+      ),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("still fails, not warns, when overrides coexist with a real resolution failure", () => {
+    const result = checkThemes(
+      fixture(
+        [
+          [
+            filled("v-bg"),
+            node({
+              name: "pinned",
+              explicitVariableModes: { "c-theme": "m-core" },
+            }),
+          ],
+        ],
+        theme({
+          variables: {
+            "v-bg": {
+              name: "bg/default",
+              collectionId: "c-theme",
+              byMode: {
+                "m-core": { ok: true, type: "COLOR" },
+                "m-dna": { ok: false, reason: "no-value" },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    expect(result.status).toBe("fail");
+    // Both the failure and the caveat are reported.
+    expect(result.findings).toHaveLength(2);
+  });
+
+  it("is not_applicable when the theme collection has only one mode", () => {
+    // Nothing to compare across: a single-mode collection is not a theme, and
+    // flagging its variables as "not theme-aware" is explicitly out of scope.
+    const result = checkThemes(
+      fixture(
+        [[filled("v-bg")]],
+        theme({
+          modes: [{ modeId: "m-only", name: "Value" }],
+          variables: { "v-bg": resolved("bg/default", ["m-only"]) },
+        }),
+      ),
+    );
+    expect(result.status).toBe("not_applicable");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("orders findings deterministically by message", () => {
+    const result = checkThemes(
+      fixture(
+        [[filled("v-b"), filled("v-a")]],
+        theme({
+          variables: {
+            "v-b": {
+              name: "zeta",
+              collectionId: "c-theme",
+              byMode: {
+                "m-core": { ok: false, reason: "no-value" },
+                "m-dna": { ok: true },
+              },
+            },
+            "v-a": {
+              name: "alpha",
+              collectionId: "c-theme",
+              byMode: {
+                "m-core": { ok: false, reason: "no-value" },
+                "m-dna": { ok: true },
+              },
+            },
+          },
+        }),
+      ),
+    );
+    const messages = result.findings.map((f) => f.message);
+    expect(messages).toEqual([...messages].sort());
+  });
+});

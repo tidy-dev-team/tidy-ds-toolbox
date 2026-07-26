@@ -261,7 +261,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set (static checks — never mutates the file). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding), ids of requested checks not implemented yet, and a 19-item `checklist` model (PRD order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run/not_applicable — the last when a check ran but had nothing applicable to evaluate, e.g. no instance-swap properties).",
+      "Run the DS Component QA checklist against a component set. Read-only toward the target - it never modifies the component set - with one documented exception: the themes check (#17) creates and removes a temporary off-canvas probe frame in order to resolve variables per theme mode (carve-out from ADR-0001). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding), ids of requested checks not implemented yet, and a 19-item `checklist` model (PRD order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run/not_applicable - the last when a check ran but had nothing applicable to evaluate, e.g. no instance-swap properties).",
     inputSchema: {
       nodeId: z
         .string()
@@ -279,7 +279,7 @@ export const CATALOGUE: CatalogueEntry[] = [
         .array(z.string())
         .optional()
         .describe(
-          "Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: set-name-casing, prop-order, tokens, layer-naming-structure, grid-4px, interaction-hover-only, description, no-conflicts, preferred-values, nesting-depth, asset-provenance.",
+          "Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: set-name-casing, prop-order, tokens, layer-naming-structure, grid-4px, interaction-hover-only, description, no-conflicts, preferred-values, nesting-depth, asset-provenance, themes.",
         ),
     },
     timeoutMs: 60_000,

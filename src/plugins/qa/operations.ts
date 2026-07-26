@@ -3,14 +3,16 @@
 // src/shared/operations/register-all.ts.
 //
 // Single agent-facing surface: `tidy_qa_run`. Returns structured CheckResults
-// plus a 19-item ChecklistReport (PRD catalogue merge). All checks are static:
-// nothing in this module mutates the file.
+// plus a 19-item ChecklistReport (PRD catalogue merge). The checks never touch
+// the component set; the one document write in a run is the #17 themes probe's
+// temporary frame (see theme-probe.ts and the ADR-0001 carve-out).
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
 import { collectSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
+import { probeThemeResolution } from "./theme-probe";
 import { renderChecklist } from "./render/renderChecklist";
 import type { CheckId, QaRunResult } from "./types";
 
@@ -149,11 +151,19 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
   };
 }
 
+/** Whether `id` is in the requested set (an absent filter means everything). */
+function willRun(requested: string[] | undefined, id: CheckId): boolean {
+  return requested === undefined || requested.includes(id);
+}
+
 /**
  * Shared pipeline for both QA operations: validate the check filter, resolve the
  * target up to its set, snapshot it, run the checks, and build the full
  * QaRunResult (results + 19-item checklist). Returns the resolved subject and
  * origin node too, so the canvas op can place its frame next to the instance.
+ *
+ * Both operations share this, deliberately: probing only in the execute op
+ * would leave the two QA surfaces silently disagreeing about what was checked.
  */
 async function runQa(params: QaRunParams): Promise<{
   subject: QaSubject;
@@ -174,6 +184,15 @@ async function runQa(params: QaRunParams): Promise<{
 
   const { subject, origin } = await resolveTarget(params);
   const snapshot = collectSnapshot(subject);
+
+  // The #17 per-mode resolution probe is the one part of a QA run that touches
+  // the document (one temporary frame, removed in a `finally` - see
+  // theme-probe.ts and the ADR-0001 carve-out). Skipped entirely unless the
+  // themes check is actually going to run, so a filtered run stays inert.
+  if (willRun(params.checks, "themes")) {
+    snapshot.theme = await probeThemeResolution(snapshot);
+  }
+
   const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
   const target = { id: subject.id, name: subject.name };
   // Record the instance the run started from, if any (for canvas placement).
@@ -200,7 +219,7 @@ registerOperation<QaRunParams, QaRunResult>(
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist (static Tier 1 checks) against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Static — never mutates the file.",
+      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. The themes check (#17) creates and removes one temporary off-canvas probe frame to resolve variables per theme mode - a documented carve-out from ADR-0001's read-only Query definition.",
     paramsExample: { name: "Button" },
   },
   async (params) => {

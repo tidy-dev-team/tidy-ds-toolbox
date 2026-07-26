@@ -19,6 +19,7 @@ import { checkGrid4px } from "./grid-4px";
 import { checkLayerNamingStructure } from "./layer-naming-structure";
 import { checkNestingDepth } from "./nesting-depth";
 import { checkAssetProvenance } from "./asset-provenance";
+import { checkThemes } from "./themes";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -39,6 +40,7 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "layer-naming-structure": checkLayerNamingStructure,
   "nesting-depth": checkNestingDepth,
   "asset-provenance": checkAssetProvenance,
+  themes: checkThemes,
 };
 
 export interface RunOutcome {

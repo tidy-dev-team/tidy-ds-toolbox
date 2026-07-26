@@ -136,7 +136,8 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   {
     n: 17,
     title: "Themes (Core/DNA/OldNews)",
-    tier: null,
+    tier: 2,
+    checkId: "themes",
     blurb: "Every bound variable resolves in all theme modes, with no gaps.",
   },
   {
