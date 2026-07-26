@@ -417,9 +417,17 @@ function render(
 ): Rendered | "unresolved" | undefined {
   let text = own;
   let background: Rgba | undefined;
-  let label: string | undefined;
-  let contributors = 0;
+  /** The nearest ancestor fill that contributed, for naming the pair. */
+  let nearest: { rgba: Rgba; label: string } | undefined;
 
+  // The **whole** chain, with no early exit once the surface turns opaque.
+  // Reaching opacity is not the end of the story: an outer group can still fade
+  // the composite over whatever is beyond it, changing both pixels. White text
+  // on an opaque black surface inside a 50% wrapper over white is white on
+  // #808080 - 3.9:1, a fail - not the 21:1 that stopping at the black surface
+  // reports. Chains here are a handful of levels deep, so walking all of them
+  // costs nothing worth trading correctness for; past an opaque surface each
+  // further `layer` is a no-op anyway.
   for (const ancestor of candidate.ancestors) {
     const resolved = resolveColor(ancestor, mode, snapshot);
     if (resolved === "unresolved") return "unresolved";
@@ -431,8 +439,7 @@ function render(
       background = background
         ? layer(background, resolved.rgba)
         : resolved.rgba;
-      contributors += 1;
-      if (label === undefined) label = resolved.label;
+      if (nearest === undefined) nearest = resolved;
     }
 
     const groupOpacity = ancestor.opacity ?? 1;
@@ -445,16 +452,22 @@ function render(
         };
       }
     }
-
-    if (background && background.alpha >= OPAQUE) break;
   }
 
   if (!background || background.alpha < OPAQUE) return undefined;
-  return {
-    text,
-    background,
-    label: contributors === 1 ? (label ?? background.hex) : background.hex,
-  };
+
+  // The nearest fill's own name, but only when it is demonstrably the colour on
+  // screen: opaque on its own, and unchanged by everything outside it. Anything
+  // else is a composite that no single token describes, so the rendered hex is
+  // the honest label.
+  const named =
+    nearest !== undefined &&
+    nearest.rgba.alpha >= OPAQUE &&
+    nearest.rgba.hex === background.hex
+      ? nearest.label
+      : background.hex;
+
+  return { text, background, label: named };
 }
 
 /** A ratio as designers write it: "4.1", "21". Truncated, never rounded up. */

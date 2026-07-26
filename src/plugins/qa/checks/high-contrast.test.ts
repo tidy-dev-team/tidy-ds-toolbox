@@ -208,6 +208,41 @@ describe("checkHighContrast", () => {
     expect(result.status).toBe("pass");
   });
 
+  it("keeps fading past an opaque surface when an outer group is translucent", () => {
+    // White text on an opaque black surface is 21:1 in isolation - but the 50%
+    // wrapper composites that whole surface over the white page, so what renders
+    // is white on #808080: 3.9:1, a fail.
+    //
+    // Stopping the walk as soon as the surface turns opaque reports the 21:1 and
+    // passes it. Reaching opacity is not the end of the chain.
+    const result = checkHighContrast(
+      fixture([
+        node({
+          name: "page",
+          fills: [solid("#FFFFFF")],
+          children: [
+            node({
+              name: "wrapper",
+              opacity: 0.5,
+              children: [
+                node({
+                  name: "surface",
+                  fills: [solid("#000000")],
+                  children: [text({ fills: [solid("#FFFFFF")] })],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings[0].actual).toBe("3.9:1");
+    // The pair is a composite, so it is named by the colour on screen rather
+    // than by the black token that is no longer what renders.
+    expect(result.findings[0].message).toContain("#808080");
+  });
+
   it("still needs an opaque backdrop behind a translucent group", () => {
     // Same 50% wrapper, but nothing opaque behind it: the pair genuinely
     // depends on the page colour, which the check refuses to guess.
