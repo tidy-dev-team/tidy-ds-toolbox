@@ -111,13 +111,35 @@ describe("buildChecklistReport", () => {
       expect(item.status).toBe("manual");
       expect(item.findings).toEqual([]);
     }
-    // Item 8 is Tier 2 planned — still manual until a check ships.
-    const icons = report.items.find((i) => i.n === 8)!;
-    expect(icons).toMatchObject({
-      tier: 2,
+    // Item 18 is manual-only in the PRD — no check will ever back it.
+    const template = report.items.find((i) => i.n === 18)!;
+    expect(template).toMatchObject({
+      tier: null,
       automated: false,
       status: "manual",
     });
+  });
+
+  it("carries a check's caveat onto its row, even when the check passed", () => {
+    const report = buildChecklistReport({
+      target: TARGET,
+      results: [
+        {
+          checkId: "asset-provenance",
+          title: "Icons / illustrations / logos from Foundations",
+          status: "pass",
+          findings: [],
+          note: "Library origin cannot be verified through the plugin API.",
+        },
+      ],
+      notImplemented: [],
+    });
+    const icons = report.items.find((i) => i.n === 8)!;
+    expect(icons.status).toBe("pass");
+    // A pass carries no findings, so the note is the only place the partial
+    // evidence can surface.
+    expect(icons.findings).toEqual([]);
+    expect(icons.note).toMatch(/cannot be verified/);
   });
 
   it("resolves catalogued-but-unbuilt automated items to not_implemented", () => {

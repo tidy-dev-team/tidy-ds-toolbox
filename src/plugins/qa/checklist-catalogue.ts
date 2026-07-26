@@ -74,6 +74,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     n: 8,
     title: "Icons/Illustrations/Logos → Foundations",
     tier: 2,
+    checkId: "asset-provenance",
     blurb: "Nested icons, illustrations and logos come from the DS library.",
   },
   {

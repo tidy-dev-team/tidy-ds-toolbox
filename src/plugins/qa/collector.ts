@@ -71,9 +71,18 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
 
   if (node.type === "INSTANCE") {
     // Interiors of nested instances are deliberately not collected — their
-    // guts belong to the source component (#8 handles provenance). Only the
-    // exposed-instance side-tree is captured (#14 nesting depth).
-    snap.mainComponentId = node.mainComponent?.id;
+    // guts belong to the source component (#8 judges provenance from the main
+    // component's identity alone). Only the exposed-instance side-tree is
+    // captured (#14 nesting depth).
+    const main = node.mainComponent;
+    if (main) {
+      snap.mainComponent = {
+        id: main.id,
+        key: main.key,
+        name: main.name,
+        remote: main.remote,
+      };
+    }
     snap.isExposedInstance = node.isExposedInstance;
     if (node.exposedInstances.length > 0) {
       snap.exposedInstances = node.exposedInstances.map(

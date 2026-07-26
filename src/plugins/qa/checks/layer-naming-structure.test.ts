@@ -85,7 +85,12 @@ describe("checkLayerNamingStructure — name cleanliness", () => {
               id: "3:1",
               name: "Avatar",
               type: "INSTANCE",
-              mainComponentId: "9:9",
+              mainComponent: {
+                id: "9:9",
+                key: "k9",
+                name: "Icon",
+                remote: true,
+              },
               children: [
                 node({ id: "3:2", name: "Vector 3" }),
                 node({ id: "3:3", name: "Rectangle 7" }),

@@ -11,7 +11,7 @@ export type { SeverityLevel };
 
 export type CheckStatus = "pass" | "warn" | "fail" | "not_applicable";
 
-/** Stable ids of the static checks (PRD section in CHECKS): 9 Tier 1 plus Tier 2's nesting-depth. */
+/** Stable ids of the static checks (PRD section in CHECKS): 9 Tier 1 plus Tier 2's. */
 export type CheckId =
   | "set-name-casing"
   | "prop-order"
@@ -22,7 +22,8 @@ export type CheckId =
   | "description"
   | "no-conflicts"
   | "preferred-values"
-  | "nesting-depth";
+  | "nesting-depth"
+  | "asset-provenance";
 
 export interface Finding {
   severity: SeverityLevel;
@@ -46,6 +47,14 @@ export interface CheckResult {
   title: string;
   status: CheckStatus;
   findings: Finding[];
+  /**
+   * What this check could *not* establish, stated in the result rather than
+   * left for the caller to know. A `pass` that rests on partial evidence
+   * (#8: the plugin API exposes no library identity for a component, so a
+   * remote instance can't be traced to an approved library) has to say so, or
+   * the checklist reads as a stronger guarantee than it is.
+   */
+  note?: string;
 }
 
 export interface CheckDefinition {
@@ -87,6 +96,11 @@ export const CHECKS: readonly CheckDefinition[] = [
     prdSection: 14,
     title: "Nested instance depth",
   },
+  {
+    id: "asset-provenance",
+    prdSection: 8,
+    title: "Icons / illustrations / logos from Foundations",
+  },
 ];
 
 export function getCheck(id: string): CheckDefinition | undefined {
@@ -116,6 +130,8 @@ export interface ChecklistItem {
    * not_applicable, not_implemented, and not_run carry no findings).
    */
   findings: Finding[];
+  /** Engine caveat for this row, when the backing check declared one. */
+  note?: string;
 }
 
 export interface ChecklistReport {

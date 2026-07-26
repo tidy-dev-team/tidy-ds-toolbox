@@ -35,12 +35,13 @@ const FIXTURE: ComponentSetSnapshot = {
 };
 
 describe("check catalogue", () => {
-  it("lists the 9 Tier 1 checks plus Tier 2's nesting-depth, with unique ids", () => {
-    expect(CHECKS).toHaveLength(10);
-    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(10);
-    // The static Tier 1 PRD sections (issue #76) plus #14 (issue #99).
+  it("lists the 9 Tier 1 checks plus the Tier 2 checks, with unique ids", () => {
+    expect(CHECKS).toHaveLength(11);
+    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(11);
+    // The static Tier 1 PRD sections (issue #76), then Tier 2 appended in
+    // shipping order: #14 (issue #99), #8 (issue #101).
     expect(CHECKS.map((c) => c.prdSection)).toEqual([
-      2, 4, 5, 9, 10, 11, 12, 13, 15, 14,
+      2, 4, 5, 9, 10, 11, 12, 13, 15, 14, 8,
     ]);
   });
 

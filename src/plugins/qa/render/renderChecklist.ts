@@ -167,6 +167,9 @@ const SEVERITY_COLOR: Record<SeverityLevel, string> = {
 // could still grow a row without limit otherwise.
 const MAX_FINDING_GROUPS = 8;
 
+/** Indent for the detail lines under a row, aligning them past the item number. */
+const DETAIL_INDENT = 36;
+
 /**
  * Build a finding line (`×count  message`) and append it to `parent`. The label
  * wraps instead of overflowing the card: Figma only honours `FILL` once the
@@ -291,6 +294,26 @@ export async function renderChecklist(
     }
     itemBlock.appendChild(row);
 
+    // A check's caveat (#8: library origin is unverifiable in-plugin) renders
+    // even on a passing row — that is exactly where the reader needs to know
+    // the tick rests on partial evidence.
+    if (item.note) {
+      const noteBlock = buildAutoLayoutFrame(
+        `item-${item.n}-note`,
+        "VERTICAL",
+        0,
+        0,
+        0,
+      );
+      noteBlock.layoutAlign = "STRETCH";
+      noteBlock.paddingLeft = DETAIL_INDENT;
+      const noteText = text(`Caveat: ${item.note}`, 11, FONT_REGULAR, MUTED);
+      noteBlock.appendChild(noteText);
+      noteText.textAutoResize = "HEIGHT";
+      noteText.layoutSizingHorizontal = "FILL";
+      itemBlock.appendChild(noteBlock);
+    }
+
     if (item.findings.length > 0) {
       const groups = groupFindings(item.findings);
       const findingsBlock = buildAutoLayoutFrame(
@@ -301,7 +324,7 @@ export async function renderChecklist(
         4,
       );
       findingsBlock.layoutAlign = "STRETCH";
-      findingsBlock.paddingLeft = 36;
+      findingsBlock.paddingLeft = DETAIL_INDENT;
       for (const group of groups.slice(0, MAX_FINDING_GROUPS)) {
         appendFindingLine(
           findingsBlock,

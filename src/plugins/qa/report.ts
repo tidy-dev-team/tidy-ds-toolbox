@@ -46,6 +46,9 @@ export function buildChecklistReport(
     const automated = entry.checkId !== undefined;
     let status: ItemStatus;
     let findings: Finding[] = [];
+    // Unlike findings, a note survives a `pass` — a caveat only matters
+    // precisely when the check passed on partial evidence (#8).
+    let note: string | undefined;
 
     if (!entry.checkId) {
       status = "manual";
@@ -60,6 +63,7 @@ export function buildChecklistReport(
         // Findings are only meaningful for warn/fail; pass/not_applicable carry none.
         findings =
           status === "warn" || status === "fail" ? engine.findings : [];
+        note = engine.note;
       } else if (notImplemented.has(entry.checkId)) {
         status = "not_implemented";
       } else {
@@ -96,6 +100,7 @@ export function buildChecklistReport(
       automated,
       status,
       findings,
+      ...(note ? { note } : {}),
     };
   });
 

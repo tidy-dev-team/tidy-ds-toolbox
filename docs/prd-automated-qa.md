@@ -86,6 +86,21 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 
 ### 8. Icons / Illustrations / Logos Connected to Foundations
 
+> Shipped as check `asset-provenance` (issue #101) — **negative detection
+> only**. The plugin API exposes no library attribution for components
+> (`libraryName` exists only for variable collections; an instance gives you
+> its main component's `key` and `remote` flag, never a file key or library
+> name), so "originating directly from the approved Foundations Library" is not
+> answerable in-plugin. The check therefore fails what is *certainly* not a
+> library instance — raw path geometry alongside other content, and nested
+> instances whose main component is local — passes remote nested instances, and
+> carries the unverifiable-origin caveat in the result's `note` rather than
+> implying a guarantee it can't make. An approved-key manifest (and the
+> deprecated-directory rule that depends on it) is deferred to its own ticket,
+> since generating one needs the REST API or a dump run inside the Foundations
+> file plus a refresh story. A component that *is* the asset (every leaf in the
+> variant trees is geometry) reports `not_applicable`.
+
 * **Intent:** Ensure all iconography utilized inside components stems from the single source of truth library.
 * **Automated Plugin Action:**
 * Inspect nested icon sub-components.

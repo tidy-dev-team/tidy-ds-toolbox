@@ -98,7 +98,7 @@ Three new pieces, plus one operation:
 | 5 | Tokens (Styles & Variables) | `tokens` |
 | 6 | Typography Desktop\|Mobile | manual |
 | 7 | Responsiveness (+ Min-Max) | manual |
-| 8 | Icons/Illustrations/Logos → Foundations | manual (Tier 2) |
+| 8 | Icons/Illustrations/Logos → Foundations | `asset-provenance` |
 | 9 | Layer Naming + Structure | `layer-naming-structure` |
 | 10 | 4px Grid Alignment | `grid-4px` |
 | 11 | Interaction (Hover Only) | `interaction-hover-only` |

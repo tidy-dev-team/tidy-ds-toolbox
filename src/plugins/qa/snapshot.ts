@@ -51,8 +51,29 @@ export interface NodeSnapshot {
    * interiors are another component's problem (#8 handles provenance).
    */
   children: NodeSnapshot[];
-  /** INSTANCE nodes only: the main component this instance points to. */
-  mainComponentId?: string;
+  /**
+   * INSTANCE nodes only: identity of the main component this instance points
+   * at. Absent when Figma can't resolve one — and that absence is a real third
+   * state (provenance unknown), distinct from a resolved `remote: false` (a
+   * local component), which is why the fields travel as one object rather than
+   * three separately-optional ones.
+   *
+   * Note there is deliberately no library *identity* here: the plugin API
+   * exposes a component's `key` and `remote` flag but no file key or library
+   * name (only variable collections carry `libraryName`), so "came from the
+   * approved Foundations file" is not answerable in-plugin (#8).
+   */
+  mainComponent?: {
+    id: string;
+    /**
+     * Publish key — stable across files, so it is the dedupe key for "one
+     * finding per offending main component" (#8).
+     */
+    key: string;
+    name: string;
+    /** Whether the component lives in another (published) file. */
+    remote: boolean;
+  };
   /**
    * INSTANCE nodes only: whether this instance itself is exposed to its
    * containing component's panel (#14). When false, none of its exposed
