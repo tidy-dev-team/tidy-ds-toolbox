@@ -11,7 +11,7 @@ export type { SeverityLevel };
 
 export type CheckStatus = "pass" | "warn" | "fail" | "not_applicable";
 
-/** Stable ids of the 9 static Tier 1 checks (PRD section in CHECKS). */
+/** Stable ids of the static checks (PRD section in CHECKS): 9 Tier 1 plus Tier 2's nesting-depth. */
 export type CheckId =
   | "set-name-casing"
   | "prop-order"
@@ -21,7 +21,8 @@ export type CheckId =
   | "interaction-hover-only"
   | "description"
   | "no-conflicts"
-  | "preferred-values";
+  | "preferred-values"
+  | "nesting-depth";
 
 export interface Finding {
   severity: SeverityLevel;
@@ -32,6 +33,12 @@ export interface Finding {
   expected?: string;
   actual?: string;
   suggestedFix?: string;
+  /**
+   * Occurrences this finding already represents (Tier 2 checks pre-dedupe
+   * across a whole set instead of emitting per-node like Tier 1). Absent
+   * behaves as 1.
+   */
+  count?: number;
 }
 
 export interface CheckResult {
@@ -75,6 +82,11 @@ export const CHECKS: readonly CheckDefinition[] = [
   },
   { id: "no-conflicts", prdSection: 13, title: "No conflicts" },
   { id: "preferred-values", prdSection: 15, title: "Preferred values" },
+  {
+    id: "nesting-depth",
+    prdSection: 14,
+    title: "Easy to use (nested components)",
+  },
 ];
 
 export function getCheck(id: string): CheckDefinition | undefined {

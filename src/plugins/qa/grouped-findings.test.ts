@@ -127,4 +127,27 @@ describe("groupFindings", () => {
     expect(groups[0].count).toBe(2);
     expect(groups[1].count).toBe(1);
   });
+
+  it("sums a pre-deduped finding's occurrence count instead of treating it as 1", () => {
+    const findings = [
+      finding({ nodeName: "X", message: `chain on "X"`, count: 18 }),
+    ];
+
+    const groups = groupFindings(findings);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(18);
+  });
+
+  it("adds occurrence counts across multiple pre-deduped findings in the same group", () => {
+    const findings = [
+      finding({ nodeName: "X", message: `chain on "X"`, count: 3 }),
+      finding({ nodeName: "Y", message: `chain on "Y"`, count: 5 }),
+    ];
+
+    const groups = groupFindings(findings);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(8);
+  });
 });

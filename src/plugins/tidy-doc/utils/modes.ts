@@ -2,17 +2,16 @@
 // and buildModeSection.ts; this file stays plain-data so cross-product/cap
 // behaviour is unit-testable.
 
-export interface ModeFact {
-  modeId: string;
-  name: string;
-}
+import {
+  selectPrimaryCollection,
+  type ModeCollectionFact,
+} from "../../../shared/theme-collection";
 
-export interface ModeCollectionFact {
-  id: string;
-  name: string;
-  defaultModeId: string;
-  modes: ModeFact[];
-}
+export type {
+  ModeFact,
+  ModeCollectionFact,
+} from "../../../shared/theme-collection";
+export { selectPrimaryCollection } from "../../../shared/theme-collection";
 
 export interface ModeSelectionFact {
   collectionId: string;
@@ -28,26 +27,6 @@ export interface ModeShowcaseFact {
 export interface ModeCrossProductResult {
   showcases: ModeShowcaseFact[];
   dropped: number;
-}
-
-// The primary theme collection to drive the Mode Section: the collection with
-// the most modes, tie-broken by derivation order (first wins). Crossing every
-// bound collection (the old behaviour) exploded meaningless combinations — a
-// component bound to a theme collection, a light/dark collection, and a unit
-// (rem/px) collection produced their full cartesian product, and the showcase
-// cap then hid the very variation it was meant to show. A theme collection
-// (brand × scheme) is almost always the widest, so "most modes" picks it and
-// leaves the incidental collections at their default mode.
-export function selectPrimaryCollection(
-  collections: ModeCollectionFact[],
-): ModeCollectionFact | null {
-  let best: ModeCollectionFact | null = null;
-  for (const collection of collections) {
-    if (best === null || collection.modes.length > best.modes.length) {
-      best = collection;
-    }
-  }
-  return best;
 }
 
 // One showcase per mode of the primary collection; every other bound collection

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildModeShowcases,
   modeShowcaseLabel,
-  selectPrimaryCollection,
   type ModeCollectionFact,
 } from "./modes";
 
@@ -39,22 +38,6 @@ const brandTheme: ModeCollectionFact = {
     { modeId: "healthcare-dark", name: "Healthcare Dark" },
   ],
 };
-
-describe("selectPrimaryCollection", () => {
-  it("returns null for no collections", () => {
-    expect(selectPrimaryCollection([])).toBeNull();
-  });
-
-  it("picks the collection with the most modes", () => {
-    expect(selectPrimaryCollection([theme, brandTheme, density])).toBe(
-      brandTheme,
-    );
-  });
-
-  it("tie-breaks by derivation order (first wins)", () => {
-    expect(selectPrimaryCollection([theme, density])).toBe(theme);
-  });
-});
 
 describe("buildModeShowcases", () => {
   it("returns no showcases for no multi-mode collections", () => {

@@ -58,8 +58,9 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
   for (const finding of findings) {
     const key = groupKey(finding);
     const existing = groups.get(key);
+    const count = finding.count ?? 1;
     if (existing) {
-      existing.count += 1;
+      existing.count += count;
       if (SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]) {
         existing.severity = finding.severity;
       }
@@ -67,7 +68,7 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
       groups.set(key, {
         message: redactNodeName(finding),
         severity: finding.severity,
-        count: 1,
+        count,
       });
     }
   }
