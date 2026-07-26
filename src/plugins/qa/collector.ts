@@ -1,9 +1,13 @@
 /// <reference types="@figma/plugin-typings" />
 
 /**
- * Snapshot collector — the ONLY part of the QA engine that touches `figma.*`.
- * Walks a resolved component set once and produces the plain serializable
- * snapshot the pure check functions run against (issue #76).
+ * Snapshot collector: walks a resolved component set once and produces the
+ * plain serializable snapshot the pure check functions run against (issue #76).
+ *
+ * One of exactly two places in the QA engine that touch `figma.*`. The other is
+ * `theme-probe.ts`, which resolves variables per theme mode against a temporary
+ * frame (#17, the ADR-0001 read-only carve-out). Everything under `checks/`
+ * stays pure and fixture-tested.
  */
 
 import { toHex } from "./color";

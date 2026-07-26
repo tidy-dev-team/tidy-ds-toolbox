@@ -335,6 +335,46 @@ describe("checkThemes", () => {
     expect(result.findings).toEqual([]);
   });
 
+  it("fails a binding Figma could not load, rather than dropping it", () => {
+    // getVariableByIdAsync returning null is the broken-remote-variable case.
+    // Discarding it let a set with one dead binding pass on the strength of its
+    // remaining healthy variables.
+    const result = checkThemes(
+      fixture(
+        [[filled("v-dead"), filled("v-ok", "fine")]],
+        theme({
+          variables: { "v-ok": resolved("bg/default", ["m-core", "m-dna"]) },
+          unavailableVariableIds: ["v-dead"],
+        }),
+      ),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toContain("v-dead");
+    expect(result.findings[0].message).toMatch(/could not be loaded/i);
+    // The consuming layer, so "jump to offender" still lands somewhere real.
+    expect(result.findings[0].nodeName).toBe("bg");
+  });
+
+  it("still reports dead bindings when no theme collection could be determined", () => {
+    // Every lookup failed, so there is no bound collection to call the theme
+    // and no modes to evaluate. The dead bindings are the whole story.
+    const result = checkThemes(
+      fixture(
+        [[filled("v-dead")]],
+        theme({
+          collectionId: undefined,
+          collectionName: undefined,
+          modes: [],
+          unavailableVariableIds: ["v-dead"],
+        }),
+      ),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.note).toMatch(/no theme collection could be determined/i);
+  });
+
   it("orders findings deterministically by message", () => {
     const result = checkThemes(
       fixture(

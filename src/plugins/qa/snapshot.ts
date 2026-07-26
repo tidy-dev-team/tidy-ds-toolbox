@@ -199,7 +199,7 @@ export interface ModeResolutionSnapshot {
   type?: string;
   /** COLOR variables only: the resolved colour, for #16 to build contrast on. */
   hex?: string;
-  /** COLOR variables only: resolved alpha, 0–1. */
+  /** COLOR variables only: resolved alpha, 0-1. */
   alpha?: number;
 }
 
@@ -224,12 +224,26 @@ export interface VariableResolutionSnapshot {
  * a theme.
  */
 export interface ThemeSnapshot {
-  /** Which collection was treated as "the theme" (most modes - see shared/theme-collection). */
-  collectionId: string;
-  collectionName: string;
+  /**
+   * Which collection was treated as "the theme" (most modes, see
+   * shared/theme-collection).
+   * Absent when no bound collection could be determined at all, which happens
+   * when every variable the set binds fails to load.
+   */
+  collectionId?: string;
+  collectionName?: string;
   modes: ThemeModeSnapshot[];
-  /** Variable id → per-mode resolution. */
+  /** Variable id to per-mode resolution. */
   variables: Record<string, VariableResolutionSnapshot>;
+  /**
+   * Ids the set binds that Figma could not load at all (#17).
+   * `getVariableByIdAsync` returning null is itself the "broken remote
+   * variable" case the check has to fail on, so these are kept rather than
+   * dropped: discarding them let a set with one dead binding report `pass` on
+   * the strength of its remaining healthy variables.
+   * There is no name to report, so the check falls back to the id.
+   */
+  unavailableVariableIds?: string[];
 }
 
 export interface ComponentSetSnapshot {

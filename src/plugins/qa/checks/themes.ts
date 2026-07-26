@@ -44,10 +44,13 @@ const TITLE = "Themes (per-mode variable resolution)";
 export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   const theme = snapshot.theme;
 
-  // No probe table (no bound variables, or no collection with modes), or a
-  // single-mode collection - which is not a theme, and comparing one mode
-  // against itself would report nothing meaningful.
-  if (!theme || theme.modes.length < 2) {
+  const unavailable = theme?.unavailableVariableIds ?? [];
+
+  // No probe table (no bound variables), or a single-mode collection, which is
+  // not a theme: comparing one mode against itself reports nothing meaningful.
+  // Bindings Figma could not load are the exception, since those are broken
+  // regardless of how many modes exist.
+  if (!theme || (theme.modes.length < 2 && unavailable.length === 0)) {
     return {
       checkId: "themes",
       title: TITLE,
@@ -58,6 +61,25 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
 
   const usage = collectVariableUsage(snapshot);
   const findings: Finding[] = [];
+
+  // Reported once per variable rather than once per mode: a binding that cannot
+  // be loaded at all is broken in every mode, so multiplying it out would add
+  // rows that differ only in a mode name and say nothing new. There is no name
+  // to quote, so the id stands in.
+  for (const variableId of unavailable) {
+    const consumer = usage.get(variableId);
+    findings.push({
+      severity: "high",
+      nodeId: consumer?.nodeId ?? snapshot.id,
+      nodeName: consumer?.nodeName ?? snapshot.name,
+      message: `Bound variable ${variableId} could not be loaded, so it resolves in no mode.`,
+      expected: "a variable that still exists and whose library is available",
+      actual: "the variable could not be loaded at all",
+      suggestedFix:
+        "Re-bind the layer to a live variable, or restore access to the library the deleted one came from.",
+      count: consumer?.count ?? 1,
+    });
+  }
 
   for (const [variableId, variable] of Object.entries(theme.variables)) {
     // A variable the probe resolved but this set never consumes (a style may
@@ -111,7 +133,9 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   // Reported alongside any real failures rather than instead of them: the
   // caveat narrows what the *rest* of the row is worth, so dropping it when
   // something else failed would overstate the remaining green.
-  const pinnedNodes = nodesPinning(snapshot, theme.collectionId);
+  const pinnedNodes = theme.collectionId
+    ? nodesPinning(snapshot, theme.collectionId)
+    : [];
   for (const pinned of pinnedNodes) {
     findings.push({
       severity: "medium",
@@ -128,7 +152,9 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   }
 
   const modeList = theme.modes.map((m) => m.name).join(", ");
-  const note = `Evaluated collection "${theme.collectionName}" across ${theme.modes.length} modes: ${modeList}. The theme collection is picked as the bound collection with the most modes; if that is the wrong collection here, these results describe the wrong axis.`;
+  const note = theme.collectionName
+    ? `Evaluated collection "${theme.collectionName}" across ${theme.modes.length} modes: ${modeList}. The theme collection is picked as the bound collection with the most modes; if that is the wrong collection here, these results describe the wrong axis.`
+    : "No theme collection could be determined: none of the variables this set binds could be loaded, so there were no modes to evaluate against.";
 
   findings.sort((a, b) => a.message.localeCompare(b.message));
 

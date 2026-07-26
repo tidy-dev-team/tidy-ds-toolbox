@@ -69,12 +69,26 @@ export async function probeThemeResolution(
 
   // Memoized by id, so cost scales with unique ids rather than node count.
   const variables = new Map<string, Variable>();
+  const unavailable: string[] = [];
   for (const id of variableIds) {
     if (variables.has(id)) continue;
     const variable = await figma.variables.getVariableByIdAsync(id);
-    if (variable) variables.set(id, variable);
+    if (variable) {
+      variables.set(id, variable);
+    } else {
+      // A binding Figma cannot load: a deleted variable, or a remote one whose
+      // library is unavailable. That is precisely the broken-chain case #17
+      // exists to catch, so the id is kept for the check to fail on.
+      unavailable.push(id);
+    }
   }
-  if (variables.size === 0) return undefined;
+  if (variables.size === 0) {
+    // Nothing resolvable means no bound collection to call "the theme", so the
+    // modes are unknown. The dead bindings are still reported.
+    return unavailable.length > 0
+      ? { modes: [], variables: {}, unavailableVariableIds: unavailable }
+      : undefined;
+  }
 
   const collections = new Map<string, VariableCollection>();
   for (const variable of variables.values()) {
@@ -139,6 +153,7 @@ export async function probeThemeResolution(
     collectionName: primary.name,
     modes: primary.modes.map((m) => ({ modeId: m.modeId, name: m.name })),
     variables: resolved,
+    ...(unavailable.length > 0 ? { unavailableVariableIds: unavailable } : {}),
   };
 }
 

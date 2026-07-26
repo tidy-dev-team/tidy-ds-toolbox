@@ -4,7 +4,7 @@
  * a hex string looks like in a snapshot.
  */
 
-/** Figma's 0–1 RGB channels as an uppercase `#RRGGBB` string (alpha dropped). */
+/** Figma's 0-1 RGB channels as an uppercase `#RRGGBB` string (alpha dropped). */
 export function toHex(color: RGB | RGBA): string {
   const channel = (v: number) =>
     Math.round(v * 255)
