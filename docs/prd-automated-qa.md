@@ -91,10 +91,14 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > (`libraryName` exists only for variable collections; an instance gives you
 > its main component's `key` and `remote` flag, never a file key or library
 > name), so "originating directly from the approved Foundations Library" is not
-> answerable in-plugin. The check therefore fails what is *certainly* not a
-> library instance — raw path geometry alongside other content, and nested
-> instances whose main component is local — passes remote nested instances, and
-> carries the unverifiable-origin caveat in the result's `note` rather than
+> answerable in-plugin. The check therefore **fails** only what is *certainly*
+> not a library instance — raw path geometry alongside other content — and
+> **warns** on a nested instance whose main component is local: a component
+> legitimately built from private sub-components in its own file (Kido's
+> `_elements / …` parts) looks identical here to a stray local copy of an icon,
+> so the row asks the designer to decide rather than asserting a defect and
+> telling her to publish a deliberately private part. Remote nested instances
+> pass, with the unverifiable-origin caveat in the result's `note` rather than
 > implying a guarantee it can't make. An approved-key manifest (and the
 > deprecated-directory rule that depends on it) is deferred to its own ticket,
 > since generating one needs the REST API or a dump run inside the Foundations

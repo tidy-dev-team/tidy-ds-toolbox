@@ -14,15 +14,19 @@
  * The three rules are therefore *negative* detection — things that are
  * definitely not a library instance:
  *
- * 1. Raw path geometry alongside other content → `fail`. Detached paths and
- *    copy-pasted art. Only true path types count (VECTOR, BOOLEAN_OPERATION,
- *    STAR, POLYGON, LINE); RECTANGLE and ELLIPSE are primitives designers
- *    legitimately draw as dividers, backgrounds and dots, so flagging those
- *    would bury the real signal in noise.
+ * 1. Raw path geometry alongside other content → `fail`, the only defect this
+ *    check is certain of. Detached paths and copy-pasted art. Only true path
+ *    types count (VECTOR, BOOLEAN_OPERATION, STAR, POLYGON); LINE, RECTANGLE
+ *    and ELLIPSE are primitives designers legitimately draw as dividers,
+ *    backgrounds and dots, so flagging those would bury the real signal.
  * 2. A nested instance whose main component is local (`remote === false`) →
- *    `fail`. This applies to *every* nested instance, not just icons — a local
- *    nested component inside a library component is a smell whatever it is,
- *    which is why this check needs no "is this an icon?" classifier.
+ *    `warn`, not `fail`. This applies to *every* nested instance, not just
+ *    icons, which is why this check needs no "is this an icon?" classifier —
+ *    but that breadth is exactly why it can't assert a defect. A component
+ *    legitimately built from private sub-components in its own file (Kido's
+ *    `_elements / …` parts) is indistinguishable here from a stray local copy
+ *    of an icon, so the check surfaces it and leaves the judgement to the
+ *    designer instead of telling her to publish a deliberately private part.
  * 3. A remote nested instance → `pass`, with the unverifiable-origin caveat
  *    carried in `note` so the row doesn't read as a stronger guarantee than it
  *    is. No false `fail` on legitimate remote icons.
@@ -56,13 +60,20 @@
 import type { ComponentSetSnapshot, NodeSnapshot } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
 
-/** Rule 1: node types that only exist as drawn/pasted path artwork. */
+/**
+ * Rule 1: node types that only exist as drawn/pasted path artwork.
+ *
+ * `LINE` is deliberately absent, for the same reason `RECTANGLE` and `ELLIPSE`
+ * are: it is the primitive designers reach for to draw a divider or rule, so
+ * flagging it would fail ordinary cards and menus at high severity and bury the
+ * real signal. It still counts as geometry for the exemption below — a line
+ * inside a logo is artwork.
+ */
 const RAW_PATH_TYPES: readonly string[] = [
   "VECTOR",
   "BOOLEAN_OPERATION",
   "STAR",
   "POLYGON",
-  "LINE",
 ];
 
 /**
@@ -72,8 +83,29 @@ const RAW_PATH_TYPES: readonly string[] = [
  */
 const GEOMETRY_LEAF_TYPES: readonly string[] = [
   ...RAW_PATH_TYPES,
+  "LINE",
   "RECTANGLE",
   "ELLIPSE",
+];
+
+/**
+ * Containers that hold nothing. A childless frame — a clip frame, a spacer —
+ * is not artwork, but it is not evidence *against* being an asset either, so
+ * the exemption test ignores it. Counting it as a non-geometry leaf let one
+ * invisible empty frame un-exempt an icon variant and then fail every vector
+ * in it: the exact false positive the exemption exists to prevent.
+ *
+ * INSTANCE is pointedly not in this list. Instance interiors are never
+ * collected, so a nested instance is always childless here, and it must keep
+ * counting as a non-geometry leaf — that is what stops a component with an
+ * icon *slot* from exempting itself.
+ */
+const EMPTY_CONTAINER_TYPES: readonly string[] = [
+  "FRAME",
+  "GROUP",
+  "COMPONENT",
+  "COMPONENT_SET",
+  "SECTION",
 ];
 
 const CAVEAT =
@@ -108,7 +140,7 @@ function tally(
 interface Scan {
   /** Offending raw path layers, keyed by layer name. */
   rawPaths: Map<string, Offender>;
-  /** Local main components, keyed by publish key. */
+  /** Local main components, keyed by owning set (falling back to publish key). */
   localMains: Map<string, Offender>;
   /** Instances whose main component didn't resolve, keyed by layer name. */
   unresolved: Map<string, Offender>;
@@ -137,7 +169,11 @@ function isAssetVariant(root: NodeSnapshot): boolean {
     // INSTANCE interiors are never collected (see the collector), so a nested
     // instance is always a leaf here — and a leaf that is not geometry, which
     // is what stops a set with an icon *slot* from exempting itself.
-    if (node.children.length === 0 && !isRoot) {
+    if (
+      node.children.length === 0 &&
+      !isRoot &&
+      !EMPTY_CONTAINER_TYPES.includes(node.type)
+    ) {
       leaves += 1;
       if (GEOMETRY_LEAF_TYPES.includes(node.type)) geometryLeaves += 1;
     }
@@ -159,7 +195,19 @@ function scanOffenders(node: NodeSnapshot, scan: Scan): void {
     } else if (main.remote) {
       scan.remoteInstanceCount += 1;
     } else {
-      tally(scan.localMains, main.key, main.name, node);
+      // Key and label on the owning *set*, not the variant. An instance's main
+      // component is a variant, so `main.name` is `State=Default` — which names
+      // nothing a designer recognises, and worse, is identical across unrelated
+      // sets: five distinct offenders produced five byte-identical messages,
+      // which `groupFindings` then collapsed into a single canvas row. Keying
+      // on the set also stops one offending set being reported twice because
+      // two of its variants were used.
+      tally(
+        scan.localMains,
+        main.setId ?? main.key,
+        main.setName ?? main.name,
+        node,
+      );
     }
   } else if (RAW_PATH_TYPES.includes(node.type)) {
     tally(scan.rawPaths, node.name, node.name, node);
@@ -227,12 +275,13 @@ export function checkAssetProvenance(
   for (const offender of scan.localMains.values()) {
     findings.push(
       finding(offender, {
-        severity: "high",
-        message: `A nested instance points at local component "${offender.label}", not a library instance.`,
-        expected: "a nested instance from a published library",
+        severity: "medium",
+        message: `Nested instance comes from "${offender.label}", a component in this file rather than a library.`,
+        expected:
+          "a library instance, unless this is deliberately a local part",
         actual: "a local component in this file",
         suggestedFix:
-          "Publish the component to the library (or swap in the Foundations equivalent) and re-point the instance.",
+          "Fine if this is an internal building block. If it should come from Foundations, swap in the library instance.",
       }),
     );
   }
@@ -253,10 +302,13 @@ export function checkAssetProvenance(
   // `not_applicable` when nothing provenance-bearing exists at all: no nested
   // instances, no raw geometry. Nothing was measured, which is a different
   // fact from "measured and it's fine" and must not inflate the pass count.
+  // Only raw geometry is a defect the check is sure of. A local nested
+  // instance and an unresolvable main component are both "look at this" — they
+  // warn, so the row asks for a decision rather than claiming one.
   const status: CheckStatus =
-    scan.rawPaths.size > 0 || scan.localMains.size > 0
+    scan.rawPaths.size > 0
       ? "fail"
-      : scan.unresolved.size > 0
+      : scan.localMains.size > 0 || scan.unresolved.size > 0
         ? "warn"
         : scan.remoteInstanceCount > 0
           ? "pass"

@@ -21,7 +21,7 @@ function node(overrides: Partial<NodeSnapshot>): NodeSnapshot {
 /** A nested instance pointing at a resolvable main component. */
 function instance(
   name: string,
-  main: { key: string; name: string; remote: boolean },
+  main: Omit<NonNullable<NodeSnapshot["mainComponent"]>, "id">,
   overrides: Partial<NodeSnapshot> = {},
 ): NodeSnapshot {
   return node({
@@ -90,15 +90,21 @@ describe("checkAssetProvenance", () => {
     expect(result.findings[0].nodeName).toBe("Vector 12");
   });
 
-  it("fails a nested instance whose main component is local", () => {
+  it("warns, not fails, on a nested instance whose main component is local", () => {
+    // Indistinguishable from a component legitimately built out of private
+    // sub-components in its own file, so the check surfaces it and leaves the
+    // call to the designer rather than asserting a defect.
     const result = checkAssetProvenance(
       fixture([
         [node({ name: "label", type: "TEXT" }), instance("ic", LOCAL_ICON)],
       ]),
     );
-    expect(result.status).toBe("fail");
+    expect(result.status).toBe("warn");
     expect(result.findings).toHaveLength(1);
-    expect(result.findings[0].message).toMatch(/local component/i);
+    expect(result.findings[0].severity).toBe("medium");
+    expect(result.findings[0].message).toMatch(
+      /in this file rather than a library/i,
+    );
     // The message names the main component, not the layer — the count spans
     // usage sites with different layer names.
     expect(result.findings[0].message).toContain("ic-arrow");
@@ -127,7 +133,7 @@ describe("checkAssetProvenance", () => {
   });
 
   it("judges the exemption per variant, so one odd variant doesn't fail the whole icon set", () => {
-    // Three vector-only variants plus one carrying a stray empty frame. Pooling
+    // Three vector-only variants plus one carrying a stray text label. Pooling
     // the leaf tally across the set would un-exempt everything and then fail
     // every vector in the icon — exactly the false positive the exemption is for.
     const iconVariant = () => [
@@ -147,7 +153,7 @@ describe("checkAssetProvenance", () => {
               name: "ic",
               children: [node({ name: "Vector", type: "VECTOR" })],
             }),
-            node({ name: "spacer" }),
+            node({ name: "label", type: "TEXT" }),
           ],
         ],
         "IconCheck",
@@ -158,6 +164,134 @@ describe("checkAssetProvenance", () => {
     expect(result.status).toBe("fail");
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0].count).toBe(1);
+  });
+
+  it("still exempts an asset variant that contains an empty container frame", () => {
+    // A clip frame or spacer holds nothing. Treating it as a non-geometry leaf
+    // un-exempted the variant and then failed every vector inside it.
+    const result = checkAssetProvenance(
+      fixture(
+        [
+          [
+            node({ name: "clip" }),
+            node({
+              name: "ic",
+              children: [node({ name: "Vector", type: "VECTOR" })],
+            }),
+          ],
+        ],
+        "IconCheck",
+      ),
+    );
+    expect(result.status).toBe("not_applicable");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("does not fail a drawn divider LINE, but still counts it as artwork", () => {
+    // A LINE is the divider primitive, exactly like RECTANGLE — flagging it
+    // would fail ordinary cards. Inside a real component: not a finding.
+    const inComponent = checkAssetProvenance(
+      fixture([
+        [
+          node({ name: "label", type: "TEXT" }),
+          node({ name: "rule", type: "LINE" }),
+        ],
+      ]),
+    );
+    expect(inComponent.status).toBe("not_applicable");
+    expect(inComponent.findings).toEqual([]);
+
+    // Inside a logo built from lines and vectors: still pure artwork, so the
+    // asset exemption applies rather than the variant being scanned.
+    const asAsset = checkAssetProvenance(
+      fixture(
+        [
+          [
+            node({ name: "bar", type: "LINE" }),
+            node({ name: "Vector", type: "VECTOR" }),
+          ],
+        ],
+        "Logo",
+      ),
+    );
+    expect(asAsset.status).toBe("not_applicable");
+    expect(asAsset.findings).toEqual([]);
+  });
+
+  it("names the offending component's owning set, not the variant", () => {
+    // An instance's main component is the *variant*, so labelling with its own
+    // name reads as "State=Default" — identical across unrelated sets, which
+    // both hides which component is at fault and lets the canvas grouping
+    // collapse distinct offenders into one row.
+    const result = checkAssetProvenance(
+      fixture([
+        [
+          instance("DropdownItem1", {
+            key: "k1",
+            name: "State=Default",
+            setId: "set-1",
+            setName: "_elements / DesktopItems",
+            remote: false,
+          }),
+          instance("Person1", {
+            key: "k2",
+            name: "State=Default",
+            setId: "set-2",
+            setName: "_elements / PersonSelectorStates",
+            remote: false,
+          }),
+        ],
+      ]),
+    );
+
+    expect(result.status).toBe("warn");
+    expect(result.findings).toHaveLength(2);
+    const messages = result.findings.map((f) => f.message);
+    expect(messages.some((m) => m.includes("_elements / DesktopItems"))).toBe(
+      true,
+    );
+    expect(
+      messages.some((m) => m.includes("_elements / PersonSelectorStates")),
+    ).toBe(true);
+    // Distinct messages, so grouping can't merge them.
+    expect(new Set(messages).size).toBe(2);
+  });
+
+  it("reports one finding per offending set even when several of its variants are used", () => {
+    const result = checkAssetProvenance(
+      fixture([
+        [
+          instance("item", {
+            key: "k-default",
+            name: "State=Default",
+            setId: "set-1",
+            setName: "_elements / DesktopItems",
+            remote: false,
+          }),
+          instance("item", {
+            key: "k-hover",
+            name: "State=Hover",
+            setId: "set-1",
+            setName: "_elements / DesktopItems",
+            remote: false,
+          }),
+        ],
+      ]),
+    );
+
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].count).toBe(2);
+    expect(result.findings[0].message).toContain("_elements / DesktopItems");
+  });
+
+  it("falls back to the component's own name when it has no owning set", () => {
+    const result = checkAssetProvenance(
+      fixture([
+        [instance("ic", { key: "solo", name: "ic-arrow", remote: false })],
+      ]),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toContain("ic-arrow");
   });
 
   it("exempts a mixed-geometry illustration (vectors plus primitives)", () => {
@@ -212,7 +346,7 @@ describe("checkAssetProvenance", () => {
         ],
       ]),
     );
-    expect(result.status).toBe("fail");
+    expect(result.status).toBe("warn");
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0].count).toBe(3);
     // One representative node, the first occurrence.
@@ -235,6 +369,8 @@ describe("checkAssetProvenance", () => {
   });
 
   it("reports the mixed case: raw vector and a local instance together", () => {
+    // Raw geometry is the only certain defect, so it drives the fail status
+    // even though the local-instance finding alongside it is only a warning.
     const result = checkAssetProvenance(
       fixture([
         [
@@ -251,7 +387,7 @@ describe("checkAssetProvenance", () => {
       /raw vector/i,
     );
     expect(result.findings.map((f) => f.message).join(" ")).toMatch(
-      /local component/i,
+      /in this file rather than a library/i,
     );
     // A remote instance was still seen, so the caveat still applies.
     expect(result.note).toBeDefined();

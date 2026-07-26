@@ -66,11 +66,24 @@ export interface NodeSnapshot {
   mainComponent?: {
     id: string;
     /**
-     * Publish key — stable across files, so it is the dedupe key for "one
-     * finding per offending main component" (#8).
+     * Publish key — stable across files. Identifies the *variant*, so it is
+     * only the dedupe key for a component with no owning set (#8).
      */
     key: string;
+    /**
+     * The variant's own name, e.g. `State=Default`. Rarely what a reader
+     * wants on its own — see `setName`.
+     */
     name: string;
+    /**
+     * Owning component set, when the main component is a variant. An
+     * instance's main component is the *variant*, so `name` alone reads as
+     * `State=Default` and identifies nothing; the set is the thing a designer
+     * recognises, and the thing findings dedupe on (#8). Absent for a
+     * standalone component, where `name` is already the identity.
+     */
+    setId?: string;
+    setName?: string;
     /** Whether the component lives in another (published) file. */
     remote: boolean;
   };

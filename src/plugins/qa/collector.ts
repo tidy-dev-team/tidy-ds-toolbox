@@ -76,10 +76,12 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     // captured (#14 nesting depth).
     const main = node.mainComponent;
     if (main) {
+      const set = main.parent?.type === "COMPONENT_SET" ? main.parent : null;
       snap.mainComponent = {
         id: main.id,
         key: main.key,
         name: main.name,
+        ...(set ? { setId: set.id, setName: set.name } : {}),
         remote: main.remote,
       };
     }
