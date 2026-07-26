@@ -58,7 +58,7 @@ const PRD_ITEMS: ReadonlyArray<{
   { n: 13, title: "No Conflicts", tier: 1, checkId: "no-conflicts" },
   {
     n: 14,
-    title: "Easy to Use (Nested Components)",
+    title: "Nested Instance Depth",
     tier: 2,
     checkId: "nesting-depth",
   },
@@ -91,6 +91,15 @@ describe("CHECKLIST_CATALOGUE", () => {
         checkId: item.checkId,
       })),
     ).toEqual(PRD_ITEMS);
+  });
+
+  it("gives every item a distinct, non-empty blurb", () => {
+    const blurbs = CHECKLIST_CATALOGUE.map((item) => item.blurb);
+    for (const blurb of blurbs) {
+      expect(blurb.trim().length).toBeGreaterThan(0);
+    }
+    // Duplicates would mean a row explains itself with someone else's line.
+    expect(new Set(blurbs).size).toBe(19);
   });
 
   it("gives every automated item a unique checkId, tiered 1 or 2", () => {

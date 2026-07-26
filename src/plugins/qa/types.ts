@@ -85,7 +85,7 @@ export const CHECKS: readonly CheckDefinition[] = [
   {
     id: "nesting-depth",
     prdSection: 14,
-    title: "Easy to use (nested components)",
+    title: "Nested instance depth",
   },
 ];
 
@@ -105,6 +105,8 @@ export type ItemStatus =
 export interface ChecklistItem {
   n: number;
   title: string;
+  /** One-line plain-language description of what the item checks. */
+  blurb: string;
   tier: 1 | 2 | null;
   checkId?: CheckId;
   automated: boolean;

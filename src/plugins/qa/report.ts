@@ -90,6 +90,7 @@ export function buildChecklistReport(
     return {
       n: entry.n,
       title: entry.title,
+      blurb: entry.blurb,
       tier: entry.tier,
       checkId: entry.checkId,
       automated,

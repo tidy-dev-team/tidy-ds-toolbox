@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { selectPrimaryCollection, type ModeCollectionFact } from "./theme-collection";
+import {
+  selectPrimaryCollection,
+  type ModeCollectionFact,
+} from "./theme-collection";
 
 const theme: ModeCollectionFact = {
   id: "collection-theme",
