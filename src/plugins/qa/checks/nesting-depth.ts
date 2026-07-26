@@ -1,14 +1,18 @@
 /**
- * #14 — Easy to use (nested components). Flags exposed nested-instance
+ * #14 — Nested instance depth. Flags exposed nested-instance
  * chains that surface too many levels of properties in the parent
  * configuration panel — the "messy right-hand panel" complaint from the PRD.
  *
  * Depth counts real panel levels: the exposing INSTANCE node itself is level
- * 1, and each further level of exposed nesting beneath it adds one more. A
- * component with deep internal nesting but nothing exposed passes — and so
- * does a container whose own `isExposedInstance` is false, however deep its
- * `exposedInstances` side-tree goes: an unexposed container's properties
- * (and everything beneath it) never reach the parent panel at all.
+ * 1, and each further level of exposed nesting beneath it adds one more.
+ *
+ * A component with deep internal nesting but nothing exposed is
+ * `not_applicable`, not `pass` — nothing reached the panel, so nothing was
+ * measured. Same for a container whose own `isExposedInstance` is false,
+ * however deep its `exposedInstances` side-tree goes: an unexposed
+ * container's properties (and everything beneath it) never surface in the
+ * parent panel at all. `pass` is reserved for "chains exist and are shallow
+ * enough", which is the only case where the depth arithmetic actually ran.
  *
  * `InstanceNode.exposedInstances` is flattened by Figma — every exposed
  * descendant at any depth, not just direct children — so the snapshot's flat
@@ -33,7 +37,7 @@ import type {
   ExposedInstanceSnapshot,
   NodeSnapshot,
 } from "../snapshot";
-import type { CheckResult, Finding } from "../types";
+import type { CheckResult, CheckStatus, Finding } from "../types";
 import { NESTING_DEPTH_WARN_THRESHOLD } from "../qa-config";
 
 interface Chain {
@@ -99,25 +103,30 @@ function descend(
 }
 
 function walk(node: NodeSnapshot, chains: Chain[]): void {
-  // A container that isn't itself exposed to its parent's panel contributes
-  // nothing there, however deep its own exposedInstances side-tree goes.
-  if (
-    node.isExposedInstance &&
-    node.exposedInstances &&
-    node.exposedInstances.length > 0
-  ) {
-    const byId = new Map(node.exposedInstances.map((e) => [e.id, e]));
-    const topIds = node.exposedInstances.map((e) => e.id);
-    descend(byId, topIds, [node.name], node.id, chains);
+  // An exposed instance is itself one panel level, whether or not it exposes
+  // anything further. Keying off `exposedInstances` alone would miss the
+  // commonest shape entirely — a single exposed slot with nothing beneath it
+  // surfaces one nested property group in the panel, and reporting that as
+  // "nothing exposed" is wrong even though it can never breach the threshold.
+  //
+  // A container that isn't itself exposed contributes nothing to its parent's
+  // panel, however deep its own exposedInstances side-tree goes.
+  if (node.isExposedInstance) {
+    const exposed = node.exposedInstances ?? [];
+    if (exposed.length === 0) {
+      chains.push({ path: [node.name], depth: 1, nodeId: node.id });
+    } else {
+      const byId = new Map(exposed.map((e) => [e.id, e]));
+      const topIds = exposed.map((e) => e.id);
+      descend(byId, topIds, [node.name], node.id, chains);
+    }
   }
   for (const child of node.children) {
     walk(child, chains);
   }
 }
 
-export function checkNestingDepth(
-  snapshot: ComponentSetSnapshot,
-): CheckResult {
+export function checkNestingDepth(snapshot: ComponentSetSnapshot): CheckResult {
   const byPath = new Map<string, { chain: Chain; count: number }>();
 
   for (const variant of snapshot.variants) {
@@ -151,10 +160,22 @@ export function checkNestingDepth(
 
   findings.sort((a, b) => a.message.localeCompare(b.message));
 
+  // `not_applicable` when the set surfaces no exposed nested instances at all
+  // — there was nothing to measure, which is a different fact from "measured
+  // and it's fine" and shouldn't inflate the pass count. It's also the only
+  // signal distinguishing the two on canvas: N/A means nothing reaches the
+  // configuration panel, `pass` means chains exist and are shallow enough.
+  const status: CheckStatus =
+    findings.length > 0
+      ? "warn"
+      : byPath.size === 0
+        ? "not_applicable"
+        : "pass";
+
   return {
     checkId: "nesting-depth",
-    title: "Easy to use (nested components)",
-    status: findings.length > 0 ? "warn" : "pass",
+    title: "Nested instance depth",
+    status,
     findings,
   };
 }
