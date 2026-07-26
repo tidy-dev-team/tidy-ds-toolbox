@@ -5,9 +5,13 @@
  * off grid" repeated per offending layer) — grouping collapses those into one
  * line with a count, ordered by severity, so the rendered row stays legible.
  *
- * Findings are grouped by their message with any quoted node name blanked
- * out, plus expected/actual — a generic key that works across all checks
- * without each check having to declare its own grouping kind.
+ * Findings are grouped by their message with the finding's own node name
+ * blanked out, plus expected/actual — a generic key that works across all
+ * checks without each check having to declare its own grouping kind.
+ *
+ * Only the node name is redacted (not every quoted span), so fixed literals a
+ * message quotes — e.g. the `"Also known as:"` line name in the description
+ * check — stay visible instead of collapsing to `"…"`.
  */
 
 import type { Finding, SeverityLevel } from "./types";
@@ -26,15 +30,19 @@ const SEVERITY_RANK: Record<SeverityLevel, number> = {
   low: 1,
 };
 
-function redactQuoted(message: string): string {
-  return message.replace(/"[^"]*"/g, '"…"');
+// Blanks the finding's own quoted node name so per-node repeats collapse into
+// one line, while leaving any other quoted text (fixed literals like the
+// `"Also known as:"` line name) untouched.
+function redactNodeName(finding: Finding): string {
+  if (!finding.nodeName) return finding.message;
+  return finding.message.split(`"${finding.nodeName}"`).join('"…"');
 }
 
 function groupKey(finding: Finding): string {
   // JSON-encoded so the parts stay unambiguous even if a message contains
   // whatever plain separator we'd otherwise join on.
   return JSON.stringify([
-    redactQuoted(finding.message),
+    redactNodeName(finding),
     finding.expected ?? "",
     finding.actual ?? "",
   ]);
@@ -57,7 +65,7 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
       }
     } else {
       groups.set(key, {
-        message: redactQuoted(finding.message),
+        message: redactNodeName(finding),
         severity: finding.severity,
         count: 1,
       });
