@@ -97,19 +97,14 @@ describe("checkNoConflicts", () => {
     expect(result.checkId).toBe("no-conflicts");
     expect(result.status).toBe("fail");
     expect(result.findings).toHaveLength(2);
-    expect(result.findings.map((f) => f.nodeId).sort()).toEqual([
-      "2:2",
-      "2:3",
-    ]);
+    expect(result.findings.map((f) => f.nodeId).sort()).toEqual(["2:2", "2:3"]);
     expect(result.findings[0]).toMatchObject({
       nodeName: "Size=Medium, Variant=Primary, State=Default",
     });
   });
 
   it("passes a standalone component with no variants (not_applicable)", () => {
-    const result = checkNoConflicts(
-      fixture("3:1", "Icon", "COMPONENT", []),
-    );
+    const result = checkNoConflicts(fixture("3:1", "Icon", "COMPONENT", []));
     expect(result.checkId).toBe("no-conflicts");
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);

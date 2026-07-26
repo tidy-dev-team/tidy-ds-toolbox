@@ -204,7 +204,13 @@ export async function renderChecklist(
   const rows = buildAutoLayoutFrame("rows", "VERTICAL", 0, 0, 0);
   rows.layoutAlign = "STRETCH";
   for (const item of report.items) {
-    const itemBlock = buildAutoLayoutFrame(`item-${item.n}`, "VERTICAL", 0, 12, 8);
+    const itemBlock = buildAutoLayoutFrame(
+      `item-${item.n}`,
+      "VERTICAL",
+      0,
+      12,
+      8,
+    );
     itemBlock.layoutAlign = "STRETCH";
     itemBlock.strokes = [{ type: "SOLID", color: hexToRgb(ROW_BORDER) }];
     itemBlock.strokeTopWeight = 1;
@@ -215,7 +221,13 @@ export async function renderChecklist(
       fill(itemBlock, MANUAL_TINT);
     }
 
-    const row = buildAutoLayoutFrame(`item-${item.n}-header`, "HORIZONTAL", 0, 0, 12);
+    const row = buildAutoLayoutFrame(
+      `item-${item.n}-header`,
+      "HORIZONTAL",
+      0,
+      0,
+      12,
+    );
     row.layoutAlign = "STRETCH";
     row.counterAxisAlignItems = "CENTER";
 
@@ -257,7 +269,12 @@ export async function renderChecklist(
       const overflow = groups.length - MAX_FINDING_GROUPS;
       if (overflow > 0) {
         findingsBlock.appendChild(
-          text(`+${overflow} more finding kind${overflow === 1 ? "" : "s"}…`, 11, FONT_REGULAR, MUTED),
+          text(
+            `+${overflow} more finding kind${overflow === 1 ? "" : "s"}…`,
+            11,
+            FONT_REGULAR,
+            MUTED,
+          ),
         );
       }
       itemBlock.appendChild(findingsBlock);

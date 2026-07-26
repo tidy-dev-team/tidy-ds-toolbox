@@ -15,9 +15,7 @@ function comboKey(variantProperties: Record<string, string>): string {
     .join(", ");
 }
 
-export function checkNoConflicts(
-  snapshot: ComponentSetSnapshot,
-): CheckResult {
+export function checkNoConflicts(snapshot: ComponentSetSnapshot): CheckResult {
   if (snapshot.variants.length <= 1) {
     return {
       checkId: "no-conflicts",

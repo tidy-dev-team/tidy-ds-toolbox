@@ -50,7 +50,11 @@ export function checkInteractionHoverOnly(
   return {
     checkId: "interaction-hover-only",
     title: "Interaction (hover-only)",
-    status: !sawReaction ? "not_applicable" : findings.length > 0 ? "fail" : "pass",
+    status: !sawReaction
+      ? "not_applicable"
+      : findings.length > 0
+        ? "fail"
+        : "pass",
     findings,
   };
 }

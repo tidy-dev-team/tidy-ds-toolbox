@@ -102,7 +102,10 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
         "no target and nothing selected — select a component/component set/instance, or pass a nodeId or name",
       );
     }
-    return { subject: await subjectFromNode(selection[0]), origin: selection[0] };
+    return {
+      subject: await subjectFromNode(selection[0]),
+      origin: selection[0],
+    };
   }
 
   // name / glob path
@@ -154,7 +157,11 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
  */
 async function runQa(
   params: QaRunParams,
-): Promise<{ subject: QaSubject; origin: SceneNode | null; result: QaRunResult }> {
+): Promise<{
+  subject: QaSubject;
+  origin: SceneNode | null;
+  result: QaRunResult;
+}> {
   if (params.checks) {
     const unknown = unknownCheckIds(params.checks);
     if (unknown.length > 0) {

@@ -174,8 +174,12 @@ describe("buildChecklistReport", () => {
     });
     // 3 automated resolved + 1 not_implemented + remaining automated = not_run
     // + all manual items
-    const manualCount = report.items.filter((i) => i.status === "manual").length;
-    const notRunCount = report.items.filter((i) => i.status === "not_run").length;
+    const manualCount = report.items.filter(
+      (i) => i.status === "manual",
+    ).length;
+    const notRunCount = report.items.filter(
+      (i) => i.status === "not_run",
+    ).length;
     expect(report.counts).toEqual({
       pass: 1,
       warn: 1,

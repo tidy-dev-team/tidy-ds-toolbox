@@ -28,7 +28,11 @@ function node(
   };
 }
 
-function variant(id: string, name: string, tree: NodeSnapshot): VariantSnapshot {
+function variant(
+  id: string,
+  name: string,
+  tree: NodeSnapshot,
+): VariantSnapshot {
   return { id, name, variantProperties: {}, tree };
 }
 

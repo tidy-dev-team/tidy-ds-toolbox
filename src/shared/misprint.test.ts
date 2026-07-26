@@ -12,9 +12,7 @@ describe("createMisprintText", () => {
   });
 
   it("leaves characters with no mapping unchanged", () => {
-    expect(createMisprintText("Button 1")).toBe(
-      `${MISPRINT_MARKER} נואאםמ 1`,
-    );
+    expect(createMisprintText("Button 1")).toBe(`${MISPRINT_MARKER} נואאםמ 1`);
   });
 });
 
@@ -33,26 +31,23 @@ describe("parseMisprintMarker — presence (tolerant)", () => {
   });
 
   it("is case-insensitive on the 'misprint:' label", () => {
-    expect(
-      parseMisprintMarker("Misprint: נואאםמ", expected).present,
-    ).toBe(true);
-    expect(
-      parseMisprintMarker("---- MISPRINT: נואאםמ", expected).present,
-    ).toBe(true);
+    expect(parseMisprintMarker("Misprint: נואאםמ", expected).present).toBe(
+      true,
+    );
+    expect(parseMisprintMarker("---- MISPRINT: נואאםמ", expected).present).toBe(
+      true,
+    );
   });
 
   it("tolerates dash-prefix variance (fewer/more/no dashes)", () => {
     expect(parseMisprintMarker("misprint: נואאםמ", expected).present).toBe(
       true,
     );
+    expect(parseMisprintMarker("-- misprint: נואאםמ", expected).present).toBe(
+      true,
+    );
     expect(
-      parseMisprintMarker("-- misprint: נואאםמ", expected).present,
-    ).toBe(true);
-    expect(
-      parseMisprintMarker(
-        "---------- misprint: נואאםמ",
-        expected,
-      ).present,
+      parseMisprintMarker("---------- misprint: נואאםמ", expected).present,
     ).toBe(true);
   });
 
@@ -78,10 +73,7 @@ describe("parseMisprintMarker — correctness (strict on payload)", () => {
   });
 
   it("correct:false when the payload is hand-edited / wrong", () => {
-    const r = parseMisprintMarker(
-      `${MISPRINT_MARKER} zzz`,
-      "Button",
-    );
+    const r = parseMisprintMarker(`${MISPRINT_MARKER} zzz`, "Button");
     expect(r).toMatchObject({
       present: true,
       correct: false,
@@ -91,10 +83,7 @@ describe("parseMisprintMarker — correctness (strict on payload)", () => {
   });
 
   it("ignores trailing whitespace when comparing payloads", () => {
-    const r = parseMisprintMarker(
-      `${MISPRINT_MARKER} נואאםמ   `,
-      "Button",
-    );
+    const r = parseMisprintMarker(`${MISPRINT_MARKER} נואאםמ   `, "Button");
     expect(r.correct).toBe(true);
   });
 });

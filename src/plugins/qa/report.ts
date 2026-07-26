@@ -58,7 +58,8 @@ export function buildChecklistReport(
         // that never actually validated anything.
         status = engine.status;
         // Findings are only meaningful for warn/fail; pass/not_applicable carry none.
-        findings = status === "warn" || status === "fail" ? engine.findings : [];
+        findings =
+          status === "warn" || status === "fail" ? engine.findings : [];
       } else if (notImplemented.has(entry.checkId)) {
         status = "not_implemented";
       } else {

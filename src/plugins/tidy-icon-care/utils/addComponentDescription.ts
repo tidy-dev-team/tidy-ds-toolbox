@@ -1,4 +1,12 @@
-import { keyboardsMap } from "./descriptionData";
+/**
+ * Marker format, scrambling and detection come from `shared/misprint` (issue
+ * #98) — the single source of truth shared with the Misprint utility and the
+ * QA `description` check, so all three stay in lockstep with the format.
+ */
+import {
+  createMisprintText,
+  parseMisprintMarker,
+} from "../../../shared/misprint";
 
 const STATUSES = [
   "🟣 To do",
@@ -30,13 +38,8 @@ export function addComponentDescription(
   } = options;
 
   elements.forEach((element) => {
-    const scrambled = element.name
-      .split("")
-      .map((char) => keyboardsMap[char] ?? char)
-      .join("");
-
     let guidelines = `📝This element **${element.name}** is used for...\n🎨 #${hexColor}`;
-    let misprint = `---------------------------------------------------- misprint: ${scrambled}`;
+    let misprint = createMisprintText(element.name);
 
     if (!includeMisprint) {
       misprint = "";
@@ -109,8 +112,11 @@ function applyDescription(
   }
 
   if (includeMisprint && misprint) {
-    const misprintIndex = descriptionLines.findIndex((line) =>
-      line.startsWith("-"),
+    // Match on the marker itself (tolerant of prefix/casing) rather than any
+    // leading dash, so a plain `- bullet` line isn't mistaken for a misprint
+    // and overwritten.
+    const misprintIndex = descriptionLines.findIndex(
+      (line) => parseMisprintMarker(line, element.name).present,
     );
     if (misprintIndex >= 0) {
       descriptionLines.splice(misprintIndex, 1, misprint);
