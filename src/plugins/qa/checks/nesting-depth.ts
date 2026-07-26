@@ -5,7 +5,10 @@
  *
  * Depth counts real panel levels: the exposing INSTANCE node itself is level
  * 1, and each further level of exposed nesting beneath it adds one more. A
- * component with deep internal nesting but nothing exposed passes.
+ * component with deep internal nesting but nothing exposed passes — and so
+ * does a container whose own `isExposedInstance` is false, however deep its
+ * `exposedInstances` side-tree goes: an unexposed container's properties
+ * (and everything beneath it) never reach the parent panel at all.
  *
  * `InstanceNode.exposedInstances` is flattened by Figma — every exposed
  * descendant at any depth, not just direct children — so the snapshot's flat
@@ -71,24 +74,41 @@ function descend(
   byId: Map<string, ExposedInstanceSnapshot>,
   candidateIds: readonly string[],
   path: string[],
+  parentNodeId: string,
   chains: Chain[],
 ): void {
   const children = directChildren(byId, candidateIds);
+  if (children.length === 0) {
+    // Exposure is documented as fully transitive (`InstanceNode.exposedInstances`
+    // inherits downward), so every id here should resolve. If one doesn't —
+    // stale snapshot, API surprise — report the chain as far as it's known
+    // rather than silently dropping an already-established prefix.
+    if (candidateIds.length > 0) {
+      chains.push({ path, depth: path.length, nodeId: parentNodeId });
+    }
+    return;
+  }
   for (const entry of children) {
     const here = [...path, entry.name];
     if (entry.exposedInstanceIds.length === 0) {
       chains.push({ path: here, depth: here.length, nodeId: entry.id });
     } else {
-      descend(byId, entry.exposedInstanceIds, here, chains);
+      descend(byId, entry.exposedInstanceIds, here, entry.id, chains);
     }
   }
 }
 
 function walk(node: NodeSnapshot, chains: Chain[]): void {
-  if (node.exposedInstances && node.exposedInstances.length > 0) {
+  // A container that isn't itself exposed to its parent's panel contributes
+  // nothing there, however deep its own exposedInstances side-tree goes.
+  if (
+    node.isExposedInstance &&
+    node.exposedInstances &&
+    node.exposedInstances.length > 0
+  ) {
     const byId = new Map(node.exposedInstances.map((e) => [e.id, e]));
     const topIds = node.exposedInstances.map((e) => e.id);
-    descend(byId, topIds, [node.name], chains);
+    descend(byId, topIds, [node.name], node.id, chains);
   }
   for (const child of node.children) {
     walk(child, chains);

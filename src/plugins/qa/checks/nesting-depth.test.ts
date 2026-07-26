@@ -57,6 +57,7 @@ describe("checkNestingDepth", () => {
     // this the same as the deeper case: Icon.exposedInstances = [Fill].
     const tree = baseTree("1:2", {
       name: "Icon",
+      isExposedInstance: true,
       exposedInstances: [entry("1:2-fill", "Fill")],
     });
     const result = checkNestingDepth(fixture([tree]));
@@ -71,6 +72,7 @@ describe("checkNestingDepth", () => {
     // Glyph is Fill's direct child, not Icon's.
     const tree = baseTree("1:3", {
       name: "Icon",
+      isExposedInstance: true,
       exposedInstances: [
         entry("1:3-fill", "Fill", ["1:3-glyph"]),
         entry("1:3-glyph", "Glyph"),
@@ -93,6 +95,7 @@ describe("checkNestingDepth", () => {
     // Only A is Icon's real direct child; B and C must resolve under A > B.
     const tree = baseTree("1:6", {
       name: "Icon",
+      isExposedInstance: true,
       exposedInstances: [
         entry("1:6-a", "A", ["1:6-b", "1:6-c"]),
         entry("1:6-b", "B", ["1:6-c"]),
@@ -107,11 +110,61 @@ describe("checkNestingDepth", () => {
     expect(result.findings[0].actual).toBe("4 levels");
   });
 
+  it("passes when the container itself isn't exposed, even if its own internal chain would otherwise warn", () => {
+    // Icon is NOT exposed to Button's panel — Button's panel shows nothing
+    // from Icon, regardless of how deep Icon's own exposedInstances side-tree
+    // (Fill > Glyph, an internal detail of Icon's own component) goes.
+    const tree = baseTree("1:7", {
+      name: "Icon",
+      isExposedInstance: false,
+      exposedInstances: [
+        entry("1:7-fill", "Fill", ["1:7-glyph"]),
+        entry("1:7-glyph", "Glyph"),
+      ],
+    });
+    const result = checkNestingDepth(fixture([tree]));
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("reports the established prefix instead of dropping it when a descendant id doesn't resolve", () => {
+    // Icon > A is real; A claims to expose "1:8-missing", an id absent from
+    // the flattened list — a stale snapshot or API surprise the documented
+    // "fully transitive" exposure shouldn't produce, but the chain should
+    // still surface Icon > A rather than vanish silently.
+    const tree = baseTree("1:8", {
+      name: "Icon",
+      isExposedInstance: true,
+      exposedInstances: [entry("1:8-a", "A", ["1:8-missing"])],
+    });
+    const result = checkNestingDepth(fixture([tree]));
+    expect(result.status).toBe("pass"); // "Icon > A" is only 2 levels deep
+    expect(result.findings).toEqual([]);
+  });
+
+  it("warns with the established prefix (not silently dropped) when the unresolved id would push depth over threshold", () => {
+    const tree = baseTree("1:9", {
+      name: "Icon",
+      isExposedInstance: true,
+      exposedInstances: [
+        entry("1:9-a", "A", ["1:9-b"]),
+        entry("1:9-b", "B", ["1:9-missing"]),
+      ],
+    });
+    const result = checkNestingDepth(fixture([tree]));
+    expect(result.status).toBe("warn");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toContain("Icon > A > B");
+    expect(result.findings[0].nodeId).toBe("1:9-b");
+    expect(result.findings[0].actual).toBe("3 levels");
+  });
+
   it("emits one finding per unique chain across multiple distinct chains", () => {
     const tree = baseTree("1:4", {
       children: [
         baseTree("1:4-a", {
           name: "SlotA",
+          isExposedInstance: true,
           exposedInstances: [
             entry("1:4-a-fill", "Fill", ["1:4-a-glyph"]),
             entry("1:4-a-glyph", "Glyph"),
@@ -119,6 +172,7 @@ describe("checkNestingDepth", () => {
         }),
         baseTree("1:4-b", {
           name: "SlotB",
+          isExposedInstance: true,
           exposedInstances: [
             entry("1:4-b-image", "Image", ["1:4-b-crop"]),
             entry("1:4-b-crop", "Crop"),
@@ -135,6 +189,7 @@ describe("checkNestingDepth", () => {
     const makeVariant = (id: string) =>
       baseTree(id, {
         name: "Icon",
+        isExposedInstance: true,
         exposedInstances: [
           entry(`${id}-fill`, "Fill", [`${id}-glyph`]),
           entry(`${id}-glyph`, "Glyph"),

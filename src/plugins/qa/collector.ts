@@ -74,6 +74,7 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     // guts belong to the source component (#8 handles provenance). Only the
     // exposed-instance side-tree is captured (#14 nesting depth).
     snap.mainComponentId = node.mainComponent?.id;
+    snap.isExposedInstance = node.isExposedInstance;
     if (node.exposedInstances.length > 0) {
       snap.exposedInstances = node.exposedInstances.map(
         snapshotExposedInstance,

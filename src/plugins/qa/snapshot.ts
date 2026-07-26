@@ -53,7 +53,13 @@ export interface NodeSnapshot {
   children: NodeSnapshot[];
   /** INSTANCE nodes only: the main component this instance points to. */
   mainComponentId?: string;
-  /** INSTANCE nodes only: recursive exposed-instance side-tree (#14). */
+  /**
+   * INSTANCE nodes only: whether this instance itself is exposed to its
+   * containing component's panel (#14). When false, none of its exposed
+   * descendants surface there either, however deep `exposedInstances` goes.
+   */
+  isExposedInstance?: boolean;
+  /** INSTANCE nodes only: flattened exposed-instance list (#14). */
   exposedInstances?: ExposedInstanceSnapshot[];
 
   // --- paints & styles (#5 tokens) ---
