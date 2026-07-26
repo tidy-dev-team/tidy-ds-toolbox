@@ -430,12 +430,16 @@ describe("checkHighContrast", () => {
     expect(result.findings[0].message).toContain("normal text");
   });
 
-  it("reports no text layers at all as not applicable", () => {
+  it("reports no text layers at all as not applicable, and says why", () => {
+    // A not-applicable row carries no findings, so without a note it renders
+    // blank and the reader cannot tell it from a broken or skipped check.
     const result = checkHighContrast(
       fixture([node({ fills: [solid("#FFFFFF")] })]),
     );
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    expect(result.note).toContain("no text layers of its own");
+    expect(result.note).toContain("nested instance");
   });
 
   it("ignores hidden layers and hidden subtrees", () => {
@@ -450,6 +454,65 @@ describe("checkHighContrast", () => {
       ]),
     );
     expect(result.status).toBe("not_applicable");
+  });
+});
+
+describe("checkHighContrast and disabled variants", () => {
+  /** Same failing pair in every variant, with the given variant properties. */
+  function withProperties(
+    properties: Record<string, string>[],
+  ): ComponentSetSnapshot {
+    const base = fixture(
+      properties.map(() =>
+        surface("#FFFFFF", text({ fills: [solid("#999999")] })),
+      ),
+    );
+    return {
+      ...base,
+      variants: base.variants.map((v, i) => ({
+        ...v,
+        variantProperties: properties[i],
+      })),
+    };
+  }
+
+  it("does not evaluate a State=Disabled variant", () => {
+    // WCAG exempts inactive controls, so a faded disabled state is not a defect
+    // and reporting it fills the row with failures nobody can fix.
+    const result = checkHighContrast(withProperties([{ State: "Disabled" }]));
+    expect(result.status).toBe("not_applicable");
+    expect(result.note).toContain("every variant here is a disabled state");
+  });
+
+  it("does not evaluate a Disabled=True boolean variant", () => {
+    const result = checkHighContrast(withProperties([{ Disabled: "True" }]));
+    expect(result.status).toBe("not_applicable");
+  });
+
+  it("still evaluates a variant whose Disabled boolean is off", () => {
+    const result = checkHighContrast(withProperties([{ Disabled: "False" }]));
+    expect(result.status).toBe("fail");
+  });
+
+  it("evaluates the active variants and counts the disabled ones in the caveat", () => {
+    const result = checkHighContrast(
+      withProperties([
+        { State: "Default" },
+        { State: "Disabled" },
+        { State: "Disabled" },
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    // One failing layer, not three: the two disabled variants never ran.
+    expect(result.findings[0].count).toBe(1);
+    expect(result.note).toContain("2 disabled variants were not evaluated");
+    // The convention this depends on is stated rather than assumed silently.
+    expect(result.note).toContain('"Disabled" variant property');
+  });
+
+  it("says nothing about disabled variants when there are none", () => {
+    const result = checkHighContrast(withProperties([{ State: "Default" }]));
+    expect(result.note).not.toContain("disabled");
   });
 });
 

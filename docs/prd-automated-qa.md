@@ -199,7 +199,14 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > Invisible text needs no special case: it arrives as the ratio-1.0 extreme, which is why #17 leaves it here.
 >
 > Findings are one per colour pair x mode with an occurrence count, naming tokens over hex.
-> Distinct pairs are never merged, since `State=Disabled` legitimately has lower contrast than `Default`.
+> Distinct pairs are never merged, since a hover surface and a default surface fail for different reasons.
+>
+> **Disabled variants are not evaluated.** WCAG 1.4.3 exempts "inactive user interface components", so a faded disabled state is not a defect.
+> The first real set this ran against produced three of its four failures from disabled states - all correct, all unfixable, and enough to teach a designer to skip the row.
+> Inactive is recognised from a `Disabled` variant property (a value of `Disabled` on any property, or a `Disabled` boolean that is on), and the row's caveat says so, since a set naming it differently would still be measured.
+>
+> A `not_applicable` result always carries a note explaining what it found nothing of - usually a component assembled entirely from nested instances, whose text belongs to those components.
+> Without it the row renders blank, which reads as a broken check rather than an inapplicable one.
 
 * **Intent:** Maintain product accessibility standards automatically.
 * **Automated Plugin Action:**

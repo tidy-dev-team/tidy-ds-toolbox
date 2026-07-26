@@ -43,11 +43,20 @@
  * would be noise. Invisible text needs no special case - it arrives as the
  * ratio-1.0 extreme, which is why #17 leaves it here.
  *
+ * **Disabled variants are not evaluated at all.** WCAG 1.4.3 exempts inactive
+ * controls, so a faded disabled state is not a defect - and left in, those
+ * failures dominate the row while being both unfixable and correct. A row full
+ * of unfixable failures is one designers learn to skip.
+ *
  * Findings are one per **colour pair x mode** with an occurrence count (#100),
  * naming tokens rather than hex wherever both sides are bound: the fix is one
  * token pair, and names are what a designer can act on. Distinct pairs are
- * never merged - `State=Disabled` legitimately has lower contrast than
- * `Default`, so keying on anything but the pair would hide one behind the other.
+ * never merged - a hover surface and a default surface fail for different
+ * reasons, so keying on anything but the pair would hide one behind the other.
+ *
+ * Everything the row cannot speak for is in its `note`, including the
+ * `not_applicable` case: a row with no findings and no note is a blank row, and
+ * a reader cannot tell "found nothing to measure" from "broken" or "skipped".
  */
 
 import type {
@@ -161,17 +170,24 @@ interface Failure {
 }
 
 export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
+  const active = snapshot.variants.filter((v) => !isDisabledVariant(v));
+  const disabledCount = snapshot.variants.length - active.length;
+
   const candidates: Candidate[] = [];
-  for (const variant of snapshot.variants) {
+  for (const variant of active) {
     collectCandidates(variant.tree, [], candidates);
   }
 
   if (candidates.length === 0) {
+    // A `not_applicable` row renders with no findings, so without a note it is
+    // a blank row: the reader cannot tell a check that found nothing to measure
+    // from one that is broken or was skipped.
     return {
       checkId: "high-contrast",
       title: TITLE,
       status: "not_applicable",
       findings: [],
+      note: nothingToMeasureNote(snapshot, disabledCount),
     };
   }
 
@@ -282,7 +298,7 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
     title: TITLE,
     status,
     findings,
-    note: buildNote(snapshot.theme, modes),
+    note: buildNote(snapshot.theme, modes, disabledCount),
   };
 }
 
@@ -575,12 +591,57 @@ function skipTally(
   };
 }
 
-function buildNote(theme: ThemeSnapshot | undefined, modes: Mode[]): string {
+/**
+ * Whether this variant is an inactive control.
+ *
+ * WCAG 1.4.3 exempts "inactive user interface components" from contrast
+ * requirements: a disabled control is *meant* to read as faded, so failing it is
+ * reporting a defect that does not exist and cannot be fixed. Left in, disabled
+ * states dominate the row - three of the four failures on the first real set
+ * this ran against - and a row full of unfixable failures is one designers learn
+ * to skip, which costs more than the coverage is worth.
+ *
+ * Read from the variant properties, which is the only place the snapshot can see
+ * it: either a value of "Disabled" on any property (`State=Disabled`) or a
+ * boolean property named "Disabled" that is on. A set that spells it some other
+ * way will not be caught, and that is stated in the row's caveat rather than
+ * left as a silent assumption.
+ */
+function isDisabledVariant(variant: {
+  variantProperties: Record<string, string>;
+}): boolean {
+  return Object.entries(variant.variantProperties).some(([name, value]) => {
+    const v = value.trim().toLowerCase();
+    if (v === "disabled") return true;
+    return name.trim().toLowerCase() === "disabled" && v === "true";
+  });
+}
+
+/** Why a `not_applicable` row found nothing - never left blank. */
+function nothingToMeasureNote(
+  snapshot: ComponentSetSnapshot,
+  disabledCount: number,
+): string {
+  if (disabledCount > 0 && disabledCount === snapshot.variants.length) {
+    return `Nothing to measure: every variant here is a disabled state, and WCAG exempts inactive controls from contrast requirements.`;
+  }
+  return "Nothing to measure: this set has no text layers of its own. Text inside a nested instance belongs to that component and is checked when it is the subject, so a component assembled entirely from other components reports nothing here.";
+}
+
+function buildNote(
+  theme: ThemeSnapshot | undefined,
+  modes: Mode[],
+  disabledCount: number,
+): string {
   const scope =
     "Contrast is measured against the nearest ancestor with a solid fill, so sibling geometry and images behind a layer are not considered, and text is judged per layer rather than per character range.";
+  const disabled =
+    disabledCount > 0
+      ? ` ${disabledCount} disabled ${disabledCount === 1 ? "variant was" : "variants were"} not evaluated, since WCAG exempts inactive controls; that is recognised from a "Disabled" variant property, so a set naming it differently would still be measured.`
+      : "";
   if (theme?.collectionName && modes.length > 0 && modes[0].modeId) {
     const list = modes.map((m) => m.name).join(", ");
-    return `Evaluated collection "${theme.collectionName}" across ${modes.length} modes: ${list}. ${scope}`;
+    return `Evaluated collection "${theme.collectionName}" across ${modes.length} modes: ${list}. ${scope}${disabled}`;
   }
-  return `No theme modes were available, so contrast was measured once against the colours as they currently resolve. ${scope}`;
+  return `No theme modes were available, so contrast was measured once against the colours as they currently resolve. ${scope}${disabled}`;
 }
