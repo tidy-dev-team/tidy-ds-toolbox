@@ -3,16 +3,23 @@
  * chains that surface too many levels of properties in the parent
  * configuration panel — the "messy right-hand panel" complaint from the PRD.
  *
- * Depth is the chain length of *exposed* nested instances
- * (`InstanceNode.exposedInstances`, walked recursively via the snapshot's
- * `exposedInstances` side-tree) — not raw instance-tree depth. A component
- * with deep internal nesting but nothing exposed passes.
+ * Depth counts real panel levels: the exposing INSTANCE node itself is level
+ * 1, and each further level of exposed nesting beneath it adds one more. A
+ * component with deep internal nesting but nothing exposed passes.
  *
- * All variants of a set share one structure, so a chain repeated across
- * variants is deduped to a single finding keyed on its path of names, with
- * `count` carrying how many variants it was seen on (#100). The finding's
- * `nodeId` points at the first variant's occurrence — "jump to offender"
- * lands on one representative instance of the chain, not all of them.
+ * `InstanceNode.exposedInstances` is flattened by Figma — every exposed
+ * descendant at any depth, not just direct children — so the snapshot's flat
+ * `exposedInstanceIds` per entry only encodes reachability, not direct
+ * parentage. `directChildren` reconstructs the real tree: an id reachable
+ * through another candidate's own id list is a grandchild (or deeper), not a
+ * direct child, so it's excluded at this level and picked up when recursing
+ * into that candidate instead.
+ *
+ * All variants of a set share one structure, so a chain repeated anywhere is
+ * deduped to a single finding keyed on its path of names, with `count`
+ * carrying how many times it occurs across the set (#100). The finding's
+ * `nodeId` points at the first occurrence — "jump to offender" lands on one
+ * representative instance of the chain, not all of them.
  *
  * Severity is always `warn`, never `fail` — this is an optimization
  * suggestion, not a correctness defect.
@@ -34,26 +41,54 @@ interface Chain {
   nodeId: string;
 }
 
-function collectChains(
-  root: ExposedInstanceSnapshot,
+/**
+ * Given the full flat entry list and a candidate id set (subset of entries
+ * reachable from the current point in the chain), returns the entries that
+ * are direct children — i.e. not also reachable through another candidate.
+ */
+function directChildren(
+  byId: Map<string, ExposedInstanceSnapshot>,
+  candidateIds: readonly string[],
+): ExposedInstanceSnapshot[] {
+  const candidates = new Set(candidateIds);
+  const reachableViaOther = new Set<string>();
+  for (const id of candidateIds) {
+    const entry = byId.get(id);
+    if (!entry) continue;
+    for (const descendantId of entry.exposedInstanceIds) {
+      if (descendantId !== id && candidates.has(descendantId)) {
+        reachableViaOther.add(descendantId);
+      }
+    }
+  }
+  return candidateIds
+    .filter((id) => !reachableViaOther.has(id))
+    .map((id) => byId.get(id))
+    .filter((entry): entry is ExposedInstanceSnapshot => entry !== undefined);
+}
+
+function descend(
+  byId: Map<string, ExposedInstanceSnapshot>,
+  candidateIds: readonly string[],
   path: string[],
   chains: Chain[],
 ): void {
-  const here = [...path, root.name];
-  if (root.exposedInstances.length === 0) {
-    chains.push({ path: here, depth: here.length, nodeId: root.id });
-    return;
-  }
-  for (const child of root.exposedInstances) {
-    collectChains(child, here, chains);
+  const children = directChildren(byId, candidateIds);
+  for (const entry of children) {
+    const here = [...path, entry.name];
+    if (entry.exposedInstanceIds.length === 0) {
+      chains.push({ path: here, depth: here.length, nodeId: entry.id });
+    } else {
+      descend(byId, entry.exposedInstanceIds, here, chains);
+    }
   }
 }
 
 function walk(node: NodeSnapshot, chains: Chain[]): void {
-  if (node.exposedInstances) {
-    for (const exposed of node.exposedInstances) {
-      collectChains(exposed, [], chains);
-    }
+  if (node.exposedInstances && node.exposedInstances.length > 0) {
+    const byId = new Map(node.exposedInstances.map((e) => [e.id, e]));
+    const topIds = node.exposedInstances.map((e) => e.id);
+    descend(byId, topIds, [node.name], chains);
   }
   for (const child of node.children) {
     walk(child, chains);

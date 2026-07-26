@@ -36,12 +36,12 @@ function fixture(variants: NodeSnapshot[]): ComponentSetSnapshot {
   };
 }
 
-function exposed(
+function entry(
   id: string,
   name: string,
-  children: ExposedInstanceSnapshot[] = [],
+  exposedInstanceIds: string[] = [],
 ): ExposedInstanceSnapshot {
-  return { id, name, exposedInstances: children };
+  return { id, name, exposedInstanceIds };
 }
 
 describe("checkNestingDepth", () => {
@@ -52,21 +52,28 @@ describe("checkNestingDepth", () => {
     expect(result.findings).toEqual([]);
   });
 
-  it("passes at the threshold depth (2)", () => {
+  it("passes at the threshold depth (2): container exposing one direct instance", () => {
+    // Icon (the container INSTANCE node) exposes Fill directly. Figma flattens
+    // this the same as the deeper case: Icon.exposedInstances = [Fill].
     const tree = baseTree("1:2", {
-      exposedInstances: [exposed("1:2-icon", "Icon", [exposed("1:2-fill", "Fill")])],
+      name: "Icon",
+      exposedInstances: [entry("1:2-fill", "Fill")],
     });
     const result = checkNestingDepth(fixture([tree]));
     expect(result.status).toBe("pass");
     expect(result.findings).toEqual([]);
   });
 
-  it("warns above the threshold depth", () => {
+  it("warns above the threshold depth for a real 3-level nested chain", () => {
+    // Icon exposes both Fill and Glyph (flattened — Figma lists every exposed
+    // descendant on the container, not just the direct child), and Fill's own
+    // exposedInstanceIds subset marks Glyph as reachable through Fill, so
+    // Glyph is Fill's direct child, not Icon's.
     const tree = baseTree("1:3", {
+      name: "Icon",
       exposedInstances: [
-        exposed("1:3-icon", "Icon", [
-          exposed("1:3-fill", "Fill", [exposed("1:3-glyph", "Glyph")]),
-        ]),
+        entry("1:3-fill", "Fill", ["1:3-glyph"]),
+        entry("1:3-glyph", "Glyph"),
       ],
     });
     const result = checkNestingDepth(fixture([tree]));
@@ -75,8 +82,29 @@ describe("checkNestingDepth", () => {
     const finding = result.findings[0];
     expect(finding.severity).toBe("low");
     expect(finding.nodeId).toBe("1:3-glyph");
+    expect(finding.message).toContain("Icon > Fill > Glyph");
     expect(finding.actual).toBe("3 levels");
     expect(finding.count).toBe(1);
+  });
+
+  it("does not misread the flattened list as a chain skipping a level", () => {
+    // A 4-entity chain Icon > A > B > C, fully flattened onto Icon:
+    // Icon.exposedInstances = [A, B, C] (all reachable, per Figma's semantics).
+    // Only A is Icon's real direct child; B and C must resolve under A > B.
+    const tree = baseTree("1:6", {
+      name: "Icon",
+      exposedInstances: [
+        entry("1:6-a", "A", ["1:6-b", "1:6-c"]),
+        entry("1:6-b", "B", ["1:6-c"]),
+        entry("1:6-c", "C"),
+      ],
+    });
+    const result = checkNestingDepth(fixture([tree]));
+    expect(result.status).toBe("warn");
+    // A single real chain, not a phantom "Icon > B" or "Icon > C" shortcut.
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toContain("Icon > A > B > C");
+    expect(result.findings[0].actual).toBe("4 levels");
   });
 
   it("emits one finding per unique chain across multiple distinct chains", () => {
@@ -85,17 +113,15 @@ describe("checkNestingDepth", () => {
         baseTree("1:4-a", {
           name: "SlotA",
           exposedInstances: [
-            exposed("1:4-a-1", "Icon", [
-              exposed("1:4-a-2", "Fill", [exposed("1:4-a-3", "Glyph")]),
-            ]),
+            entry("1:4-a-fill", "Fill", ["1:4-a-glyph"]),
+            entry("1:4-a-glyph", "Glyph"),
           ],
         }),
         baseTree("1:4-b", {
           name: "SlotB",
           exposedInstances: [
-            exposed("1:4-b-1", "Avatar", [
-              exposed("1:4-b-2", "Image", [exposed("1:4-b-3", "Crop")]),
-            ]),
+            entry("1:4-b-image", "Image", ["1:4-b-crop"]),
+            entry("1:4-b-crop", "Crop"),
           ],
         }),
       ],
@@ -108,10 +134,10 @@ describe("checkNestingDepth", () => {
   it("collapses the same chain repeated across many variants into one finding with the occurrence count", () => {
     const makeVariant = (id: string) =>
       baseTree(id, {
+        name: "Icon",
         exposedInstances: [
-          exposed(`${id}-icon`, "Icon", [
-            exposed(`${id}-fill`, "Fill", [exposed(`${id}-glyph`, "Glyph")]),
-          ]),
+          entry(`${id}-fill`, "Fill", [`${id}-glyph`]),
+          entry(`${id}-glyph`, "Glyph"),
         ],
       });
 
