@@ -19,9 +19,21 @@ describe("groupFindings", () => {
 
   it("collapses repeated per-node findings into one grouped line with a count", () => {
     const findings = [
-      finding({ nodeId: "1:1", nodeName: "Layer A", message: `width (14) on "Layer A" is off the 4px grid.` }),
-      finding({ nodeId: "1:2", nodeName: "Layer B", message: `width (14) on "Layer B" is off the 4px grid.` }),
-      finding({ nodeId: "1:3", nodeName: "Layer C", message: `width (14) on "Layer C" is off the 4px grid.` }),
+      finding({
+        nodeId: "1:1",
+        nodeName: "Layer A",
+        message: `width (14) on "Layer A" is off the 4px grid.`,
+      }),
+      finding({
+        nodeId: "1:2",
+        nodeName: "Layer B",
+        message: `width (14) on "Layer B" is off the 4px grid.`,
+      }),
+      finding({
+        nodeId: "1:3",
+        nodeName: "Layer C",
+        message: `width (14) on "Layer C" is off the 4px grid.`,
+      }),
     ];
 
     const groups = groupFindings(findings);
@@ -75,13 +87,25 @@ describe("groupFindings", () => {
 
     const groups = groupFindings(findings);
 
-    expect(groups.map((g) => g.severity)).toEqual(["critical", "medium", "low"]);
+    expect(groups.map((g) => g.severity)).toEqual([
+      "critical",
+      "medium",
+      "low",
+    ]);
   });
 
   it("escalates a group's severity to the highest seen among its members", () => {
     const findings = [
-      finding({ nodeName: "Layer A", message: `stroke on "Layer A"`, severity: "low" }),
-      finding({ nodeName: "Layer B", message: `stroke on "Layer B"`, severity: "high" }),
+      finding({
+        nodeName: "Layer A",
+        message: `stroke on "Layer A"`,
+        severity: "low",
+      }),
+      finding({
+        nodeName: "Layer B",
+        message: `stroke on "Layer B"`,
+        severity: "high",
+      }),
     ];
 
     const groups = groupFindings(findings);

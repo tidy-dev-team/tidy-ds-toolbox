@@ -14,14 +14,9 @@
 import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckResult } from "../types";
 import { ALSO_KNOWN_AS_PREFIX } from "../qa-config";
-import {
-  MISPRINT_MARKER,
-  parseMisprintMarker,
-} from "../../../shared/misprint";
+import { MISPRINT_MARKER, parseMisprintMarker } from "../../../shared/misprint";
 
-export function checkDescription(
-  snapshot: ComponentSetSnapshot,
-): CheckResult {
+export function checkDescription(snapshot: ComponentSetSnapshot): CheckResult {
   const description = snapshot.description ?? "";
 
   if (description.trim().length === 0) {

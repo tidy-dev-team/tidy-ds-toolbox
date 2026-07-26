@@ -108,7 +108,10 @@ export interface ChecklistReport {
   target: { id: string; name: string };
   generatedFor: { instanceId?: string };
   items: ChecklistItem[];
-  counts: Record<"pass" | "warn" | "fail" | "manual" | "notImplemented", number>;
+  counts: Record<
+    "pass" | "warn" | "fail" | "manual" | "notImplemented",
+    number
+  >;
 }
 
 export interface QaRunResult {

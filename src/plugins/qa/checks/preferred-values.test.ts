@@ -9,7 +9,9 @@ import type {
  * Minimal fixture builder — only `properties` matters to this check, but the
  * type wants a full ComponentSetSnapshot so we fill in empty defaults.
  */
-function fixture(properties: ComponentPropertySnapshot[]): ComponentSetSnapshot {
+function fixture(
+  properties: ComponentPropertySnapshot[],
+): ComponentSetSnapshot {
   return {
     id: "1:1",
     name: "Button",
