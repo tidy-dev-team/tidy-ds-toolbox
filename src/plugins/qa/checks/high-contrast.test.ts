@@ -243,6 +243,55 @@ describe("checkHighContrast", () => {
     expect(result.findings[0].message).toContain("#808080");
   });
 
+  it("ignores an image behind an opaque surface that completely hides it", () => {
+    // The card is opaque, so the hero image behind it changes nothing on screen.
+    // Resolving it anyway would report "cannot measure" for a pairing that is
+    // perfectly well defined.
+    const result = checkHighContrast(
+      fixture([
+        node({
+          name: "hero",
+          fills: [{ type: "IMAGE", visible: true, opacity: 1 }],
+          children: [
+            node({
+              name: "card",
+              fills: [solid("#FFFFFF")],
+              children: [text({ fills: [solid("#999999")] })],
+            }),
+          ],
+        }),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].actual).toBe("2.8:1");
+  });
+
+  it("does not evaluate text over an image that a translucent surface lets through", () => {
+    // Same image, but the card is at 50%, so the image really is part of what
+    // renders - and there is no single colour to measure it against.
+    const result = checkHighContrast(
+      fixture([
+        node({
+          name: "hero",
+          fills: [{ type: "IMAGE", visible: true, opacity: 1 }],
+          children: [
+            node({
+              name: "card",
+              opacity: 0.5,
+              fills: [solid("#FFFFFF")],
+              children: [text({ fills: [solid("#999999")] })],
+            }),
+          ],
+        }),
+      ]),
+    );
+    expect(result.status).toBe("warn");
+    expect(messages(result)).toEqual([
+      "1 text layer was not evaluated for contrast: 1 has a gradient or image in its colour chain.",
+    ]);
+  });
+
   it("still needs an opaque backdrop behind a translucent group", () => {
     // Same 50% wrapper, but nothing opaque behind it: the pair genuinely
     // depends on the page colour, which the check refuses to guess.

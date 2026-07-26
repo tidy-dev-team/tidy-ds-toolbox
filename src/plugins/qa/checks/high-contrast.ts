@@ -73,6 +73,7 @@ const OPAQUE = 0.999;
 type SkipReason =
   | "mixed-fill"
   | "no-fill"
+  | "non-solid"
   | "unresolved-colour"
   | "no-background";
 
@@ -84,6 +85,10 @@ const SKIP_PHRASES: Record<SkipReason, { one: string; many: string }> = {
   "no-fill": {
     one: "has no solid fill to measure",
     many: "have no solid fill to measure",
+  },
+  "non-solid": {
+    one: "has a gradient or image in its colour chain",
+    many: "have a gradient or image in their colour chain",
   },
   "unresolved-colour": {
     one: "has a colour that does not resolve in every mode",
@@ -98,6 +103,7 @@ const SKIP_PHRASES: Record<SkipReason, { one: string; many: string }> = {
 const SKIP_PRECEDENCE: readonly SkipReason[] = [
   "mixed-fill",
   "no-fill",
+  "non-solid",
   "unresolved-colour",
   "no-background",
 ];
@@ -117,10 +123,16 @@ interface Candidate {
 /**
  * A colour resolved for one node in one mode. `undefined` means "this node
  * paints nothing" (a transparent ancestor, which the walk passes straight
- * through); `"unresolved"` means a source was found but could not be resolved,
- * which is a skip rather than a transparent layer.
+ * through). The two failures are kept apart because they are different defects
+ * to report: `"non-solid"` is a gradient or image, which has no single colour
+ * to measure, while `"unresolved"` is a variable or style that would not
+ * resolve.
  */
-type Resolved = { rgba: Rgba; label: string } | "unresolved" | undefined;
+type Resolved =
+  | { rgba: Rgba; label: string }
+  | "unresolved"
+  | "non-solid"
+  | undefined;
 
 /**
  * The two rendered pixels a contrast ratio is measured between: one where the
@@ -188,8 +200,8 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
         skip(node, "no-fill");
         break;
       }
-      if (own === "unresolved") {
-        skip(node, "unresolved-colour");
+      if (own === "non-solid" || own === "unresolved") {
+        skip(node, own === "non-solid" ? "non-solid" : "unresolved-colour");
         continue;
       }
 
@@ -203,8 +215,11 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
           : { hex: own.rgba.hex, alpha: own.rgba.alpha * selfOpacity };
 
       const rendered = render(candidate, start, mode, snapshot);
-      if (rendered === "unresolved") {
-        skip(node, "unresolved-colour");
+      if (rendered === "non-solid" || rendered === "unresolved") {
+        skip(
+          node,
+          rendered === "non-solid" ? "non-solid" : "unresolved-colour",
+        );
         continue;
       }
       if (rendered === undefined) {
@@ -352,7 +367,7 @@ function resolveColor(
 
   for (const paint of paints) {
     if (!paint.visible) continue;
-    if (paint.type !== "SOLID") return "unresolved";
+    if (paint.type !== "SOLID") return "non-solid";
 
     let hex = paint.hex;
     let alpha = paint.opacity;
@@ -414,7 +429,7 @@ function render(
   own: Rgba,
   mode: Mode,
   snapshot: ComponentSetSnapshot,
-): Rendered | "unresolved" | undefined {
+): Rendered | "unresolved" | "non-solid" | undefined {
   let text = own;
   let background: Rgba | undefined;
   /** The nearest ancestor fill that contributed, for naming the pair. */
@@ -429,17 +444,29 @@ function render(
   // costs nothing worth trading correctness for; past an opaque surface each
   // further `layer` is a no-op anyway.
   for (const ancestor of candidate.ancestors) {
-    const resolved = resolveColor(ancestor, mode, snapshot);
-    if (resolved === "unresolved") return "unresolved";
+    // A fill sitting entirely behind an already-opaque composite contributes
+    // nothing, so it is not resolved at all. That is not just an optimisation:
+    // an opaque card over a frame carrying a hero image would otherwise report
+    // "gradient or image, cannot measure" for a pairing that is in fact
+    // perfectly well defined. Group opacity below still applies - if it fades
+    // the composite back below opacity, the next ancestor's fill *is* resolved,
+    // and an image there genuinely does make the pair unmeasurable.
+    const hidden = background !== undefined && background.alpha >= OPAQUE;
 
-    // A node with no fill of its own still forms a group, so its opacity
-    // applies even though it contributes no colour.
-    if (resolved !== undefined) {
-      text = layer(text, resolved.rgba);
-      background = background
-        ? layer(background, resolved.rgba)
-        : resolved.rgba;
-      if (nearest === undefined) nearest = resolved;
+    if (!hidden) {
+      const resolved = resolveColor(ancestor, mode, snapshot);
+      if (resolved === "non-solid") return "non-solid";
+      if (resolved === "unresolved") return "unresolved";
+
+      // A node with no fill of its own still forms a group, so its opacity
+      // applies even though it contributes no colour.
+      if (resolved !== undefined) {
+        text = layer(text, resolved.rgba);
+        background = background
+          ? layer(background, resolved.rgba)
+          : resolved.rgba;
+        if (nearest === undefined) nearest = resolved;
+      }
     }
 
     const groupOpacity = ancestor.opacity ?? 1;
