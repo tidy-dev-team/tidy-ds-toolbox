@@ -69,7 +69,12 @@ const PRD_ITEMS: ReadonlyArray<{
     tier: 1,
     checkId: "preferred-values",
   },
-  { n: 16, title: "High Contrast (A11y)", tier: null },
+  {
+    n: 16,
+    title: "High Contrast (A11y)",
+    tier: 2,
+    checkId: "high-contrast",
+  },
   {
     n: 17,
     title: "Themes (Core/DNA/OldNews)",
@@ -110,8 +115,8 @@ describe("CHECKLIST_CATALOGUE", () => {
 
   it("gives every automated item a unique checkId, tiered 1 or 2", () => {
     const automated = CHECKLIST_CATALOGUE.filter((item) => item.checkId);
-    expect(automated).toHaveLength(12);
-    expect(new Set(automated.map((item) => item.checkId)).size).toBe(12);
+    expect(automated).toHaveLength(13);
+    expect(new Set(automated.map((item) => item.checkId)).size).toBe(13);
     for (const item of automated) {
       expect(item.tier === 1 || item.tier === 2).toBe(true);
     }

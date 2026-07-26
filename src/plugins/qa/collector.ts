@@ -12,6 +12,7 @@
 
 import { toHex } from "./color";
 import type {
+  ColorStyleSnapshot,
   ComponentPropertySnapshot,
   PinnedAncestorSnapshot,
   ComponentSetSnapshot,
@@ -53,6 +54,30 @@ function snapshotPaints(
 
 function styleId(value: string | typeof figma.mixed): string {
   return value === figma.mixed ? "MIXED" : value;
+}
+
+/**
+ * Font size and boldness for #16's dual AA threshold.
+ *
+ * Ranges that differ are resolved to the **strictest** applicable answer: the
+ * smallest size used, and bold only when every range is bold. Both defaults run
+ * toward 4.5:1 rather than 3:1, so a mixed run can never be let off with the
+ * lenient large-text threshold on the strength of one heading inside it.
+ */
+function snapshotTextMetrics(node: TextNode): {
+  fontSize?: number;
+  bold: boolean;
+} {
+  const BOLD_WEIGHT = 700;
+  if (node.fontSize !== figma.mixed && node.fontWeight !== figma.mixed) {
+    return { fontSize: node.fontSize, bold: node.fontWeight >= BOLD_WEIGHT };
+  }
+  const segments = node.getStyledTextSegments(["fontSize", "fontWeight"]);
+  if (segments.length === 0) return { bold: false };
+  return {
+    fontSize: Math.min(...segments.map((s) => s.fontSize)),
+    bold: segments.every((s) => s.fontWeight >= BOLD_WEIGHT),
+  };
 }
 
 /**
@@ -140,9 +165,19 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     snap.children = node.children.map(snapshotNode);
   }
 
+  // Only when it is not 1, so fixtures and payloads stay terse. #16 composites
+  // this with paint opacity to measure contrast on translucent surfaces.
+  if ("opacity" in node && node.opacity !== 1) {
+    snap.opacity = node.opacity;
+  }
+
   if ("fills" in node) {
     const fills = snapshotPaints(node.fills);
     if (fills) snap.fills = fills;
+    // Recorded explicitly rather than left as an absent `fills`: #16 has to
+    // tell "mixed per character range, decline to measure" apart from "this
+    // node paints nothing".
+    else if (node.fills === figma.mixed) snap.fillsMixed = true;
     snap.fillStyleId = styleId(node.fillStyleId);
   }
   if ("strokes" in node) {
@@ -151,6 +186,9 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
   }
   if (node.type === "TEXT") {
     snap.textStyleId = styleId(node.textStyleId);
+    const metrics = snapshotTextMetrics(node);
+    if (metrics.fontSize !== undefined) snap.fontSize = metrics.fontSize;
+    if (metrics.bold) snap.bold = true;
   }
   if ("effects" in node) {
     snap.effectCount = node.effects.length;
@@ -283,4 +321,50 @@ export function collectSnapshot(
     variants,
     ...(pinnedAncestors.length > 0 ? { pinnedAncestors } : {}),
   };
+}
+
+/** Every distinct, resolvable fill style id referenced in the snapshot. */
+function referencedFillStyleIds(snapshot: ComponentSetSnapshot): string[] {
+  const ids = new Set<string>();
+  const visit = (node: NodeSnapshot) => {
+    const id = node.fillStyleId;
+    // "" means unstyled and "MIXED" is not an id at all.
+    if (id && id !== "MIXED") ids.add(id);
+    for (const child of node.children) visit(child);
+  };
+  for (const variant of snapshot.variants) visit(variant.tree);
+  return [...ids];
+}
+
+/**
+ * Resolve the fill styles the set references into the snapshot's style table
+ * (#16, issue #103). A separate async pass rather than part of `collectSnapshot`
+ * so that stays synchronous, and memoized by style id so cost scales with
+ * distinct styles rather than with layers.
+ *
+ * Why the table exists at all when Figma keeps `node.fills` in sync with the
+ * style: the **name**. A contrast finding that says `"Text/Subtle" on
+ * "Surface/Card"` names the one token pair a designer changes, where a pair of
+ * hex values names nothing. The paints are captured too, so a style whose paint
+ * is variable-bound feeds the id straight into the per-mode probe.
+ *
+ * Reads only - no document mutation, so no ADR-0001 carve-out is involved here.
+ */
+export async function collectColorStyles(
+  snapshot: ComponentSetSnapshot,
+): Promise<Record<string, ColorStyleSnapshot> | undefined> {
+  const ids = referencedFillStyleIds(snapshot);
+  if (ids.length === 0) return undefined;
+
+  const styles: Record<string, ColorStyleSnapshot> = {};
+  for (const id of ids) {
+    const style = await figma.getStyleByIdAsync(id);
+    // A style that cannot be loaded (deleted, or a remote library that is
+    // unavailable) is simply left out: #16 then falls back to the node's own
+    // fills, losing the name but not the colour.
+    if (!style || style.type !== "PAINT") continue;
+    const paints = snapshotPaints((style as PaintStyle).paints);
+    if (paints) styles[id] = { name: style.name, paints };
+  }
+  return Object.keys(styles).length > 0 ? styles : undefined;
 }

@@ -24,7 +24,8 @@ export type CheckId =
   | "preferred-values"
   | "nesting-depth"
   | "asset-provenance"
-  | "themes";
+  | "themes"
+  | "high-contrast";
 
 export interface Finding {
   severity: SeverityLevel;
@@ -106,6 +107,11 @@ export const CHECKS: readonly CheckDefinition[] = [
     id: "themes",
     prdSection: 17,
     title: "Themes (per-mode variable resolution)",
+  },
+  {
+    id: "high-contrast",
+    prdSection: 16,
+    title: "High contrast (WCAG AA)",
   },
 ];
 

@@ -45,12 +45,26 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   const theme = snapshot.theme;
 
   const unavailable = theme?.unavailableVariableIds ?? [];
+  const usage = collectVariableUsage(snapshot);
 
   // No probe table (no bound variables), or a single-mode collection, which is
   // not a theme: comparing one mode against itself reports nothing meaningful.
   // Bindings Figma could not load are the exception, since those are broken
   // regardless of how many modes exist.
-  if (!theme || (theme.modes.length < 2 && unavailable.length === 0)) {
+  //
+  // The table can also exist while holding nothing this set binds: #16 has the
+  // probe resolve variables reached only through a shared fill style. Those are
+  // not this component's bindings, so a set whose colour comes entirely from
+  // styles has nothing for *this* check to judge - reporting `pass` off the
+  // back of them would claim a verification that never happened.
+  const consumed = [...usage.keys()].some(
+    (id) => theme?.variables[id] !== undefined,
+  );
+  if (
+    !theme ||
+    (theme.modes.length < 2 && unavailable.length === 0) ||
+    (!consumed && unavailable.length === 0)
+  ) {
     return {
       checkId: "themes",
       title: TITLE,
@@ -59,7 +73,6 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
     };
   }
 
-  const usage = collectVariableUsage(snapshot);
   const findings: Finding[] = [];
 
   // Reported once per variable rather than once per mode: a binding that cannot

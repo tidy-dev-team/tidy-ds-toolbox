@@ -130,8 +130,10 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   {
     n: 16,
     title: "High Contrast (A11y)",
-    tier: null,
-    blurb: "Text meets WCAG AA contrast against its background.",
+    tier: 2,
+    checkId: "high-contrast",
+    blurb:
+      "Text meets WCAG AA contrast against the surface behind it, in every theme mode.",
   },
   {
     n: 17,

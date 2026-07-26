@@ -184,6 +184,23 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 
 ### 16. High Contrast (Accessibility / A11y)
 
+> Shipped as check `high-contrast` (issue #103), computing WCAG AA per text layer **per theme mode** on top of #17's resolution tables.
+>
+> **The background is never guessed.** It is the nearest ancestor with a visible solid fill, composited outward until the stack is opaque; if nothing opaque is reached, the layer is *not evaluated* rather than measured against an assumed white.
+> Sibling geometry is out of scope, so a chip over a hero image degrades to "not evaluated" instead of to a wrong answer - deciding what sits behind a layer would need absolute bounds and a z-order model.
+> On a checklist a human still ticks through, a false negative is cheap and a false positive is expensive: failing a component against an invented background is what makes designers stop reading the row.
+>
+> Every skipped layer lands in one low-severity tally finding, and any skip makes the row `warn` rather than `pass`, so "not evaluated" can never read as green.
+> Alpha is composited rather than skipped (both paint opacity and node opacity), because the Kido DS deliberately uses opacity in place of absolute hex; only a chain that never reaches opacity is skipped.
+>
+> Colours resolve through literal hex, bound variable, paint style, and a paint style whose paint is variable-bound - the `tokens` check accepts either a variable or a style, so resolving variables alone would leave most rows unevaluated for an implementation-detail reason.
+> Granularity is the layer, not the character range: mixed fills are not evaluated, and a mixed font size is judged at its smallest.
+> Thresholds are AA's dual pair, 4.5:1 and 3:1 for large text (>= 24px, or >= 18.66px bold), with no warn tier - AA is the standard and a warn band for AAA is noise.
+> Invisible text needs no special case: it arrives as the ratio-1.0 extreme, which is why #17 leaves it here.
+>
+> Findings are one per colour pair x mode with an occurrence count, naming tokens over hex.
+> Distinct pairs are never merged, since `State=Disabled` legitimately has lower contrast than `Default`.
+
 * **Intent:** Maintain product accessibility standards automatically.
 * **Automated Plugin Action:**
 * Detect the background color token directly behind text layers inside the component variant frames.
