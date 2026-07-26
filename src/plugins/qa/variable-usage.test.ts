@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { collectVariableUsage, nodesPinning } from "./variable-usage";
+import {
+  collectVariableUsage,
+  colorStyleVariableIds,
+  nodesPinning,
+} from "./variable-usage";
 import type { ComponentSetSnapshot, NodeSnapshot } from "./snapshot";
 
 let seq = 0;
@@ -88,6 +92,69 @@ describe("collectVariableUsage", () => {
     expect(usage.get("v-label")?.count).toBe(1);
     expect(usage.get("v-label")?.nodeId).toBe("1:0");
     expect(usage.get("v-label")?.nodeName).toBe("Button");
+  });
+});
+
+describe("colorStyleVariableIds", () => {
+  it("collects variables bound inside the set's fill styles, deduped", () => {
+    const ids = colorStyleVariableIds(
+      fixture([[node()]], {
+        colorStyles: {
+          "S:a": {
+            name: "Surface/Card",
+            paints: [
+              {
+                type: "SOLID",
+                visible: true,
+                opacity: 1,
+                hex: "#FFFFFF",
+                boundVariableId: "v-surface",
+              },
+            ],
+          },
+          "S:b": {
+            name: "Surface/Card Alt",
+            paints: [
+              {
+                type: "SOLID",
+                visible: true,
+                opacity: 1,
+                hex: "#FFFFFF",
+                boundVariableId: "v-surface",
+              },
+            ],
+          },
+        },
+      }),
+    );
+    expect(ids).toEqual(["v-surface"]);
+  });
+
+  it("stays separate from the usage counts a set is answerable for", () => {
+    // A variable reached only through a shared style has no binding layer, so
+    // #17 must not raise a finding against a component that merely applied the
+    // style - which is why these ids never enter collectVariableUsage.
+    const snapshot = fixture([[node()]], {
+      colorStyles: {
+        "S:a": {
+          name: "Surface/Card",
+          paints: [
+            {
+              type: "SOLID",
+              visible: true,
+              opacity: 1,
+              hex: "#FFFFFF",
+              boundVariableId: "v-surface",
+            },
+          ],
+        },
+      },
+    });
+    expect(collectVariableUsage(snapshot).has("v-surface")).toBe(false);
+  });
+
+  it("is empty when the set references no fill styles", () => {
+    expect(colorStyleVariableIds(fixture([[node()]]))).toEqual([]);
   });
 });
 

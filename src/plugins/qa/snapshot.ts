@@ -45,6 +45,15 @@ export interface NodeSnapshot {
   visible: boolean;
   width: number;
   height: number;
+  /**
+   * Node-level opacity, 0-1 (#16). Recorded only when it is not 1, so
+   * fixtures stay terse; absent means fully opaque.
+   *
+   * Separate from `PaintSnapshot.opacity`, and both apply: a 50% fill on a
+   * 50% frame is 25% of the surface behind it. #16 has to composite them to
+   * measure contrast on a DS that uses opacity in place of absolute hex.
+   */
+  opacity?: number;
 
   /**
    * Child trees. Empty for INSTANCE nodes by design — nested instance
@@ -103,6 +112,26 @@ export interface NodeSnapshot {
   strokeStyleId?: string;
   /** TEXT nodes: style id, "" when unstyled, "MIXED" for mixed ranges. */
   textStyleId?: string;
+  /**
+   * TEXT nodes: the fills differ per character range (#16). `fills` is absent
+   * in that case, and absent-because-mixed has to be told apart from
+   * absent-because-this-node-has-no-fills: picking "the first fill" of a
+   * mixed run would be a confidently wrong contrast answer, so #16 declines to
+   * evaluate the layer and counts it in the skipped tally instead.
+   */
+  fillsMixed?: boolean;
+  /**
+   * TEXT nodes: font size in px (#16 threshold). When ranges differ this is
+   * the **smallest** size used - the strictest applicable threshold, so a
+   * mixed run is judged on its worst case rather than on its heading.
+   */
+  fontSize?: number;
+  /**
+   * TEXT nodes: whether the text is bold, i.e. font weight >= 700 (#16).
+   * True only when *every* range is bold: the large-text threshold (3:1) is the
+   * lenient one, so a partially-bold run must not qualify for it.
+   */
+  bold?: boolean;
   effectCount?: number;
   effectStyleId?: string;
 
@@ -246,6 +275,26 @@ export interface ThemeSnapshot {
   unavailableVariableIds?: string[];
 }
 
+/**
+ * A paint style the set references, resolved once (#16).
+ *
+ * The `tokens` check accepts either a bound variable **or** a style, so both
+ * are live colour sources in real files. Resolving variables only would leave
+ * most contrast rows "not evaluated" for an implementation-detail reason, and
+ * an unevaluated contrast check is worse than none because the row still looks
+ * checked.
+ *
+ * A style's paint can itself be variable-bound, in which case its
+ * `boundVariableId` points into the per-mode table above - which is why the
+ * style table is resolved *before* the probe runs, so those variables are
+ * resolved per mode too.
+ */
+export interface ColorStyleSnapshot {
+  /** Style name, e.g. "Surface/Default" - preferred over hex in findings. */
+  name: string;
+  paints: PaintSnapshot[];
+}
+
 export interface ComponentSetSnapshot {
   id: string;
   name: string;
@@ -263,4 +312,10 @@ export interface ComponentSetSnapshot {
   pinnedAncestors?: PinnedAncestorSnapshot[];
   /** Per-mode variable resolution (#17). Absent when the probe didn't run. */
   theme?: ThemeSnapshot;
+  /**
+   * Fill styles referenced anywhere in the set, keyed by style id (#16).
+   * Memoized by the collector, so cost scales with distinct styles rather than
+   * with layers. Absent when the set references no fill styles.
+   */
+  colorStyles?: Record<string, ColorStyleSnapshot>;
 }

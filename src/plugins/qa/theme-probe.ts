@@ -30,7 +30,7 @@
  */
 
 import { toHex } from "./color";
-import { collectVariableUsage } from "./variable-usage";
+import { collectVariableUsage, colorStyleVariableIds } from "./variable-usage";
 import { selectPrimaryCollection } from "../../shared/theme-collection";
 import type { ModeCollectionFact } from "../../shared/theme-collection";
 import type {
@@ -64,18 +64,25 @@ export async function probeThemeResolution(
 ): Promise<ThemeSnapshot | undefined> {
   // Same traversal the check uses, so the two cannot disagree about which
   // variables the set consumes.
-  const variableIds = [...collectVariableUsage(snapshot).keys()];
-  if (variableIds.length === 0) return undefined;
+  const boundIds = [...collectVariableUsage(snapshot).keys()];
+  // Variables reached only through a fill style the set applies. Resolved
+  // alongside the rest because #16 needs their per-mode colour, but kept apart
+  // below: a style's broken binding is not a defect of the component that
+  // applied the style, so it must not become one of #17's findings.
+  const styleIds = colorStyleVariableIds(snapshot).filter(
+    (id) => !boundIds.includes(id),
+  );
+  if (boundIds.length === 0 && styleIds.length === 0) return undefined;
 
   // Memoized by id, so cost scales with unique ids rather than node count.
   const variables = new Map<string, Variable>();
   const unavailable: string[] = [];
-  for (const id of variableIds) {
+  for (const id of [...boundIds, ...styleIds]) {
     if (variables.has(id)) continue;
     const variable = await figma.variables.getVariableByIdAsync(id);
     if (variable) {
       variables.set(id, variable);
-    } else {
+    } else if (!styleIds.includes(id)) {
       // A binding Figma cannot load: a deleted variable, or a remote one whose
       // library is unavailable. That is precisely the broken-chain case #17
       // exists to catch, so the id is kept for the check to fail on.
@@ -90,8 +97,19 @@ export async function probeThemeResolution(
       : undefined;
   }
 
+  // Which collection counts as "the theme" is decided from the set's *own*
+  // bindings, never from variables reached through a style. Otherwise the answer
+  // would depend on which checks were requested: a `checks: ["themes"]` run
+  // resolves no style variables and could pick a different collection than a
+  // full run, leaving the two disagreeing about the same component. Style
+  // variables are only a fallback for a set that binds nothing directly, where
+  // no themes-only run has an answer to disagree with.
+  const decidingIds = boundIds.length > 0 ? boundIds : styleIds;
+  const deciding = new Set(decidingIds);
+
   const collections = new Map<string, VariableCollection>();
-  for (const variable of variables.values()) {
+  for (const [id, variable] of variables) {
+    if (!deciding.has(id)) continue;
     const collectionId = variable.variableCollectionId;
     if (collections.has(collectionId)) continue;
     const collection =

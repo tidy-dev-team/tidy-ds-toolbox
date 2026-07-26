@@ -217,7 +217,7 @@ describe("checkThemes", () => {
     expect(result.findings[0].count).toBe(2);
   });
 
-  it("ignores variables the set does not actually use", () => {
+  it("reports nothing to judge when the table holds no variable the set binds", () => {
     // The probe may resolve a variable that only a style references; without a
     // usage in this set there is nothing to report against.
     const result = checkThemes(
@@ -237,7 +237,11 @@ describe("checkThemes", () => {
         }),
       ),
     );
-    expect(result.status).toBe("pass");
+    // The probe also resolves variables reached only through a shared fill
+    // style (for #16), so an unused entry must not be judged - and must not
+    // produce a `pass` either, which would claim a verification that never
+    // happened.
+    expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
   });
 

@@ -106,7 +106,7 @@ Three new pieces, plus one operation:
 | 13 | No Conflicts | `no-conflicts` |
 | 14 | Nested Instance Depth (PRD: "Easy to Use") | `nesting-depth` |
 | 15 | Preferred (Instance Swapping) | `preferred-values` |
-| 16 | High Contrast (A11y) | manual |
+| 16 | High Contrast (A11y) | `high-contrast` |
 | 17 | Themes (Core/DNA/OldNews) | `themes` |
 | 18 | Page Template | manual |
 | 19 | Documentation | manual |

@@ -4,12 +4,12 @@
 //
 // Single agent-facing surface: `tidy_qa_run`. Returns structured CheckResults
 // plus a 19-item ChecklistReport (PRD catalogue merge). The checks never touch
-// the component set; the one document write in a run is the #17 themes probe's
-// temporary frame (see theme-probe.ts and the ADR-0001 carve-out).
+// the component set; the one document write in a run is the per-mode resolution
+// probe's temporary frame (see theme-probe.ts and the ADR-0001 carve-out).
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
-import { collectSnapshot } from "./collector";
+import { collectColorStyles, collectSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
 import { probeThemeResolution } from "./theme-probe";
@@ -185,11 +185,20 @@ async function runQa(params: QaRunParams): Promise<{
   const { subject, origin } = await resolveTarget(params);
   const snapshot = collectSnapshot(subject);
 
-  // The #17 per-mode resolution probe is the one part of a QA run that touches
-  // the document (one temporary frame, removed in a `finally` - see
-  // theme-probe.ts and the ADR-0001 carve-out). Skipped entirely unless the
-  // themes check is actually going to run, so a filtered run stays inert.
-  if (willRun(params.checks, "themes")) {
+  // #16 resolves colours through paint styles as well as variables, since the
+  // `tokens` check accepts either. Resolved *before* the probe, deliberately: a
+  // style's paint can itself be variable-bound, and the probe reads the style
+  // table to decide which variables need a per-mode value.
+  const needsColour = willRun(params.checks, "high-contrast");
+  if (needsColour) {
+    snapshot.colorStyles = await collectColorStyles(snapshot);
+  }
+
+  // The per-mode resolution probe is the one part of a QA run that touches the
+  // document (one temporary frame, removed in a `finally` - see theme-probe.ts
+  // and the ADR-0001 carve-out). Skipped entirely unless a check that needs it
+  // is actually going to run, so a filtered run stays inert.
+  if (willRun(params.checks, "themes") || needsColour) {
     snapshot.theme = await probeThemeResolution(snapshot);
   }
 
@@ -219,7 +228,7 @@ registerOperation<QaRunParams, QaRunResult>(
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. The themes check (#17) creates and removes one temporary off-canvas probe frame to resolve variables per theme mode - a documented carve-out from ADR-0001's read-only Query definition.",
+      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. The themes (#17) and high-contrast (#16) checks create and remove one temporary off-canvas probe frame to resolve variables per theme mode - a documented carve-out from ADR-0001's read-only Query definition.",
     paramsExample: { name: "Button" },
   },
   async (params) => {

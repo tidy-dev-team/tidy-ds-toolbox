@@ -64,6 +64,28 @@ export function collectVariableUsage(
 }
 
 /**
+ * Variable ids referenced by the paints of the set's fill styles (#16).
+ *
+ * Deliberately **not** part of `collectVariableUsage`: these are not usages the
+ * set is answerable for. #17 reports a broken binding against the layer that
+ * binds it, and a variable reached only through a shared style has no such
+ * layer. They are collected separately so the probe still resolves them per
+ * mode - #16 needs their per-mode colour - without turning them into findings
+ * on a component that merely applied a style.
+ */
+export function colorStyleVariableIds(
+  snapshot: ComponentSetSnapshot,
+): string[] {
+  const ids = new Set<string>();
+  for (const style of Object.values(snapshot.colorStyles ?? {})) {
+    for (const paint of style.paints) {
+      if (paint.boundVariableId) ids.add(paint.boundVariableId);
+    }
+  }
+  return [...ids];
+}
+
+/**
  * Nodes pinning an explicit mode **for `collectionId`**. Only that collection
  * matters: a node pinning a density or unit mode says nothing about whether the
  * theme resolved correctly, so counting it would raise the #17 caveat on

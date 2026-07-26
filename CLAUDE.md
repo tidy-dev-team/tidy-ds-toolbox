@@ -78,7 +78,7 @@ Layout:
 - `src/shared/operations/ui-bridge.ts`, `ui-bridge-startup.ts` — UI-iframe WebSocket to `ws://localhost:9876`; relays envelopes to the main thread via the existing `postMessage` channel.
 - `src/plugins/<module>/operations.ts` — per-module `registerOperation(...)` calls. Each id is snake_case and `tidy_`-prefixed (e.g. `tidy_misprint_find_components`).
 
-The QA engine keeps its figma-touching code in exactly two files: `src/plugins/qa/collector.ts` (reads the set into a plain-JSON snapshot) and `src/plugins/qa/theme-probe.ts` (resolves variables per theme mode against one temporary frame, the ADR-0001 read-only carve-out).
+The QA engine keeps its figma-touching code in exactly two files: `src/plugins/qa/collector.ts` (reads the set, and the paint styles it references, into a plain-JSON snapshot) and `src/plugins/qa/theme-probe.ts` (resolves variables per theme mode against one temporary frame, the ADR-0001 read-only carve-out).
 Everything else under `src/plugins/qa/checks/` is pure `(snapshot) -> CheckResult` and fixture-tested.
 - `mcp-server/` — Node MCP server that **listens** on `127.0.0.1:9876` and accepts the plugin's outbound connection (plugin sandbox can't accept inbound, hence inverted server/client roles).
 - `claude-plugin/` — canonical source of the **Claude Code plugin** (`.claude-plugin/plugin.json`, `commands/tidy-*.md`, `skills/`). `npm run build:plugin` bundles the MCP server into it and assembles an installable, marketplace-rooted tree under `dist-plugin/` (version synced from the root `package.json`). The `/tidy-*` commands live here (not in `.claude/commands/`); see `docs/plugin-dev.md` for the local-install dogfood loop. Tools from the plugin-bundled server are namespaced `mcp__plugin_tidy-ds_tidy-ds-toolbox__<op>`.

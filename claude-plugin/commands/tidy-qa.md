@@ -23,8 +23,9 @@ Split `$ARGUMENTS` on whitespace into tokens, then classify each:
 - **Check-id** — a token that exactly matches one of the known check ids:
   `set-name-casing`, `prop-order`, `tokens`, `layer-naming-structure`,
   `grid-4px`, `interaction-hover-only`, `description`, `no-conflicts`,
-  `preferred-values`, `nesting-depth`, `asset-provenance`, `themes`. Collect these into
-  the `checks` array (a filter — only these checks run).
+  `preferred-values`, `nesting-depth`, `asset-provenance`, `themes`,
+  `high-contrast`. Collect these into the `checks` array (a filter — only these
+  checks run).
 - **Id** — a token matching `^\d+:\d+$` (e.g. `2625:10445`). Use as `nodeId`.
 - **Target name / glob** — every remaining token. Join them with spaces (names
   can contain spaces, e.g. `Button Icon`) and pass as `name`. A `*` makes it a
