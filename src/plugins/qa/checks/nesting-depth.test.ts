@@ -45,9 +45,28 @@ function entry(
 }
 
 describe("checkNestingDepth", () => {
-  it("passes when nothing is exposed", () => {
+  it("is not_applicable when nothing is exposed — nothing to measure", () => {
     const result = checkNestingDepth(fixture([baseTree("1:1", {})]));
     expect(result.checkId).toBe("nesting-depth");
+    expect(result.status).toBe("not_applicable");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("passes (not not_applicable) for a lone exposed instance with nothing beneath it", () => {
+    // The commonest real shape: a `slot` instance exposed to the parent panel,
+    // exposing nothing itself. One panel level — well within threshold, but it
+    // is exposure, so the check measured something and must not report N/A.
+    const tree = baseTree("1:5", {
+      name: "banner",
+      children: [
+        baseTree("1:5-slot", {
+          name: "slot",
+          type: "INSTANCE",
+          isExposedInstance: true,
+        }),
+      ],
+    });
+    const result = checkNestingDepth(fixture([tree]));
     expect(result.status).toBe("pass");
     expect(result.findings).toEqual([]);
   });
@@ -110,7 +129,7 @@ describe("checkNestingDepth", () => {
     expect(result.findings[0].actual).toBe("4 levels");
   });
 
-  it("passes when the container itself isn't exposed, even if its own internal chain would otherwise warn", () => {
+  it("is not_applicable when the container itself isn't exposed, even if its own internal chain would otherwise warn", () => {
     // Icon is NOT exposed to Button's panel — Button's panel shows nothing
     // from Icon, regardless of how deep Icon's own exposedInstances side-tree
     // (Fill > Glyph, an internal detail of Icon's own component) goes.
@@ -123,7 +142,7 @@ describe("checkNestingDepth", () => {
       ],
     });
     const result = checkNestingDepth(fixture([tree]));
-    expect(result.status).toBe("pass");
+    expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
   });
 
