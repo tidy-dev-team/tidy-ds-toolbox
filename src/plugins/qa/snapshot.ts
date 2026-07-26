@@ -19,16 +19,22 @@ export interface PaintSnapshot {
 }
 
 /**
- * A recursive side-tree of exposed nested instances rooted at an INSTANCE
- * node (#14 nesting depth). Captured alongside `NodeSnapshot.children`
- * staying empty for INSTANCE nodes — this tracks only what surfaces
- * properties in the parent configuration panel, not the instance's full
- * interior.
+ * One instance exposed anywhere beneath an INSTANCE node (#14 nesting depth).
+ * `InstanceNode.exposedInstances` is already flattened by Figma — it lists
+ * every exposed descendant at any depth, not just direct children — and
+ * exposure is inherited downward, so each entry's own `exposedInstanceIds` is
+ * a subset of the containing node's full list. That subset relation is what
+ * lets the pure check reconstruct which entries are direct children of which
+ * (an entry reachable through another entry's id list is a grandchild, not a
+ * direct one) without the collector re-serializing the same descendants
+ * under every ancestor — captured flat, this stays linear in descendant
+ * count instead of blowing up per level.
  */
 export interface ExposedInstanceSnapshot {
   id: string;
   name: string;
-  exposedInstances: ExposedInstanceSnapshot[];
+  /** Ids of this entry's own exposed descendants (already flattened by Figma). */
+  exposedInstanceIds: string[];
 }
 
 export interface NodeSnapshot {

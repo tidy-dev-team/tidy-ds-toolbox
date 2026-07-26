@@ -15,13 +15,18 @@ import type {
   VariantSnapshot,
 } from "./snapshot";
 
+// Flat, one level deep: `instance.exposedInstances` is already Figma's full
+// flattened descendant list, so recursing into each entry's own
+// `.exposedInstances` here would re-serialize the same descendants under
+// every ancestor. Only each entry's own id list is captured — enough for the
+// pure check to reconstruct direct-child relations via set subtraction.
 function snapshotExposedInstance(
   instance: InstanceNode,
 ): ExposedInstanceSnapshot {
   return {
     id: instance.id,
     name: instance.name,
-    exposedInstances: instance.exposedInstances.map(snapshotExposedInstance),
+    exposedInstanceIds: instance.exposedInstances.map((e) => e.id),
   };
 }
 

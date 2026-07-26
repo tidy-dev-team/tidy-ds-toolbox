@@ -8,7 +8,7 @@ import type { CheckId } from "./types";
 export interface CatalogueItem {
   n: number;
   title: string;
-  /** 1 = Tier 1 automated; 2 = planned Tier 2; null = manual-only. */
+  /** 1 = Tier 1 automated; 2 = Tier 2 (automated once it carries a checkId, otherwise still planned); null = manual-only. */
   tier: 1 | 2 | null;
   /** Present when an engine check backs this item. */
   checkId?: CheckId;
