@@ -104,7 +104,7 @@ Three new pieces, plus one operation:
 | 11 | Interaction (Hover Only) | `interaction-hover-only` |
 | 12 | Description (AKA + Misprint) | `description` |
 | 13 | No Conflicts | `no-conflicts` |
-| 14 | Easy to Use (Nested Components) | `nesting-depth` |
+| 14 | Nested Instance Depth (PRD: "Easy to Use") | `nesting-depth` |
 | 15 | Preferred (Instance Swapping) | `preferred-values` |
 | 16 | High Contrast (A11y) | manual |
 | 17 | Themes (Core/DNA/OldNews) | manual |

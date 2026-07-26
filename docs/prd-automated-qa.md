@@ -143,6 +143,10 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 
 ### 14. Easy to Use (Nested Component Management)
 
+> Shipped as check `nesting-depth`, surfaced on the checklist as **"Nested
+> Instance Depth"** — "Easy to Use" named the goal rather than the thing being
+> measured, and read as meaningless on the generated artifact.
+
 * **Intent:** Prevent complex components from overwhelming end-users via messy configuration panels.
 * **Automated Plugin Action:**
 * Evaluate the overall depth of the internal component layer architecture.

@@ -234,11 +234,21 @@ export async function renderChecklist(
     const number = text(String(item.n), 12, FONT_BOLD, MUTED);
     number.resize(24, number.height);
 
+    // Title + blurb stack. Parented before sizing: Figma only honours FILL
+    // once the node has an auto-layout parent (same constraint as
+    // appendFindingLine), so the blurb can only be told to wrap after the
+    // stack is in the row and growing.
+    const titleBlock = buildAutoLayoutFrame("title", "VERTICAL", 0, 0, 2);
     const title = text(item.title, 13, FONT_REGULAR, INK);
-    title.layoutGrow = 1;
+    const blurb = text(item.blurb, 11, FONT_REGULAR, MUTED);
+    titleBlock.appendChild(title);
+    titleBlock.appendChild(blurb);
 
     row.appendChild(number);
-    row.appendChild(title);
+    row.appendChild(titleBlock);
+    titleBlock.layoutGrow = 1;
+    blurb.textAutoResize = "HEIGHT";
+    blurb.layoutSizingHorizontal = "FILL";
     if (item.automated) {
       const style = statusStyle(item.status);
       row.appendChild(statusChip(style.label, style.hex));
