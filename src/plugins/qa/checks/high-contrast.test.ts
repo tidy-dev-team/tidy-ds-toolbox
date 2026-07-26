@@ -179,12 +179,16 @@ describe("checkHighContrast", () => {
     expect(result.findings[0].actual).toBe("2:1");
   });
 
-  it("attenuates the text along with the wrapper whose opacity it inherits", () => {
-    // A 50% wrapper is *not* the same as a 50% fill: it fades its own
-    // background and the text on it, so the pair loses contrast rather than
-    // keeping it. Black text on a 50% white scrim over black is 2.6:1, a fail -
-    // applying the wrapper's opacity to the background only would have called
-    // this 5.3:1 and passed it.
+  it("treats a wrapper's opacity as a group property, not a per-layer one", () => {
+    // Figma fades a frame's fill and its children together, as one composite.
+    // A 50% frame holding black text on a white fill, over a black page,
+    // therefore renders black text (black at 50% over black is still black) on
+    // #808080 - 5.3:1, a pass.
+    //
+    // Applying the 50% to the text and to the already-flattened background
+    // separately double-counts it: that gives #404040 on #808080, 2.6:1, and
+    // fails a component that is genuinely fine. Any DS that fades a whole
+    // surface would collect invented failures.
     const result = checkHighContrast(
       fixture([
         node({
@@ -201,8 +205,26 @@ describe("checkHighContrast", () => {
         }),
       ]),
     );
-    expect(result.status).toBe("fail");
-    expect(result.findings[0].actual).toBe("2.6:1");
+    expect(result.status).toBe("pass");
+  });
+
+  it("still needs an opaque backdrop behind a translucent group", () => {
+    // Same 50% wrapper, but nothing opaque behind it: the pair genuinely
+    // depends on the page colour, which the check refuses to guess.
+    const result = checkHighContrast(
+      fixture([
+        node({
+          name: "scrim",
+          opacity: 0.5,
+          fills: [solid("#FFFFFF")],
+          children: [text({ fills: [solid("#000000")] })],
+        }),
+      ]),
+    );
+    expect(result.status).toBe("warn");
+    expect(messages(result)).toEqual([
+      "1 text layer was not evaluated for contrast: 1 had no opaque background behind it.",
+    ]);
   });
 
   it("does not evaluate text whose background never reaches opacity", () => {
@@ -279,6 +301,49 @@ describe("checkHighContrast", () => {
     );
     expect(result.findings).toHaveLength(2);
     expect(result.findings.every((f) => f.count === 1)).toBe(true);
+  });
+
+  it("never merges layers that quote the same colour but render differently", () => {
+    // Both text layers name #999999, but one is at 50% opacity, so they land at
+    // 2.8:1 and 1.6:1. Keying on the quoted colour rather than the rendered one
+    // would report a single ratio for two different pairs.
+    const result = checkHighContrast(
+      fixture([
+        node({
+          name: "surface",
+          fills: [solid("#FFFFFF")],
+          children: [
+            text({ fills: [solid("#999999")] }),
+            text({ opacity: 0.5, fills: [solid("#999999")] }),
+          ],
+        }),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings.map((f) => f.actual)).toEqual(["1.6:1", "2.8:1"]);
+  });
+
+  it("keeps one row for a rendered pair used at two sizes, judged at the strictest", () => {
+    // #BBBBBB on white is 1.9:1 - short of both 4.5:1 and 3:1, so the normal
+    // and the large layer both fail on the same rendered pair. That is one
+    // colour pair, hence one row, described by the threshold it misses by most.
+    const fills = [solid("#BBBBBB")];
+    const result = checkHighContrast(
+      fixture([
+        node({
+          name: "surface",
+          fills: [solid("#FFFFFF")],
+          children: [
+            text({ fills, fontSize: 16 }),
+            text({ fills, fontSize: 32 }),
+          ],
+        }),
+      ]),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].count).toBe(2);
+    expect(result.findings[0].expected).toContain("4.5:1");
+    expect(result.findings[0].message).toContain("normal text");
   });
 
   it("reports no text layers at all as not applicable", () => {

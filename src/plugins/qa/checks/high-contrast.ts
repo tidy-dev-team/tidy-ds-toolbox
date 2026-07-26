@@ -21,7 +21,10 @@
  * **Alpha is composited, not skipped.** The Kido DS uses opacity in place of
  * absolute hex, so blanket-skipping translucent fills would skip a large share
  * of real surface. Paint opacity and node opacity both count, and only a chain
- * that never reaches opacity is skipped.
+ * that never reaches opacity is skipped. Node opacity is treated as what Figma
+ * makes it - a *group* property, fading a frame's fill and its children as one
+ * composite - see `render`, since applying it per layer instead invents
+ * failures on any component that fades a whole surface.
  *
  * **How far a colour is chased:** literal hex, bound variable (per mode, from
  * #17's resolution table), paint style, and a paint style whose paint is
@@ -55,7 +58,7 @@ import type {
   ThemeSnapshot,
 } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
-import { contrastRatio, layer, requiredRatio } from "../contrast";
+import { AA_NORMAL, contrastRatio, layer, requiredRatio } from "../contrast";
 import type { Rgba } from "../contrast";
 
 const TITLE = "High contrast (WCAG AA)";
@@ -107,10 +110,8 @@ interface Mode {
 /** A visible text layer with the ancestor chain that could back it. */
 interface Candidate {
   node: NodeSnapshot;
-  /** Accumulated opacity of the text layer itself (self x every ancestor). */
-  opacity: number;
-  /** Ancestors nearest-first, each with its own accumulated opacity. */
-  ancestors: { node: NodeSnapshot; opacity: number }[];
+  /** Ancestors nearest-first, up to the variant root. */
+  ancestors: NodeSnapshot[];
 }
 
 /**
@@ -120,6 +121,19 @@ interface Candidate {
  * which is a skip rather than a transparent layer.
  */
 type Resolved = { rgba: Rgba; label: string } | "unresolved" | undefined;
+
+/**
+ * The two rendered pixels a contrast ratio is measured between: one where the
+ * glyph is, one on the surface beside it. Both are folded through the same
+ * ancestor chain, so whatever an enclosing group does to one it does to the
+ * other.
+ */
+interface Rendered {
+  text: Rgba;
+  background: Rgba;
+  /** Display name of the nearest ancestor fill that contributed. */
+  label: string;
+}
 
 /** Colour pair failing in one mode, with every layer that hits it. */
 interface Failure {
@@ -137,7 +151,7 @@ interface Failure {
 export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
   const candidates: Candidate[] = [];
   for (const variant of snapshot.variants) {
-    collectCandidates(variant.tree, [], 1, candidates);
+    collectCandidates(variant.tree, [], candidates);
   }
 
   if (candidates.length === 0) {
@@ -169,51 +183,67 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
     }
 
     for (const mode of modes) {
-      const foreground = resolveColor(node, candidate.opacity, mode, snapshot);
-      if (foreground === undefined) {
+      const own = resolveColor(node, mode, snapshot);
+      if (own === undefined) {
         skip(node, "no-fill");
         break;
       }
-      if (foreground === "unresolved") {
+      if (own === "unresolved") {
         skip(node, "unresolved-colour");
         continue;
       }
 
-      const background = resolveBackground(candidate, mode, snapshot);
-      if (background === "unresolved") {
+      // The text layer's own opacity, applied here for the same reason
+      // `resolveColor` leaves it out: it is a group property, and the text is
+      // its own (leaf) group.
+      const selfOpacity = node.opacity ?? 1;
+      const start: Rgba =
+        selfOpacity === 1
+          ? own.rgba
+          : { hex: own.rgba.hex, alpha: own.rgba.alpha * selfOpacity };
+
+      const rendered = render(candidate, start, mode, snapshot);
+      if (rendered === "unresolved") {
         skip(node, "unresolved-colour");
         continue;
       }
-      if (background === undefined) {
+      if (rendered === undefined) {
         skip(node, "no-background");
         continue;
       }
 
-      // Translucent text has no colour of its own either: it is whatever shows
-      // through it, so it composites onto the background before measuring.
-      const surface: Rgba = { hex: background.rgba.hex, alpha: 1 };
-      const text = layer(foreground.rgba, surface);
-      const ratio = contrastRatio(text.hex, surface.hex);
+      const ratio = contrastRatio(rendered.text.hex, rendered.background.hex);
       const required = requiredRatio(node.fontSize, node.bold ?? false);
       if (ratio >= required) continue;
 
+      // Keyed on the **rendered** colours, not on the token names: two layers
+      // can quote the same token pair and still render differently (a 50%
+      // opacity on one of them), and merging those would report one ratio for
+      // two different pairs. Names are kept for display only.
       const key = JSON.stringify([
         mode.modeId,
-        foreground.label,
-        background.label,
-        required,
+        rendered.text.hex,
+        rendered.background.hex,
       ]);
       const existing = failures.get(key);
       if (existing) {
         existing.count += 1;
+        // One rendered pair is one row, so a group holding both normal and
+        // large text is described by its strictest member - the count covers
+        // the rest. Splitting on the threshold instead would put the same
+        // colour pair on two rows, which the ticket rules out.
+        if (required > existing.required) {
+          existing.required = required;
+          existing.large = false;
+        }
       } else {
         failures.set(key, {
           modeName: mode.name,
-          foreground: foreground.label,
-          background: background.label,
+          foreground: own.label,
+          background: rendered.label,
           ratio,
           required,
-          large: required < 4.5,
+          large: required < AA_NORMAL,
           nodeId: node.id,
           nodeName: node.name,
           count: 1,
@@ -242,9 +272,9 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
 }
 
 /**
- * Visible text layers, each carrying its ancestor chain and the product of
- * every enclosing node's opacity. Hidden layers and hidden subtrees are not
- * rendered, so they are not candidates at all - not even skipped ones.
+ * Visible text layers, each carrying its ancestor chain nearest-first. Hidden
+ * layers and hidden subtrees are not rendered, so they are not candidates at
+ * all - not even skipped ones.
  *
  * Nested instance interiors never appear here: the snapshot stops at instance
  * boundaries by design (#8 owns what is inside them), so text inside a nested
@@ -252,19 +282,17 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
  */
 function collectCandidates(
   node: NodeSnapshot,
-  ancestors: { node: NodeSnapshot; opacity: number }[],
-  inherited: number,
+  ancestors: NodeSnapshot[],
   out: Candidate[],
 ): void {
   if (!node.visible) return;
-  const opacity = inherited * (node.opacity ?? 1);
   if (node.type === "TEXT") {
-    out.push({ node, opacity, ancestors });
+    out.push({ node, ancestors });
     return;
   }
-  const chain = [{ node, opacity }, ...ancestors];
+  const chain = [node, ...ancestors];
   for (const child of node.children) {
-    collectCandidates(child, chain, opacity, out);
+    collectCandidates(child, chain, out);
   }
 }
 
@@ -299,7 +327,12 @@ function paintSource(
 
 /**
  * One node's own colour in one mode: its visible solid paints flattened
- * bottom-to-top, scaled by the node's accumulated opacity.
+ * bottom-to-top, at their paint opacity.
+ *
+ * Node opacity is deliberately **not** applied here. It is a group property -
+ * it fades the node's fill and its children together - so `render` applies it
+ * once at the group boundary. Folding it in here as well would double-count it
+ * for every ancestor fill.
  *
  * A non-solid visible paint (image, gradient) makes the node unresolvable
  * rather than transparent - there is no single colour to measure, and treating
@@ -307,7 +340,6 @@ function paintSource(
  */
 function resolveColor(
   node: NodeSnapshot,
-  opacity: number,
   mode: Mode,
   snapshot: ComponentSetSnapshot,
 ): Resolved {
@@ -340,7 +372,7 @@ function resolveColor(
     }
     if (!hex) return "unresolved";
 
-    const here: Rgba = { hex, alpha: alpha * opacity };
+    const here: Rgba = { hex, alpha };
     accumulated = accumulated ? layer(here, accumulated) : here;
     contributors += 1;
     if (label === undefined) label = name ?? hex;
@@ -356,42 +388,72 @@ function resolveColor(
 }
 
 /**
- * The opaque surface behind a text layer: ancestor fills composited outward
- * until the stack is opaque. Returns `undefined` when the variant root is
- * reached without ever getting there - the deliberate "not evaluated" case.
+ * The two pixels actually on screen: one where the glyph is, one on the surface
+ * beside it. Both fold through the same ancestor chain outward from the text.
+ *
+ * **Group opacity is why this is one walk rather than two.** A frame's opacity
+ * applies to the frame composited *as a group* - its own fill plus everything
+ * inside it - not to each layer independently. So a 50% frame holding black text
+ * on a white fill, over a black page, renders black text (black at 50% over
+ * black is still black) on #808080: 5.3:1, not the 2.6:1 you get by fading the
+ * text against an already-flattened background. Applying the opacity separately
+ * to text and surface double-counts it and invents failures.
+ *
+ * Hence the fold: layer inward-to-outward, and at each ancestor boundary
+ * multiply the accumulated alpha by that ancestor's opacity. Once an enclosing
+ * group is translucent nothing below can become opaque again, which is exactly
+ * right - the pair genuinely depends on what is behind the group.
+ *
+ * Returns `undefined` when the variant root is reached without the surface ever
+ * becoming opaque: the deliberate "not evaluated" case. The text pixel needs no
+ * separate check, since it can only be at least as opaque as the surface it is
+ * folded through.
  */
-function resolveBackground(
+function render(
   candidate: Candidate,
+  own: Rgba,
   mode: Mode,
   snapshot: ComponentSetSnapshot,
-): Resolved {
-  let accumulated: Rgba | undefined;
+): Rendered | "unresolved" | undefined {
+  let text = own;
+  let background: Rgba | undefined;
   let label: string | undefined;
   let contributors = 0;
 
   for (const ancestor of candidate.ancestors) {
-    const resolved = resolveColor(
-      ancestor.node,
-      ancestor.opacity,
-      mode,
-      snapshot,
-    );
+    const resolved = resolveColor(ancestor, mode, snapshot);
     if (resolved === "unresolved") return "unresolved";
-    // A node with no fill is simply transparent: keep walking outward.
-    if (resolved === undefined) continue;
 
-    accumulated = accumulated
-      ? layer(accumulated, resolved.rgba)
-      : resolved.rgba;
-    contributors += 1;
-    if (label === undefined) label = resolved.label;
-    if (accumulated.alpha >= OPAQUE) break;
+    // A node with no fill of its own still forms a group, so its opacity
+    // applies even though it contributes no colour.
+    if (resolved !== undefined) {
+      text = layer(text, resolved.rgba);
+      background = background
+        ? layer(background, resolved.rgba)
+        : resolved.rgba;
+      contributors += 1;
+      if (label === undefined) label = resolved.label;
+    }
+
+    const groupOpacity = ancestor.opacity ?? 1;
+    if (groupOpacity !== 1) {
+      text = { hex: text.hex, alpha: text.alpha * groupOpacity };
+      if (background) {
+        background = {
+          hex: background.hex,
+          alpha: background.alpha * groupOpacity,
+        };
+      }
+    }
+
+    if (background && background.alpha >= OPAQUE) break;
   }
 
-  if (!accumulated || accumulated.alpha < OPAQUE) return undefined;
+  if (!background || background.alpha < OPAQUE) return undefined;
   return {
-    rgba: accumulated,
-    label: contributors === 1 ? (label ?? accumulated.hex) : accumulated.hex,
+    text,
+    background,
+    label: contributors === 1 ? (label ?? background.hex) : background.hex,
   };
 }
 

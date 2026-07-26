@@ -10,7 +10,7 @@
  */
 
 /** WCAG AA for normal text. */
-const AA_NORMAL = 4.5;
+export const AA_NORMAL = 4.5;
 /** WCAG AA for large text. */
 const AA_LARGE = 3;
 /** "Large" in WCAG terms: 18pt, i.e. 24px. */
