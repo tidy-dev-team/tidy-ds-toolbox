@@ -35,10 +35,12 @@
  * set-level bindings are expressible. So a missing binding here is a real
  * missing binding, not a blind spot.
  *
- * **The set is its own oracle.** Two of the three findings work by comparing
- * variants against each other rather than against a rule we invented:
- * the layer to fix is identified by name from the variants that *are* wired,
- * and an odd binding target is one that disagrees with the rest of the set.
+ * **The set is its own oracle.** The findings work by comparing variants against
+ * each other rather than against a rule we invented:
+ * the layer to fix is identified by name from the variants that *are* wired, an
+ * odd binding target is one that disagrees with the rest of the set, and whether
+ * unwired variants are a lost binding or a state that simply has no such content
+ * is decided by whether that layer exists there at all.
  * That keeps the check free of naming heuristics - it never guesses that
  * `icon-left` ought to belong to `Show Left Icon`, it only observes that eleven
  * variants agree and one does not.
@@ -141,12 +143,37 @@ function candidateLayer(
   );
 }
 
+/**
+ * Whether unwired variants are a *lost binding* or simply a *state without that
+ * content*, and the finding either way.
+ *
+ * The distinction is drawn from evidence the check already has rather than from
+ * any guess about intent: does the layer the wired variants bind even exist in
+ * the unwired ones?
+ *
+ * - **Present, unbound.** The variant was duplicated, the layer came along and
+ *   the binding did not. A defect, and the layer is the fix location.
+ * - **Absent everywhere.** Those variants deliberately omit that content - a
+ *   `state=loading` button that swaps its label and icons for a spinner is the
+ *   canonical case. The property still misleads, because Figma keeps its
+ *   definition on the set and shows the control regardless, but the component
+ *   author has nothing to bind and nothing to fix.
+ *
+ * Reporting the second as a defect turned a correct 64-variant Button red for
+ * behaviour that was intended, which is how a row stops being read.
+ */
+interface WiringFinding {
+  finding: Finding;
+  /** False when the property simply has no target in those variants. */
+  isDefect: boolean;
+}
+
 function partialWiringFinding(
   property: ComponentPropertySnapshot,
   wired: VariantBinding[],
   unwired: VariantBinding[],
   referenceKey: string,
-): Finding {
+): WiringFinding {
   const boundNames = new Set(
     wired.flatMap((entry) => entry.nodes.map((node) => node.name)),
   );
@@ -172,10 +199,40 @@ function partialWiringFinding(
       ? candidates.filter((c) => c.layer?.visible === true)
       : [];
 
-  const fixLocation = firstWithLayer
-    ? ` Layer "${firstWithLayer.layer?.name}" is present and unbound in ` +
-      `${candidates.filter((c) => c.layer).length} of them - that is the layer to bind.`
-    : "";
+  const total = wired.length + unwired.length;
+  const where = listVariants(unwired.map((entry) => entry.label));
+
+  // No layer to bind anywhere: those variants have no such content, so there is
+  // nothing the author can wire. Reported, because the panel still shows a
+  // control that does nothing, but not as their defect.
+  if (!firstWithLayer) {
+    return {
+      isDefect: false,
+      finding: {
+        severity: "medium",
+        nodeId: anchor.id,
+        nodeName: anchor.name,
+        message:
+          `"${property.name}" has no target in ${unwired.length} of ${total} ` +
+          `variants: ${where}. None of the layers the other ${wired.length} ` +
+          `bind is present there, so the property shows in the panel for these ` +
+          `variants and changes nothing. Expected when those variants ` +
+          `deliberately drop that content - a loading state with no label - and ` +
+          `a defect when they do not.`,
+        expected: `a bound target in every variant, or none of this content missing`,
+        actual: `no target in ${unwired.length} of ${total}`,
+        suggestedFix:
+          `Confirm the listed variants are meant to omit this content. If they ` +
+          `are, there is nothing to fix: Figma keeps the property definition on ` +
+          `the set, so the control appears whether or not a variant can use it.`,
+        count: unwired.length,
+      },
+    };
+  }
+
+  const fixLocation =
+    ` Layer "${firstWithLayer.layer?.name}" is present and unbound in ` +
+    `${candidates.filter((c) => c.layer).length} of them - that is the layer to bind.`;
 
   const stuckNote =
     stuckVisible.length > 0
@@ -184,21 +241,22 @@ function partialWiringFinding(
       : "";
 
   return {
-    severity: "high",
-    nodeId: anchor.id,
-    nodeName: anchor.name,
-    message:
-      `"${property.name}" is not wired in ${unwired.length} of ` +
-      `${wired.length + unwired.length} variants: ` +
-      `${listVariants(unwired.map((entry) => entry.label))}. ` +
-      `The property appears in the panel for these variants but changes ` +
-      `nothing.${fixLocation}${stuckNote}`,
-    expected: `"${property.name}" bound in every variant`,
-    actual: `bound in ${wired.length}, missing in ${unwired.length}`,
-    suggestedFix:
-      `Select the layer in each listed variant and bind it to ` +
-      `"${property.name}".`,
-    count: unwired.length,
+    isDefect: true,
+    finding: {
+      severity: "high",
+      nodeId: anchor.id,
+      nodeName: anchor.name,
+      message:
+        `"${property.name}" is not wired in ${unwired.length} of ${total} ` +
+        `variants: ${where}. The property appears in the panel for these ` +
+        `variants but changes nothing.${fixLocation}${stuckNote}`,
+      expected: `"${property.name}" bound in every variant`,
+      actual: `bound in ${wired.length}, missing in ${unwired.length}`,
+      suggestedFix:
+        `Select the layer in each listed variant and bind it to ` +
+        `"${property.name}".`,
+      count: unwired.length,
+    },
   };
 }
 
@@ -317,10 +375,14 @@ export function checkVariantPropertyBindings(
     }
 
     if (unwired.length > 0) {
-      findings.push(
-        partialWiringFinding(property, wired, unwired, referenceKey),
+      const { finding, isDefect } = partialWiringFinding(
+        property,
+        wired,
+        unwired,
+        referenceKey,
       );
-      hasFail = true;
+      findings.push(finding);
+      if (isDefect) hasFail = true;
     }
 
     const odd = oddTargetFinding(property, wired);

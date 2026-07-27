@@ -170,6 +170,90 @@ describe("checkVariantPropertyBindings (#3)", () => {
     expect(result.status).toBe("pass");
   });
 
+  describe("lost binding versus a state with no such content", () => {
+    it("warns, not fails, when the layer is absent from the unwired variants", () => {
+      // A real 64-variant Button: every state=loading variant swaps its label
+      // and icons for a spinner, so there is no layer to bind and nothing the
+      // author can fix. Failing here turned a correct component red.
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [prop("Show Left Icon", SHOW_LEFT)],
+          [
+            variant({ State: "Default" }, [bound("icon-left", SHOW_LEFT)]),
+            variant({ State: "Loading" }, [node("spinner")]),
+          ],
+        ),
+      );
+      expect(result.status).toBe("warn");
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0].severity).toBe("medium");
+      expect(result.findings[0].message).toContain("has no target in 1 of 2");
+      expect(result.findings[0].message).toContain("deliberately drop");
+      expect(result.findings[0].count).toBe(1);
+    });
+
+    it("does not offer a layer to bind when there is none", () => {
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [prop("Show Left Icon", SHOW_LEFT)],
+          [
+            variant({ State: "Default" }, [bound("icon-left", SHOW_LEFT)]),
+            variant({ State: "Loading" }, [node("spinner")]),
+          ],
+        ),
+      );
+      expect(result.findings[0].message).not.toContain("the layer to bind");
+      expect(result.findings[0].suggestedFix).toContain("nothing to fix");
+    });
+
+    it("still fails when at least one unwired variant kept the layer", () => {
+      // A mix means a binding really was lost somewhere, so the defect stands.
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [prop("Show Left Icon", SHOW_LEFT)],
+          [
+            variant({ State: "Default" }, [bound("icon-left", SHOW_LEFT)]),
+            variant({ State: "Loading" }, [node("spinner")]),
+            variant({ State: "Hover" }, [node("icon-left")]),
+          ],
+        ),
+      );
+      expect(result.status).toBe("fail");
+      expect(result.findings[0].severity).toBe("high");
+      expect(result.findings[0].message).toContain("the layer to bind");
+      // Both unwired variants are still reported, only one is the fix location.
+      expect(result.findings[0].count).toBe(2);
+      expect(result.findings[0].message).toContain("2 of 3");
+    });
+
+    it("keeps a genuine defect on one property from being masked by another", () => {
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [
+            prop("Show Left Icon", SHOW_LEFT),
+            prop("Label", "Label#9:9", "TEXT"),
+          ],
+          [
+            variant({ State: "Default" }, [
+              bound("icon-left", SHOW_LEFT),
+              node("label", {
+                type: "TEXT",
+                propertyReferences: { characters: "Label#9:9" },
+              }),
+            ]),
+            // No icon layer (fine), but the label survived unbound (a defect).
+            variant({ State: "Loading" }, [node("label", { type: "TEXT" })]),
+          ],
+        ),
+      );
+      expect(result.status).toBe("fail");
+      expect(result.findings.map((f) => f.severity)).toEqual([
+        "medium",
+        "high",
+      ]);
+    });
+  });
+
   it("fails a property bound to no layer in any variant", () => {
     const result = checkVariantPropertyBindings(
       fixture(
