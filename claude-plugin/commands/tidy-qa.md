@@ -92,24 +92,24 @@ Each `CheckResult` is `{ checkId, title, status, findings }`; each finding has a
 `expected` / `actual`.
 
 **Findings arrive deduped, one per defect** (issue #118). Variants share their
-layers, so one mistake in a shared layer used to be reported once per variant —
+layers, so one mistake in a shared layer used to be reported once per variant:
 170 findings for 4 defects on a 64-variant Button. A finding covering several
 nodes carries:
 
-- `count` — how many nodes it covers (absent means 1),
-- `nodeIds` — those nodes, capped at 50, with `nodeId` still the representative.
+- `count` - how many nodes it covers (absent means 1),
+- `nodeIds` - those nodes, capped at 50, with `nodeId` still the representative.
 
 So **do not re-group by hand**; report the counts as given. Findings come
 severity-first, so the order is already the reporting order.
 
-**Do not echo the raw payload** — a set with many genuinely distinct defects is
+**Do not echo the raw payload** - a set with many genuinely distinct defects is
 still long. Summarise:
 
 1. Lead with the target name/id and a one-line verdict (how many checks failed /
    warned / passed).
 2. A compact table: one row per check — `title` · `status` · finding count.
-3. For checks with findings, quote the messages with their `count` (e.g. "56
-   layers: `Right Icon` itemSpacing is 10, unbound"). Surface **high** and
+3. For checks with findings, quote the messages with their `count` (e.g. "`Right
+   Icon` itemSpacing is 10, unbound, on 56 nodes"). Surface **high** and
    **medium** severity first; summarise **low** severity as counts only unless
    the user asks for detail.
 4. List any `notImplemented` check ids so the user knows what wasn't run.

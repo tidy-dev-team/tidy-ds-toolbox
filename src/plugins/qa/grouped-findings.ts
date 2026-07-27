@@ -1,94 +1,36 @@
 /**
- * Groups a check's raw per-node Finding[] into deduped summary lines for the
- * canvas checklist (issue #93). A 64-variant set can produce hundreds of
- * findings that differ only by which node they hit ("width (14) on 'X' is
- * off grid" repeated per offending layer) — grouping collapses those into one
- * line with a count, ordered by severity, so the rendered row stays legible.
+ * Projects findings into the display shape the canvas checklist renders (issue
+ * #93): one line per defect, with a count, in reporting order.
  *
- * Findings are grouped by their message with the finding's own node name
- * blanked out, plus expected/actual — a generic key that works across all
- * checks without each check having to declare its own grouping kind.
+ * The merging itself lives in `dedupeFindings` (#118), which `runChecks` already
+ * applies to every check's output. This function only reshapes, and re-merges
+ * only because doing so is idempotent and cheap - so a caller holding raw
+ * per-node findings still gets a legible list.
  *
- * Only the node name is redacted (not every quoted span), so fixed literals a
- * message quotes — e.g. the `"Also known as:"` line name in the description
- * check — stay visible instead of collapsing to `"…"`.
+ * Keeping the merge in one place matters for more than duplication: it is what
+ * stops the canvas and the reported payload describing the same defect
+ * differently. Merging here as well used to redact a layer name that
+ * `dedupeFindings` had deliberately kept, so a row read `"…" itemSpacing is 10`
+ * while the JSON read `"Right Icon" itemSpacing is 10`.
  */
 
+import { compareFindingPrecedence, dedupeFindings } from "./dedupe-findings";
 import type { Finding, SeverityLevel } from "./types";
 
 export interface GroupedFinding {
-  /** Representative message with node-specific quoted text redacted. */
+  /** Message as the merge left it: node-specific only where that is true. */
   message: string;
   severity: SeverityLevel;
   count: number;
 }
 
-export const SEVERITY_RANK: Record<SeverityLevel, number> = {
-  critical: 4,
-  high: 3,
-  medium: 2,
-  low: 1,
-};
-
-/** Stand-in for a node name that differed across the findings being merged. */
-export const REDACTED_NODE_NAME = "…";
-
-// Blanks the finding's own quoted node name so per-node repeats collapse into
-// one line, while leaving any other quoted text (fixed literals like the
-// `"Also known as:"` line name) untouched.
-export function redactNodeName(finding: Finding): string {
-  if (!finding.nodeName) return finding.message;
-  return finding.message
-    .split(`"${finding.nodeName}"`)
-    .join(`"${REDACTED_NODE_NAME}"`);
-}
-
-/**
- * Identity of a finding's *kind*, ignoring which node it landed on.
- *
- * Shared with `dedupeFindings` so the payload and the canvas agree on what
- * counts as the same defect: two consumers, one definition.
- */
-export function findingKindKey(finding: Finding): string {
-  // JSON-encoded so the parts stay unambiguous even if a message contains
-  // whatever plain separator we'd otherwise join on.
-  return JSON.stringify([
-    redactNodeName(finding),
-    finding.expected ?? "",
-    finding.actual ?? "",
-  ]);
-}
-
-/**
- * Dedupe/group findings by kind, highest severity first (ties broken by
- * larger count first, then by message for stable ordering).
- */
+/** One entry per defect, highest severity first (see `compareFindingPrecedence`). */
 export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
-  const groups = new Map<string, GroupedFinding>();
-
-  for (const finding of findings) {
-    const key = findingKindKey(finding);
-    const existing = groups.get(key);
-    const count = finding.count ?? 1;
-    if (existing) {
-      existing.count += count;
-      if (SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]) {
-        existing.severity = finding.severity;
-      }
-    } else {
-      groups.set(key, {
-        message: redactNodeName(finding),
-        severity: finding.severity,
-        count,
-      });
-    }
-  }
-
-  return Array.from(groups.values()).sort((a, b) => {
-    const bySeverity = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
-    if (bySeverity !== 0) return bySeverity;
-    const byCount = b.count - a.count;
-    if (byCount !== 0) return byCount;
-    return a.message.localeCompare(b.message);
-  });
+  return dedupeFindings(findings)
+    .map((finding) => ({
+      message: finding.message,
+      severity: finding.severity,
+      count: finding.count ?? 1,
+    }))
+    .sort(compareFindingPrecedence);
 }

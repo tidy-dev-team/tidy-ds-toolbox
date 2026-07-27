@@ -14,21 +14,79 @@
  * on the offending *thing* and carry `count`; Tier 1 predates that convention and
  * emits per node. Retrofitting fifteen checks individually would mean fifteen
  * keying decisions, when the Tier 1 problem is uniform: the same message,
- * expected and actual, on a different node. `findingKindKey` already encodes
- * exactly that identity for the canvas (#93), so this reuses it and every check
- * benefits at once. Checks stay simple and their fixtures stay per-node.
+ * expected and actual, on a different node. One pass at the `runChecks` boundary
+ * fixes all of them, and checks stay simple with per-node fixtures.
  *
- * `groupFindings` sums `count ?? 1`, so a deduped list groups on the canvas to
- * the same numbers as a raw one. Running both is safe, and this is idempotent.
+ * **This module owns what "the same defect" means**, for every consumer.
+ * The canvas checklist had its own merge (#93); it now projects this one instead,
+ * because two definitions let the canvas and the payload describe one defect
+ * differently - a row read `"…" itemSpacing is 10` while the JSON read
+ * `"Right Icon" itemSpacing is 10`. Deduping is idempotent, so applying it again
+ * downstream is safe.
  */
 
-import {
-  REDACTED_NODE_NAME,
-  SEVERITY_RANK,
-  findingKindKey,
-  redactNodeName,
-} from "./grouped-findings";
-import type { Finding } from "./types";
+import type { Finding, SeverityLevel } from "./types";
+
+export const SEVERITY_RANK: Record<SeverityLevel, number> = {
+  critical: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+/** Stand-in for a node name that differed across the findings being merged. */
+export const REDACTED_NODE_NAME = "…";
+
+/**
+ * Blanks the finding's own quoted node name so per-node repeats collapse into
+ * one kind, while leaving any other quoted text (fixed literals like the
+ * `"Also known as:"` line name) untouched.
+ */
+export function redactNodeName(finding: Finding): string {
+  if (!finding.nodeName) return finding.message;
+  return finding.message
+    .split(`"${finding.nodeName}"`)
+    .join(`"${REDACTED_NODE_NAME}"`);
+}
+
+/**
+ * Identity of a finding's *kind*, ignoring which node it landed on.
+ *
+ * **Keyed on the defect, not on the layer.** Issue #118 suggested "the shared
+ * layer plus the property" as the key. Deliberately not that: keying on the layer
+ * name would stop deduping the moment a set names its layers individually, which
+ * is the volume problem all over again, and `renderChecklist` already warns about
+ * sets with many genuinely distinct kinds. Keying on the defect alone always
+ * collapses, and `toFinding` recovers what the layer key was wanted for by
+ * keeping the layer name in the message whenever every merged node shares it.
+ * The name is lost only when it genuinely differed, where no single name was
+ * true anyway - and `nodeIds` still points at every offender.
+ */
+export function findingKindKey(finding: Finding): string {
+  // JSON-encoded so the parts stay unambiguous even if a message contains
+  // whatever plain separator we'd otherwise join on.
+  return JSON.stringify([
+    redactNodeName(finding),
+    finding.expected ?? "",
+    finding.actual ?? "",
+  ]);
+}
+
+/**
+ * Reporting precedence: highest severity first, then larger count, then message
+ * for stable ordering. One definition, so the payload and the canvas cannot
+ * disagree about which defect leads.
+ */
+export function compareFindingPrecedence(
+  a: Pick<Finding, "severity" | "count" | "message">,
+  b: Pick<Finding, "severity" | "count" | "message">,
+): number {
+  const bySeverity = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
+  if (bySeverity !== 0) return bySeverity;
+  const byCount = (b.count ?? 1) - (a.count ?? 1);
+  if (byCount !== 0) return byCount;
+  return a.message.localeCompare(b.message);
+}
 
 /**
  * How many offending node ids a merged finding reports.
@@ -92,13 +150,7 @@ export function dedupeFindings(findings: readonly Finding[]): Finding[] {
 
   return Array.from(groups.values())
     .map(toFinding)
-    .sort((a, b) => {
-      const bySeverity = SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity];
-      if (bySeverity !== 0) return bySeverity;
-      const byCount = (b.count ?? 1) - (a.count ?? 1);
-      if (byCount !== 0) return byCount;
-      return a.message.localeCompare(b.message);
-    });
+    .sort(compareFindingPrecedence);
 }
 
 function toFinding(group: Accumulator): Finding {
@@ -106,16 +158,18 @@ function toFinding(group: Accumulator): Finding {
 
   if (count === 1) return representative;
 
-  // Every merged node shares the layer name, so keep it: on a shared layer it is
+  // Keep the layer name when every merged node shares it: on a shared layer it is
   // the most useful word in the finding, naming what to open. Redact only when
   // the name is what differed, where naming one of them would be a lie.
-  const named = sharedNodeName !== undefined;
+  const nodeNameIsShared = sharedNodeName !== undefined;
 
   return {
     ...representative,
     severity,
-    nodeName: named ? representative.nodeName : REDACTED_NODE_NAME,
-    message: named ? representative.message : redactNodeName(representative),
+    nodeName: nodeNameIsShared ? representative.nodeName : REDACTED_NODE_NAME,
+    message: nodeNameIsShared
+      ? representative.message
+      : redactNodeName(representative),
     count,
     nodeIds,
   };

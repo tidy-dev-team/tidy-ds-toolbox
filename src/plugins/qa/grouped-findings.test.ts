@@ -47,10 +47,18 @@ describe("groupFindings", () => {
   });
 
   it("blanks the node name but keeps other quoted literals in the message", () => {
+    // Two names, so redaction is what merges them: only the node name goes, and
+    // the fixed `"Also known as:"` literal has to survive it.
     const groups = groupFindings([
       finding({
+        nodeId: "1:1",
         nodeName: "Nissim-V2",
         message: `Component set "Nissim-V2" description is missing an "Also known as:" line.`,
+      }),
+      finding({
+        nodeId: "1:2",
+        nodeName: "Nissim-V3",
+        message: `Component set "Nissim-V3" description is missing an "Also known as:" line.`,
       }),
     ]);
 
@@ -58,6 +66,40 @@ describe("groupFindings", () => {
     expect(groups[0].message).toBe(
       `Component set "…" description is missing an "Also known as:" line.`,
     );
+  });
+
+  it("keeps the node name when nothing was merged away", () => {
+    // A lone finding has no ambiguity to hide, and the name is the most useful
+    // word on the row. Redacting it here only ever lost information.
+    const groups = groupFindings([
+      finding({
+        nodeName: "Nissim-V2",
+        message: `Component set "Nissim-V2" description is missing an "Also known as:" line.`,
+      }),
+    ]);
+
+    expect(groups[0].message).toContain(`"Nissim-V2"`);
+  });
+
+  it("keeps a shared node name when several findings agree on it", () => {
+    // The canvas must not describe a defect differently from the payload: a
+    // shared layer name is kept in both.
+    const groups = groupFindings([
+      finding({
+        nodeId: "1:1",
+        nodeName: "Right Icon",
+        message: `itemSpacing (10) on "Right Icon" is off the 4px grid.`,
+      }),
+      finding({
+        nodeId: "1:2",
+        nodeName: "Right Icon",
+        message: `itemSpacing (10) on "Right Icon" is off the 4px grid.`,
+      }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].count).toBe(2);
+    expect(groups[0].message).toContain(`"Right Icon"`);
   });
 
   it("keeps distinct kinds as separate groups", () => {

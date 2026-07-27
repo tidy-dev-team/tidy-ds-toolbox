@@ -137,7 +137,7 @@ describe("dedupeFindings", () => {
     ]);
     expect(result.map((f) => f.message)).toEqual([
       "high.",
-      "medium two.", // medium, count 2 — outranks the count-1 medium
+      "medium two.", // medium, count 2 - outranks the count-1 medium
       "medium one.",
       "a low.",
       "z low.",
