@@ -13,7 +13,11 @@ function fixture(propertyNames: string[]): ComponentSetSnapshot {
     type: "COMPONENT_SET",
     description: "",
     propertyNames,
-    properties: propertyNames.map((name) => ({ name, type: "VARIANT" })),
+    properties: propertyNames.map((name) => ({
+      name,
+      key: name,
+      type: "VARIANT",
+    })),
     variants: [],
   };
 }

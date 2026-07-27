@@ -48,7 +48,17 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   {
     n: 3,
     title: "Check All the Props",
-    tier: null,
+    tier: 1,
+    checkId: "variant-property-bindings",
+    // The automated core is *wiring*, not appearance: Figma defines a boolean
+    // property on the set but binds it per variant, so a toggle can appear in
+    // the panel for a variant that has no binding and does nothing. That is
+    // structural, hence a Tier 1 snapshot check.
+    //
+    // This blurb states the item, which is wider than the check: design asked
+    // for all combinations cycled, long text always, and icon colour following
+    // text colour. The check emits an unconditional `manualRemainder` for that
+    // rest, so the row keeps a tickbox next to its chip.
     blurb: "Every property combination renders correctly across the set.",
   },
   {

@@ -27,8 +27,13 @@ describe("checkPreferredValues", () => {
   it("passes when every INSTANCE_SWAP prop has populated preferred values", () => {
     const result = checkPreferredValues(
       fixture([
-        { name: "Icon", type: "INSTANCE_SWAP", preferredValuesCount: 3 },
-        { name: "Size", type: "VARIANT" },
+        {
+          name: "Icon",
+          key: "Icon#1:2",
+          type: "INSTANCE_SWAP",
+          preferredValuesCount: 3,
+        },
+        { name: "Size", key: "Size", type: "VARIANT" },
       ]),
     );
     expect(result).toEqual({
@@ -42,7 +47,12 @@ describe("checkPreferredValues", () => {
   it("warns when an INSTANCE_SWAP prop has an empty preferred values list", () => {
     const result = checkPreferredValues(
       fixture([
-        { name: "Icon", type: "INSTANCE_SWAP", preferredValuesCount: 0 },
+        {
+          name: "Icon",
+          key: "Icon#1:2",
+          type: "INSTANCE_SWAP",
+          preferredValuesCount: 0,
+        },
       ]),
     );
     expect(result.status).toBe("warn");
@@ -56,8 +66,8 @@ describe("checkPreferredValues", () => {
   it("is not_applicable when the set exposes no INSTANCE_SWAP props", () => {
     const result = checkPreferredValues(
       fixture([
-        { name: "Size", type: "VARIANT" },
-        { name: "Disabled", type: "BOOLEAN" },
+        { name: "Size", key: "Size", type: "VARIANT" },
+        { name: "Disabled", key: "Disabled#3:4", type: "BOOLEAN" },
       ]),
     );
     expect(result).toEqual({

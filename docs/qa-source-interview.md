@@ -332,13 +332,29 @@ The six items that were still `tier: null` in [`checklist-catalogue.ts`](../src/
 | **19** Documentation | **shipped** `documentation` | Presence of a docs link, `pass` or `not_applicable` | Confirm with design that Figma's documentation-link field is where their docs live |
 | **7** Responsiveness | **shipped** `responsive-bounds` | Are min/max width/height set, as advice | Nothing. "Doesn't break on resize" is the harder, separable half, and stays a manual tick on the row |
 | **18** Page Template | blocked | Are the expected labels present around the component | The snapshot is **set-scoped** and the labels are page siblings, so this needs the collector's scope widened, plus a definition of "tidy" |
-| **3** Check All the Props | open | Icon colour equals text colour, as a configured invariant | A definition of "breaks"; combinatorial cost on large sets |
+| **3** Check All the Props | **shipped** `variant-property-bindings` | Is every property actually *wired* in every variant | Nothing, for the wiring half. The icon/text colour invariant and long-text stress still need a definition of "breaks" and stay a manual tick |
 | **1** Storybook Alignment + Note | **deferred** (2026-07-27) | Does a deviation note exist on the page | Deferred by decision: all Storybook-dependent work is parked, which also covers the prop-name half of item 2 |
 | **6** Typography Desktop\|Mobile | blocked | Style correspondence across a desktop/mobile pair | Both the pairing rule and the correspondence rule; nothing in the call specifies either |
 
 Note that none of these were pure snapshot checks.
-`documentationLinks` and the four `min/max` fields both had to be added to the collector first.
+`documentationLinks`, the four `min/max` fields and `propertyReferences` all had to be added to the collector first.
 Item 18 is the sharp version of that problem: `ComponentSetSnapshot` deliberately stops at the component set, and item 18 is the first check that needs to see the page around it.
+
+### The Figma modelling artifact behind item 3
+
+The interview describes item 3 as cycling props and seeing nothing breaks, which reads as a dynamic check, and that is how it was filed.
+The failure the item most often hides turned out to be structural, and it is nowhere in the call because it is an artifact of how Figma models properties rather than anything a designer would think to describe.
+
+A boolean property's **definition** lives on the component set, so its toggle appears in the properties panel for every variant the moment it is created.
+Its **binding** lives on one layer inside one variant, and does not propagate when variants are added or duplicated.
+So a set ships where `Show Left Icon` is wired on Primary and silently missed on Ghost: the toggle is there, looks identical to a working one, and does nothing.
+Figma raises no error and draws no distinction, and booleans default to off, so the evidence sits in a state nobody looks at.
+Twelve variants and two booleans is twenty-four bindings.
+
+Checking that by hand means twenty-four select-toggle-untoggle cycles, so in practice it is never checked, and it surfaces in a consumer's file weeks later rather than in the library.
+
+The lesson worth keeping is that the source describes the **workflow** faithfully and cannot be expected to describe the **tool's** failure modes.
+Reading item 3 only as written would have produced a render harness and left the actual defect in place.
 
 ### Partial automation is the norm, not the exception
 
@@ -352,8 +368,11 @@ The remainder belongs to the **check**, not to the catalogue entry, because whet
 Item 19 asks for a content review only when a link exists; with no documentation there is nothing to read, and a static per-item string put "read the documentation" on the row precisely when there was none.
 Item 7's is unconditional by contrast, since a set being unable to hold bounds says nothing about whether it survives a resize.
 
+Item 3 is the third, and unconditional like item 7's: the check establishes that every property is wired, while the item asks for combinations cycled, long text always, and icon colour following text colour.
+Correct wiring says nothing about whether the states it exposes render correctly, so the tick is owed on every outcome.
+
 The report also counts these rows separately, as `counts.partial`.
-Without that, a run could report "0 manual" while rows 7 and 19 still had unticked boxes on the canvas.
+Without that, a run could report "0 manual" while rows 3, 7 and 19 still had unticked boxes on the canvas.
 
 The same treatment is owed to at least these, all pre-existing:
 

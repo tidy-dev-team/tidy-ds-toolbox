@@ -16,7 +16,12 @@ const PRD_ITEMS: ReadonlyArray<{
     tier: 1,
     checkId: "set-name-casing",
   },
-  { n: 3, title: "Check All the Props", tier: null },
+  {
+    n: 3,
+    title: "Check All the Props",
+    tier: 1,
+    checkId: "variant-property-bindings",
+  },
   {
     n: 4,
     title: "Prop Names Aligned to Catalogue",
@@ -125,8 +130,8 @@ describe("CHECKLIST_CATALOGUE", () => {
 
   it("gives every automated item a unique checkId, tiered 1 or 2", () => {
     const automated = CHECKLIST_CATALOGUE.filter((item) => item.checkId);
-    expect(automated).toHaveLength(15);
-    expect(new Set(automated.map((item) => item.checkId)).size).toBe(15);
+    expect(automated).toHaveLength(16);
+    expect(new Set(automated.map((item) => item.checkId)).size).toBe(16);
     for (const item of automated) {
       expect(item.tier === 1 || item.tier === 2).toBe(true);
     }

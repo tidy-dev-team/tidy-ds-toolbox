@@ -23,6 +23,7 @@ import { checkThemes } from "./themes";
 import { checkHighContrast } from "./high-contrast";
 import { checkResponsiveBounds } from "./responsive-bounds";
 import { checkDocumentation } from "./documentation";
+import { checkVariantPropertyBindings } from "./variant-property-bindings";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -47,6 +48,7 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "high-contrast": checkHighContrast,
   "responsive-bounds": checkResponsiveBounds,
   documentation: checkDocumentation,
+  "variant-property-bindings": checkVariantPropertyBindings,
 };
 
 export interface RunOutcome {

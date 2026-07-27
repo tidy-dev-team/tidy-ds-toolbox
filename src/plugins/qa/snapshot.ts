@@ -97,6 +97,22 @@ export interface NodeSnapshot {
     remote: boolean;
   };
   /**
+   * Which component property drives which of this node's own properties (#3),
+   * straight from Figma's `componentPropertyReferences`. Keyed by the node
+   * property being driven - `visible` for BOOLEAN, `mainComponent` for
+   * INSTANCE_SWAP, `characters` for TEXT - with the **raw suffixed property
+   * key** as the value, e.g. `"Show Left Icon#123:4"`.
+   *
+   * Absent when the node is driven by nothing, which is the normal case.
+   *
+   * This is the only record of a property's *binding*. Figma stores a boolean
+   * property's definition on the component set, so its toggle appears in the
+   * panel for every variant, but the binding lives on one layer inside one
+   * variant and does not propagate when variants are added. Without this field
+   * an unwired toggle is indistinguishable from a wired one.
+   */
+  propertyReferences?: Record<string, string>;
+  /**
    * INSTANCE nodes only: whether this instance itself is exposed to its
    * containing component's panel (#14). When false, none of its exposed
    * descendants surface there either, however deep `exposedInstances` goes.
@@ -192,6 +208,13 @@ export interface NodeSnapshot {
 export interface ComponentPropertySnapshot {
   /** Property name without the Figma "#id" suffix. */
   name: string;
+  /**
+   * The raw Figma key including the "#id" suffix, e.g. `"Show Left Icon#123:4"`
+   * (#3). Kept alongside the display name because `NodeSnapshot.propertyReferences`
+   * holds this exact string: joining a binding to its definition is an exact
+   * match on the key, not a comparison of stripped display names.
+   */
+  key: string;
   /** "VARIANT" | "BOOLEAN" | "TEXT" | "INSTANCE_SWAP" */
   type: string;
   /** INSTANCE_SWAP properties only (#15). */
