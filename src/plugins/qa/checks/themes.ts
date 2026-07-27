@@ -2,6 +2,18 @@
  * #17 - Themes (issue #102). Does every variable this set uses actually
  * resolve in every mode of the theme?
  *
+ * **The visual half stays a human tick.** The source ask was that for every mode
+ * the component has, it works and *looks good* in all of them. Resolution
+ * integrity is a strictly weaker claim, so every reported outcome carries a
+ * `manualRemainder` naming the modes to look at (#115).
+ *
+ * **Conditional, on #19's logic rather than #7's.** `not_applicable` here means
+ * no theme collection, a single-mode collection, or nothing this set binds being
+ * theme-aware - and in all three the component renders identically in every mode,
+ * so there is nothing to compare by eye. #7's remainder is unconditional because
+ * a set that cannot hold bounds can still break when resized; a set with no theme
+ * axis genuinely has no modes to review.
+ *
  * **Scope: resolution integrity only.** Legibility is #16's, and invisible
  * text is just contrast 1.0 - reporting it here as well would describe one
  * defect twice in two rows. So there is no contrast maths in this check at all.
@@ -165,6 +177,23 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   }
 
   const modeList = theme.modes.map((m) => m.name).join(", ");
+
+  // Design's ask was visual - for every mode, see that it works and *looks good*.
+  // This check proves only that every bound variable resolves, which is a
+  // different claim: a set can resolve perfectly in both modes and still read
+  // wrong in one. Without this the row overclaimed on every run (#115).
+  //
+  // Names the modes rather than saying "check the modes", so the tick is
+  // actionable, and because the collection pick is a heuristic the reviewer
+  // should see which axis they are being asked to look at.
+  const visualRemainder =
+    theme.modes.length > 0
+      ? `Look at the component in every theme mode (${modeList}) and confirm ` +
+        `it reads correctly in each. Only that every bound variable resolves ` +
+        `is checked automatically.`
+      : `Look at the component in every theme mode and confirm it reads ` +
+        `correctly. The modes could not be determined here, so they are not ` +
+        `named; only variable resolution is checked automatically.`;
   const note = theme.collectionName
     ? `Evaluated collection "${theme.collectionName}" across ${theme.modes.length} modes: ${modeList}. The theme collection is picked as the bound collection with the most modes; if that is the wrong collection here, these results describe the wrong axis.`
     : "No theme collection could be determined: none of the variables this set binds could be loaded, so there were no modes to evaluate against.";
@@ -180,5 +209,6 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
     status,
     findings,
     note,
+    manualRemainder: visualRemainder,
   };
 }

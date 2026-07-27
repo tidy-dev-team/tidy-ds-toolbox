@@ -340,6 +340,14 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > The theme collection is **not configured by name**: it is the bound collection with the most modes (the shared helper the generated doc pages use), and the result states which collection and modes it evaluated so a wrong pick is visible instead of silently green.
 > Where nodes pin their own explicit modes the probe cannot speak for them, and the check `warn`s rather than reporting a confidently wrong value.
 > Flagging colours bound to a *single-mode* collection as "not theme-aware" is a candidate follow-up, not v1 work: a false-positive factory until narrowed much harder.
+>
+> **The visual half is a human tick, not an omission.**
+> The source ask was that for every mode the component has, it works and *looks good* in all of them, which resolution integrity does not establish: a set can resolve perfectly in both modes and still read wrong in one.
+> Every reported outcome therefore carries a `manualRemainder` naming the modes to review, so the row shows a status chip **and** a tickbox and counts toward `counts.partial`.
+> Without it a green chip stood for the visual review on every run.
+>
+> That remainder is **conditional**, on item 19's logic rather than item 7's.
+> `not_applicable` here means no theme collection, a single-mode collection, or nothing this set binds being theme-aware, and in all three the component renders identically in every mode, so there is nothing to compare by eye.
 
 * **Intent:** Validate that variables map cleanly across dynamic display scenarios without visual bugs.
 * **Automated Plugin Action:**

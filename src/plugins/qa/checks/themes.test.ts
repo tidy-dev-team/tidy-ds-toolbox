@@ -379,6 +379,92 @@ describe("checkThemes", () => {
     expect(result.note).toMatch(/no theme collection could be determined/i);
   });
 
+  describe("visual remainder (#115)", () => {
+    function passing() {
+      return checkThemes(
+        fixture(
+          [[filled("v-bg")]],
+          theme({
+            variables: { "v-bg": resolved("bg/default", ["m-core", "m-dna"]) },
+          }),
+        ),
+      );
+    }
+
+    it("leaves the visual review outstanding, naming the modes to look at", () => {
+      // The ask was "see that it works and looks good in all modes"; this check
+      // only proves every bound variable resolves. A green chip that stood for
+      // the look would be a false pass.
+      const remainder = passing().manualRemainder;
+      expect(remainder).toBeDefined();
+      // Named, not "check the modes", so the tick is actionable.
+      expect(remainder).toContain("Core");
+      expect(remainder).toContain("DNA");
+    });
+
+    it("keeps the remainder on warn and fail, not just pass", () => {
+      const failing = checkThemes(
+        fixture(
+          [[filled("v-bg")]],
+          theme({
+            variables: {
+              "v-bg": {
+                name: "bg/default",
+                collectionId: "c-theme",
+                byMode: {
+                  "m-core": { ok: true, type: "COLOR", hex: "#123456" },
+                  "m-dna": { ok: false, reason: "no-value" },
+                },
+              },
+            },
+          }),
+        ),
+      );
+      expect(failing.status).toBe("fail");
+      expect(failing.manualRemainder).toContain("Core");
+    });
+
+    it("omits the remainder when there is no theme to look at", () => {
+      // `not_applicable` means no theme collection, a single-mode collection, or
+      // nothing this set binds is theme-aware. In all three the component renders
+      // identically in every mode, so there is nothing to compare by eye -
+      // unlike #7's remainder, which is owed even on `not_applicable`.
+      const noTheme = checkThemes(fixture([[node()]]));
+      expect(noTheme.status).toBe("not_applicable");
+      expect(noTheme.manualRemainder).toBeUndefined();
+
+      const singleMode = checkThemes(
+        fixture(
+          [[filled("v-bg")]],
+          theme({
+            modes: [{ modeId: "m-only", name: "Only" }],
+            variables: { "v-bg": resolved("bg/default", ["m-only"]) },
+          }),
+        ),
+      );
+      expect(singleMode.status).toBe("not_applicable");
+      expect(singleMode.manualRemainder).toBeUndefined();
+    });
+
+    it("still asks for a look when the modes could not be determined", () => {
+      // Every binding is dead, so there are no mode names to offer - but a set
+      // with broken bindings is exactly one a human should see rendered.
+      const result = checkThemes(
+        fixture(
+          [[filled("v-dead")]],
+          theme({
+            collectionId: undefined,
+            collectionName: undefined,
+            modes: [],
+            unavailableVariableIds: ["v-dead"],
+          }),
+        ),
+      );
+      expect(result.manualRemainder).toBeDefined();
+      expect(result.manualRemainder).toMatch(/mode/i);
+    });
+  });
+
   it("orders findings deterministically by message", () => {
     const result = checkThemes(
       fixture(
