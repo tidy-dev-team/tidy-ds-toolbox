@@ -128,6 +128,19 @@ function collectPinnedAncestors(
   return pinned;
 }
 
+/**
+ * Whether a node is an auto-layout frame, which is what makes size bounds
+ * settable on it *and on its direct children* (#7).
+ */
+function isAutoLayoutFrame(node: BaseNode | null | undefined): boolean {
+  return (
+    node != null &&
+    "layoutMode" in node &&
+    node.layoutMode !== "NONE" &&
+    node.layoutMode !== undefined
+  );
+}
+
 function snapshotNode(node: SceneNode): NodeSnapshot {
   const snap: NodeSnapshot = {
     id: node.id,
@@ -206,6 +219,21 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
   if ("layoutSizingHorizontal" in node) {
     snap.layoutSizingHorizontal = node.layoutSizingHorizontal;
     snap.layoutSizingVertical = node.layoutSizingVertical;
+  }
+  // Auto-layout size bounds (#7). Figma uses null for "unset", and #7 reports
+  // exactly that absence, so an unset bound is left off the snapshot rather
+  // than carried as null.
+  if ("minWidth" in node) {
+    if (node.minWidth !== null) snap.minWidth = node.minWidth;
+    if (node.maxWidth !== null) snap.maxWidth = node.maxWidth;
+    if (node.minHeight !== null) snap.minHeight = node.minHeight;
+    if (node.maxHeight !== null) snap.maxHeight = node.maxHeight;
+    // Read from the parent as well: bounds are settable on an auto-layout
+    // frame's direct children too, so a non-auto-layout variant inside an
+    // auto-layout component set is still a legitimate place for them.
+    if (isAutoLayoutFrame(node) || isAutoLayoutFrame(node.parent)) {
+      snap.boundsApplicable = true;
+    }
   }
   if ("cornerRadius" in node) {
     snap.cornerRadius =
@@ -311,11 +339,14 @@ export function collectSnapshot(
 
   const pinnedAncestors = collectPinnedAncestors(subject);
 
+  const documentationLinks = subject.documentationLinks.map((link) => link.uri);
+
   return {
     id: subject.id,
     name: subject.name,
     type: subject.type,
     description: subject.description,
+    ...(documentationLinks.length > 0 ? { documentationLinks } : {}),
     propertyNames: properties.map((p) => p.name),
     properties,
     variants,

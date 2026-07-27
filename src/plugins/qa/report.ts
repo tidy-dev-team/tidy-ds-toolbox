@@ -23,7 +23,14 @@ export interface BuildChecklistReportInput {
 }
 
 function emptyCounts(): ChecklistReport["counts"] {
-  return { pass: 0, warn: 0, fail: 0, manual: 0, notImplemented: 0 };
+  return {
+    pass: 0,
+    warn: 0,
+    fail: 0,
+    manual: 0,
+    notImplemented: 0,
+    partial: 0,
+  };
 }
 
 /**
@@ -45,6 +52,10 @@ export function buildChecklistReport(
   const items: ChecklistItem[] = CHECKLIST_CATALOGUE.map((entry) => {
     const automated = entry.checkId !== undefined;
     let status: ItemStatus;
+    // Outstanding human work, as reported by the check itself. A row whose
+    // check didn't run has none recorded: nothing about it was established, and
+    // its not_run / not_implemented chip already says the whole row is open.
+    let manualRemainder: string | undefined;
     let findings: Finding[] = [];
     // Unlike findings, a note survives a `pass` — a caveat only matters
     // precisely when the check passed on partial evidence (#8).
@@ -64,6 +75,7 @@ export function buildChecklistReport(
         findings =
           status === "warn" || status === "fail" ? engine.findings : [];
         note = engine.note;
+        manualRemainder = engine.manualRemainder;
       } else if (notImplemented.has(entry.checkId)) {
         status = "not_implemented";
       } else {
@@ -91,6 +103,12 @@ export function buildChecklistReport(
       // intentionally omitted from counts (so counts.pass stays honest).
     }
 
+    // Counted on top of the status above, never instead of it: the row has both
+    // an engine verdict and outstanding human work.
+    if (manualRemainder) {
+      counts.partial += 1;
+    }
+
     return {
       n: entry.n,
       title: entry.title,
@@ -98,6 +116,7 @@ export function buildChecklistReport(
       tier: entry.tier,
       checkId: entry.checkId,
       automated,
+      ...(manualRemainder ? { manualRemainder } : {}),
       status,
       findings,
       ...(note ? { note } : {}),

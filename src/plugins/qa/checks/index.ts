@@ -21,6 +21,8 @@ import { checkNestingDepth } from "./nesting-depth";
 import { checkAssetProvenance } from "./asset-provenance";
 import { checkThemes } from "./themes";
 import { checkHighContrast } from "./high-contrast";
+import { checkResponsiveBounds } from "./responsive-bounds";
+import { checkDocumentation } from "./documentation";
 
 export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
@@ -43,6 +45,8 @@ export const CHECK_REGISTRY: Partial<Record<CheckId, CheckFn>> = {
   "asset-provenance": checkAssetProvenance,
   themes: checkThemes,
   "high-contrast": checkHighContrast,
+  "responsive-bounds": checkResponsiveBounds,
+  documentation: checkDocumentation,
 };
 
 export interface RunOutcome {

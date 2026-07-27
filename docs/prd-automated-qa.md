@@ -4,6 +4,12 @@
 
 This document outlines the functional and structural requirements for an automated Quality Assurance (QA) plugin/tool designed to validate design components within a Design System library. The requirements are derived directly from the standard **DS Component QA Checklist** and the specific implementation heuristics discussed between Engineering (Dima) and Design (Shani).
 
+> **Provenance.** That discussion is transcribed and annotated in [`qa-source-interview.md`](qa-source-interview.md).
+> This PRD was written from it, and in several places states the requirement more firmly or more broadly than design actually asked for.
+> **Where the two disagree, the source document wins.**
+> Items with a known gap carry a `**Source:**` note below.
+> The full list is in that document's [*Where the PRD over-reads the source*](qa-source-interview.md#where-the-prd-over-reads-the-source) table, along with cross-cutting requirements this PRD never captured (descriptive per-item output, per-project item suppression, stage-2 visual evidence, the hand-QA'd reference component).
+
 ---
 
 ## Technical Architecture & Core Logic
@@ -24,6 +30,13 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * If the component perfectly mirrors Storybook, the plugin passes it. If structural differences exist, the plugin checks for the presence of the note component detailing why changes were made (e.g., absolute hex colors replaced with opacities, removed properties).
 * *Output:* Flag a warning if structural variations are detected without an accompanying documentation note on the frame.
 
+> **Source:** the paragraph above overstates the ask on both counts.
+> Comparing against Storybook is explicitly *not* this item's check - *"that's not something we check at this point"*, *"not something I expect the plugin to do, just to see that such a note exists"* - and Storybook comparison is out of phase 1 entirely.
+> The check is therefore **unconditional presence of the deviation note**, not presence-when-variation-detected.
+> The note is also **not a named component** (*"no, it's just [an element]"*); the shared explanation box is a plausible guess that was flagged as uncertain, so how the note is identified is the open question for this item.
+> Roughly half of projects have no Storybook at all, so this row needs to be switchable off per project.
+> See [source notes, item 1](qa-source-interview.md#1-storybook-alignment--note).
+
 
 
 ### 2. Components Naming Dev Alignment
@@ -32,6 +45,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Automated Plugin Action:**
 * Validate that the top-level Component Set name follows strict developer casing standards (e.g., **PascalCase** like `Button` or `NotificationTag`).
 * Flag any generic, lowercase, or space-separated component master names.
+
+> **Source:** `Button` with a capital B was cited as an *example of matching dev*, not as a request for a PascalCase rule.
+> Casing is a proxy that happens to be checkable without dev input, which is what shipped as `set-name-casing`.
+> The PRD also drops **half the item**: every **prop name** must match dev too, since `Start Icon` could equally be `Left Icon` and dev has already chosen.
+> That half needs the same Storybook/dev source as item 1 and inherits its phase-1 exclusion.
+> See [source notes, item 2](qa-source-interview.md#2-components-naming-dev-alignment).
 
 
 
@@ -42,6 +61,14 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Text Stress Test:** Programmatically inject a long text string into text layers to verify that auto-layout wraps, hugs, or truncates appropriately without clipping or overlapping bounds.
 * **Property Override Check:** Verify asset inheritance. For instance, when an icon variant is toggled inside a button, the plugin validates that the icon's color property correctly inherits the button's text token color rather than breaking or displaying an unlinked raw state.
 
+> **Source:** the icon/text colour rule is not an example.
+> It is a **standing DS invariant**, and it is the live failure this item was demonstrated on, which makes it the obvious first target.
+> Design's words: *"the icon's colour is always the text colour. It's always like that. It's an exception if it's not"*.
+> Design volunteered that the plugin can't infer it, so it belongs in **configuration**.
+> Long text is the other named must-check.
+> Unspecified and blocking: what "breaks" means (clipping? overflow? zero size?), and the combinatorial cost of *"all combinations"* on a large set.
+> See [source notes, item 3](qa-source-interview.md#3-check-all-the-props).
+
 
 
 ### 4. Prop Names Aligned to Consolidated Catalogue
@@ -50,6 +77,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Automated Plugin Action:**
 * Audit the sequence and naming of properties inside the component configuration.
 * Ensure strict alignment with the global catalog order (e.g., `Size` must always appear first, followed by `Variant`, then `State`, then optional boolean switches like `Has Icon`).
+
+> **Source:** the order is **not global**.
+> It is consistent *within a project*, and *"in each project they can decide on a slightly different order"*, so it has to be configurable.
+> Design works the same way everywhere in practice, so the shipped default is fine; a client insisting otherwise is the case to support.
+> This item is also *"not part of every QA"* - it was added for one project - which is another argument for the per-project suppression checkboxes.
+> See [source notes, item 4](qa-source-interview.md#4-prop-names-aligned-to-consolidated-catalogue).
 
 
 
@@ -72,6 +105,13 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Locate matched pairs of desktop and mobile component sets on the canvas.
 * Verify that if a desktop component layer implements a certain typographic hierarchy (e.g., `Paragraph 2 Regular`), its corresponding mobile version automatically maps to the corresponding mobile typographic style (e.g., `Mobile/Paragraph 2 Regular`).
 
+> **Source:** the `Mobile/...` naming convention is **invented**; nothing in the call names one.
+> What was actually established: mobile is **always a separate component**, on the **same page**, so this check must *"review two components"* rather than one; and design was unsure the rule generalises at all (*"I just don't know if it's cross-cutting"*), while agreeing it definitely does on the dev side, where there is only one component.
+> Both unknowns are blocking: the **pairing rule** (which mobile set corresponds to which desktop set) and the **correspondence rule** (which mobile style answers a given desktop style) would each have to be configured or hand-seeded.
+> Framing worth keeping: the invariant is really **hierarchy**, and typography is just where it shows.
+> The failure it prevents is picking a level because of how it looks in one viewport rather than what it means.
+> See [source notes, item 6](qa-source-interview.md#6-typography-desktop--mobile-correlation).
+
 
 
 ### 7. Responsiveness (+ Min-Max Bounds)
@@ -81,6 +121,23 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Simulate horizontal and vertical scaling on instances of the component.
 * Audit layout settings to ensure explicit `min-width`, `max-width`, `min-height`, or `max-height` constraints are populated where structurally required.
 * *Output:* Log a warning if a component collapses to 0px or lacks basic boundary parameters (e.g., *"Results: no min value found"*).
+
+> Shipped as check `responsive-bounds`: the **size-bounds half only**, and as advice rather than a defect.
+> Reports a component whose variant roots carry **none** of `minWidth`/`maxWidth`/`minHeight`/`maxHeight`, at `low` severity with status `warn`, since the requested output was literally *"note, there aren't any"*.
+>
+> Incompleteness is deliberately **not** reported.
+> Requiring all four bounds would put a finding on nearly every component, and a row that is always amber stops being read, which is the same reasoning behind #16's skip tally.
+> A component that sets any bound has been considered, so it passes, with the unset bounds named in `note` so the row stays descriptive without going red.
+>
+> One finding for the whole set with a `count`, not one per variant: variants share their bound configuration, so per-variant findings would repeat a single fact up to 64 times.
+>
+> Whether a root can hold bounds at all is decided by the **collector**, not by the root's own `layoutMode`.
+> Figma allows bounds on auto-layout frames *and their direct children*, so a `layoutMode: "NONE"` variant inside an auto-layout component set is a legitimate place for them; the collector records `boundsApplicable` because only it can see the parent.
+> A set where no root can carry bounds reports `not_applicable`.
+>
+> **Simulating resize is not attempted.**
+> "Doesn't break when resized" needs a definition of *breaks* and stays a human judgement, so the checklist row carries a `manualRemainder` and **keeps its tickbox alongside the status chip**.
+> A green chip here speaks only for the bounds; without the box it would stand for a resize test nobody performed.
 
 
 
@@ -111,6 +168,11 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Verify they are legitimate library instances originating directly from the approved **Foundations Library**.
 * Flag copy-pasted raw vectors, unlinked SVG paths, or instances pointing to deprecated/legacy icon directories.
 
+> **Source:** design added one requirement unprompted.
+> **Which folder** assets must come from has to be **configurable**, because foundations folders go legacy and *"I want to make sure it isn't connected to legacy."*
+> She also put the raw-SVG case in perspective: it happens, but it's an anomaly (*"mostly it will be from the library"*), which is consistent with the shipped check being negative-detection-only.
+> See [source notes, item 8](qa-source-interview.md#8-icons--illustrations--logos-to-foundations).
+
 
 
 ### 9. Layer Naming + Structure
@@ -129,6 +191,13 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Check all spatial dimensions: width, height, padding, item gaps, margins, and corner radiuses.
 * All absolute numerical values must be multiples of **4px** (with **2px** flags permitted strictly for micro-elements like borders or tight inline tags).
 * *Exception Logic:* Top-level container width/height bounds are exempt from absolute 4px matching *only* if their parameters are natively governed by "Hug contents" or "Fill container" constraints.
+
+> **Source:** the hug exemption is confirmed, and confirmed as being about the component's **own size** (text can be a little longer).
+> Two corrections.
+> 2px carries **no micro-element restriction** - *"spacing is always the 4 pixel grid, it can be 2. 2 is also fine, but apart from that it's always 4"*.
+> And **icon sizes** are missing from the PRD altogether: 16/24/32/48, plus 12, plus **14 sometimes**, which design suggested entering as a configured exception.
+> Everything here is advisory - *"it'll be a note with a recommendation, so if you think it's fine, it's fine."*
+> See [source notes, item 10](qa-source-interview.md#10-4px-grid-alignment).
 
 
 
@@ -149,6 +218,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Read the Figma Component Description field.
 * Ensure it is populated and conforms to standard templates. It must include an **"Also known as:"** alias line (to aid designer search discovery) and documentation lookup keywords or links.
 
+> **Source:** the third element is specifically a **link to Storybook**; design corrected herself mid-sentence from "documentation" to "Storybook".
+> Since there usually is one and it's usually wanted, *"that can be the plugin's default."*
+> This is also the item she named as varying most from client to client, which is what prompted the hand-QA'd reference component idea.
+> Note the shipped `description` check does **not** verify the Storybook link, so this row is partially automated.
+> See [source notes, item 12](qa-source-interview.md#12-description-aka--misprint).
+
 
 
 ### 13. No Conflicts
@@ -157,6 +232,11 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Automated Plugin Action:**
 * Analyze the properties matrix of the entire component set.
 * Flag any duplicate variant definitions (e.g., accidentally configuring two distinct layout frames with the exact same properties such as `Size=Medium, Variant=Primary, State=Default`).
+
+> **Source:** "block compilation errors" oversells it.
+> Design's own verdict is *"this is pretty redundant"*, because Figma already surfaces conflicts natively in a component set.
+> It shipped on the grounds that automating it is free, not that it is valuable; worth knowing before defending the row.
+> See [source notes, item 13](qa-source-interview.md#13-no-conflicts).
 
 
 
@@ -171,6 +251,11 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Evaluate the overall depth of the internal component layer architecture.
 * Count the total levels of nested component properties exposed to the parent panel. If property nesting depth exceeds a standard threshold (e.g., more than 2 deep), trigger an optimization suggestion to flatten or simplify the configuration.
 
+> **Source:** the threshold and the "recommend, don't fail" framing are design's own words (*"if there are more than two, maybe it recommends: note, this component is a bit too long, maybe consider reducing"*).
+> But she was counting **nested components** - the demo dropdown *"has two"* - not levels of property depth.
+> The motivation is symmetric: deep nesting hurts dev and design alike.
+> See [source notes, item 14](qa-source-interview.md#14-easy-to-use-nested-components).
+
 
 
 ### 15. Preferred (Instance Swapping)
@@ -179,6 +264,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Automated Plugin Action:**
 * For any exposed component instance swap property (such as an icon slot), check that **Preferred Values** are explicitly assigned.
 * For instance, a status tag component must limit its swappable icon property list to context-appropriate icons (e.g., checkmarks, error symbols, alerts) rather than exposing the entire global icon catalog.
+
+> **Source:** "must" is too strong.
+> This item is **optional and usually absent** - *"mostly it won't be there"*, *"it's not critical"* - and relevant mainly on components like status.
+> Design was unsure it was worth automating at all.
+> A failing row here should read as a suggestion, and an empty one as normal.
+> See [source notes, item 15](qa-source-interview.md#15-preferred-instance-swapping).
 
 
 
@@ -213,6 +304,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * Detect the background color token directly behind text layers inside the component variant frames.
 * Calculate the relative color contrast ratio between the text token and its immediate background layer to ensure compliance with WCAG AA guidelines.
 
+> **Source:** design's entire ask was *"just see that everything is readable."*
+> No standard, threshold, or methodology came from design.
+> WCAG AA, the dual thresholds, the background-compositing rules and the disabled-state exemption are all engineering decisions, which is why they carry their own rationale above.
+> Useful to know when a row is challenged: the *approach* is ours to revise, not a design requirement.
+> See [source notes, item 16](qa-source-interview.md#16-high-contrast-a11y).
+
 
 
 ### 17. Themes (Core / DNA / OldNews)
@@ -244,6 +341,13 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Automated Plugin Action:**
 * Verify the presentation canvas respects the official internal delivery template layout. Ensure structural headers, anatomy breakdowns, usage specs, and component frames are neatly sorted into their assigned regions.
 
+> **Source:** far lighter than this.
+> In full: the component page exists, there are **labels around the component**, and the page *"is arranged well."*
+> Headers, anatomy breakdowns, usage specs and assigned regions are all invented.
+> What "arranged well" means was never pinned down, so the tractable reading is **"are the expected labels present"**, which likely reduces to checking the `component-labels` module's output rather than matching a template.
+> Blocked on more than a definition, though: `ComponentSetSnapshot` stops at the component set and these labels are page siblings, so this is the first check that needs the collector's scope widened.
+> See [source notes, item 18](qa-source-interview.md#18-page-template).
+
 
 
 ### 19. Documentation
@@ -251,6 +355,22 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 * **Intent:** Confirm that no component ships to production without its corresponding implementation manual.
 * **Automated Plugin Action:**
 * Check for the presence of a dedicated text or linked reference block containing usage guidelines, code behavior expectations, and engineering specs. Components lacking a minimum threshold of instructional content will trigger a documentation warning flag.
+
+> Shipped as check `documentation`, and **deliberately unable to fail.**
+> Design's framing is that QA routinely runs *before* documentation exists, so an undocumented component is the normal mid-process state rather than a defect: a link present is `pass`, none is `not_applicable`.
+> Reporting absence as `warn` would make most runs amber for a non-problem.
+>
+> The signal is **Figma's own documentation-link field**, the only machine-readable "this is documented" marker the plugin API exposes.
+> Design described item 19 as a *stage*, not a field, so if their documentation lives elsewhere (a linked page; a Storybook URL in the description, which is #12's business) this check is looking in the wrong place.
+> Hence the `note` on both outcomes, so an empty row reads as "nothing found here" rather than as green.
+> **Worth confirming with design before treating the row as authoritative.**
+>
+> The row's blurb claims usage guidance, examples and properties are documented, which a link cannot establish, so a `pass` also emits a `manualRemainder` asking for the content review and **keeps the row's tickbox**.
+> Only on `pass`: with no documentation there is nothing to read, and asking for a review there would contradict treating absence as normal.
+>
+> **Source:** the "nothing ships without its manual" framing inverts the reality - *"many times we do QA before documentation, because it's often only a later stage."*
+> It is a yes/no item, with no "minimum threshold of instructional content" behind it.
+> See [source notes, item 19](qa-source-interview.md#19-documentation).
 
 
 Framelist design:

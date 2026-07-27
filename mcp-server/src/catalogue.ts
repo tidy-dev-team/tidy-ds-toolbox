@@ -279,7 +279,7 @@ export const CATALOGUE: CatalogueEntry[] = [
         .array(z.string())
         .optional()
         .describe(
-          "Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: set-name-casing, prop-order, tokens, layer-naming-structure, grid-4px, interaction-hover-only, description, no-conflicts, preferred-values, nesting-depth, asset-provenance, themes, high-contrast.",
+          "Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: set-name-casing, prop-order, tokens, layer-naming-structure, grid-4px, interaction-hover-only, description, no-conflicts, preferred-values, nesting-depth, asset-provenance, themes, high-contrast, responsive-bounds, documentation.",
         ),
     },
     timeoutMs: 60_000,

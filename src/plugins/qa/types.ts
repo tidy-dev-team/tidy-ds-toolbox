@@ -25,7 +25,9 @@ export type CheckId =
   | "nesting-depth"
   | "asset-provenance"
   | "themes"
-  | "high-contrast";
+  | "high-contrast"
+  | "responsive-bounds"
+  | "documentation";
 
 export interface Finding {
   severity: SeverityLevel;
@@ -57,6 +59,17 @@ export interface CheckResult {
    * the checklist reads as a stronger guarantee than it is.
    */
   note?: string;
+  /**
+   * Human work this check leaves behind, when it covers only part of its
+   * checklist item. The checklist row then carries a status chip **and** keeps a
+   * tickable box, so a green chip cannot stand for the half nobody performed.
+   *
+   * The check owns this rather than the catalogue because whether work remains
+   * can depend on what the check found: #19 asks for a content review only when
+   * a documentation link actually exists, and has nothing to review when it
+   * reports `not_applicable`. A static per-item string got that case wrong.
+   */
+  manualRemainder?: string;
 }
 
 export interface CheckDefinition {
@@ -113,6 +126,16 @@ export const CHECKS: readonly CheckDefinition[] = [
     prdSection: 16,
     title: "High contrast (WCAG AA)",
   },
+  {
+    id: "responsive-bounds",
+    prdSection: 7,
+    title: "Responsiveness (size bounds)",
+  },
+  {
+    id: "documentation",
+    prdSection: 19,
+    title: "Documentation",
+  },
 ];
 
 export function getCheck(id: string): CheckDefinition | undefined {
@@ -136,6 +159,13 @@ export interface ChecklistItem {
   tier: 1 | 2 | null;
   checkId?: CheckId;
   automated: boolean;
+  /**
+   * What a human must still check on this row, forwarded from the backing
+   * check's `manualRemainder`. Present means the row is *partially* automated:
+   * it carries a status chip AND keeps a tickable box, because a green chip that
+   * silently stood for the unchecked half would be a false pass.
+   */
+  manualRemainder?: string;
   status: ItemStatus;
   /**
    * Engine findings; empty for everything except warn / fail (manual, pass,
@@ -150,8 +180,18 @@ export interface ChecklistReport {
   target: { id: string; name: string };
   generatedFor: { instanceId?: string };
   items: ChecklistItem[];
+  /**
+   * Row tallies. `pass`/`warn`/`fail`/`manual`/`notImplemented` are mutually
+   * exclusive statuses and sum (with `not_applicable` and `not_run`) to 19.
+   *
+   * `partial` is **not** a status: it is an overlay counting automated rows that
+   * still carry a `manualRemainder`, and every such row is *also* counted by its
+   * own status. Without it a report could read "0 manual" while rows 7 and 19
+   * had unticked boxes on the canvas, so it is deliberately excluded from the
+   * sum rather than folded into `manual`.
+   */
   counts: Record<
-    "pass" | "warn" | "fail" | "manual" | "notImplemented",
+    "pass" | "warn" | "fail" | "manual" | "notImplemented" | "partial",
     number
   >;
 }

@@ -30,7 +30,12 @@ const PRD_ITEMS: ReadonlyArray<{
     checkId: "tokens",
   },
   { n: 6, title: "Typography Desktop|Mobile", tier: null },
-  { n: 7, title: "Responsiveness (+ Min-Max)", tier: null },
+  {
+    n: 7,
+    title: "Responsiveness (+ Min-Max)",
+    tier: 2,
+    checkId: "responsive-bounds",
+  },
   {
     n: 8,
     title: "Icons/Illustrations/Logos → Foundations",
@@ -82,7 +87,12 @@ const PRD_ITEMS: ReadonlyArray<{
     checkId: "themes",
   },
   { n: 18, title: "Page Template", tier: null },
-  { n: 19, title: "Documentation", tier: null },
+  {
+    n: 19,
+    title: "Documentation",
+    tier: 2,
+    checkId: "documentation",
+  },
 ];
 
 describe("CHECKLIST_CATALOGUE", () => {
@@ -115,8 +125,8 @@ describe("CHECKLIST_CATALOGUE", () => {
 
   it("gives every automated item a unique checkId, tiered 1 or 2", () => {
     const automated = CHECKLIST_CATALOGUE.filter((item) => item.checkId);
-    expect(automated).toHaveLength(13);
-    expect(new Set(automated.map((item) => item.checkId)).size).toBe(13);
+    expect(automated).toHaveLength(15);
+    expect(new Set(automated.map((item) => item.checkId)).size).toBe(15);
     for (const item of automated) {
       expect(item.tier === 1 || item.tier === 2).toBe(true);
     }

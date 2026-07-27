@@ -148,6 +148,27 @@ export interface NodeSnapshot {
   cornerRadius?: number | "MIXED";
   strokeWeight?: number | "MIXED";
 
+  /**
+   * Auto-layout size bounds (#7). Figma reports `null` for "no bound", and
+   * these are recorded only when actually set, so absent here means unset in
+   * the file, which is precisely what the check reports on.
+   */
+  minWidth?: number;
+  maxWidth?: number;
+  minHeight?: number;
+  maxHeight?: number;
+  /**
+   * Whether Figma would accept a size bound on this node at all (#7).
+   * Bounds are settable on auto-layout frames **and on their direct
+   * children**, so this cannot be inferred from the node's own `layoutMode`:
+   * a `layoutMode: "NONE"` variant inside an auto-layout component set can
+   * carry bounds perfectly well. The collector owns the answer because only it
+   * can see the parent; absent means bounds are not settable here, and #7
+   * reports `not_applicable` rather than asking for something the file cannot
+   * express.
+   */
+  boundsApplicable?: boolean;
+
   /** Fields on this node bound to variables, e.g. ["paddingLeft", "itemSpacing"]. */
   boundVariableKeys?: string[];
   /**
@@ -301,6 +322,12 @@ export interface ComponentSetSnapshot {
   /** Standalone components (no variants) are valid QA subjects too. */
   type: "COMPONENT_SET" | "COMPONENT";
   description: string;
+  /**
+   * URIs from the component's Figma documentation-link field (#19). Absent
+   * when there are none, the common case, since QA routinely runs before
+   * documentation exists.
+   */
+  documentationLinks?: string[];
   /** Component property names in declaration order (#4). */
   propertyNames: string[];
   properties: ComponentPropertySnapshot[];
