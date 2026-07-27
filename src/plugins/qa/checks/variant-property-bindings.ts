@@ -162,7 +162,15 @@ function partialWiringFinding(
 
   // An unbound layer left visible is the nastier shape of the same defect: the
   // icon is always on and cannot be switched off, and it looks correct at rest.
-  const stuckVisible = candidates.filter((c) => c.layer?.visible === true);
+  //
+  // BOOLEAN properties only. A visible unbound layer says nothing at all for a
+  // TEXT or INSTANCE_SWAP property - those drive `characters` and
+  // `mainComponent`, so their layer is *supposed* to be visible and the only
+  // defect is that its content cannot be overridden.
+  const stuckVisible =
+    referenceKey === "visible"
+      ? candidates.filter((c) => c.layer?.visible === true)
+      : [];
 
   const fixLocation = firstWithLayer
     ? ` Layer "${firstWithLayer.layer?.name}" is present and unbound in ` +

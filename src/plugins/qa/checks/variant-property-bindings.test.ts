@@ -241,6 +241,11 @@ describe("checkVariantPropertyBindings (#3)", () => {
     );
     expect(result.status).toBe("fail");
     expect(result.findings[0].count).toBe(1);
+    // The unbound instance is visible, but an instance-swap property drives
+    // `mainComponent`: the layer is supposed to be visible, so the stuck-visible
+    // diagnosis would be nonsense here.
+    expect(result.findings[0].message).not.toContain("cannot be switched off");
+    expect(result.findings[0].message).toContain("that is the layer to bind");
   });
 
   it("covers text properties, which bind via characters", () => {
@@ -259,6 +264,10 @@ describe("checkVariantPropertyBindings (#3)", () => {
       ),
     );
     expect(result.status).toBe("fail");
+    // A visible unbound text layer is the normal case: the label renders, it
+    // just cannot be overridden. Nothing is stuck on.
+    expect(result.findings[0].message).not.toContain("cannot be switched off");
+    expect(result.findings[0].message).toContain("that is the layer to bind");
   });
 
   it("ignores variant properties, which carry no layer binding", () => {
