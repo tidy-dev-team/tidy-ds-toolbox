@@ -23,22 +23,33 @@ export interface GroupedFinding {
   count: number;
 }
 
-const SEVERITY_RANK: Record<SeverityLevel, number> = {
+export const SEVERITY_RANK: Record<SeverityLevel, number> = {
   critical: 4,
   high: 3,
   medium: 2,
   low: 1,
 };
 
+/** Stand-in for a node name that differed across the findings being merged. */
+export const REDACTED_NODE_NAME = "…";
+
 // Blanks the finding's own quoted node name so per-node repeats collapse into
 // one line, while leaving any other quoted text (fixed literals like the
 // `"Also known as:"` line name) untouched.
-function redactNodeName(finding: Finding): string {
+export function redactNodeName(finding: Finding): string {
   if (!finding.nodeName) return finding.message;
-  return finding.message.split(`"${finding.nodeName}"`).join('"…"');
+  return finding.message
+    .split(`"${finding.nodeName}"`)
+    .join(`"${REDACTED_NODE_NAME}"`);
 }
 
-function groupKey(finding: Finding): string {
+/**
+ * Identity of a finding's *kind*, ignoring which node it landed on.
+ *
+ * Shared with `dedupeFindings` so the payload and the canvas agree on what
+ * counts as the same defect: two consumers, one definition.
+ */
+export function findingKindKey(finding: Finding): string {
   // JSON-encoded so the parts stay unambiguous even if a message contains
   // whatever plain separator we'd otherwise join on.
   return JSON.stringify([
@@ -56,7 +67,7 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
   const groups = new Map<string, GroupedFinding>();
 
   for (const finding of findings) {
-    const key = groupKey(finding);
+    const key = findingKindKey(finding);
     const existing = groups.get(key);
     const count = finding.count ?? 1;
     if (existing) {
