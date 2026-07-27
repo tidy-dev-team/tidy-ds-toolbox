@@ -109,6 +109,39 @@ describe("runChecks", () => {
       delete CHECK_REGISTRY.tokens;
     }
   });
+
+  it("dedupes each check's findings, so one shared-layer defect is one finding", () => {
+    // Variants share layers, so a per-node check reports the same defect once per
+    // variant: on a real 64-variant Button that turned 4 token defects into 170
+    // findings (#118). Deduping here rather than in each check keeps every check
+    // a plain per-node function.
+    const perNode: CheckFn = () => ({
+      checkId: "tokens",
+      title: "Tokens (Styles & Variables)",
+      status: "fail",
+      findings: Array.from({ length: 56 }, (_, i) => ({
+        severity: "medium" as const,
+        nodeId: `2625:${10450 + i}`,
+        nodeName: "Right Icon",
+        message: `"Right Icon" itemSpacing is 10 but not bound to a spacing variable.`,
+        expected: "Spacing bound to a variable",
+        actual: "10",
+      })),
+    });
+    CHECK_REGISTRY.tokens = perNode;
+    try {
+      const [result] = runChecks(FIXTURE, ["tokens"] as CheckId[]).results;
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0].count).toBe(56);
+      // The status the check decided is untouched; only the findings collapse.
+      expect(result.status).toBe("fail");
+      // Jump-to-node survives.
+      expect(result.findings[0].nodeId).toBe("2625:10450");
+      expect(result.findings[0].nodeIds?.length).toBeGreaterThan(1);
+    } finally {
+      delete CHECK_REGISTRY.tokens;
+    }
+  });
 });
 
 describe("qa-config", () => {

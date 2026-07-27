@@ -5,6 +5,7 @@
  * the operation, or this run helper.
  */
 
+import { dedupeFindings } from "../dedupe-findings";
 import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckId, CheckResult } from "../types";
 import { CHECKS, getCheck } from "../types";
@@ -64,6 +65,13 @@ export function unknownCheckIds(requested: string[]): string[] {
 /**
  * Run the requested checks (default: whole catalogue, in PRD order) against
  * one snapshot. Pure — no Figma API, fully fixture-testable.
+ *
+ * Findings are deduped here rather than inside each check (#118). Variants share
+ * their layers, so one mistake in a shared layer is a separate node in every
+ * variant, and a Tier 1 check emitting per node turns 6 real defects into 282
+ * findings on a 64-variant set. Doing it at this boundary keeps every check a
+ * plain per-node function with per-node fixtures, and gives all fifteen the fix
+ * at once instead of asking each to invent its own aggregation key.
  */
 export function runChecks(
   snapshot: ComponentSetSnapshot,
@@ -76,7 +84,8 @@ export function runChecks(
   for (const id of ids) {
     const fn = CHECK_REGISTRY[id];
     if (fn) {
-      results.push(fn(snapshot));
+      const result = fn(snapshot);
+      results.push({ ...result, findings: dedupeFindings(result.findings) });
     } else {
       notImplemented.push(id);
     }
