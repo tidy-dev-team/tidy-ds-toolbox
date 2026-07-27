@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dedupeFindings, MAX_REPORTED_NODE_IDS } from "./dedupe-findings";
+import { dedupeFindings, MAX_REPORTED_NODES } from "./dedupe-findings";
 import type { Finding } from "./types";
 
 function finding(overrides: Partial<Finding> = {}): Finding {
@@ -51,11 +51,70 @@ describe("dedupeFindings", () => {
   });
 
   it("caps the node id list, since count carries the true magnitude", () => {
+    // Nobody walks 50 ids by hand, and on the real Button the id lists became
+    // the bulk of the payload the dedupe was meant to shrink.
     const result = dedupeFindings(
-      sharedLayerAcrossVariants(MAX_REPORTED_NODE_IDS + 10),
+      sharedLayerAcrossVariants(MAX_REPORTED_NODES + 10),
     );
-    expect(result[0].nodeIds).toHaveLength(MAX_REPORTED_NODE_IDS);
-    expect(result[0].count).toBe(MAX_REPORTED_NODE_IDS + 10);
+    expect(result[0].nodeIds).toHaveLength(MAX_REPORTED_NODES);
+    expect(result[0].count).toBe(MAX_REPORTED_NODES + 10);
+  });
+
+  describe("nodeNames", () => {
+    function differentlyNamed(names: string[]): Finding[] {
+      return names.map((name, i) =>
+        finding({
+          nodeId: `1:${i}`,
+          nodeName: name,
+          message: `Fill #FFFFFF on "${name}" is a raw value.`,
+        }),
+      );
+    }
+
+    it("names the offenders when the merged findings disagree on the name", () => {
+      // Measured on the real Button: two variant roots with a hardcoded white
+      // fill merged to `"…"`, and the message alone no longer said which.
+      const result = dedupeFindings(
+        differentlyNamed([
+          "variant=ghost, size=lg, state=focused",
+          "variant=ghost, size=md, state=focused",
+        ]),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].message).toContain('"…"');
+      expect(result[0].nodeNames).toEqual([
+        "variant=ghost, size=lg, state=focused",
+        "variant=ghost, size=md, state=focused",
+      ]);
+    });
+
+    it("omits nodeNames when every merged node shares its name", () => {
+      // `nodeName` already carries it; repeating it 56 times says nothing.
+      const result = dedupeFindings(sharedLayerAcrossVariants(56));
+      expect(result[0].nodeNames).toBeUndefined();
+      expect(result[0].nodeName).toBe("Right Icon");
+    });
+
+    it("omits nodeNames when nothing was merged", () => {
+      expect(dedupeFindings([finding()])[0].nodeNames).toBeUndefined();
+    });
+
+    it("lists each distinct name once, however many nodes carry it", () => {
+      const result = dedupeFindings(
+        differentlyNamed(["Icon A", "Icon B", "Icon A", "Icon B", "Icon C"]),
+      );
+      expect(result[0].nodeNames).toEqual(["Icon A", "Icon B", "Icon C"]);
+      expect(result[0].count).toBe(5);
+    });
+
+    it("caps the name list too", () => {
+      const names = Array.from(
+        { length: MAX_REPORTED_NODES + 5 },
+        (_, i) => `Icon ${i}`,
+      );
+      const result = dedupeFindings(differentlyNamed(names));
+      expect(result[0].nodeNames).toHaveLength(MAX_REPORTED_NODES);
+    });
   });
 
   it("keeps distinct kinds apart", () => {

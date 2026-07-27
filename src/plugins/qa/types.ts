@@ -50,11 +50,20 @@ export interface Finding {
    * `nodeId` remains the representative, so callers that only ever opened one
    * offender keep working; this is what makes jump-to-node survive deduping.
    *
-   * Capped (see `MAX_REPORTED_NODE_IDS`) - `count` carries the true magnitude,
-   * so these are a working sample, not an inventory. Absent when the finding
-   * covers a single node.
+   * Capped (see `MAX_REPORTED_NODES`) - `count` carries the true magnitude, so
+   * these are a working sample, not an inventory. Absent when the finding covers
+   * a single node.
    */
   nodeIds?: string[];
+  /**
+   * Distinct names of the nodes this finding covers, present only when they
+   * differed and `message` therefore had to redact the name to `"…"` (#118).
+   *
+   * Without this, merging two variant roots that both hardcode a fill produced a
+   * finding that no longer said *which* variants. Omitted when every merged node
+   * shares its name, since `nodeName` already carries it. Capped like `nodeIds`.
+   */
+  nodeNames?: string[];
 }
 
 export interface CheckResult {

@@ -59,8 +59,9 @@ export function redactNodeName(finding: Finding): string {
  * sets with many genuinely distinct kinds. Keying on the defect alone always
  * collapses, and `toFinding` recovers what the layer key was wanted for by
  * keeping the layer name in the message whenever every merged node shares it.
- * The name is lost only when it genuinely differed, where no single name was
- * true anyway - and `nodeIds` still points at every offender.
+ * The name leaves the message only when it genuinely differed, where no single
+ * name was true anyway - and `nodeNames` then reports which, so nothing is lost
+ * beyond the convenience of reading it inline.
  */
 export function findingKindKey(finding: Finding): string {
   // JSON-encoded so the parts stay unambiguous even if a message contains
@@ -89,22 +90,31 @@ export function compareFindingPrecedence(
 }
 
 /**
- * How many offending node ids a merged finding reports.
+ * How many offending nodes a merged finding names or points at.
  *
  * Jump-to-node has to survive the merge, or the report becomes less actionable
- * than the noise it replaced. But the full list is unbounded, and `count`
- * already carries the true magnitude, so the ids are a working sample rather
- * than an inventory.
+ * than the noise it replaced. But `count` already carries the true magnitude, so
+ * these are a working sample rather than an inventory: measured on the real
+ * Button, a 50-id cap made the id lists the bulk of the very payload deduping was
+ * meant to shrink, and nobody walks the 11th id by hand.
  */
-export const MAX_REPORTED_NODE_IDS = 50;
+export const MAX_REPORTED_NODES = 10;
 
 interface Accumulator {
   representative: Finding;
   count: number;
   nodeIds: string[];
+  /** Distinct names seen, in encounter order - only reported when they differ. */
+  nodeNames: string[];
   /** Cleared once two findings in this group disagree on the node name. */
   sharedNodeName: string | undefined;
   severity: Finding["severity"];
+}
+
+/** Appends up to the cap, ignoring repeats. */
+function collect(into: string[], value: string): void {
+  if (into.length >= MAX_REPORTED_NODES) return;
+  if (!into.includes(value)) into.push(value);
 }
 
 /**
@@ -125,13 +135,16 @@ export function dedupeFindings(findings: readonly Finding[]): Finding[] {
     const count = finding.count ?? 1;
 
     if (!existing) {
-      groups.set(key, {
+      const accumulator: Accumulator = {
         representative: finding,
         count,
-        nodeIds: [...(finding.nodeIds ?? [finding.nodeId])],
+        nodeIds: [],
+        nodeNames: [],
         sharedNodeName: finding.nodeName,
         severity: finding.severity,
-      });
+      };
+      absorb(accumulator, finding);
+      groups.set(key, accumulator);
       continue;
     }
 
@@ -142,10 +155,7 @@ export function dedupeFindings(findings: readonly Finding[]): Finding[] {
     if (SEVERITY_RANK[finding.severity] > SEVERITY_RANK[existing.severity]) {
       existing.severity = finding.severity;
     }
-    for (const id of finding.nodeIds ?? [finding.nodeId]) {
-      if (existing.nodeIds.length >= MAX_REPORTED_NODE_IDS) break;
-      if (!existing.nodeIds.includes(id)) existing.nodeIds.push(id);
-    }
+    absorb(existing, finding);
   }
 
   return Array.from(groups.values())
@@ -153,8 +163,25 @@ export function dedupeFindings(findings: readonly Finding[]): Finding[] {
     .sort(compareFindingPrecedence);
 }
 
+/** Folds one finding's nodes into the group it belongs to. */
+function absorb(group: Accumulator, finding: Finding): void {
+  for (const id of finding.nodeIds ?? [finding.nodeId]) {
+    collect(group.nodeIds, id);
+  }
+  for (const name of finding.nodeNames ?? [finding.nodeName]) {
+    collect(group.nodeNames, name);
+  }
+}
+
 function toFinding(group: Accumulator): Finding {
-  const { representative, count, nodeIds, sharedNodeName, severity } = group;
+  const {
+    representative,
+    count,
+    nodeIds,
+    nodeNames,
+    sharedNodeName,
+    severity,
+  } = group;
 
   if (count === 1) return representative;
 
@@ -172,5 +199,10 @@ function toFinding(group: Accumulator): Finding {
       : redactNodeName(representative),
     count,
     nodeIds,
+    // Only when the message had to give the name up. Two variant roots with a
+    // hardcoded fill merged to `"…"` on the real Button, and the finding then no
+    // longer said *which* - the names carry that back without pretending one of
+    // them speaks for all.
+    ...(nodeNameIsShared ? {} : { nodeNames }),
   };
 }

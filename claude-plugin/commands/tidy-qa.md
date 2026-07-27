@@ -97,7 +97,11 @@ layers, so one mistake in a shared layer used to be reported once per variant:
 nodes carries:
 
 - `count` - how many nodes it covers (absent means 1),
-- `nodeIds` - those nodes, capped at 50, with `nodeId` still the representative.
+- `nodeIds` - those nodes, capped at 10, with `nodeId` still the representative,
+- `nodeNames` - present only when the nodes had different names, in which case
+  the message shows `"…"` and these say which. When the name is shared it stays
+  in the message, so a finding reading `"Right Icon" itemSpacing is 10` with
+  `count: 56` means one layer, 56 times.
 
 So **do not re-group by hand**; report the counts as given. Findings come
 severity-first, so the order is already the reporting order.
