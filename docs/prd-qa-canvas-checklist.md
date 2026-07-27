@@ -98,7 +98,7 @@ Three new pieces, plus one operation:
 |------|------|--------------|
 | 1 | Storybook Alignment + Note | manual |
 | 2 | Components Naming Dev Alignment | `set-name-casing` |
-| 3 | Check All the Props | manual |
+| 3 | Check All the Props | `variant-property-bindings` (wiring only; row keeps a manual tick) |
 | 4 | Prop Names Aligned to Catalogue | `prop-order` |
 | 5 | Tokens (Styles & Variables) | `tokens` |
 | 6 | Typography Desktop\|Mobile | manual |

@@ -13,8 +13,8 @@ const FIXTURE: ComponentSetSnapshot = {
   description: "",
   propertyNames: ["Size", "State"],
   properties: [
-    { name: "Size", type: "VARIANT" },
-    { name: "State", type: "VARIANT" },
+    { name: "Size", key: "Size", type: "VARIANT" },
+    { name: "State", key: "State", type: "VARIANT" },
   ],
   variants: [
     {
@@ -36,15 +36,17 @@ const FIXTURE: ComponentSetSnapshot = {
 
 describe("check catalogue", () => {
   it("lists the 9 Tier 1 checks plus the Tier 2 checks, with unique ids", () => {
-    expect(CHECKS).toHaveLength(15);
-    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(15);
+    expect(CHECKS).toHaveLength(16);
+    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(16);
     // The static Tier 1 PRD sections (issue #76), then Tier 2 appended in
     // shipping order: #14 (issue #99), #8 (issue #101), #17 (issue #102),
     // #16 (issue #103), then #7 and #19: the two items the source interview
     // showed were narrow advisory checks rather than the broad ones the PRD
-    // described (docs/qa-source-interview.md).
+    // described (docs/qa-source-interview.md). #3 lands last: its automatable
+    // core turned out to be per-variant property *wiring*, which is structural
+    // and so Tier 1 shaped, not the dynamic test it was filed as.
     expect(CHECKS.map((c) => c.prdSection)).toEqual([
-      2, 4, 5, 9, 10, 11, 12, 13, 15, 14, 8, 17, 16, 7, 19,
+      2, 4, 5, 9, 10, 11, 12, 13, 15, 14, 8, 17, 16, 7, 19, 3,
     ]);
   });
 

@@ -85,7 +85,12 @@ describe("collectVariableUsage", () => {
     const usage = collectVariableUsage(
       fixture([[node()]], {
         properties: [
-          { name: "Label", type: "TEXT", boundVariableIds: ["v-label"] },
+          {
+            name: "Label",
+            key: "Label#1:2",
+            type: "TEXT",
+            boundVariableIds: ["v-label"],
+          },
         ],
       }),
     );

@@ -27,7 +27,8 @@ export type CheckId =
   | "themes"
   | "high-contrast"
   | "responsive-bounds"
-  | "documentation";
+  | "documentation"
+  | "variant-property-bindings";
 
 export interface Finding {
   severity: SeverityLevel;
@@ -135,6 +136,11 @@ export const CHECKS: readonly CheckDefinition[] = [
     id: "documentation",
     prdSection: 19,
     title: "Documentation",
+  },
+  {
+    id: "variant-property-bindings",
+    prdSection: 3,
+    title: "Property bindings across variants",
   },
 ];
 

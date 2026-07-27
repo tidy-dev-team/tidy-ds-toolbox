@@ -69,6 +69,19 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > Unspecified and blocking: what "breaks" means (clipping? overflow? zero size?), and the combinatorial cost of *"all combinations"* on a large set.
 > See [source notes, item 3](qa-source-interview.md#3-check-all-the-props).
 
+> **Shipped as check `variant-property-bindings`: property *wiring*, not appearance.**
+> Neither the PRD nor the source names the failure this item most often hides, because it is a Figma modelling artifact rather than a design mistake.
+> A boolean property's **definition** lives on the component set, so its toggle appears in the panel for every variant the moment it is created, while its **binding** lives on one layer inside one variant and does not propagate when variants are added or duplicated.
+> The result is a toggle that is present, looks identical to a working one, and does nothing - with no error and no visual difference, in a state that is hidden by default because booleans default to off.
+> Twelve variants and two booleans is twenty-four bindings, which nobody verifies by hand.
+>
+> That is fully structural, so the check is a pure snapshot check across **every** variant: no clone, no resize, no render.
+> It reports partial wiring, a property bound nowhere at all, and a binding whose target layer disagrees with the rest of the set - the shape a crossed binding takes, and the case a "did toggling change anything" test passes.
+> Two of those three use the set as its own oracle rather than any naming heuristic: the layer to bind is identified by name from the variants that *are* wired, and an odd target is one the majority contradicts.
+>
+> The rest of the item - cycling combinations, long text, and the icon/text colour invariant - stays a tick on the row via an unconditional `manualRemainder`.
+> Correct wiring says nothing about whether the states it exposes render correctly.
+
 
 
 ### 4. Prop Names Aligned to Consolidated Catalogue

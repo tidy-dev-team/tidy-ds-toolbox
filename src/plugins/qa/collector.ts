@@ -178,6 +178,22 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     snap.children = node.children.map(snapshotNode);
   }
 
+  // Which component property drives this node (#3). Recorded with Figma's raw
+  // suffixed keys so the check can join a binding to its definition exactly.
+  // Kept on instances too: an INSTANCE_SWAP property binds via `mainComponent`
+  // on the instance node itself, which is walked even though its interior is not.
+  if ("componentPropertyReferences" in node) {
+    const refs = node.componentPropertyReferences;
+    if (refs) {
+      const bound = Object.entries(refs).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      );
+      if (bound.length > 0) {
+        snap.propertyReferences = Object.fromEntries(bound);
+      }
+    }
+  }
+
   // Only when it is not 1, so fixtures and payloads stay terse. #16 composites
   // this with paint opacity to measure contrast on translucent surfaces.
   if ("opacity" in node && node.opacity !== 1) {
@@ -304,6 +320,9 @@ function snapshotProperties(
       .map((alias) => alias.id);
     return {
       name: propertyDisplayName(rawName),
+      // The suffixed key is what layers reference (#3), so it has to survive
+      // the display-name stripping rather than be reconstructed from it.
+      key: rawName,
       type: def.type,
       ...(def.type === "INSTANCE_SWAP"
         ? { preferredValuesCount: def.preferredValues?.length ?? 0 }
