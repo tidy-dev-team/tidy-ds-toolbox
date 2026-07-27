@@ -368,14 +368,17 @@ The remainder belongs to the **check**, not to the catalogue entry, because whet
 Item 19 asks for a content review only when a link exists; with no documentation there is nothing to read, and a static per-item string put "read the documentation" on the row precisely when there was none.
 Item 7's is unconditional by contrast, since a set being unable to hold bounds says nothing about whether it survives a resize.
 
-Item 3 is the third, and unconditional like item 7's: the check establishes that every property is wired, while the item asks for combinations cycled, long text always, and icon colour following text colour.
+Item 3 is another, and unconditional like item 7's: the check establishes that every property is wired, while the item asks for combinations cycled, long text always, and icon colour following text colour.
 Correct wiring says nothing about whether the states it exposes render correctly, so the tick is owed on every outcome.
 
 The report also counts these rows separately, as `counts.partial`.
-Without that, a run could report "0 manual" while rows 3, 7 and 19 still had unticked boxes on the canvas.
+Without that, a run could report "0 manual" while rows 3, 7, 17 and 19 still had unticked boxes on the canvas.
 
 The same treatment is owed to at least these, all pre-existing:
 
 - **Item 2** - `set-name-casing` checks casing only; matching dev's **prop names** is untouched.
-- **Item 17** - `themes` covers resolution integrity; the ask was visual, "looks good in all modes".
 - **Item 12** - `description` checks the also-known-as line and misprint marker; the **Storybook link** she described is not verified.
+
+Both are Storybook-dependent, so both are parked by the 2026-07-27 deferral.
+**Item 17** was the third and has since shipped its remainder: `themes` covers resolution integrity while the ask was visual, "looks good in all modes", so the row now names the modes to review and keeps a tick.
+Its remainder is conditional like item 19's, because a set with no theme axis renders identically in every mode and has nothing to compare.

@@ -161,7 +161,12 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Themes (Core/DNA/OldNews)",
     tier: 2,
     checkId: "themes",
-    blurb: "Every bound variable resolves in all theme modes, with no gaps.",
+    // States the item, which is wider than the check: design asked that the
+    // component work and *look good* in every mode, while `themes` establishes
+    // only that every bound variable resolves. The check emits a
+    // `manualRemainder` naming the modes for the visual half, so the row carries
+    // a tickbox beside its chip (#115).
+    blurb: "The component resolves and reads correctly in every theme mode.",
   },
   {
     n: 18,
