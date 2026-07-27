@@ -4,6 +4,11 @@
 
 **Status:** proposed · **Tracking issue:** #90 · **Parent:** [`docs/prd-automated-qa.md`](prd-automated-qa.md) (the Tier-1 QA engine)
 
+> **Counts below are as-written (9 automated / 10 manual) and have since moved.**
+> Tier 2 added checks, and #7 and #19 landed after the source interview showed them to be narrow advisory checks.
+> The mapping table in §4 is kept current; for the live figure, `CHECKS` in [`src/plugins/qa/types.ts`](../src/plugins/qa/types.ts) is the source of truth.
+> Nothing else in this PRD's design depends on the number.
+
 ## 1. Summary
 
 Today `tidy_qa_run` (Tier 1, 9 checks) returns a large structured JSON report to
@@ -97,7 +102,7 @@ Three new pieces, plus one operation:
 | 4 | Prop Names Aligned to Catalogue | `prop-order` |
 | 5 | Tokens (Styles & Variables) | `tokens` |
 | 6 | Typography Desktop\|Mobile | manual |
-| 7 | Responsiveness (+ Min-Max) | manual |
+| 7 | Responsiveness (+ Min-Max) | `responsive-bounds` (bounds half only; row keeps a manual tick) |
 | 8 | Icons/Illustrations/Logos → Foundations | `asset-provenance` |
 | 9 | Layer Naming + Structure | `layer-naming-structure` |
 | 10 | 4px Grid Alignment | `grid-4px` |
@@ -109,7 +114,7 @@ Three new pieces, plus one operation:
 | 16 | High Contrast (A11y) | `high-contrast` |
 | 17 | Themes (Core/DNA/OldNews) | `themes` |
 | 18 | Page Template | manual |
-| 19 | Documentation | manual |
+| 19 | Documentation | `documentation` |
 
 ## 5. Operation contract
 
@@ -127,7 +132,7 @@ Three new pieces, plus one operation:
 
 **Returns (stub only)**
 ```
-{ frameId: string, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented } }
+{ frameId: string, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, partial } }
 ```
 
 **Behaviour**
@@ -173,7 +178,13 @@ interface ChecklistReport {
   target: { id: string; name: string };
   generatedFor: { instanceId?: string };  // the instance the run started from
   items: ChecklistItem[];  // always 19, in PRD order
-  counts: Record<"pass" | "warn" | "fail" | "manual" | "notImplemented", number>;
+  // `partial` is an overlay, not a status: automated rows that still carry a
+  // manualRemainder. Counted in addition to their own status, so it is
+  // excluded from the sum to 19.
+  counts: Record<
+    "pass" | "warn" | "fail" | "manual" | "notImplemented" | "partial",
+    number
+  >;
 }
 ```
 

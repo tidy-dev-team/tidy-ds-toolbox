@@ -2,6 +2,10 @@
  * Static 19-item DS Component QA Checklist catalogue (issue #91).
  * Single source mapping PRD sections to engine check ids.
  *
+ * PRD: `docs/prd-automated-qa.md`. What design actually asked for, item by item,
+ * is in `docs/qa-source-interview.md`. Consult it before widening a check or
+ * rewording a blurb, since the PRD overstates several items.
+ *
  * Titles mostly track the PRD wording so the generated artifact matches the
  * printed checklist designers tick by hand; item 14 deliberately diverges
  * ("Easy to Use" named a goal, not the thing being measured). Every item also
@@ -29,7 +33,10 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     n: 1,
     title: "Storybook Alignment + Note",
     tier: null,
-    blurb: "Variants and props match the Storybook implementation.",
+    // Per the source interview the *note* is what gets ticked here, not the
+    // comparison; design explicitly scoped Storybook diffing out of this item.
+    blurb:
+      "A note records any deliberate deviations from the Storybook implementation.",
   },
   {
     n: 2,
@@ -67,8 +74,12 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   {
     n: 7,
     title: "Responsiveness (+ Min-Max)",
-    tier: null,
-    blurb: "Resizing behaves under auto-layout, honouring min/max widths.",
+    tier: 2,
+    checkId: "responsive-bounds",
+    // Only the size-bounds half is automated; the check emits a
+    // `manualRemainder` so the row keeps its tickbox for the resize test.
+    blurb:
+      "Resizing behaves under auto-layout, with min/max bounds where they apply.",
   },
   {
     n: 8,
@@ -151,7 +162,12 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   {
     n: 19,
     title: "Documentation",
-    tier: null,
+    tier: 2,
+    checkId: "documentation",
+    // This blurb claims something about the documentation's *content*, which
+    // the check cannot see - it reads Figma's documentation-link field. The
+    // check emits a `manualRemainder` asking for the content review, but only
+    // when a link exists; with no documentation there is nothing to review.
     blurb: "Usage guidance, do/don't examples and properties are documented.",
   },
 ];

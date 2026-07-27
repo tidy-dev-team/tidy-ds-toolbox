@@ -17,9 +17,19 @@ function result(
   checkId: CheckResult["checkId"],
   status: CheckResult["status"],
   findings: Finding[] = [],
+  manualRemainder?: string,
 ): CheckResult {
-  return { checkId, title: checkId, status, findings };
+  return {
+    checkId,
+    title: checkId,
+    status,
+    findings,
+    ...(manualRemainder ? { manualRemainder } : {}),
+  };
 }
+
+/** Stand-in for whatever copy a partially-automated check emits. */
+const REMAINDER = "Confirm the half this check cannot see.";
 
 describe("buildChecklistReport", () => {
   it("returns exactly 19 rows in PRD order", () => {
@@ -208,6 +218,7 @@ describe("buildChecklistReport", () => {
       fail: 1,
       manual: manualCount,
       notImplemented: 1,
+      partial: 0,
     });
     expect(notRunCount).toBeGreaterThan(0);
     // not_run is intentionally absent from counts (PRD §6).
@@ -220,5 +231,98 @@ describe("buildChecklistReport", () => {
         report.counts.notImplemented +
         notRunCount,
     ).toBe(19);
+    // partial is an overlay, not a status: excluded from the sum on purpose.
+    expect(report.counts.partial).toBe(0);
+  });
+
+  describe("partially automated rows", () => {
+    // A partial row would otherwise render a bare status chip while the half the
+    // check cannot see had never been performed.
+    it("forwards the check's remainder onto its row", () => {
+      const report = buildChecklistReport({
+        target: TARGET,
+        results: [result("responsive-bounds", "pass", [], REMAINDER)],
+        notImplemented: [],
+      });
+      const item = report.items.find((i) => i.n === 7);
+      expect(item?.status).toBe("pass");
+      expect(item?.automated).toBe(true);
+      expect(item?.manualRemainder).toBe(REMAINDER);
+      expect(report.counts.partial).toBe(1);
+    });
+
+    it("forwards it regardless of the engine status", () => {
+      for (const status of ["warn", "fail", "not_applicable"] as const) {
+        const report = buildChecklistReport({
+          target: TARGET,
+          results: [result("responsive-bounds", status, [], REMAINDER)],
+          notImplemented: [],
+        });
+        expect(report.items.find((i) => i.n === 7)?.manualRemainder).toBe(
+          REMAINDER,
+        );
+      }
+    });
+
+    it("leaves a row alone when its check reports no remainder", () => {
+      const report = buildChecklistReport({
+        target: TARGET,
+        results: [result("no-conflicts", "pass")],
+        notImplemented: [],
+      });
+      expect(
+        report.items.find((i) => i.n === 13)?.manualRemainder,
+      ).toBeUndefined();
+      expect(report.counts.partial).toBe(0);
+    });
+
+    it("counts partial rows on top of their status, never instead of it", () => {
+      const report = buildChecklistReport({
+        target: TARGET,
+        results: [
+          result("responsive-bounds", "warn", [finding()], REMAINDER),
+          result("documentation", "pass", [], REMAINDER),
+          result("no-conflicts", "pass"),
+        ],
+        notImplemented: [],
+      });
+      // Both partial rows keep their own verdict...
+      expect(report.counts.pass).toBe(2);
+      expect(report.counts.warn).toBe(1);
+      // ...and are additionally tallied as partly manual.
+      expect(report.counts.partial).toBe(2);
+    });
+
+    it("records no remainder for a row whose check never ran", () => {
+      // Nothing about the row was established, and its not_run /
+      // not_implemented chip already says the whole row is open.
+      const report = buildChecklistReport({
+        target: TARGET,
+        results: [result("tokens", "pass")],
+        notImplemented: ["documentation"],
+      });
+      expect(report.items.find((i) => i.n === 7)?.status).toBe("not_run");
+      expect(
+        report.items.find((i) => i.n === 7)?.manualRemainder,
+      ).toBeUndefined();
+      expect(report.items.find((i) => i.n === 19)?.status).toBe(
+        "not_implemented",
+      );
+      expect(
+        report.items.find((i) => i.n === 19)?.manualRemainder,
+      ).toBeUndefined();
+      expect(report.counts.partial).toBe(0);
+    });
+
+    it("reports partial work even when nothing is fully manual", () => {
+      // The regression this guards: a summary reading "0 manual" while a row
+      // still has an unticked box.
+      const report = buildChecklistReport({
+        target: TARGET,
+        results: [result("documentation", "pass", [], REMAINDER)],
+        notImplemented: [],
+      });
+      expect(report.counts.partial).toBeGreaterThan(0);
+    });
   });
 });

@@ -152,7 +152,12 @@ function checkbox(): FrameNode {
 }
 
 function summaryLine(counts: ChecklistReport["counts"]): string {
-  return `${counts.pass} pass · ${counts.warn} warn · ${counts.fail} fail · ${counts.manual} manual · ${counts.notImplemented} pending`;
+  const base = `${counts.pass} pass · ${counts.warn} warn · ${counts.fail} fail · ${counts.manual} manual · ${counts.notImplemented} pending`;
+  // Partial rows carry an unticked box despite having a status chip, so a
+  // summary that omitted them could read "0 manual" with work still to do.
+  return counts.partial > 0
+    ? `${base} · ${counts.partial} partly manual`
+    : base;
 }
 
 const SEVERITY_COLOR: Record<SeverityLevel, string> = {
@@ -289,10 +294,40 @@ export async function renderChecklist(
     if (item.automated) {
       const style = statusStyle(item.status);
       row.appendChild(statusChip(style.label, style.hex));
+      // A partially automated row keeps its box: the chip speaks only for the
+      // half the engine checked, so dropping the box would let a green chip
+      // stand for work nobody did.
+      if (item.manualRemainder) {
+        row.appendChild(checkbox());
+      }
     } else {
       row.appendChild(checkbox());
     }
     itemBlock.appendChild(row);
+
+    // What the engine did NOT cover on a partially automated row, spelled out
+    // next to the box it left unticked.
+    if (item.manualRemainder) {
+      const remainderBlock = buildAutoLayoutFrame(
+        `item-${item.n}-manual-remainder`,
+        "VERTICAL",
+        0,
+        0,
+        0,
+      );
+      remainderBlock.layoutAlign = "STRETCH";
+      remainderBlock.paddingLeft = DETAIL_INDENT;
+      const remainderText = text(
+        `Still manual: ${item.manualRemainder}`,
+        11,
+        FONT_REGULAR,
+        MUTED,
+      );
+      remainderBlock.appendChild(remainderText);
+      remainderText.textAutoResize = "HEIGHT";
+      remainderText.layoutSizingHorizontal = "FILL";
+      itemBlock.appendChild(remainderBlock);
+    }
 
     // A check's caveat (#8: library origin is unverifiable in-plugin) renders
     // even on a passing row — that is exactly where the reader needs to know

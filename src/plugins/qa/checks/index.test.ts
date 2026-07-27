@@ -36,13 +36,15 @@ const FIXTURE: ComponentSetSnapshot = {
 
 describe("check catalogue", () => {
   it("lists the 9 Tier 1 checks plus the Tier 2 checks, with unique ids", () => {
-    expect(CHECKS).toHaveLength(13);
-    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(13);
+    expect(CHECKS).toHaveLength(15);
+    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(15);
     // The static Tier 1 PRD sections (issue #76), then Tier 2 appended in
     // shipping order: #14 (issue #99), #8 (issue #101), #17 (issue #102),
-    // #16 (issue #103).
+    // #16 (issue #103), then #7 and #19: the two items the source interview
+    // showed were narrow advisory checks rather than the broad ones the PRD
+    // described (docs/qa-source-interview.md).
     expect(CHECKS.map((c) => c.prdSection)).toEqual([
-      2, 4, 5, 9, 10, 11, 12, 13, 15, 14, 8, 17, 16,
+      2, 4, 5, 9, 10, 11, 12, 13, 15, 14, 8, 17, 16, 7, 19,
     ]);
   });
 

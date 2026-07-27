@@ -24,8 +24,8 @@ Split `$ARGUMENTS` on whitespace into tokens, then classify each:
   `set-name-casing`, `prop-order`, `tokens`, `layer-naming-structure`,
   `grid-4px`, `interaction-hover-only`, `description`, `no-conflicts`,
   `preferred-values`, `nesting-depth`, `asset-provenance`, `themes`,
-  `high-contrast`. Collect these into the `checks` array (a filter - only these
-  checks run).
+  `high-contrast`, `responsive-bounds`, `documentation`. Collect these into
+  the `checks` array (a filter - only these checks run).
 - **Id** — a token matching `^\d+:\d+$` (e.g. `2625:10445`). Use as `nodeId`.
 - **Target name / glob** — every remaining token. Join them with spaces (names
   can contain spaces, e.g. `Button Icon`) and pass as `name`. A `*` makes it a
@@ -73,10 +73,14 @@ and is **idempotent**: re-running for the same target replaces its prior frame
 rather than duplicating it.
 
 The response is a small stub only:
-`{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented } }`.
+`{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, partial } }`.
+`partial` counts automated rows that still need a human tick because the check
+covers only part of the item (currently #7 and #19). Those rows are also counted
+by their own status, so report them as outstanding work even when `manual` is 0.
 Report it directly — do not invent findings detail that isn't in the stub;
 tell the user to look at the frame on canvas (e.g. "Checklist for Button: 4
-pass, 3 warn, 1 fail, 10 manual — see the frame next to it on canvas.").
+pass, 3 warn, 1 fail, 10 manual, 2 partly manual - see the frame next to it on
+canvas.").
 
 ## Presenting the result
 
