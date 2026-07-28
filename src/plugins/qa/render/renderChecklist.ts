@@ -283,13 +283,7 @@ export async function renderChecklist(
   const rows = autoLayout("rows", "VERTICAL", 0, 0, 0);
   rows.layoutAlign = "STRETCH";
   for (const item of report.items) {
-    const itemBlock = autoLayout(
-      `item-${item.n}`,
-      "VERTICAL",
-      0,
-      12,
-      8,
-    );
+    const itemBlock = autoLayout(`item-${item.n}`, "VERTICAL", 0, 12, 8);
     itemBlock.layoutAlign = "STRETCH";
     itemBlock.strokes = [{ type: "SOLID", color: hexToRgb(ROW_BORDER) }];
     itemBlock.strokeTopWeight = 1;
@@ -300,13 +294,7 @@ export async function renderChecklist(
       fill(itemBlock, MANUAL_TINT);
     }
 
-    const row = autoLayout(
-      `item-${item.n}-header`,
-      "HORIZONTAL",
-      0,
-      0,
-      12,
-    );
+    const row = autoLayout(`item-${item.n}-header`, "HORIZONTAL", 0, 0, 12);
     row.counterAxisAlignItems = "CENTER";
 
     const number = text(String(item.n), 12, FONT_BOLD, MUTED);
@@ -378,13 +366,7 @@ export async function renderChecklist(
     // the reason the check had nothing to evaluate (#129), so the prefix
     // follows the status rather than always reading "Caveat".
     if (item.note) {
-      const noteBlock = autoLayout(
-        `item-${item.n}-note`,
-        "VERTICAL",
-        0,
-        0,
-        0,
-      );
+      const noteBlock = autoLayout(`item-${item.n}-note`, "VERTICAL", 0, 0, 0);
       noteBlock.layoutAlign = "STRETCH";
       noteBlock.paddingLeft = DETAIL_INDENT;
       const noteText = text(
