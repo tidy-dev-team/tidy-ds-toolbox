@@ -21,6 +21,8 @@
     "mcp:server": "node --experimental-strip-types mcp-server/src/server.ts",
     "build:mcp": "node mcp-server/build.js",
     "build:plugin": "node scripts/assemble-plugin.mjs",
+    "dogfood:plugin": "node scripts/dogfood-plugin.mjs",
+    "verify:plugin": "node scripts/verify-installed-plugin.mjs",
     "mcp:smoketest": "npm run build:mcp && node mcp-server/dist/smoketest.cjs mcp-server/dist/server.cjs",
     "mcp:smoketest:src": "node --experimental-strip-types mcp-server/src/smoketest.ts mcp-server/src/server.ts",
     "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts",

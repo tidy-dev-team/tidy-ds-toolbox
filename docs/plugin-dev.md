@@ -28,17 +28,71 @@ dist-plugin/                          ← marketplace root
     mcp/server.cjs                    ← bundled server
 ```
 
+## Reload does not install
+
+This is the one thing to know before editing anything under `claude-plugin/`.
+
+`/reload-plugins` and installing a plugin are **different operations, and only one of them consults the marketplace**:
+
+- **Reload** re-reads whatever already sits in `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`.
+  It can never pick up new files, no matter how many times it runs, and it reports cheerful success either way (`Reloaded: 2 plugins · 6 skills · …`).
+- **Install / update** re-copies from the marketplace source into the versioned cache directory and rewrites `~/.claude/plugins/installed_plugins.json`.
+
+The secondary detail is that the cache is **keyed on the version string**.
+An install at an unchanged version finds the directory already there and leaves it alone, a silent no-op.
+So `dist-plugin/` can be perfectly correct, the marketplace can point straight at it, `/reload-plugins` can report success, and the agent still gets a copy that is days old.
+
+That is not hypothetical.
+A `1.17.0` cache sat five days stale while every `claude-plugin/` change landed correctly in the repo, and the installed `/tidy-qa` served pre-#118 guidance that told the agent to re-group findings the engine had already grouped.
+See [#130](https://github.com/tidy-dev-team/tidy-ds-toolbox/issues/130).
+
+**Do not fix this by bumping the version on every edit.**
+That couples every prompt-wording tweak to a release, which is how the drift started.
+
+### Which version is actually installed?
+
+`installed_plugins.json` is the record of truth:
+
+```bash
+node -p "Object.entries(require(process.env.HOME+'/.claude/plugins/installed_plugins.json').plugins).map(([k,v])=>k+' → '+v[0].version+' ('+v[0].lastUpdated.slice(0,10)+')').join('\n')"
+```
+
+Use it to catch the case that bites hardest: an installed version older than the one `dist-plugin/` now assembles to.
+It cannot catch same-version drift, though.
+`version` is unchanged by definition in a same-version reinstall, and `gitCommitSha` records the repo HEAD at install time, so it says nothing about uncommitted edits under `claude-plugin/`.
+Only a file diff settles that, which is what `npm run verify:plugin` is for.
+
 ## Install from the local path
+
+```bash
+npm run dogfood:plugin
+```
+
+This is the loop to use while developing.
+It assembles `dist-plugin/`, **deletes the versioned cache directory** so the install cannot be a no-op, refreshes the marketplace, installs, and then diffs the installed tree against `claude-plugin/`.
+No version bump required.
+Restart Claude Code (or start a new session) afterwards to pick up the new command text.
+
+To check the installed copy at any time without reinstalling:
+
+```bash
+npm run verify:plugin
+```
+
+It exits non-zero and names every drifted file, in both directions: a stale or missing command, and an orphaned one that no longer exists in `claude-plugin/` but is still being served out of the cache.
+Reach for it whenever a `/tidy-*` command behaves as if it were reading older instructions than the ones in the repo.
+That symptom is nearly always this.
+
+First-time (or manual) install, from inside Claude Code:
 
 ```
 /plugin marketplace add /absolute/path/to/repo/dist-plugin
 /plugin install tidy-ds@tidy-ds-marketplace
 ```
 
-Then `/reload-plugins` (or restart Claude Code). The commands appear namespaced:
-`/tidy-ds:tidy-find`, `/tidy-ds:tidy-misprint`, `/tidy-ds:tidy-labels`,
-`/tidy-ds:tidy-ds`, `/tidy-ds:tidy-ds-template`, `/tidy-ds:tidy-doc`,
-`/tidy-ds:tidy-qa`.
+The commands appear namespaced: `/tidy-ds:tidy-find`, `/tidy-ds:tidy-misprint`,
+`/tidy-ds:tidy-labels`, `/tidy-ds:tidy-ds`, `/tidy-ds:tidy-ds-template`,
+`/tidy-ds:tidy-doc`, `/tidy-ds:tidy-qa`.
 
 The plugin's MCP server starts automatically; its tools are exposed as
 `mcp__plugin_tidy-ds_tidy-ds-toolbox__<operation>`.
@@ -54,6 +108,9 @@ The plugin's MCP server starts automatically; its tools are exposed as
 A `/tidy-*` round-trip can't run headless — it needs the Tidy DS Toolbox Figma
 plugin open and connected over the bridge. To verify end-to-end:
 
+0. Run `npm run dogfood:plugin` so the installed commands actually match the
+   repo, otherwise you are verifying the wrong text (see **Reload does not
+   install** above).
 1. Import the Figma plugin from its `manifest.json` (Figma → Plugins →
    Development → Import plugin from manifest) and run it so it connects to the
    bridge on `9876`.
