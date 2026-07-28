@@ -35,7 +35,7 @@ const FIXTURE: ComponentSetSnapshot = {
 };
 
 describe("check catalogue", () => {
-  it("lists the 9 Tier 1 checks plus the Tier 2 checks, with unique ids", () => {
+  it("lists the 10 Tier 1 checks plus the 6 Tier 2 checks, with unique ids", () => {
     expect(CHECKS).toHaveLength(16);
     expect(new Set(CHECKS.map((c) => c.id)).size).toBe(16);
     // The static Tier 1 PRD sections (issue #76), then Tier 2 appended in

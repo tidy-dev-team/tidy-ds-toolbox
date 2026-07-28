@@ -11,7 +11,7 @@ export type { SeverityLevel };
 
 export type CheckStatus = "pass" | "warn" | "fail" | "not_applicable";
 
-/** Stable ids of the static checks (PRD section in CHECKS): 9 Tier 1 plus Tier 2's. */
+/** Stable ids of the static checks (PRD section in CHECKS): 10 Tier 1 plus Tier 2's 6. */
 export type CheckId =
   | "set-name-casing"
   | "prop-order"
@@ -99,7 +99,7 @@ export interface CheckDefinition {
   title: string;
 }
 
-/** Catalogue of the 9 Tier 1 checks, in PRD order. */
+/** Catalogue of all 16 automated checks (10 Tier 1 plus 6 Tier 2), in shipping order. */
 export const CHECKS: readonly CheckDefinition[] = [
   { id: "set-name-casing", prdSection: 2, title: "Component set name casing" },
   {
