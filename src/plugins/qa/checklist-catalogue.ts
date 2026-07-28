@@ -73,7 +73,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Tokens (Styles & Variables)",
     tier: 1,
     checkId: "tokens",
-    blurb: "Colour, spacing and type come from variables — not raw values.",
+    blurb: "Colour, spacing and type come from variables, not raw values.",
   },
   {
     n: 6,
@@ -103,7 +103,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Layer Naming + Structure",
     tier: 1,
     checkId: "layer-naming-structure",
-    blurb: "Layers follow the naming pattern — no default or stray names.",
+    blurb: "Layers follow the naming pattern - no default or stray names.",
   },
   {
     n: 10,

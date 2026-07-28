@@ -113,6 +113,31 @@ function fill(node: MinimalFillsMixin, hex: string, opacity?: number): void {
   ];
 }
 
+/**
+ * `buildAutoLayoutFrame` leaves Figma's default white fill in place, which is
+ * invisible on the white card but paints over `MANUAL_TINT` on a manual row -
+ * the tint then survived only in the sliver the row did not cover. Every
+ * wrapper frame here is meant to be see-through; the ones that carry a colour
+ * (root, a manual row, a chip, a checkbox) set it explicitly afterwards.
+ */
+function autoLayout(
+  name: string,
+  direction: "HORIZONTAL" | "VERTICAL",
+  paddingHorizontal: number,
+  paddingVertical: number,
+  itemSpacing: number,
+): FrameNode {
+  const frame = buildAutoLayoutFrame(
+    name,
+    direction,
+    paddingHorizontal,
+    paddingVertical,
+    itemSpacing,
+  );
+  frame.fills = [];
+  return frame;
+}
+
 function text(
   content: string,
   size: number,
@@ -128,7 +153,7 @@ function text(
 }
 
 function statusChip(label: string, hex: string): FrameNode {
-  const chip = buildAutoLayoutFrame(`chip — ${label}`, "HORIZONTAL", 10, 4, 0);
+  const chip = autoLayout(`chip — ${label}`, "HORIZONTAL", 10, 4, 0);
   chip.cornerRadius = 999;
   chip.counterAxisAlignItems = "CENTER";
   fill(chip, hex, 0.16);
@@ -199,7 +224,7 @@ function appendFindingLine(
   count: number,
   severity: SeverityLevel,
 ): void {
-  const line = buildAutoLayoutFrame("finding", "HORIZONTAL", 0, 6, 8);
+  const line = autoLayout("finding", "HORIZONTAL", 0, 6, 8);
 
   const badge = text(`×${count}`, 11, FONT_BOLD, SEVERITY_COLOR[severity]);
   badge.resize(28, badge.height);
@@ -234,7 +259,7 @@ export async function renderChecklist(
     figma.loadFontAsync(FONT_BOLD),
   ]);
 
-  const root = buildAutoLayoutFrame(
+  const root = autoLayout(
     `QA Checklist — ${report.target.name}`,
     "VERTICAL",
     24,
@@ -248,17 +273,17 @@ export async function renderChecklist(
   root.strokeWeight = 1;
   root.cornerRadius = 12;
 
-  const header = buildAutoLayoutFrame("header", "VERTICAL", 0, 0, 4);
+  const header = autoLayout("header", "VERTICAL", 0, 0, 4);
   header.layoutAlign = "STRETCH";
   header.appendChild(text(`QA Checklist`, 18, FONT_BOLD, INK));
   header.appendChild(text(report.target.name, 13, FONT_REGULAR, MUTED));
   header.appendChild(text(summaryLine(report.counts), 12, FONT_REGULAR, MUTED));
   root.appendChild(header);
 
-  const rows = buildAutoLayoutFrame("rows", "VERTICAL", 0, 0, 0);
+  const rows = autoLayout("rows", "VERTICAL", 0, 0, 0);
   rows.layoutAlign = "STRETCH";
   for (const item of report.items) {
-    const itemBlock = buildAutoLayoutFrame(
+    const itemBlock = autoLayout(
       `item-${item.n}`,
       "VERTICAL",
       0,
@@ -275,14 +300,13 @@ export async function renderChecklist(
       fill(itemBlock, MANUAL_TINT);
     }
 
-    const row = buildAutoLayoutFrame(
+    const row = autoLayout(
       `item-${item.n}-header`,
       "HORIZONTAL",
       0,
       0,
       12,
     );
-    row.layoutAlign = "STRETCH";
     row.counterAxisAlignItems = "CENTER";
 
     const number = text(String(item.n), 12, FONT_BOLD, MUTED);
@@ -292,7 +316,7 @@ export async function renderChecklist(
     // once the node has an auto-layout parent (same constraint as
     // appendFindingLine), so the blurb can only be told to wrap after the
     // stack is in the row and growing.
-    const titleBlock = buildAutoLayoutFrame("title", "VERTICAL", 0, 0, 2);
+    const titleBlock = autoLayout("title", "VERTICAL", 0, 0, 2);
     const title = text(item.title, 13, FONT_REGULAR, INK);
     const blurb = text(item.blurb, 11, FONT_REGULAR, MUTED);
     titleBlock.appendChild(title);
@@ -316,11 +340,18 @@ export async function renderChecklist(
       row.appendChild(checkbox());
     }
     itemBlock.appendChild(row);
+    // Set after parenting, and as `layoutSizingHorizontal` rather than
+    // `layoutAlign = "STRETCH"`: for a HORIZONTAL frame the width is its
+    // *primary* axis, which STRETCH does not govern, so the row kept hugging its
+    // content. Every row then ended at a different width and the chips and
+    // checkboxes sat in a ragged diagonal instead of a right-hand column - while
+    // the note and finding blocks below them, being VERTICAL, did stretch.
+    row.layoutSizingHorizontal = "FILL";
 
     // What the engine did NOT cover on a partially automated row, spelled out
     // next to the box it left unticked.
     if (item.manualRemainder) {
-      const remainderBlock = buildAutoLayoutFrame(
+      const remainderBlock = autoLayout(
         `item-${item.n}-manual-remainder`,
         "VERTICAL",
         0,
@@ -347,7 +378,7 @@ export async function renderChecklist(
     // the reason the check had nothing to evaluate (#129), so the prefix
     // follows the status rather than always reading "Caveat".
     if (item.note) {
-      const noteBlock = buildAutoLayoutFrame(
+      const noteBlock = autoLayout(
         `item-${item.n}-note`,
         "VERTICAL",
         0,
@@ -370,7 +401,7 @@ export async function renderChecklist(
 
     if (item.findings.length > 0) {
       const groups = groupFindings(item.findings);
-      const findingsBlock = buildAutoLayoutFrame(
+      const findingsBlock = autoLayout(
         `item-${item.n}-findings`,
         "VERTICAL",
         0,
