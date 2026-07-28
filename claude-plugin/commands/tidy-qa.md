@@ -80,9 +80,13 @@ covers only part of the item (currently #3, #7, #17 and #19). Those rows are als
 counted by their own status, so report them as outstanding work even when
 `manual` is 0.
 Report it directly - do not invent findings detail that isn't in the stub;
-tell the user to look at the frame on canvas (e.g. "Checklist for Button: 11
-pass, 3 warn, 2 fail, 3 manual, 3 partly manual - see the frame next to it on
+tell the user to look at the frame on canvas (e.g. "Checklist for Button: 9
+pass, 4 warn, 2 fail, 3 manual, 4 partly manual - see the frame next to it on
 canvas.").
+
+Note the buckets do not have to sum to 19: a check that ran but had nothing
+applicable to evaluate lands on `not_applicable`, which no counter reports.
+Read a short total as rows being skipped, not as rows being missing.
 
 ## Presenting the result
 
