@@ -5,6 +5,8 @@ allowed-tools:
   - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_misprint_apply"
   - "mcp__tidy-ds-toolbox__tidy_misprint_find_components"
   - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_misprint_find_components"
+  - "mcp__tidy-ds-toolbox__tidy_file_list_pages"
+  - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_file_list_pages"
 ---
 
 Apply the Tidy DS Toolbox misprint operation to component descriptions.
@@ -23,6 +25,8 @@ Otherwise, split `$ARGUMENTS` on whitespace and commas into tokens. Classify eac
 
 For every Name and Glob token, call `tidy_misprint_find_components` with `{ scope: "file", namePattern: <token> }`. Collect ids from the `components` array.
 
+**Never treat a truncated find as a complete one.** The find caps its output (default 200) and reports `total`, `truncated` and `omitted`. If `truncated` is true, applying to `components` would silently misprint a subset of what the user asked for. Stop, report `total` and `omitted`, and offer to re-run with a higher `limit` (max 1000) or page by page. Do not apply a partial list without saying so and getting confirmation.
+
 After all tokens are resolved:
 
 - **Per-token failures:**
@@ -37,8 +41,9 @@ After all tokens are resolved:
 
 1. Call `tidy_misprint_find_components` with `{ scope: "file" }`.
 2. If 0 components, stop and say so.
-3. Otherwise summarise the result (count + first ~5 `name — id` rows) and ASK the user to confirm before applying to the full set. Do not auto-apply.
-4. On confirmation, call `tidy_misprint_apply` with `nodeIds: components.map(c => c.id)`.
+3. If `truncated` is true, the file has more components than one pass returns. Report `total`, and ASK whether to raise `limit` (max 1000) or to go page by page (`tidy_file_list_pages` → `scope: "page"`). Never present a capped list as "the file".
+4. Otherwise summarise the result (count + first ~5 `name — id` rows) and ASK the user to confirm before applying to the full set. Do not auto-apply.
+5. On confirmation, call `tidy_misprint_apply` with `nodeIds: components.map(c => c.id)`.
 
 ## After the apply call
 

@@ -2,6 +2,7 @@
 // Operation registry at module load (via src/shared/operations/register-all.ts).
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
+import { globToRegex } from "../../shared/operations/glob";
 import { registerOperation } from "../../shared/operations/registry";
 import { componentRegistry, getAllComponentNames } from "./utils/componentData";
 import {
@@ -16,13 +17,6 @@ import {
   LOCALIZE_LEVELS,
   type LocalizeLevel,
 } from "./utils/localize";
-
-function globToRegex(g: string): RegExp {
-  const escaped = g
-    .split("*")
-    .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp("^" + escaped.join(".*") + "$");
-}
 
 interface ListComponentsParams {
   namePattern?: string;

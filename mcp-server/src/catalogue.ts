@@ -9,6 +9,10 @@
 import { z } from "zod";
 import type { OperationKind } from "../../src/shared/operations/types.ts";
 import { DocSpecSchema } from "../../src/plugins/tidy-doc/utils/docSpec.ts";
+import {
+  DEFAULT_FIND_LIMIT,
+  MAX_FIND_LIMIT,
+} from "../../src/plugins/utilities/utils/findComponents.ts";
 
 export interface CatalogueEntry {
   id: string;
@@ -17,8 +21,15 @@ export interface CatalogueEntry {
   summary: string;
   inputSchema: z.ZodRawShape;
   // Per-operation bridge timeout override. Falls back to the default in
-  // BridgeServer when omitted. Set higher for ops that legitimately take
+  // BridgeServer (30s) when omitted. Set higher for ops that legitimately take
   // long (heavy text-node creation, batch builds, report generation).
+  //
+  // Rule of thumb from #128: anything whose cost scales with the *size of the
+  // file* rather than with one node must not sit on the 30s default. The
+  // entries deliberately left on it are the O(1) ones: a single node read
+  // (tidy_component_labels_get_variant_props), a static-registry filter
+  // (tidy_ds_explorer_list_components) and a page-name list
+  // (tidy_file_list_pages).
   timeoutMs?: number;
 }
 
@@ -28,20 +39,46 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "utilities",
     summary:
-      "Find components and component sets in the active Figma file. Returns node ids that can be passed to tidy_misprint_apply.",
+      "Find components and component sets in the active Figma file. Returns node ids that can be passed to tidy_misprint_apply, plus `total`, `truncated` and `omitted`. A truncated result is a partial view of the file, not the whole of it. `namePattern` filters the response but does NOT make the scan cheaper: a whole-file walk visits every node regardless. On a large file (an icon library) prefer scope='page', discovering pageIds with tidy_file_list_pages.",
     inputSchema: {
       scope: z
         .enum(["file", "page"])
-        .describe("Whether to search the whole file or a single page."),
+        .describe(
+          "Whether to search the whole file or a single page. 'file' is an unbounded walk, so on a large file prefer 'page'.",
+        ),
       pageId: z
         .string()
         .optional()
-        .describe("Required when scope='page'. The Figma page id."),
+        .describe(
+          "Required when scope='page'. The Figma page id; list them with tidy_file_list_pages.",
+        ),
       namePattern: z
         .string()
         .optional()
-        .describe("Optional glob (e.g. 'Btn*') matched against node names."),
+        .describe(
+          "Optional glob (e.g. 'Btn*') matched against node names. Case-sensitive, '*' is the only wildcard, and a pattern with no '*' is an exact match.",
+        ),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(MAX_FIND_LIMIT)
+        .optional()
+        .describe(
+          `Maximum components to return. Defaults to ${DEFAULT_FIND_LIMIT}. Anything beyond it is reported in \`omitted\`, never dropped silently.`,
+        ),
     },
+    // A whole-file walk is unbounded work; 30s is not enough on an icon
+    // library. Matched to the other scanning operations (#128).
+    timeoutMs: 60_000,
+  },
+  {
+    id: "tidy_file_list_pages",
+    kind: "query",
+    module: "utilities",
+    summary:
+      "List the pages in the active Figma file (id + name) and the current page id. Cheap: reads page names without loading page contents. This is how an agent gets a pageId for scope='page' on the scanning operations, instead of needing the designer to click a page first.",
+    inputSchema: {},
   },
   {
     id: "tidy_misprint_apply",
@@ -55,6 +92,9 @@ export const CATALOGUE: CatalogueEntry[] = [
         .min(1)
         .describe("Ids of components or component sets to update."),
     },
+    // Cost scales with nodeIds: one async lookup plus a description write per
+    // id, and a find on an icon library legitimately yields hundreds (#128).
+    timeoutMs: 60_000,
   },
   {
     id: "tidy_ds_template_run",

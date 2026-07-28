@@ -94,8 +94,9 @@ The plugin ships with an MCP server that exposes a curated set of **Operations**
 
 | Tool | Kind | What it does |
 | --- | --- | --- |
-| `tidy_misprint_find_components` | Query | Find components / component sets in the active file. Params: `{ scope: "file" \| "page", pageId?, namePattern? }` (glob, e.g. `Btn*`). Returns `{ components: { id, name }[], summary }`. |
-| `tidy_misprint_apply` | Execute | Append/replace a Hebrew-scrambled "misprint" line on each component's description, for searchability. Idempotent; atomic-fails if any id is missing or wrong type. |
+| `tidy_misprint_find_components` | Query | Find components / component sets in the active file. Params: `{ scope: "file" \| "page", pageId?, namePattern?, limit? }` (glob, e.g. `Btn*`). Returns `{ components: { id, name }[], total, truncated, omitted, limit, summary }`. Output is capped at 200 by default and reports what it dropped. `namePattern` shrinks the response, not the scan, so on a large file scope to a page instead. Bridge timeout: 60 s. |
+| `tidy_file_list_pages` | Query | List the pages in the active file (`{ id, name }[]` + `currentPageId`). Cheap: no page contents are loaded. This is how an agent obtains a `pageId` for `scope: "page"` without a designer clicking one first. |
+| `tidy_misprint_apply` | Execute | Append/replace a Hebrew-scrambled "misprint" line on each component's description, for searchability. Idempotent; atomic-fails if any id is missing or wrong type. Bridge timeout: 60 s. |
 | `tidy_ds_template_run` | Execute | Stamp the standard DS Template pages into the file. **Not** idempotent — running twice creates duplicates. Bridge timeout: 120 s. |
 | `tidy_component_labels_get_variant_props` | Query | Inspect a component set and return its variant properties (name, options, default). Accepts an explicit `nodeId` or falls back to the current selection. |
 | `tidy_component_labels_build` | Execute | Build variant labels around a component set's top and left edges. Accepts an explicit `nodeId` or falls back to the current selection. Validates that each axis references a known variant property; reports `availableProps` on mismatch. Bridge timeout: 120 s. |
@@ -113,7 +114,7 @@ Plugin-scoped wrappers in `claude-plugin/commands/` expand into prompts that dri
 
 | Slash | What it does |
 | --- | --- |
-| `/tidy-find [scope] [pageId] [pattern]` | Wraps `tidy_misprint_find_components`. No args → `scope: "file"`. A positional glob (e.g. `Btn*`) is taken as `namePattern`. Renders matches as `name — id`. |
+| `/tidy-find [scope] [pageId] [pattern] [limit=…]` | Wraps `tidy_misprint_find_components` (+ `tidy_file_list_pages` to resolve a page by name). No args → `scope: "file"`. A positional glob (e.g. `Btn*`) is taken as `namePattern`. Renders matches as `name — id`, and says so explicitly when the result was truncated. |
 | `/tidy-misprint [ids\|names\|globs…]` | Wraps `tidy_misprint_apply`. Each argument is resolved by shape: `2226:741` → id, `Btn*` → glob, anything else → exact name (find first, then apply). With no args, finds the whole file and asks before applying. |
 | `/tidy-ds-template [--force]` | Wraps `tidy_ds_template_run`. Confirms first (since it's not idempotent); `--force` skips the prompt. |
 | `/tidy-labels [nodeId] [top=…] [left=…] [secondTop=…] [secondLeft=…] [groupSecondTop=true\|false] [groupSecondLeft=true\|false] [spacing=…] [fontSize=…] [extractElement=true\|false]` | Wraps `tidy_component_labels_get_variant_props` + `tidy_component_labels_build`. With no axis args, surfaces the variant properties and asks how to assign them. |

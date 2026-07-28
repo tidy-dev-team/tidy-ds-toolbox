@@ -8,6 +8,7 @@
 // probe's temporary frame (see theme-probe.ts and the ADR-0001 carve-out).
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
+import { globToRegex } from "../../shared/operations/glob";
 import { registerOperation } from "../../shared/operations/registry";
 import { collectColorStyles, collectSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
@@ -23,14 +24,6 @@ interface QaRunParams {
   name?: string;
   /** Optional filter; defaults to all catalogue checks. */
   checks?: string[];
-}
-
-// Same glob semantics as tidy_misprint_find_components: '*' wildcards only.
-function globToRegex(g: string): RegExp {
-  const escaped = g
-    .split("*")
-    .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp("^" + escaped.join(".*") + "$");
 }
 
 type QaSubject = ComponentSetNode | ComponentNode;

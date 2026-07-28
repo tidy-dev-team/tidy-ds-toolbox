@@ -8,32 +8,25 @@ import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
 import { addMisprintToDescription } from "./utils/misprint";
 import { buildDsTemplate } from "./utils/dsTemplate";
+import {
+  selectComponents,
+  type SelectComponentsResult,
+} from "./utils/findComponents";
 
 interface FindComponentsParams {
   scope: "file" | "page";
   pageId?: string;
   namePattern?: string;
+  limit?: number;
 }
 
-interface FindComponentsResult {
-  components: { id: string; name: string }[];
-  summary: string;
-}
-
-function globToRegex(g: string): RegExp {
-  const escaped = g
-    .split("*")
-    .map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&"));
-  return new RegExp("^" + escaped.join(".*") + "$");
-}
-
-registerOperation<FindComponentsParams, FindComponentsResult>(
+registerOperation<FindComponentsParams, SelectComponentsResult>(
   {
     id: "tidy_misprint_find_components",
     kind: "query",
     module: "utilities",
     summary:
-      "Find components and component sets. Returns ids passable to tidy_misprint_apply.",
+      "Find components and component sets. Returns ids passable to tidy_misprint_apply. Capped output; check `truncated`.",
     paramsExample: { scope: "file" },
   },
   async (params) => {
@@ -68,16 +61,45 @@ registerOperation<FindComponentsParams, FindComponentsResult>(
       root = figma.root;
     }
 
+    // The walk itself is the unavoidable cost: `namePattern` cannot prune it,
+    // because every node must be visited before its name is known. It shrinks
+    // the response, not the scan. `scope: 'page'` is the only real lever, which
+    // is why tidy_file_list_pages exists to make pageIds discoverable (#128).
     const nodes = root.findAllWithCriteria({
       types: ["COMPONENT", "COMPONENT_SET"],
     });
 
-    const pattern = params.namePattern ? globToRegex(params.namePattern) : null;
-    const matches = pattern ? nodes.filter((n) => pattern.test(n.name)) : nodes;
+    return selectComponents(nodes, {
+      namePattern: params.namePattern,
+      limit: params.limit,
+    });
+  },
+);
 
+interface ListPagesResult {
+  pages: { id: string; name: string }[];
+  currentPageId: string;
+  summary: string;
+}
+
+registerOperation<Record<string, never>, ListPagesResult>(
+  {
+    id: "tidy_file_list_pages",
+    kind: "query",
+    module: "utilities",
+    summary:
+      "List the pages in the active file (id + name) so scope='page' is reachable without a human clicking first.",
+    paramsExample: {},
+  },
+  // Cheap by construction: page *names and ids* are available without loading
+  // any page's contents, which is the whole point. This is the lever an agent
+  // reaches for when a whole-file walk is too expensive.
+  async () => {
+    const pages = figma.root.children.map((p) => ({ id: p.id, name: p.name }));
     return {
-      components: matches.map((n) => ({ id: n.id, name: n.name })),
-      summary: `${matches.length} component(s) matched`,
+      pages,
+      currentPageId: figma.currentPage.id,
+      summary: `${pages.length} page(s)`,
     };
   },
 );
