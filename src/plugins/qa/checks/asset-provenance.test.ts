@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { checkAssetProvenance } from "./asset-provenance";
+import type { AssetManifest } from "../asset-manifest";
 import type { ComponentSetSnapshot, NodeSnapshot } from "../snapshot";
 
 let seq = 0;
@@ -458,5 +459,139 @@ describe("checkAssetProvenance", () => {
     );
     expect(result.status).toBe("fail");
     expect(result.findings[0].nodeName).toBe("Vector 1");
+  });
+
+  // --- #122: the approved-key manifest ---
+  //
+  // Every test above runs against the *bundled* manifest, which ships
+  // ungenerated on purpose - that is what pins the pre-#122 fallback behaviour.
+  // These inject one instead.
+  describe("with an approved-asset manifest", () => {
+    const manifest = (
+      components: AssetManifest["components"],
+      generatedAt: string | null = "2026-07-28",
+    ): AssetManifest => ({
+      generatedAt,
+      source: { fileKey: "found4t10ns", fileName: "Kido Foundations" },
+      components,
+    });
+
+    const CURRENT = manifest({
+      [REMOTE_ICON.key]: { name: REMOTE_ICON.name, page: "Icons / Core" },
+    });
+
+    it("verifies a remote instance the manifest lists, and drops the caveat", () => {
+      const result = checkAssetProvenance(
+        fixture([
+          [node({ name: "label", type: "TEXT" }), instance("ic", REMOTE_ICON)],
+        ]),
+        CURRENT,
+      );
+      expect(result.status).toBe("pass");
+      expect(result.findings).toEqual([]);
+      // The whole point of the manifest: this pass rests on evidence, so the
+      // unverifiable-origin caveat would now be a false statement.
+      expect(result.note).not.toMatch(/cannot be verified/i);
+      expect(result.note).toMatch(/verified against/i);
+      expect(result.note).toContain("2026-07-28");
+      expect(result.note).toContain("Kido Foundations");
+    });
+
+    it("fails an asset published on a deprecated page", () => {
+      const result = checkAssetProvenance(
+        fixture([
+          [node({ name: "label", type: "TEXT" }), instance("ic", REMOTE_ICON)],
+        ]),
+        manifest({
+          [REMOTE_ICON.key]: {
+            name: REMOTE_ICON.name,
+            page: "Icons (deprecated)",
+            set: "Icon",
+          },
+        }),
+      );
+      expect(result.status).toBe("fail");
+      expect(result.findings).toHaveLength(1);
+      const [found] = result.findings;
+      expect(found.severity).toBe("high");
+      // The row has to name the directory it is rejecting, or there is nothing
+      // to act on.
+      expect(found.message).toContain("Icons (deprecated)");
+      expect(found.message).toContain("Icon");
+    });
+
+    it("warns, naming the manifest date, when the key is absent", () => {
+      const result = checkAssetProvenance(
+        fixture([
+          [node({ name: "label", type: "TEXT" }), instance("ic", REMOTE_ICON)],
+        ]),
+        manifest({ someOtherKey: { name: "Logo", page: "Logos" } }),
+      );
+      // Deliberately not a fail: an asset published after the manifest was taken
+      // is legitimately absent, and only the date makes that decidable.
+      expect(result.status).toBe("warn");
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0].severity).toBe("medium");
+      expect(result.findings[0].message).toContain("2026-07-28");
+      expect(result.findings[0].suggestedFix).toMatch(/regenerate/i);
+    });
+
+    it("omits the date when the manifest has none", () => {
+      const result = checkAssetProvenance(
+        fixture([
+          [node({ name: "label", type: "TEXT" }), instance("ic", REMOTE_ICON)],
+        ]),
+        manifest({ someOtherKey: { name: "Logo", page: "Logos" } }, null),
+      );
+      expect(result.findings[0].message).not.toContain("generated");
+    });
+
+    it("reports one row per offending set, however many variants were used", () => {
+      const setOf = (key: string) => ({
+        key,
+        name: "Size=24",
+        setId: "set:icon",
+        setName: "Icon",
+        remote: true,
+      });
+      const result = checkAssetProvenance(
+        fixture([
+          [instance("ic", setOf("v1")), instance("trailing", setOf("v2"))],
+        ]),
+        manifest({ unrelated: { name: "Logo", page: "Logos" } }),
+      );
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0].count).toBe(2);
+      expect(result.findings[0].message).toContain("Icon");
+    });
+
+    it("keeps the verified note when another rule fails the row", () => {
+      // The note narrows what the *rest* of the row is worth, so a failure
+      // elsewhere must not swallow it.
+      const result = checkAssetProvenance(
+        fixture([
+          [
+            instance("ic", REMOTE_ICON),
+            node({ name: "Vector", type: "VECTOR" }),
+          ],
+        ]),
+        CURRENT,
+      );
+      expect(result.status).toBe("fail");
+      expect(result.note).toMatch(/verified against/i);
+    });
+
+    it("still caveats a remote instance when the manifest is ungenerated", () => {
+      // The fallback has to survive: a fresh clone must not report defects that
+      // are not there.
+      const result = checkAssetProvenance(
+        fixture([
+          [node({ name: "label", type: "TEXT" }), instance("ic", REMOTE_ICON)],
+        ]),
+        manifest({}, "2026-07-28"),
+      );
+      expect(result.status).toBe("pass");
+      expect(result.note).toMatch(/cannot be verified/i);
+    });
   });
 });

@@ -25,6 +25,7 @@
     "verify:plugin": "node scripts/verify-installed-plugin.mjs",
     "mcp:smoketest": "npm run build:mcp && node mcp-server/dist/smoketest.cjs mcp-server/dist/server.cjs",
     "mcp:smoketest:src": "node --experimental-strip-types mcp-server/src/smoketest.ts mcp-server/src/server.ts",
+    "manifest:assets": "node scripts/generate-asset-manifest.mjs",
     "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts",
     "eval:icon-hash": "node --experimental-strip-types scripts/eval-icon-hash.mts"
   },

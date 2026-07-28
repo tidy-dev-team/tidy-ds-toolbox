@@ -169,11 +169,37 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > so the row asks the designer to decide rather than asserting a defect and
 > telling her to publish a deliberately private part. Remote nested instances
 > pass, with the unverifiable-origin caveat in the result's `note` rather than
-> implying a guarantee it can't make. An approved-key manifest (and the
-> deprecated-directory rule that depends on it) is deferred to its own ticket,
-> since generating one needs the REST API or a dump run inside the Foundations
-> file plus a refresh story. A component that *is* the asset (every leaf in the
-> variant trees is geometry) reports `not_applicable`.
+> implying a guarantee it can't make. A component that *is* the asset (every leaf
+> in the variant trees is geometry) reports `not_applicable`.
+>
+> **Positive detection added by #122.** A publish key is stable and globally
+> unique, so a generated list of the keys Foundations publishes turns the
+> unanswerable question into a lookup. `scripts/generate-asset-manifest.mjs`
+> calls the REST API out-of-band (the plugin sandbox has no network, and no
+> plugin API enumerates a library's components) and writes
+> `src/plugins/qa/asset-manifest.json`, which esbuild inlines into the bundle.
+> With a manifest present a remote instance is looked up by its main component's
+> key: found on a current page it is genuinely **verified** and the caveat is
+> dropped, found on a deprecated page it **fails** (the legacy-directory
+> rejection design asked for), and absent from the manifest it **warns** while
+> naming the manifest's generation date. Absent is deliberately not a failure:
+> an asset published after the manifest was taken is legitimately missing, and
+> failing it would break QA for every newly published icon until someone
+> regenerated. The manifest is committed so the approved set is reviewable in a
+> diff and reproducible from a released build, rather than living per-machine in
+> `clientStorage` where two designers could disagree about what "approved"
+> means; it records facts only (key, name, page, owning set), while the rule for
+> what counts as a deprecated page stays in `asset-manifest.ts` so regenerating
+> cannot quietly change a verdict. An ungenerated manifest is a supported state
+> and falls back to the pre-#122 behaviour above.
+>
+> **Configurability**, which design asked for unprompted, lands as the
+> deprecated-page rule rather than an allowed-folder list: naming the folders
+> assets must come *from* would need updating whenever Foundations reorganises,
+> whereas naming the ones they must not come from matches how she described the
+> problem ("I want to make sure it isn't connected to legacy").
+>
+> Refresh runbook: [`docs/asset-manifest.md`](asset-manifest.md).
 
 * **Intent:** Ensure all iconography utilized inside components stems from the single source of truth library.
 * **Automated Plugin Action:**

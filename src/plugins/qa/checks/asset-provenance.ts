@@ -7,12 +7,31 @@
  * - **There is no library attribution for components.** `libraryName` exists
  *   only for variable collections. An instance exposes its main component's
  *   `key` and `remote` flag — no file key, no library name. So "is this icon
- *   from the approved Foundations file?" is simply not answerable in-plugin,
- *   and an approved-key manifest is deferred to its own ticket (it needs a
- *   generation + refresh pipeline outside the plugin sandbox).
+ *   from the approved Foundations file?" is not answerable from the API alone.
+ *   A publish key *is* stable and globally unique, so #122 added the missing
+ *   half: a generated manifest of the keys Foundations publishes (see
+ *   ../asset-manifest.ts) turns the question into a lookup.
  *
- * The three rules are therefore *negative* detection — things that are
- * definitely not a library instance:
+ * **With a manifest, three of the outcomes become positive claims** (#122). A
+ * remote instance is looked up by its main component's key:
+ *
+ * - **found on a current page** → genuinely verified. This is the only `pass`
+ *   in this check that rests on evidence rather than on absence of evidence,
+ *   and it is why the unverifiable-origin caveat is dropped for those rows.
+ * - **found on a deprecated page** → `fail`. The legacy-directory rejection
+ *   design originally asked for, and a defect the check is now sure of: the
+ *   asset resolves, it is simply the wrong copy.
+ * - **absent from the manifest** → `warn`, naming the date the manifest was
+ *   taken. An asset published after that date is legitimately absent, so
+ *   failing it would break QA for every newly published icon until someone
+ *   regenerated. The row asks the question instead of guessing the answer.
+ *
+ * Without a manifest (a fresh clone, or before anyone runs the generator) every
+ * remote instance falls back to the pre-#122 behaviour below: `pass` carrying
+ * the caveat. The check never treats a missing manifest as a defect.
+ *
+ * The remaining rules are *negative* detection — things that are definitely not
+ * a library instance:
  *
  * 1. Raw path geometry alongside other content → `fail`, the only defect this
  *    check is certain of. Detached paths and copy-pasted art. Only true path
@@ -27,9 +46,10 @@
  *    `_elements / …` parts) is indistinguishable here from a stray local copy
  *    of an icon, so the check surfaces it and leaves the judgement to the
  *    designer instead of telling her to publish a deliberately private part.
- * 3. A remote nested instance → `pass`, with the unverifiable-origin caveat
- *    carried in `note` so the row doesn't read as a stronger guarantee than it
- *    is. No false `fail` on legitimate remote icons.
+ * 3. A remote nested instance with no manifest to check it against → `pass`,
+ *    with the unverifiable-origin caveat carried in `note` so the row doesn't
+ *    read as a stronger guarantee than it is. No false `fail` on legitimate
+ *    remote icons.
  *
  * An instance whose main component doesn't resolve at all is a fourth,
  * unavoidable case: it is neither certainly local nor certainly remote, so it
@@ -57,6 +77,12 @@
  * (#100).
  */
 
+import type { AssetManifest } from "../asset-manifest";
+import {
+  ASSET_MANIFEST,
+  isDeprecatedPage,
+  isManifestGenerated,
+} from "../asset-manifest";
 import type { ComponentSetSnapshot, NodeSnapshot } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
 
@@ -120,6 +146,13 @@ interface Offender {
   nodeId: string;
   nodeName: string;
   count: number;
+  /**
+   * The manifest page this asset was found on. Only set for the deprecated
+   * bucket, where the message has to name the directory it is rejecting - a
+   * "this is deprecated" finding that cannot say *where* it read that is not
+   * actionable.
+   */
+  page?: string;
 }
 
 /** Accumulate an occurrence under `key`, remembering the first node seen. */
@@ -128,12 +161,19 @@ function tally(
   key: string,
   label: string,
   node: NodeSnapshot,
+  page?: string,
 ): void {
   const existing = into.get(key);
   if (existing) {
     existing.count += 1;
   } else {
-    into.set(key, { label, nodeId: node.id, nodeName: node.name, count: 1 });
+    into.set(key, {
+      label,
+      nodeId: node.id,
+      nodeName: node.name,
+      count: 1,
+      ...(page === undefined ? {} : { page }),
+    });
   }
 }
 
@@ -144,7 +184,18 @@ interface Scan {
   localMains: Map<string, Offender>;
   /** Instances whose main component didn't resolve, keyed by layer name. */
   unresolved: Map<string, Offender>;
-  remoteInstanceCount: number;
+  /** Manifest hits on a deprecated page (#122), keyed like `localMains`. */
+  deprecated: Map<string, Offender>;
+  /** Remote instances absent from the manifest (#122), keyed like `localMains`. */
+  unapproved: Map<string, Offender>;
+  /** Remote instances the manifest confirmed on a current page (#122). */
+  verifiedCount: number;
+  /**
+   * Remote instances trusted on the strength of being remote alone, because no
+   * manifest was available to check them against. Counted separately from
+   * `verifiedCount` because only these need the caveat.
+   */
+  unverifiedRemoteCount: number;
 }
 
 function emptyScan(): Scan {
@@ -152,7 +203,10 @@ function emptyScan(): Scan {
     rawPaths: new Map(),
     localMains: new Map(),
     unresolved: new Map(),
-    remoteInstanceCount: 0,
+    deprecated: new Map(),
+    unapproved: new Map(),
+    verifiedCount: 0,
+    unverifiedRemoteCount: 0,
   };
 }
 
@@ -185,7 +239,11 @@ function isAssetVariant(root: NodeSnapshot): boolean {
 }
 
 /** Collect this variant's provenance offenders into the shared set-wide scan. */
-function scanOffenders(node: NodeSnapshot, scan: Scan): void {
+function scanOffenders(
+  node: NodeSnapshot,
+  scan: Scan,
+  manifest: AssetManifest,
+): void {
   if (node.type === "INSTANCE") {
     const main = node.mainComponent;
     if (!main) {
@@ -193,7 +251,22 @@ function scanOffenders(node: NodeSnapshot, scan: Scan): void {
       // it as either local or remote.
       tally(scan.unresolved, node.name, node.name, node);
     } else if (main.remote) {
-      scan.remoteInstanceCount += 1;
+      // The lookup is on the *variant's* key, which is what the manifest
+      // records and what the instance actually points at. Bucketing is by
+      // owning set, matching `localMains`, so one offending set is one row
+      // however many of its variants were used.
+      const bucketKey = main.setId ?? main.key;
+      const label = main.setName ?? main.name;
+      const entry = manifest.components[main.key];
+      if (!isManifestGenerated(manifest)) {
+        scan.unverifiedRemoteCount += 1;
+      } else if (!entry) {
+        tally(scan.unapproved, bucketKey, label, node);
+      } else if (isDeprecatedPage(entry.page)) {
+        tally(scan.deprecated, bucketKey, label, node, entry.page);
+      } else {
+        scan.verifiedCount += 1;
+      }
     } else {
       // Key and label on the owning *set*, not the variant. An instance's main
       // component is a variant, so `main.name` is `State=Default` — which names
@@ -213,7 +286,7 @@ function scanOffenders(node: NodeSnapshot, scan: Scan): void {
     tally(scan.rawPaths, node.name, node.name, node);
   }
 
-  for (const child of node.children) scanOffenders(child, scan);
+  for (const child of node.children) scanOffenders(child, scan, manifest);
 }
 
 function finding(
@@ -231,6 +304,11 @@ function finding(
 
 export function checkAssetProvenance(
   snapshot: ComponentSetSnapshot,
+  /**
+   * Injectable so the manifest-dependent verdicts are fixture-testable without
+   * a generated file on disk; production always uses the bundled one.
+   */
+  manifest: AssetManifest = ASSET_MANIFEST,
 ): CheckResult {
   const scan = emptyScan();
   let assetVariants = 0;
@@ -239,7 +317,7 @@ export function checkAssetProvenance(
       assetVariants += 1;
       continue;
     }
-    scanOffenders(variant.tree, scan);
+    scanOffenders(variant.tree, scan, manifest);
   }
 
   // Every variant is the asset itself — nothing here is a nested library
@@ -257,6 +335,13 @@ export function checkAssetProvenance(
   }
 
   const findings: Finding[] = [];
+
+  // " (generated 2026-07-28)" or "" — a manifest without a date can still have
+  // contents if it was hand-assembled, and a row that promises a date it does
+  // not have reads worse than one that omits it.
+  const manifestDate = manifest.generatedAt
+    ? ` (generated ${manifest.generatedAt})`
+    : "";
 
   for (const offender of scan.rawPaths.values()) {
     findings.push(
@@ -289,6 +374,39 @@ export function checkAssetProvenance(
     );
   }
 
+  // A defect the check is certain of (#122): the key resolved, and the manifest
+  // says it resolves to the wrong copy. Severity matches raw geometry because
+  // the fix is the same shape - swap in the current asset - and unlike a local
+  // nested instance there is no legitimate reading of it.
+  for (const offender of scan.deprecated.values()) {
+    findings.push(
+      finding(offender, {
+        severity: "high",
+        message: `Nested instance comes from "${offender.label}", published on the deprecated Foundations page "${offender.page}".`,
+        expected: "an asset from a current Foundations directory",
+        actual: `an asset from the deprecated page "${offender.page}"`,
+        suggestedFix:
+          "Swap in the current Foundations asset that replaces it. If this page is not actually deprecated, rename it or adjust the rule in asset-manifest.ts.",
+      }),
+    );
+  }
+
+  // Deliberately a warn, not a fail: an asset published after the manifest was
+  // generated is legitimately absent, and the row cannot tell that apart from an
+  // unapproved library. Naming the date is what makes it decidable.
+  for (const offender of scan.unapproved.values()) {
+    findings.push(
+      finding(offender, {
+        severity: "medium",
+        message: `Nested instance comes from "${offender.label}", which is not in the approved Foundations manifest${manifestDate}.`,
+        expected: "an asset published by the approved Foundations library",
+        actual: "a published component that is not in the manifest",
+        suggestedFix:
+          "If it was published to Foundations after the manifest was generated, regenerate it (npm run manifest:assets). Otherwise swap in the Foundations asset.",
+      }),
+    );
+  }
+
   for (const offender of scan.unresolved.values()) {
     findings.push(
       finding(offender, {
@@ -305,15 +423,18 @@ export function checkAssetProvenance(
   // `not_applicable` when nothing provenance-bearing exists at all: no nested
   // instances, no raw geometry. Nothing was measured, which is a different
   // fact from "measured and it's fine" and must not inflate the pass count.
-  // Only raw geometry is a defect the check is sure of. A local nested
-  // instance and an unresolvable main component are both "look at this" — they
-  // warn, so the row asks for a decision rather than claiming one.
+  // Raw geometry and a deprecated-page hit are the two defects the check is
+  // sure of. A local nested instance, an unresolvable main component and a key
+  // the manifest does not list are all "look at this" — they warn, so the row
+  // asks for a decision rather than claiming one.
   const status: CheckStatus =
-    scan.rawPaths.size > 0
+    scan.rawPaths.size > 0 || scan.deprecated.size > 0
       ? "fail"
-      : scan.localMains.size > 0 || scan.unresolved.size > 0
+      : scan.localMains.size > 0 ||
+          scan.unresolved.size > 0 ||
+          scan.unapproved.size > 0
         ? "warn"
-        : scan.remoteInstanceCount > 0
+        : scan.verifiedCount > 0 || scan.unverifiedRemoteCount > 0
           ? "pass"
           : "not_applicable";
 
@@ -322,21 +443,46 @@ export function checkAssetProvenance(
     title: TITLE,
     status,
     findings,
-    // Stated whenever any remote instance was trusted on the strength of being
-    // remote — including alongside failures, since the remaining instances
-    // still rest on that partial evidence.
-    //
-    // The two are mutually exclusive: `not_applicable` here is reached only
-    // when `remoteInstanceCount` is 0, so the caveat and the reason can never
-    // both apply. This n/a is a different cause from the asset exemption
-    // above - nothing provenance-bearing at all, rather than the set being
-    // the asset - so it gets its own reason.
-    ...(scan.remoteInstanceCount > 0
-      ? { note: CAVEAT }
-      : status === "not_applicable"
-        ? {
-            note: "Nothing here carries provenance: no nested instances, and no raw artwork that reads as a detached asset rather than an ordinary shape.",
-          }
-        : {}),
+    ...noteFor(scan, status, manifest, manifestDate),
   };
+}
+
+/**
+ * The row's `note`, which says something different in each of three worlds.
+ *
+ * Kept out of the main body because the precedence matters and is easy to get
+ * subtly wrong: the caveat only applies to instances trusted *without* a
+ * manifest, so a run that verified everything must not carry it, and a run that
+ * verified some things while another rule failed still must.
+ */
+function noteFor(
+  scan: Scan,
+  status: CheckStatus,
+  manifest: AssetManifest,
+  manifestDate: string,
+): Pick<CheckResult, "note"> {
+  // Instances trusted on the strength of being remote alone. Stated alongside
+  // failures too, since those remaining instances still rest on partial
+  // evidence.
+  if (scan.unverifiedRemoteCount > 0) return { note: CAVEAT };
+
+  // Everything remote here was looked up. The claim is real, so the caveat
+  // would be false - but the manifest's age is now the thing that limits it,
+  // and that belongs on the row for the same reason the caveat did.
+  if (scan.verifiedCount > 0) {
+    const source = manifest.source ? ` from "${manifest.source.fileName}"` : "";
+    return {
+      note: `Origin verified against the approved Foundations manifest${manifestDate}${source}: every remote instance here is published by that library and sits on a current page. An asset published after that date would show up as unapproved, so regenerate the manifest before treating such a row as a defect.`,
+    };
+  }
+
+  // A different cause from the asset exemption earlier: nothing
+  // provenance-bearing at all, rather than the set being the asset itself.
+  if (status === "not_applicable") {
+    return {
+      note: "Nothing here carries provenance: no nested instances, and no raw artwork that reads as a detached asset rather than an ordinary shape.",
+    };
+  }
+
+  return {};
 }
