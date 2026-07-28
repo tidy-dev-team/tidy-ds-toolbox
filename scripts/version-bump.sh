@@ -59,9 +59,12 @@ echo -e "${GREEN}New version: $NEW_VERSION${NC}"
 # Note: manifest.json doesn't need version field for Figma plugins
 # Version is tracked in package.json and git tags only
 
-# Stage changes (always include README/CHANGELOG so release notes stay in sync)
+# Stage changes (always include README/CHANGELOG so release notes stay in sync).
+# package-lock.json matters too: `npm version` rewrites its version field, so
+# omitting it left every release with a dirty lockfile, which then tripped the
+# not-clean warning on the *next* release.
 echo "Staging changes..."
-FILES_TO_STAGE=(package.json CHANGELOG.md README.md)
+FILES_TO_STAGE=(package.json package-lock.json CHANGELOG.md README.md)
 
 for file in "${FILES_TO_STAGE[@]}"; do
   if [ -f "$file" ]; then
