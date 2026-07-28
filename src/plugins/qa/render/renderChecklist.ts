@@ -152,12 +152,24 @@ function checkbox(): FrameNode {
 }
 
 function summaryLine(counts: ChecklistReport["counts"]): string {
-  const base = `${counts.pass} pass · ${counts.warn} warn · ${counts.fail} fail · ${counts.manual} manual · ${counts.notImplemented} pending`;
+  const parts = [
+    `${counts.pass} pass`,
+    `${counts.warn} warn`,
+    `${counts.fail} fail`,
+    `${counts.manual} manual`,
+  ];
+  // Only shown when non-zero: these are the ordinary-case-empty buckets, and a
+  // run of "0 pending · 0 n/a · 0 skipped" is noise on most sets. But when they
+  // do have rows they must appear, or the line tallies fewer than the 19 rows
+  // printed directly beneath it - an asset set reads 15 with four rows
+  // n/a (#126).
+  if (counts.notImplemented > 0) parts.push(`${counts.notImplemented} pending`);
+  if (counts.notApplicable > 0) parts.push(`${counts.notApplicable} n/a`);
+  if (counts.notRun > 0) parts.push(`${counts.notRun} skipped`);
   // Partial rows carry an unticked box despite having a status chip, so a
   // summary that omitted them could read "0 manual" with work still to do.
-  return counts.partial > 0
-    ? `${base} · ${counts.partial} partly manual`
-    : base;
+  if (counts.partial > 0) parts.push(`${counts.partial} partly manual`);
+  return parts.join(" · ");
 }
 
 const SEVERITY_COLOR: Record<SeverityLevel, string> = {

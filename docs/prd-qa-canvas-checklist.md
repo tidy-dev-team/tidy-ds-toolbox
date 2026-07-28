@@ -132,7 +132,7 @@ Three new pieces, plus one operation:
 
 **Returns (stub only)**
 ```
-{ frameId: string, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, partial } }
+{ frameId: string, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, notApplicable, notRun, partial } }
 ```
 
 **Behaviour**
@@ -178,11 +178,24 @@ interface ChecklistReport {
   target: { id: string; name: string };
   generatedFor: { instanceId?: string };  // the instance the run started from
   items: ChecklistItem[];  // always 19, in PRD order
+  // Every status has a bucket, so the status buckets sum to exactly 19 (#126).
+  // `notApplicable` and `notRun` stay separate from `pass` - a check that
+  // validated nothing must not read as one that did - but are still reported,
+  // because the build-checklist stub returns counts and no findings, making
+  // these the caller's whole view of the run.
+  //
   // `partial` is an overlay, not a status: automated rows that still carry a
   // manualRemainder. Counted in addition to their own status, so it is
   // excluded from the sum to 19.
   counts: Record<
-    "pass" | "warn" | "fail" | "manual" | "notImplemented" | "partial",
+    | "pass"
+    | "warn"
+    | "fail"
+    | "manual"
+    | "notImplemented"
+    | "notApplicable"
+    | "notRun"
+    | "partial",
     number
   >;
 }

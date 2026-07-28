@@ -206,8 +206,16 @@ export interface ChecklistReport {
   generatedFor: { instanceId?: string };
   items: ChecklistItem[];
   /**
-   * Row tallies. `pass`/`warn`/`fail`/`manual`/`notImplemented` are mutually
-   * exclusive statuses and sum (with `not_applicable` and `not_run`) to 19.
+   * Row tallies. `pass`/`warn`/`fail`/`manual`/`notImplemented`/`notApplicable`/
+   * `notRun` are mutually exclusive statuses and sum to exactly 19.
+   *
+   * `notApplicable` and `notRun` are reported rather than dropped even though
+   * neither is actionable. `tidy_qa_build_checklist` returns only these counts
+   * and no findings, so they are the caller's whole view of the run: without
+   * them a set assembled from nested instances reports 15 of 19 and an agent
+   * cannot tell four inapplicable rows from four rows that failed to run (#126).
+   * They stay separate from `pass` so a check that validated nothing can never
+   * inflate the pass count.
    *
    * `partial` is **not** a status: it is an overlay counting automated rows that
    * still carry a `manualRemainder`, and every such row is *also* counted by its
@@ -216,7 +224,14 @@ export interface ChecklistReport {
    * sum rather than folded into `manual`.
    */
   counts: Record<
-    "pass" | "warn" | "fail" | "manual" | "notImplemented" | "partial",
+    | "pass"
+    | "warn"
+    | "fail"
+    | "manual"
+    | "notImplemented"
+    | "notApplicable"
+    | "notRun"
+    | "partial",
     number
   >;
 }

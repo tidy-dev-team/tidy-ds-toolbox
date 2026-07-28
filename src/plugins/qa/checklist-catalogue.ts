@@ -10,7 +10,7 @@
  * printed checklist designers tick by hand; item 14 deliberately diverges
  * ("Easy to Use" named a goal, not the thing being measured). Every item also
  * carries a one-line `blurb` — the title alone left several rows opaque
- * ("Preferred (Instance Swapping)", "Themes (Core/DNA/OldNews)") to anyone who
+ * ("Preferred (Instance Swapping)", "Themes (per-mode resolution)") to anyone who
  * hadn't read the PRD.
  */
 
@@ -158,7 +158,13 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   },
   {
     n: 17,
-    title: "Themes (Core/DNA/OldNews)",
+    // Deliberately names no collection. #77 rejected hardcoding
+    // `Core / DNA / OldNews`, and real files bear that out: two sets in one file
+    // resolved "semantic colors" and "theme" respectively, so there may be no
+    // single "the theme" in a file. The check's own note names the collection
+    // and modes it actually evaluated, which is what makes a wrong pick visible
+    // instead of silently green (#127).
+    title: "Themes (per-mode resolution)",
     tier: 2,
     checkId: "themes",
     // States the item, which is wider than the check: design asked that the

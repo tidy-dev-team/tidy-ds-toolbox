@@ -29,6 +29,8 @@ function emptyCounts(): ChecklistReport["counts"] {
     fail: 0,
     manual: 0,
     notImplemented: 0,
+    notApplicable: 0,
+    notRun: 0,
     partial: 0,
   };
 }
@@ -99,8 +101,16 @@ export function buildChecklistReport(
       case "not_implemented":
         counts.notImplemented += 1;
         break;
-      // not_applicable and not_run carry no actionable state and are
-      // intentionally omitted from counts (so counts.pass stays honest).
+      // Neither is actionable, but both are reported so the buckets sum to 19.
+      // They stay out of `pass` - a check that evaluated nothing must never
+      // read as one that validated something - while still being visible to a
+      // caller that only ever sees these counts (#126).
+      case "not_applicable":
+        counts.notApplicable += 1;
+        break;
+      case "not_run":
+        counts.notRun += 1;
+        break;
     }
 
     // Counted on top of the status above, never instead of it: the row has both

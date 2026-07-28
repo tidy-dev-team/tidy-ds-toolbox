@@ -74,7 +74,7 @@ and is **idempotent**: re-running for the same target replaces its prior frame
 rather than duplicating it.
 
 The response is a small stub only:
-`{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, partial } }`.
+`{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, notApplicable, notRun, partial } }`.
 `partial` counts automated rows that still need a human tick because the check
 covers only part of the item (currently #3, #7, #17 and #19). Those rows are also
 counted by their own status, so report them as outstanding work even when
@@ -84,9 +84,11 @@ tell the user to look at the frame on canvas (e.g. "Checklist for Button: 9
 pass, 4 warn, 2 fail, 3 manual, 4 partly manual - see the frame next to it on
 canvas.").
 
-Note the buckets do not have to sum to 19: a check that ran but had nothing
-applicable to evaluate lands on `not_applicable`, which no counter reports.
-Read a short total as rows being skipped, not as rows being missing.
+The status buckets sum to exactly 19, so a total that falls short means you
+misread one. `notApplicable` is a check that ran and found nothing to judge
+(an asset set has no text to measure for contrast); `notRun` is a check a
+`checks` filter excluded. Neither is a pass, and neither is a defect - say which
+rows they were rather than folding them into either.
 
 ## Presenting the result
 

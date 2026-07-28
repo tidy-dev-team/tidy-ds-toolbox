@@ -93,7 +93,33 @@ describe("buildChecklistReport", () => {
     expect(preferred.findings).toEqual([]);
     // not_applicable must not inflate the pass count.
     expect(report.counts.pass).toBe(0);
+    // ...but it is still reported, so the buckets account for the row (#126).
+    // The stub from tidy_qa_build_checklist carries no findings, so a row that
+    // appears in no bucket is invisible to its only caller.
+    expect(report.counts.notApplicable).toBe(1);
     expect(report.counts).not.toHaveProperty("not_applicable");
+  });
+
+  it("tallies every row, so the status buckets sum to 19", () => {
+    // An asset-like set: several checks run and find nothing to judge, one is
+    // filtered out, the rest never ran. Previously this summed to 2 of 19.
+    const report = buildChecklistReport({
+      target: TARGET,
+      results: [
+        result("set-name-casing", "fail", [finding()]),
+        result("preferred-values", "not_applicable"),
+        result("high-contrast", "not_applicable"),
+        result("nesting-depth", "not_applicable"),
+        result("asset-provenance", "not_applicable"),
+      ],
+      notImplemented: ["description"],
+    });
+    const { pass, warn, fail, manual, notImplemented, notApplicable, notRun } =
+      report.counts;
+    expect(notApplicable).toBe(4);
+    expect(
+      pass + warn + fail + manual + notImplemented + notApplicable + notRun,
+    ).toBe(19);
   });
 
   it("strips findings on pass even if the engine attached any", () => {
@@ -218,18 +244,21 @@ describe("buildChecklistReport", () => {
       fail: 1,
       manual: manualCount,
       notImplemented: 1,
+      notApplicable: 0,
+      notRun: notRunCount,
       partial: 0,
     });
     expect(notRunCount).toBeGreaterThan(0);
-    // not_run is intentionally absent from counts (PRD §6).
-    expect(report.counts).not.toHaveProperty("not_run");
+    // Every status bucket is reported, so the tallies account for all 19 rows
+    // without the caller having to infer a shortfall (#126).
     expect(
       report.counts.pass +
         report.counts.warn +
         report.counts.fail +
         report.counts.manual +
         report.counts.notImplemented +
-        notRunCount,
+        report.counts.notApplicable +
+        report.counts.notRun,
     ).toBe(19);
     // partial is an overlay, not a status: excluded from the sum on purpose.
     expect(report.counts.partial).toBe(0);

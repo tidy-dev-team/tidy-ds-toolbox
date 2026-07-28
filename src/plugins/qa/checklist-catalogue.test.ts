@@ -87,7 +87,7 @@ const PRD_ITEMS: ReadonlyArray<{
   },
   {
     n: 17,
-    title: "Themes (Core/DNA/OldNews)",
+    title: "Themes (per-mode resolution)",
     tier: 2,
     checkId: "themes",
   },
