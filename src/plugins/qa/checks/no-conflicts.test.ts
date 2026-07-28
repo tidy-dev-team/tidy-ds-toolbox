@@ -107,6 +107,7 @@ describe("checkNoConflicts", () => {
     const result = checkNoConflicts(fixture("3:1", "Icon", "COMPONENT", []));
     expect(result.checkId).toBe("no-conflicts");
     expect(result.status).toBe("not_applicable");
+    expect(result.note).toContain("fewer than two variants");
     expect(result.findings).toEqual([]);
   });
 });

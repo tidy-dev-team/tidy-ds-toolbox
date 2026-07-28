@@ -55,6 +55,11 @@ export function checkInteractionHoverOnly(
       : findings.length > 0
         ? "fail"
         : "pass",
+    ...(sawReaction
+      ? {}
+      : {
+          note: "No variant in this set carries a prototype reaction, so there is no trigger to check.",
+        }),
     findings,
   };
 }

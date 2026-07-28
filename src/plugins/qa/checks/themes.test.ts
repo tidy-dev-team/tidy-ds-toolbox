@@ -96,6 +96,10 @@ describe("checkThemes", () => {
     expect(result.checkId).toBe("themes");
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    // "No theme axis" and "could not check" are materially different
+    // statements to a designer, so the three n/a causes are distinguished
+    // rather than sharing one string (#129).
+    expect(result.note).toContain("No theme collection could be determined");
   });
 
   it("passes when every used variable resolves in every mode, and says what it evaluated", () => {
@@ -243,6 +247,27 @@ describe("checkThemes", () => {
     // happened.
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    expect(result.note).toContain("binds nothing from the theme collection");
+    expect(result.note).toContain("shared styles");
+  });
+
+  it("does not blame the mode count when the set binds nothing at all", () => {
+    // A style-only set has its collection picked from the style's variables, so
+    // that collection can perfectly well have one mode. Reporting "the
+    // collection this set binds has only one mode" would then assert a binding
+    // that does not exist, which is the failure #129 is about.
+    const result = checkThemes(
+      fixture(
+        [[node()]],
+        theme({
+          modes: [{ modeId: "m-only", name: "Value" }],
+          variables: { "v-unused": resolved("bg/legacy", ["m-only"]) },
+        }),
+      ),
+    );
+    expect(result.status).toBe("not_applicable");
+    expect(result.note).not.toContain("only one mode");
+    expect(result.note).toContain("binds nothing from the theme collection");
   });
 
   it("warns when a layer pins its own mode for the theme collection", () => {
@@ -337,6 +362,7 @@ describe("checkThemes", () => {
     );
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    expect(result.note).toContain("only one mode");
   });
 
   it("fails a binding Figma could not load, rather than dropping it", () => {

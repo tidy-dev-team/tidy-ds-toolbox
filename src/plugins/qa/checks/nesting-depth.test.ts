@@ -50,6 +50,7 @@ describe("checkNestingDepth", () => {
     expect(result.checkId).toBe("nesting-depth");
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    expect(result.note).toContain("exposed to the configuration panel");
   });
 
   it("passes (not not_applicable) for a lone exposed instance with nothing beneath it", () => {
@@ -144,6 +145,7 @@ describe("checkNestingDepth", () => {
     const result = checkNestingDepth(fixture([tree]));
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    expect(result.note).toContain("exposed to the configuration panel");
   });
 
   it("reports the established prefix instead of dropping it when a descendant id doesn't resolve", () => {

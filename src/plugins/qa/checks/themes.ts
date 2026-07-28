@@ -72,17 +72,45 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   const consumed = [...usage.keys()].some(
     (id) => theme?.variables[id] !== undefined,
   );
-  if (
-    !theme ||
-    (theme.modes.length < 2 && unavailable.length === 0) ||
-    (!consumed && unavailable.length === 0)
-  ) {
-    return {
-      checkId: "themes",
-      title: TITLE,
-      status: "not_applicable",
-      findings: [],
-    };
+  // The three causes are reported separately rather than sharing one string.
+  // "This component has no theme axis" and "we could not check" are materially
+  // different statements to a designer, and the row is where that distinction
+  // has to survive - the chip says only "n/a" (#129).
+  const notApplicable = (note: string): CheckResult => ({
+    checkId: "themes",
+    title: TITLE,
+    status: "not_applicable",
+    note,
+    findings: [],
+  });
+
+  // Split from the other two rather than folded into one expression so that
+  // `theme` stays narrowed for everything below.
+  if (!theme) {
+    // Deliberately an umbrella: the probe returns no table when the set binds
+    // nothing, when no collection qualifies as the theme, and when the
+    // collection cannot be loaded (theme-probe.ts `withoutModes`). The
+    // snapshot does not say which, so claiming "binds no variables" would
+    // assert a fact this check cannot see - the exact failure the issue warns
+    // about, since "no theme axis" and "could not check" are different claims.
+    return notApplicable(
+      "No theme collection could be determined from this set's own bindings, so there is nothing to resolve per mode.",
+    );
+  }
+  // Ordered before the mode count on purpose. When the set binds nothing
+  // directly, the probe picks the collection from style variables instead
+  // (theme-probe.ts `deciding`), so "the collection this set binds" is a claim
+  // about a binding that does not exist - it would be a wrong reason on any
+  // style-only set whose collection happens to have one mode.
+  if (!consumed && unavailable.length === 0) {
+    return notApplicable(
+      "This set binds nothing from the theme collection - its themed values come from shared styles rather than its own bindings - so there is nothing of this component's to resolve per mode.",
+    );
+  }
+  if (theme.modes.length < 2 && unavailable.length === 0) {
+    return notApplicable(
+      "The collection this set binds has only one mode, so there is no second theme to compare against.",
+    );
   }
 
   const findings: Finding[] = [];

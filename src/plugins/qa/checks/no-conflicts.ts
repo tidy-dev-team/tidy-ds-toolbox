@@ -21,6 +21,7 @@ export function checkNoConflicts(snapshot: ComponentSetSnapshot): CheckResult {
       checkId: "no-conflicts",
       title: "No conflicts",
       status: "not_applicable",
+      note: "This has fewer than two variants, so there is no second property combination it could collide with.",
       findings: [],
     };
   }

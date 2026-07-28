@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { statusStyle } from "./status-style";
+import { notePrefix, statusStyle } from "./status-style";
 import type { ItemStatus } from "../types";
 
 const ALL_STATUSES: ItemStatus[] = [
@@ -34,5 +34,26 @@ describe("statusStyle", () => {
     expect(statusStyle("not_applicable").label).not.toBe(
       statusStyle("pass").label,
     );
+  });
+});
+
+describe("notePrefix", () => {
+  // A note on an n/a row is the reason the check had nothing to evaluate
+  // (#129), not a qualification of a verdict. "Caveat: the set exposes no
+  // instance-swap properties" misreads it as a hedge on a result.
+  it("introduces a not_applicable note as a reason, not a caveat", () => {
+    expect(notePrefix("not_applicable")).toBe("Why");
+  });
+
+  it("keeps the caveat wording everywhere a verdict was actually reached", () => {
+    for (const status of ALL_STATUSES.filter((s) => s !== "not_applicable")) {
+      expect(notePrefix(status)).toBe("Caveat");
+    }
+  });
+
+  it("returns a non-empty prefix for every status", () => {
+    for (const status of ALL_STATUSES) {
+      expect(notePrefix(status).length).toBeGreaterThan(0);
+    }
   });
 });

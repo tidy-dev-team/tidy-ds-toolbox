@@ -623,9 +623,9 @@ function nothingToMeasureNote(
   disabledCount: number,
 ): string {
   if (disabledCount > 0 && disabledCount === snapshot.variants.length) {
-    return `Nothing to measure: every variant here is a disabled state, and WCAG exempts inactive controls from contrast requirements.`;
+    return `Every variant here is a disabled state, and WCAG exempts inactive controls from contrast requirements, so there is nothing to measure.`;
   }
-  return "Nothing to measure: this set has no text layers of its own. Text inside a nested instance belongs to that component and is checked when it is the subject, so a component assembled entirely from other components reports nothing here.";
+  return "This set has no text layers of its own, so there is nothing to measure. Text inside a nested instance belongs to that component and is checked when it is the subject, so a component assembled entirely from other components reports nothing here.";
 }
 
 function buildNote(

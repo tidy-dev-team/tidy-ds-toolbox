@@ -16,7 +16,7 @@ import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityF
 import { groupFindings } from "../grouped-findings";
 import type { ChecklistReport, SeverityLevel } from "../types";
 import { decidePlacement } from "./placement";
-import { statusStyle } from "./status-style";
+import { notePrefix, statusStyle } from "./status-style";
 
 // Local drawing palette — deliberately self-contained (not shared with tidy-doc)
 // so the checklist design is independent and swappable per PRD §7.
@@ -343,7 +343,9 @@ export async function renderChecklist(
 
     // A check's caveat (#8: library origin is unverifiable in-plugin) renders
     // even on a passing row — that is exactly where the reader needs to know
-    // the tick rests on partial evidence.
+    // the tick rests on partial evidence. On an n/a row the same field carries
+    // the reason the check had nothing to evaluate (#129), so the prefix
+    // follows the status rather than always reading "Caveat".
     if (item.note) {
       const noteBlock = buildAutoLayoutFrame(
         `item-${item.n}-note`,
@@ -354,7 +356,12 @@ export async function renderChecklist(
       );
       noteBlock.layoutAlign = "STRETCH";
       noteBlock.paddingLeft = DETAIL_INDENT;
-      const noteText = text(`Caveat: ${item.note}`, 11, FONT_REGULAR, MUTED);
+      const noteText = text(
+        `${notePrefix(item.status)}: ${item.note}`,
+        11,
+        FONT_REGULAR,
+        MUTED,
+      );
       noteBlock.appendChild(noteText);
       noteText.textAutoResize = "HEIGHT";
       noteText.layoutSizingHorizontal = "FILL";

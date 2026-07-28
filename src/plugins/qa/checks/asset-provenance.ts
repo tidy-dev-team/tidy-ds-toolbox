@@ -249,6 +249,9 @@ export function checkAssetProvenance(
       checkId: "asset-provenance",
       title: TITLE,
       status: "not_applicable",
+      // The #101 structural exemption is the most interesting judgment this
+      // check makes, and on an icon set it was the least explained (#129).
+      note: "Every variant is the asset artwork itself rather than a layout containing assets, so there is no nested instance whose origin could be checked.",
       findings: [],
     };
   }
@@ -322,6 +325,18 @@ export function checkAssetProvenance(
     // Stated whenever any remote instance was trusted on the strength of being
     // remote — including alongside failures, since the remaining instances
     // still rest on that partial evidence.
-    ...(scan.remoteInstanceCount > 0 ? { note: CAVEAT } : {}),
+    //
+    // The two are mutually exclusive: `not_applicable` here is reached only
+    // when `remoteInstanceCount` is 0, so the caveat and the reason can never
+    // both apply. This n/a is a different cause from the asset exemption
+    // above - nothing provenance-bearing at all, rather than the set being
+    // the asset - so it gets its own reason.
+    ...(scan.remoteInstanceCount > 0
+      ? { note: CAVEAT }
+      : status === "not_applicable"
+        ? {
+            note: "Nothing here carries provenance: no nested instances, and no raw artwork that reads as a detached asset rather than an ordinary shape.",
+          }
+        : {}),
   };
 }

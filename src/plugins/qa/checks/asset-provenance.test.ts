@@ -130,6 +130,9 @@ describe("checkAssetProvenance", () => {
     );
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    // The #101 structural exemption is the engine's most interesting
+    // judgment on an icon set, so the row must not read as a bare n/a (#129).
+    expect(result.note).toContain("Every variant is the asset artwork itself");
   });
 
   it("judges the exemption per variant, so one odd variant doesn't fail the whole icon set", () => {
@@ -185,6 +188,7 @@ describe("checkAssetProvenance", () => {
     );
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
+    expect(result.note).toContain("Every variant is the asset artwork itself");
   });
 
   it("does not fail a drawn divider LINE, but still counts it as artwork", () => {
@@ -200,6 +204,12 @@ describe("checkAssetProvenance", () => {
     );
     expect(inComponent.status).toBe("not_applicable");
     expect(inComponent.findings).toEqual([]);
+    // A different n/a cause from the asset exemption above, so a different
+    // reason.
+    expect(inComponent.note).toContain("no nested instances");
+    // Deliberately not "no vector geometry": this fixture HAS a LINE. The
+    // claim is about provenance-bearing content, not about geometry.
+    expect(inComponent.note).not.toContain("no raw vector geometry");
 
     // Inside a logo built from lines and vectors: still pure artwork, so the
     // asset exemption applies rather than the variant being scanned.
@@ -332,7 +342,12 @@ describe("checkAssetProvenance", () => {
     );
     expect(result.status).toBe("not_applicable");
     expect(result.findings).toEqual([]);
-    expect(result.note).toBeUndefined();
+    expect(result.note).toContain("no nested instances");
+    // The original point of this assertion still stands: nothing was trusted
+    // on the strength of being remote here, so the #8 unverifiable-origin
+    // caveat must not leak onto the row. It now carries a reason instead of
+    // nothing at all (#129), but never that one.
+    expect(result.note).not.toContain("Library origin cannot be verified");
   });
 
   it("dedupes to one finding per offending main component, with an occurrence count", () => {

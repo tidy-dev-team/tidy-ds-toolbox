@@ -481,7 +481,7 @@ describe("checkHighContrast and disabled variants", () => {
     // and reporting it fills the row with failures nobody can fix.
     const result = checkHighContrast(withProperties([{ State: "Disabled" }]));
     expect(result.status).toBe("not_applicable");
-    expect(result.note).toContain("every variant here is a disabled state");
+    expect(result.note).toContain("variant here is a disabled state");
   });
 
   it("does not evaluate a Disabled=True boolean variant", () => {

@@ -74,6 +74,9 @@ describe("checkPreferredValues", () => {
       checkId: "preferred-values",
       title: "Preferred values",
       status: "not_applicable",
+      // Matched on the condition it names rather than verbatim, so rewording
+      // the reason does not need a synchronised test edit.
+      note: expect.stringContaining("no instance-swap properties"),
       findings: [],
     });
   });

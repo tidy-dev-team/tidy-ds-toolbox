@@ -73,10 +73,24 @@ export interface CheckResult {
   findings: Finding[];
   /**
    * What this check could *not* establish, stated in the result rather than
-   * left for the caller to know. A `pass` that rests on partial evidence
-   * (#8: the plugin API exposes no library identity for a component, so a
-   * remote instance can't be traced to an approved library) has to say so, or
-   * the checklist reads as a stronger guarantee than it is.
+   * left for the caller to know. Any verdict may carry one:
+   *
+   * - On a verdict the check actually reached (`pass`, `warn`, `fail`), a
+   *   caveat: the verdict rests on partial evidence (#8: the plugin API exposes
+   *   no library identity for a component, so a remote instance cannot be
+   *   traced to an approved library; #17 names the collection its heuristic
+   *   picked, since a wrong pick means the whole row describes the wrong axis).
+   *   Without it the checklist reads as a stronger statement than it is, and
+   *   that is as true of a `fail` as of a `pass`.
+   * - On a `not_applicable`, the reason the check had nothing to evaluate
+   *   (#129) - not a qualification of a verdict but the whole content of one.
+   *   A bare "n/a" chip with no reason is its own honesty problem, and it
+   *   clusters worst on asset sets, where it can be the majority of the frame.
+   *   Only the check knows the specific reason, so each writes its own rather
+   *   than sharing a generic fallback.
+   *
+   * The renderer picks the on-canvas prefix from the status accordingly; see
+   * `notePrefix` in render/status-style.ts.
    */
   note?: string;
   /**

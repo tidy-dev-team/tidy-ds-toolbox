@@ -177,5 +177,13 @@ export function checkNestingDepth(snapshot: ComponentSetSnapshot): CheckResult {
     title: "Nested instance depth",
     status,
     findings,
+    // Six of an icon set's rows used to read as a bare "n/a" chip with no
+    // reason, which is where n/a clusters hardest (#129). The reason was
+    // already written down in the comment above; it belongs in the result.
+    ...(status === "not_applicable"
+      ? {
+          note: "Nothing in this set is exposed to the configuration panel, so no nesting chain reaches a designer to be measured.",
+        }
+      : {}),
   };
 }

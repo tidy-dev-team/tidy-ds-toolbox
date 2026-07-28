@@ -127,6 +127,9 @@ describe("checkInteractionHoverOnly", () => {
       checkId: "interaction-hover-only",
       title: "Interaction (hover-only)",
       status: "not_applicable",
+      // Matched on the condition it names rather than verbatim, so rewording
+      // the reason does not need a synchronised test edit.
+      note: expect.stringContaining("prototype reaction"),
       findings: [],
     });
   });

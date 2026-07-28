@@ -74,6 +74,41 @@ describe("runChecks", () => {
     );
   });
 
+  // #129: a bare "n/a" chip with no reason is its own honesty problem, and it
+  // clusters hardest on asset sets, where it can be the majority of the frame.
+  // This is a guard on the whole class rather than on the six checks that were
+  // fixed - a new check that forgets its reason fails here, not in review.
+  it("gives every not_applicable result a reason", () => {
+    const notApplicable = runChecks(FIXTURE).results.filter(
+      (r) => r.status === "not_applicable",
+    );
+    // Guard the guard: a bare fixture must actually drive checks to n/a, or
+    // this asserts nothing. The bare component set is exactly the asset-set
+    // shape the issue is about.
+    expect(notApplicable.length).toBeGreaterThanOrEqual(5);
+    const unexplained = notApplicable
+      .filter((r) => !r.note?.trim())
+      .map((r) => r.checkId);
+    expect(unexplained).toEqual([]);
+  });
+
+  it("does not restate the chip instead of giving a reason", () => {
+    // The issue rules out a generic fallback: "the value is in the specific
+    // reason, which only each check knows". A reason has to name the condition
+    // that produced it, so it cannot be a stock phrase or a few words long.
+    const SHORTEST_REAL_REASON = 30;
+    const notApplicable = runChecks(FIXTURE).results.filter(
+      (r) => r.status === "not_applicable",
+    );
+    for (const result of notApplicable) {
+      expect(result.note).not.toMatch(/nothing applicable to evaluate/i);
+      expect(result.note?.length ?? 0).toBeGreaterThan(SHORTEST_REAL_REASON);
+    }
+    // Each check writes its own, so no two rows may share a reason.
+    const reasons = notApplicable.map((r) => r.note);
+    expect(new Set(reasons).size).toBe(reasons.length);
+  });
+
   it("honours the checks filter", () => {
     const requested = ["tokens", "prop-order"] as CheckId[];
     const outcome = runChecks(FIXTURE, requested);

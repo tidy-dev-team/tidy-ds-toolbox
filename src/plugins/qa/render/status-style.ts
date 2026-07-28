@@ -29,3 +29,16 @@ const STATUS_STYLE: Record<ItemStatus, StatusStyle> = {
 export function statusStyle(status: ItemStatus): StatusStyle {
   return STATUS_STYLE[status];
 }
+
+/**
+ * How a row's `note` is introduced on canvas.
+ *
+ * A note means two different things depending on the row it sits under. On a
+ * pass it is a caveat: the tick rests on partial evidence (#8). On an n/a it is
+ * the reason the check had nothing to evaluate (#129), which is the opposite -
+ * not a qualification of a verdict, but the whole content of one. Labelling
+ * that "Caveat" would misread it, so the prefix follows the status.
+ */
+export function notePrefix(status: ItemStatus): string {
+  return status === "not_applicable" ? "Why" : "Caveat";
+}

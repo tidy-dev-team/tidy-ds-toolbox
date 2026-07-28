@@ -19,6 +19,7 @@ export function checkPreferredValues(
       checkId: "preferred-values",
       title: "Preferred values",
       status: "not_applicable",
+      note: "The set exposes no instance-swap properties, so there is no preferred-values list to populate.",
       findings: [],
     };
   }

@@ -94,9 +94,15 @@ rows they were rather than folding them into either.
 
 The response shape is
 `{ target: { id, name }, results: CheckResult[], notImplemented: string[] }`.
-Each `CheckResult` is `{ checkId, title, status, findings }`; each finding has a
-`severity` (high / medium / low), `nodeId`, `nodeName`, `message`, and often
-`expected` / `actual`.
+Each `CheckResult` is `{ checkId, title, status, findings, note?, manualRemainder? }`;
+each finding has a `severity` (high / medium / low), `nodeId`, `nodeName`,
+`message`, and often `expected` / `actual`.
+
+`note` says one of two things, depending on the status it sits on.
+On any verdict the check reached - `pass`, `warn` or `fail` alike - it is a caveat: that verdict rests on partial evidence, or on a heuristic that may have judged the wrong thing.
+On a `not_applicable` it is the reason the check had nothing to judge.
+Quote it either way, and on a `warn` or `fail` too: the caveat says how far to trust the row, so dropping it there overstates the finding as much as dropping it on a `pass` overstates the tick.
+On an asset set the n/a reasons are the bulk of what the run actually established, so dropping them leaves the user with a column of unexplained "n/a".
 
 **Findings arrive deduped, one per defect** (issue #118). Variants share their
 layers, so one mistake in a shared layer used to be reported once per variant:
@@ -123,7 +129,9 @@ still long. Summarise:
    Icon` itemSpacing is 10, unbound, on 56 nodes"). Surface **high** and
    **medium** severity first; summarise **low** severity as counts only unless
    the user asks for detail.
-4. List any `notImplemented` check ids so the user knows what wasn't run.
+4. For `not_applicable` rows, give the reason from `note` rather than just the status.
+   "No text layers, so nothing to measure for contrast" is information; a bare "n/a" is not, and on an icon set most of the checklist is n/a.
+5. List any `notImplemented` check ids so the user knows what wasn't run.
 
 > Large-output note: if the tool result is still truncated to a file, read it
 > before summarising rather than dumping it.
