@@ -76,11 +76,12 @@ rather than duplicating it.
 The response is a small stub only:
 `{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, partial } }`.
 `partial` counts automated rows that still need a human tick because the check
-covers only part of the item (currently #7 and #19). Those rows are also counted
-by their own status, so report them as outstanding work even when `manual` is 0.
-Report it directly — do not invent findings detail that isn't in the stub;
-tell the user to look at the frame on canvas (e.g. "Checklist for Button: 4
-pass, 3 warn, 1 fail, 10 manual, 2 partly manual - see the frame next to it on
+covers only part of the item (currently #3, #7, #17 and #19). Those rows are also
+counted by their own status, so report them as outstanding work even when
+`manual` is 0.
+Report it directly - do not invent findings detail that isn't in the stub;
+tell the user to look at the frame on canvas (e.g. "Checklist for Button: 11
+pass, 3 warn, 2 fail, 3 manual, 3 partly manual - see the frame next to it on
 canvas.").
 
 ## Presenting the result
