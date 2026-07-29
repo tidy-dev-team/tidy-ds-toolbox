@@ -33,22 +33,9 @@
  */
 export const FALLBACK_STAGE = "#2E2E2E";
 
-/**
- * The fallback backdrop for a mode, which **deliberately ignores the mode name**.
- *
- * A function rather than the bare constant so the policy is guarded: the earlier
- * version gave light-named modes a pale backdrop, which reintroduced the blind
- * spot #141 asked to remove, and nothing failed when it did. The invariance is
- * the decision here, so the invariance is what the test asserts.
- */
-export function fallbackStageFor(modeName: string): string {
-  void modeName;
-  return FALLBACK_STAGE;
-}
-
 /** What the block says about the backdrop it painted. */
 export function surfaceCaption(surfaceTokenName: string | undefined): string {
   return surfaceTokenName
     ? `Backdrops are the "${surfaceTokenName}" token resolved per mode. If that is not the surface these sit on, the backdrop is wrong even though the component may not be.`
-    : "No surface token was found, so backdrops are a neutral approximated from each mode's name - judge whether anything disappears, not how it looks against them.";
+    : "No surface token was found, so every mode gets the same neutral dark backdrop - it is a test surface rather than any mode's real one, so judge whether anything disappears, not how it looks against it.";
 }

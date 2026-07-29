@@ -63,14 +63,24 @@ export async function resolveSurfaceVariable(
 }
 
 /**
- * Whole words only. Substring matching pinned the wrong mode: a collection
- * offering "Highlight" alongside "Light" resolved a request for light to
- * "Highlight", and "Darkness" counted as dark. Both are the sort of name a real
- * file has, and pinning an unrelated mode is silent - everything still renders,
- * just against the wrong theme.
+ * Whole words only, where a "word" ends at anything that is not a letter or digit.
+ *
+ * Two rounds of this. A plain substring test resolved a request for light to
+ * "Highlight" and counted "Darkness" as dark. `\b` fixed those but not
+ * `Industrial_Dark` or `dark_mode`, because JavaScript counts `_` as a word
+ * character - so an underscore-separated dark mode was read as light, and the
+ * polarity collection got pinned the wrong way. Both are names a real file has.
+ *
+ * Pinning an unrelated mode is silent: everything still renders, just against the
+ * wrong theme, with no error to notice.
+ *
+ * Known limit, left deliberately: a name with no separator at all
+ * (`industrialDark`) is not matched. Splitting on case transitions would start
+ * matching things like "Darkroom" without a dictionary to stop it, and a mode
+ * whose polarity is unreadable falls back safely rather than being guessed.
  */
-const LIGHT_WORD = /\b(light|lite|day)\b/i;
-const DARK_WORD = /\b(dark|night)\b/i;
+const LIGHT_WORD = /(?:^|[^A-Za-z0-9])(light|lite|day)(?:[^A-Za-z0-9]|$)/i;
+const DARK_WORD = /(?:^|[^A-Za-z0-9])(dark|night)(?:[^A-Za-z0-9]|$)/i;
 
 /** Just the shape `polarityModeId` reads, so it can be tested without Figma. */
 export interface ModeNamesOnly {
