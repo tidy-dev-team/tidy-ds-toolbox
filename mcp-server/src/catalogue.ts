@@ -248,7 +248,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "ds-explorer",
     summary:
-      "Import a registered DS Explorer component by name and return its properties, description, and nested instances. Set includeImage=true to also return a base64 PNG preview (heavier — only when the agent needs to actually see the component). Errors INVALID_PARAMS with details.availableNames if the name is unknown.",
+      "Import a registered DS Explorer component by name and return its properties, description, and nested instances. Set includeImage=true to also see the component: the preview is returned as an image content block you can actually look at, not as text (heavier - only when seeing it matters). Errors INVALID_PARAMS with details.availableNames if the name is unknown.",
     inputSchema: {
       name: z
         .string()
@@ -259,7 +259,7 @@ export const CATALOGUE: CatalogueEntry[] = [
         .boolean()
         .optional()
         .describe(
-          "If true, include a base64-encoded PNG preview of the component (default variant for sets). Defaults to false.",
+          "If true, render a PNG preview of the component (default variant for sets) and return it as a viewable image block alongside the JSON. Defaults to false.",
         ),
     },
     timeoutMs: 60_000,
