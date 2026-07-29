@@ -162,7 +162,18 @@ const figmaProbeEnv: ProbeEnv<FrameNode> = {
 export function sweepStrayProbes<N extends Removable>(
   env: Pick<ProbeEnv<N>, "strayProbes">,
 ): void {
-  for (const stray of env.strayProbes()) {
+  // Discovery is guarded separately from removal, and for the same reason:
+  // reading the page's children, or plugin data off a node that has since gone,
+  // can throw as readily as removing can. Guarding the two together would let one
+  // unremovable stray abandon the rest.
+  let strays: readonly N[];
+  try {
+    strays = env.strayProbes();
+  } catch {
+    return;
+  }
+
+  for (const stray of strays) {
     try {
       stray.remove();
     } catch {
@@ -216,12 +227,19 @@ function isAlias(value: VariableValue): boolean {
  */
 export async function probeThemeResolution(
   snapshot: ComponentSetSnapshot,
+  /**
+   * Injected only so the call below is covered by a test. Without it, the one
+   * thing #131 exists to stop resting on a careful reading - that cleanup happens
+   * on *every* run - would itself rest on a careful reading, since moving this
+   * call under an early return breaks nothing else.
+   */
+  sweep: () => void = () => sweepStrayProbes(figmaProbeEnv),
 ): Promise<ThemeSnapshot | undefined> {
   // Before anything else, including the early returns below: cleanup has to
   // happen on every run that gets here, not only the ones that go on to build a
   // probe of their own. A set with no bound variables returns early, and that run
   // is just as able to clear the last one's residue.
-  sweepStrayProbes(figmaProbeEnv);
+  sweep();
 
   // Same traversal the check uses, so the two cannot disagree about which
   // variables the set consumes.

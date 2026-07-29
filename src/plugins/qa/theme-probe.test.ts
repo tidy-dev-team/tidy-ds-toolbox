@@ -13,7 +13,9 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type { ComponentSetSnapshot } from "./snapshot";
 import {
+  probeThemeResolution,
   isStrayProbe,
   markProbe,
   sweepStrayProbes,
@@ -189,7 +191,65 @@ describe("sweepStrayProbes", () => {
     expect(orphans[1].removed).toBe(1);
   });
 
+  // Discovery can throw too: reading the page's children, or plugin data off a
+  // node that has since been removed. "Never allowed to fail the call" has to
+  // cover finding the strays, not only removing them.
+  it("survives being unable to discover strays at all", () => {
+    expect(() =>
+      sweepStrayProbes({
+        strayProbes: () => {
+          throw new Error("cannot read page children");
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it("does nothing when the page is clean", () => {
     expect(() => sweepStrayProbes({ strayProbes: () => [] })).not.toThrow();
+  });
+});
+
+describe("probeThemeResolution", () => {
+  /** A set that binds no variables, so the run returns before building a probe. */
+  const UNBOUND: ComponentSetSnapshot = {
+    id: "1:1",
+    name: "Divider",
+    type: "COMPONENT_SET",
+    description: "",
+    propertyNames: [],
+    properties: [],
+    variants: [
+      {
+        id: "1:2",
+        name: "size=s",
+        variantProperties: { size: "s" },
+        tree: {
+          id: "1:2",
+          name: "size=s",
+          type: "COMPONENT",
+          visible: true,
+          width: 8,
+          height: 1,
+          children: [],
+        },
+      },
+    ],
+  };
+
+  // The wiring, not the sweep itself. Cleanup has to happen on every run that
+  // gets this far, including the ones that never build a probe - otherwise a
+  // page's orphan waits for a run that happens to need theme modes, and the
+  // cancellation guarantee is back to resting on reading the code (#131).
+  it("sweeps before returning early on a set that binds nothing", async () => {
+    let swept = 0;
+
+    const result = await probeThemeResolution(UNBOUND, () => {
+      swept += 1;
+    });
+
+    // Establish that this really is the early-return path, so the assertion below
+    // is about a run that never reached the probe lifecycle at all.
+    expect(result).toBeUndefined();
+    expect(swept).toBe(1);
   });
 });
