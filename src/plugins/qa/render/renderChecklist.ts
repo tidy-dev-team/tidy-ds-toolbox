@@ -12,24 +12,26 @@
  * findExistingDocPages) is deleted before the new one is placed.
  */
 
-import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { groupFindings } from "../grouped-findings";
 import type { ChecklistReport, SeverityLevel } from "../types";
 import { decidePlacement } from "./placement";
+import {
+  autoLayout,
+  BORDER,
+  CARD,
+  CHECKBOX_BORDER,
+  fill,
+  FONT_BOLD,
+  FONT_REGULAR,
+  hexToRgb,
+  INK,
+  loadRenderFonts,
+  MANUAL_TINT,
+  MUTED,
+  ROW_BORDER,
+  text,
+} from "./primitives";
 import { notePrefix, statusStyle } from "./status-style";
-
-// Local drawing palette — deliberately self-contained (not shared with tidy-doc)
-// so the checklist design is independent and swappable per PRD §7.
-const INK = "#111827";
-const MUTED = "#6B7280";
-const CARD = "#FFFFFF";
-const BORDER = "#E5E7EB";
-const ROW_BORDER = "#F3F4F6";
-const MANUAL_TINT = "#FAFAFA";
-const CHECKBOX_BORDER = "#9CA3AF";
-
-const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
-const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
 
 const PLUGIN_DATA_KEY = "tidy:qa-checklist";
 
@@ -73,15 +75,6 @@ async function findExistingChecklists(
   return matches;
 }
 
-function hexToRgb(hex: string): RGB {
-  const clean = hex.replace("#", "");
-  return {
-    r: parseInt(clean.slice(0, 2), 16) / 255,
-    g: parseInt(clean.slice(2, 4), 16) / 255,
-    b: parseInt(clean.slice(4, 6), 16) / 255,
-  };
-}
-
 /**
  * A remembered anchor id may now point at something unplaceable — a deleted
  * node returns null, and a page/document has no bounding box to sit beside.
@@ -101,55 +94,6 @@ function pageOf(node: BaseNode): PageNode {
     current = current.parent;
   }
   return (current as PageNode | null) ?? figma.currentPage;
-}
-
-function fill(node: MinimalFillsMixin, hex: string, opacity?: number): void {
-  node.fills = [
-    {
-      type: "SOLID",
-      color: hexToRgb(hex),
-      ...(opacity === undefined ? {} : { opacity }),
-    },
-  ];
-}
-
-/**
- * `buildAutoLayoutFrame` leaves Figma's default white fill in place, which is
- * invisible on the white card but paints over `MANUAL_TINT` on a manual row -
- * the tint then survived only in the sliver the row did not cover. Every
- * wrapper frame here is meant to be see-through; the ones that carry a colour
- * (root, a manual row, a chip, a checkbox) set it explicitly afterwards.
- */
-function autoLayout(
-  name: string,
-  direction: "HORIZONTAL" | "VERTICAL",
-  paddingHorizontal: number,
-  paddingVertical: number,
-  itemSpacing: number,
-): FrameNode {
-  const frame = buildAutoLayoutFrame(
-    name,
-    direction,
-    paddingHorizontal,
-    paddingVertical,
-    itemSpacing,
-  );
-  frame.fills = [];
-  return frame;
-}
-
-function text(
-  content: string,
-  size: number,
-  font: FontName,
-  hex: string,
-): TextNode {
-  const node = figma.createText();
-  node.fontName = font;
-  node.fontSize = size;
-  node.characters = content;
-  fill(node, hex);
-  return node;
 }
 
 function statusChip(label: string, hex: string): FrameNode {
@@ -254,10 +198,7 @@ export async function renderChecklist(
    */
   relocate = false,
 ): Promise<FrameNode> {
-  await Promise.all([
-    figma.loadFontAsync(FONT_REGULAR),
-    figma.loadFontAsync(FONT_BOLD),
-  ]);
+  await loadRenderFonts();
 
   const root = autoLayout(
     `QA Checklist — ${report.target.name}`,

@@ -366,6 +366,12 @@ export const CATALOGUE: CatalogueEntry[] = [
         .describe(
           `Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: ${CHECK_IDS.join(", ")}.`,
         ),
+      includeModeImages: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, also return `modeImage`: the component rendered once per theme mode, side by side, as a viewable image block. Use it to judge row 17's visual half - whether the component still reads correctly in every mode - which no check can establish. The themes check only proves variables resolve, and high-contrast only measures text, so a non-text element (icon, border, divider) vanishing into the surface in one mode is invisible to the engine and visible here. Absent when the set has no theme axis to show. Costs a render per mode, so ask for it when the answer matters rather than on every run. Leaves nothing on the canvas: the frames are removed after export.",
+        ),
     },
     timeoutMs: 60_000,
   },
@@ -374,7 +380,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "qa",
     summary:
-      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target - re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
+      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. Idempotent per target - re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
     inputSchema: {
       nodeId: z
         .string()

@@ -186,4 +186,16 @@ export interface QaRunResult {
   notImplemented: CheckId[];
   /** Checklist model, one row per catalogue item, merging in engine results. */
   checklist: ChecklistReport;
+  /**
+   * The component rendered once per theme mode, side by side, as a PNG data URL
+   * (#121 step 2) - present only when `includeModeImages` asked for it and the
+   * set actually has a theme axis to show.
+   *
+   * Row 17's automatable half establishes that variables resolve and that text
+   * meets contrast in every mode. What neither can see is a non-text element -
+   * an icon, border or divider - vanishing into the surface in one mode. This is
+   * that, and it is evidence rather than a verdict: the row's status is unchanged
+   * by it.
+   */
+  modeImage?: string;
 }
