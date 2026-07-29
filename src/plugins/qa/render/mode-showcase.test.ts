@@ -76,11 +76,26 @@ describe("planModeShowcase", () => {
     expect(plan.reason).toMatch(/no theme collection/i);
   });
 
-  it("shows nothing when the run never probed", () => {
-    const plan = planModeShowcase(undefined, undefined);
+  // A filtered run can collect a theme without evaluating row 17: high-contrast
+  // needs the same facet, so `checks: ["high-contrast"]` resolves modes while
+  // `themes` never runs. Drawing row 17's evidence when row 17 was not judged
+  // would also skip the not-applicable rule entirely, since there is no verdict
+  // to defer to - a style-only set would get a comparison it does not warrant.
+  it("shows nothing when the themes check did not run", () => {
+    const plan = planModeShowcase(theme(), undefined);
 
     expect(plan.show).toBe(false);
     if (plan.show) return;
-    expect(plan.reason).toMatch(/not resolved|no theme/i);
+    expect(plan.reason).toMatch(/did not run/i);
+  });
+
+  it("shows nothing when the run never probed", () => {
+    // A status is supplied so the guard above cannot be what suppresses this: the
+    // branch under test is "the check ran, but no theme table came back".
+    const plan = planModeShowcase(undefined, "warn");
+
+    expect(plan.show).toBe(false);
+    if (plan.show) return;
+    expect(plan.reason).toMatch(/no theme was resolved/i);
   });
 });

@@ -63,6 +63,18 @@ export function planModeShowcase(
    */
   themesStatus: CheckStatus | undefined,
 ): ModeShowcasePlan {
+  // The block is row 17's evidence, so row 17 has to have been judged. A filtered
+  // run can resolve a theme without running `themes` at all - `high-contrast`
+  // needs the same facet - and then there is no verdict to defer to, so the
+  // not-applicable rule below could not apply even where it should.
+  if (themesStatus === undefined) {
+    return {
+      show: false,
+      reason:
+        "the themes check did not run, so there is no verdict to illustrate",
+    };
+  }
+
   if (themesStatus === "not_applicable") {
     return {
       show: false,

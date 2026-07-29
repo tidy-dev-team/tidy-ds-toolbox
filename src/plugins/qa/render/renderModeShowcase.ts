@@ -57,65 +57,99 @@ export async function buildModeShowcase(
 
   await loadRenderFonts();
 
-  // `createFrame` parents to the current page immediately, so from here on every
-  // step is a litter risk: `createInstance`, a stale `modeId`, a font that failed
-  // to load. Guarded at the point of creation rather than at each call site,
-  // because #131 has already been round this loop - the guarantee has to be
-  // structural, and both callers would otherwise have to remember.
-  const root = autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16);
+  // Every `createFrame` / `createInstance` parents to the current page the moment
+  // it is called, so *each* one is a litter risk until it is attached under root -
+  // removing root alone leaves any node that had not been appended yet. Tracking
+  // them all is what makes the cleanup total, rather than covering only the first
+  // one. #131 has been round this loop: the guarantee has to be structural.
+  const created: SceneNode[] = [];
   try {
-    return buildInto(root, plan, main, collection);
+    return buildInto(plan, subject, main, collection, (node) => {
+      created.push(node);
+      return node;
+    });
   } catch (error) {
-    root.remove();
+    // Last created first, so a parent never takes its children with it and leaves
+    // the loop removing an already-removed node.
+    for (const node of created.reverse()) {
+      if (!node.removed) node.remove();
+    }
     throw error;
   }
 }
 
+/** Records every node created, so a failed build can remove all of them. */
+type Track = <T extends SceneNode>(node: T) => T;
+
 function buildInto(
-  root: FrameNode,
   plan: Extract<ModeShowcasePlan, { show: true }>,
+  subject: ShowcaseSubject,
   main: ComponentNode,
   collection: VariableCollection,
+  track: Track,
 ): FrameNode {
+  const root = track(
+    autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16),
+  );
   root.counterAxisSizingMode = "AUTO";
   card(root);
 
-  root.appendChild(text(root.name, 16, FONT_BOLD, INK));
+  root.appendChild(track(text(root.name, 16, FONT_BOLD, INK)));
   root.appendChild(
-    text(
-      `${plan.modes.length} modes of "${collection.name}" - ${plan.coverageNote}`,
-      11,
-      FONT_REGULAR,
-      MUTED,
+    track(
+      text(
+        `${plan.modes.length} modes of "${collection.name}" - ${plan.coverageNote}`,
+        11,
+        FONT_REGULAR,
+        MUTED,
+      ),
     ),
   );
 
-  const columns = autoLayout("modes", "HORIZONTAL", 0, 0, 16);
+  const columns = track(autoLayout("modes", "HORIZONTAL", 0, 0, 16));
   columns.counterAxisAlignItems = "MIN";
   root.appendChild(columns);
 
   for (const mode of plan.modes) {
-    const column = autoLayout(mode.name, "VERTICAL", 0, 0, 8);
-    column.appendChild(text(mode.name, 12, FONT_BOLD, INK));
+    // Attached as soon as it exists, so the window in which it is an orphan on the
+    // page is as short as it can be; `track` covers the window that remains.
+    const column = track(autoLayout(mode.name, "VERTICAL", 0, 0, 8));
+    columns.appendChild(column);
+    column.appendChild(track(text(mode.name, 12, FONT_BOLD, INK)));
 
     // The pinned frame is what makes this work: Figma resolves the instance's
     // variables against the mode explicitly set here, so one canvas shows every
     // mode at once - which is the whole ask, since nothing in a file otherwise
     // ever shows two modes together.
-    const stage = autoLayout(`${mode.name} - stage`, "VERTICAL", 12, 12, 0);
-    stage.setExplicitVariableModeForCollection(collection, mode.modeId);
-    stage.appendChild(main.createInstance());
+    const stage = track(
+      autoLayout(`${mode.name} - stage`, "VERTICAL", 12, 12, 0),
+    );
     column.appendChild(stage);
-
-    columns.appendChild(column);
+    stage.setExplicitVariableModeForCollection(collection, mode.modeId);
+    stage.appendChild(track(main.createInstance()));
   }
 
   root.appendChild(
-    text(
-      "Aid only: this row's status comes from the themes check, and the tick is still yours.",
-      10,
-      FONT_REGULAR,
-      MUTED,
+    track(
+      text(
+        // The transparent-stage limit, stated where the person judging will see
+        // it. Inventing a surface colour would mean guessing which variable is
+        // "the background", which nothing here can know.
+        "Stages are transparent, so a component that relies on the page behind it will read thinner here than in place.",
+        10,
+        FONT_REGULAR,
+        MUTED,
+      ),
+    ),
+  );
+  root.appendChild(
+    track(
+      text(
+        "Aid only: this row's status comes from the themes check, and the tick is still yours.",
+        10,
+        FONT_REGULAR,
+        MUTED,
+      ),
     ),
   );
   return root;
