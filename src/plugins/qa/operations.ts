@@ -241,15 +241,27 @@ async function showcaseFor(
   subject: QaSubject,
   run: QaRunContext,
 ): Promise<{ frame: FrameNode } | { skipped: string }> {
+  // Held in a local so `plan.show` narrows it too. The plan cannot say `show`
+  // without a theme, but only the compiler seeing the same binding makes that a
+  // guarantee rather than an assertion.
+  const theme = run.theme;
   const plan = planModeShowcase({
-    theme: run.theme,
+    theme,
     themesStatus: run.result.results.find((r) => r.checkId === "themes")
       ?.status,
     bindsOwnThemeVariables: run.bindsOwnThemeVariables,
   });
   if (!plan.show) return { skipped: plan.reason };
+  // Unreachable given the plan above, and kept so the compiler sees the narrowing
+  // rather than being told to trust it.
+  if (!theme) return { skipped: "no theme was resolved for this run" };
 
-  const frame = await buildModeShowcase(plan, subject, plan.collectionId);
+  const frame = await buildModeShowcase(
+    plan,
+    subject,
+    plan.collectionId,
+    theme,
+  );
   return frame
     ? { frame }
     : { skipped: "the set has no default variant to render" };
