@@ -14,16 +14,43 @@
 // the catalogue to register and serialize its zod schemas to JSON Schema —
 // exercising zod end-to-end.
 //
-// It does NOT round-trip a real operation: that needs a connected Figma plugin
-// over the Bridge and can't run headless. A true end-to-end operation test
-// belongs in its own issue (build a plugin sim, exercise bridge + handlers).
+// It also round-trips one real operation through the Bridge against a **plugin
+// sim** — a bare WebSocket client that answers a canned result. That covers the
+// whole path an agent actually travels (MCP stdio -> catalogue -> bridge
+// envelope -> content blocks) with only Figma itself replaced, which is what
+// makes it able to prove #116: that an image comes back as a *viewable* image
+// block and not as base64 buried in text.
 //
 // Run via `npm run mcp:smoketest`, which bundles first.
 
 import { resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { WebSocket } from "ws";
 import { CATALOGUE } from "./catalogue.ts";
+
+const BRIDGE_PORT = 49876;
+
+/** A 1x1 PNG. Small, but a real decodable image, so a viewer can prove it. */
+const PNG_BASE64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==";
+
+/**
+ * Stand in for the Figma plugin: dial the bridge and answer every request with
+ * a fixed result. The bridge has no handshake - whoever connects is the plugin
+ * (ADR-0005, no auth on loopback) - so this is the whole sim.
+ */
+function startPluginSim(result: unknown): Promise<{ close: () => void }> {
+  return new Promise((resolveSim, rejectSim) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${BRIDGE_PORT}`);
+    ws.on("open", () => resolveSim({ close: () => ws.close() }));
+    ws.on("error", rejectSim);
+    ws.on("message", (raw) => {
+      const req = JSON.parse(raw.toString()) as { id: string };
+      ws.send(JSON.stringify({ id: req.id, ok: true, result }));
+    });
+  });
+}
 
 // Path to the server is passed as the first arg: dist/server.cjs (bundled) or
 // mcp-server/src/server.ts (raw source). Resolving it here avoids import.meta /
@@ -50,7 +77,10 @@ async function main(): Promise<void> {
     command: process.execPath,
     args: serverArgs,
     stderr: "inherit",
-    env: { ...process.env, TIDY_BRIDGE_PORT: "49876" } as Record<string, string>,
+    env: { ...process.env, TIDY_BRIDGE_PORT: String(BRIDGE_PORT) } as Record<
+      string,
+      string
+    >,
   });
   const client = new Client({ name: "tidy-smoketest", version: "0.0.1" });
 
@@ -64,7 +94,15 @@ async function main(): Promise<void> {
   for (const t of tools.tools) print(`  • ${t.name} — ${t.description}`);
 
   const missing = expected.filter((id) => !got.has(id));
-  await client.close();
+
+  // In a finally, so a failed assertion still tears the server subprocess down.
+  // Without it a red smoketest hangs instead of failing, which in CI reads as a
+  // stuck job rather than a broken build.
+  try {
+    await roundTripImage(client);
+  } finally {
+    await client.close();
+  }
 
   if (missing.length > 0) {
     throw new Error(
@@ -80,6 +118,57 @@ async function main(): Promise<void> {
   print(
     `\n✓ smoketest complete — ${expected.length} tools served from ${serverArg}`,
   );
+}
+
+/**
+ * #116: an operation that returns an image must deliver it as an MCP image
+ * content block, not as base64 inside the JSON text. A model cannot see a
+ * base64 string, so the old behaviour spent the render, the transfer and a great
+ * many tokens to convey nothing at all.
+ */
+async function roundTripImage(client: Client): Promise<void> {
+  const sim = await startPluginSim({
+    name: "Button",
+    key: "abc123",
+    type: "COMPONENT_SET",
+    description: "",
+    properties: [],
+    nestedInstances: [],
+    image: `data:image/png;base64,${PNG_BASE64}`,
+  });
+  try {
+    const res = (await client.callTool({
+      name: "tidy_ds_explorer_get_component",
+      arguments: { name: "Button", includeImage: true },
+    })) as { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }> };
+
+    const images = res.content.filter((c) => c.type === "image");
+    if (images.length !== 1) {
+      throw new Error(
+        `expected exactly 1 image content block, got ${images.length} ` +
+          `(block types: ${res.content.map((c) => c.type).join(", ")})`,
+      );
+    }
+    if (images[0].mimeType !== "image/png") {
+      throw new Error(`image block mimeType was '${images[0].mimeType}'`);
+    }
+    if (images[0].data !== PNG_BASE64) {
+      throw new Error("image block data is not the payload the plugin returned");
+    }
+
+    // The point of lifting it out: the base64 must no longer be sitting in the
+    // text block burning tokens for something the model cannot read.
+    const text = res.content.find((c) => c.type === "text")?.text ?? "";
+    if (text.includes(PNG_BASE64)) {
+      throw new Error("base64 payload is still embedded in the text block");
+    }
+    if (!text.includes('"name": "Button"')) {
+      throw new Error("text block lost the rest of the result");
+    }
+    print("✓ image operation round-tripped as a real image content block");
+  } finally {
+    sim.close();
+  }
 }
 
 function print(s: string): void {

@@ -8,6 +8,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CATALOGUE } from "./catalogue.ts";
 import { BridgeServer } from "./bridge-server.ts";
+import { liftImages } from "./image-content.ts";
 import type { BridgeError } from "./bridge-server.ts";
 
 // Pin to the IPv4 loopback: "localhost" resolves to ::1 on modern Node, and a
@@ -61,8 +62,20 @@ async function main(): Promise<void> {
             input ?? {},
             entry.timeoutMs,
           );
+          // Any image the result carries becomes its own MCP image block, so a
+          // model can actually see it instead of receiving base64 as text
+          // (#116). Operations that return no image are unaffected: `images` is
+          // empty and the text block is the whole response, as before.
+          const { result: lifted, images } = liftImages(result);
           return {
-            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            content: [
+              { type: "text" as const, text: JSON.stringify(lifted, null, 2) },
+              ...images.map((img) => ({
+                type: "image" as const,
+                data: img.data,
+                mimeType: img.mimeType,
+              })),
+            ],
           };
         } catch (err) {
           const e = isBridgeError(err)
