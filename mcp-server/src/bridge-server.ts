@@ -26,7 +26,6 @@ const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const WAIT_FOR_CLIENT_MS = 15_000;
 
 export class BridgeServer {
-  private wss: WebSocketServer | null = null;
   private client: WebSocket | null = null;
   private pending = new Map<string, Pending>();
   private nextId = 0;
@@ -62,7 +61,6 @@ export class BridgeServer {
       const wss = new WebSocketServer({ host: this.host, port: this.port });
       const onListening = () => {
         wss.off("error", onError);
-        this.wss = wss;
         wss.on("connection", (ws) => this.onConnection(ws));
         wss.on("error", (err) => this.log(`server error: ${err.message}`));
         resolve();

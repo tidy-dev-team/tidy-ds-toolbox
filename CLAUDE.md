@@ -11,7 +11,7 @@ npm run build:ui       # Build UI only
 npm run build:main     # Build plugin code only
 
 # Quality
-npm run typecheck      # TypeScript type checking (no emit)
+npm run typecheck      # TypeScript type checking (no emit) - src *and* mcp-server
 npm run lint           # ESLint on src/**/*.{ts,tsx}
 npm run test           # Vitest (run mode) — unit tests for *.test.ts
 npm run format         # Prettier format
@@ -22,6 +22,9 @@ npm run release:patch  # Bump patch version + commit + tag
 npm run release:minor  # Bump minor version + commit + tag
 npm run release:push   # Push commits and tags to remote
 ```
+
+Node version: `.nvmrc` is the single source of truth (`package.json` `engines` records the supported floor).
+CI reads `.nvmrc` for every job and additionally runs the unit tests and the bundled MCP smoketest against the floor, because runtime behaviour genuinely differs between majors - V8 changed `JSON.stringify`'s nesting limit between Node 21 and 22, and a test that passed on 24 failed on 20.
 
 Tests run under Vitest (`*.test.ts`, co-located with sources). Coverage is
 partial — pure logic (analytics capture, operations) is tested; UI and Figma-API
