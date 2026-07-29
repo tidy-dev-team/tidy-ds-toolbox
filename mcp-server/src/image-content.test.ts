@@ -49,16 +49,25 @@ describe("liftImages", () => {
     expect(result).toEqual({ a: svg, b: notBase64 });
   });
 
-  // An earlier depth cap returned anything nested deeper untouched, which
-  // silently recreated the very bug this module exists to fix. Nesting depth is
-  // not something a result should have to stay under to be seen.
-  it("finds an image however deeply it is nested", () => {
+  // Two failure modes have lived here. A depth cap returned anything deeper
+  // untouched, silently recreating the very bug this module fixes. Uncapped
+  // *recursion* then threw RangeError at a few thousand levels - while
+  // JSON.stringify handles them fine, so a result the server could serialise
+  // failed in the extractor alone. Depth is now bounded by the heap, not the
+  // call stack.
+  //
+  // 5,000 is the depth the second bug was caught at; the assertion below proves
+  // the payload is genuinely serialisable at it, so this is a depth a real
+  // result could reach rather than a synthetic one.
+  it.each([60, 5_000])("finds an image nested %i levels deep", (depth) => {
     let value: unknown = { image: PNG_URL };
-    for (let i = 0; i < 60; i++) value = { inner: value };
+    for (let i = 0; i < depth; i++) value = { inner: value };
 
     const { result, images } = liftImages(value);
     expect(images).toEqual([{ data: PNG, mimeType: "image/png" }]);
-    expect(JSON.stringify(result)).not.toContain(PNG);
+    const json = JSON.stringify(result);
+    expect(json).not.toContain(PNG);
+    expect(json).toContain("returned as image block 1");
   });
 
   it("caps the images it lifts and says so instead of dropping them", () => {

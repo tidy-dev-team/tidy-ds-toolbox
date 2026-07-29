@@ -67,41 +67,70 @@ function describe(bytes: number, mimeType: string, index: number): string {
 export function liftImages(result: unknown): LiftImagesResult {
   const images: LiftedImage[] = [];
 
-  // Unbounded on purpose. An earlier depth cap here returned anything deeper
-  // untouched, which silently recreated the exact bug this module exists to fix:
-  // an image nested past the cap went back to the agent as base64 text. A cap
-  // that degrades to the defect is worse than no cap.
-  //
-  // No cap is needed, either. The value is always `JSON.parse` output from the
-  // bridge, so it is acyclic, and `JSON.stringify` runs over the same value
-  // immediately afterwards with the same recursion - anything deep enough to
-  // exhaust the stack here could never have been serialised into a response
-  // anyway, so this adds no failure mode that the caller did not already have.
-  const walk = (value: unknown): unknown => {
-    if (typeof value === "string") {
-      const match = IMAGE_DATA_URL.exec(value);
-      if (!match) return value;
-      const [, mimeType, data] = match;
-      // Approximate decoded size: 4 base64 chars per 3 bytes.
-      const bytes = Math.floor((data.length * 3) / 4);
-      if (images.length >= MAX_IMAGES) {
-        return `<${mimeType}, ${(bytes / 1024).toFixed(1)} KB - not returned: this response already carries the maximum of ${MAX_IMAGES} images>`;
-      }
-      const placeholder = describe(bytes, mimeType, images.length);
-      images.push({ data, mimeType });
-      return placeholder;
+  /** Lift one string if it is an image data URL; otherwise hand it back. */
+  const liftString = (value: string): string => {
+    const match = IMAGE_DATA_URL.exec(value);
+    if (!match) return value;
+    const [, mimeType, data] = match;
+    // Approximate decoded size: 4 base64 chars per 3 bytes.
+    const bytes = Math.floor((data.length * 3) / 4);
+    if (images.length >= MAX_IMAGES) {
+      return `<${mimeType}, ${(bytes / 1024).toFixed(1)} KB - not returned: this response already carries the maximum of ${MAX_IMAGES} images>`;
     }
-
-    if (Array.isArray(value)) return value.map((v) => walk(v));
-
-    if (value !== null && typeof value === "object") {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(value)) out[k] = walk(v);
-      return out;
-    }
-
-    return value;
+    const placeholder = describe(bytes, mimeType, images.length);
+    images.push({ data, mimeType });
+    return placeholder;
   };
 
-  return { result: walk(result), images };
+  // Iterative, with an explicit stack, because neither bounded nor unbounded
+  // recursion works here:
+  //
+  // - A depth cap returned anything deeper untouched, silently recreating the
+  //   very bug this module fixes - an image below the cap went back as base64
+  //   text.
+  // - Recursion with no cap throws `RangeError` at a few thousand levels, and
+  //   V8's `JSON.stringify` does *not*: it handles 5,000 levels of nesting
+  //   happily, and `JSON.parse` round-trips it. So a result the bridge can
+  //   carry and the server can serialise would fail here and nowhere else,
+  //   turning a returnable response into a hard error.
+  //
+  // The stack is heap-allocated, so nesting depth stops being a limit of this
+  // module at all. Children are pushed in reverse so they pop in source order,
+  // which keeps images in encounter order and object keys in their original
+  // order.
+  //
+  // Terminates for any tree, which is what the bridge delivers (`JSON.parse`
+  // output is acyclic by construction).
+  interface Slot {
+    parent: Record<string | number, unknown>;
+    key: string | number;
+    value: unknown;
+  }
+  const root: Record<string, unknown> = {};
+  const stack: Slot[] = [{ parent: root, key: "value", value: result }];
+
+  while (stack.length > 0) {
+    const { parent, key, value } = stack.pop()!;
+
+    if (typeof value === "string") {
+      parent[key] = liftString(value);
+    } else if (Array.isArray(value)) {
+      const copy: unknown[] = new Array(value.length);
+      parent[key] = copy;
+      for (let i = value.length - 1; i >= 0; i--) {
+        stack.push({ parent: copy as unknown as Record<number, unknown>, key: i, value: value[i] });
+      }
+    } else if (value !== null && typeof value === "object") {
+      const copy: Record<string, unknown> = {};
+      parent[key] = copy;
+      const entries = Object.entries(value);
+      for (let i = entries.length - 1; i >= 0; i--) {
+        stack.push({ parent: copy, key: entries[i][0], value: entries[i][1] });
+      }
+    } else {
+      parent[key] = value;
+    }
+  }
+
+  return { result: root.value, images };
 }
