@@ -13,50 +13,65 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { withProbeFrame } from "./theme-probe";
+import { PROBE_NAME, isStrayProbe, withProbeFrame } from "./theme-probe";
 
-/** Stand-in for the probe frame, recording what the lifecycle did to it. */
-function fakeProbe(id = "probe") {
-  return { id, removed: 0, prepared: 0, remove: () => {} } as unknown as {
-    id: string;
-    removed: number;
-    prepared: number;
-    remove(): void;
-  };
+interface FakeProbe {
+  id: string;
+  removed: number;
+  prepared: number;
+  remove(): void;
 }
 
-function makeProbe(id = "probe") {
-  const probe = fakeProbe(id);
-  probe.remove = () => {
-    probe.removed += 1;
+/** A probe node that records what the lifecycle did to it. */
+function makeProbe(id: string, unremovable = false): FakeProbe {
+  const probe: FakeProbe = {
+    id,
+    removed: 0,
+    prepared: 0,
+    remove() {
+      probe.removed += 1;
+      // A node orphaned by a killed sandbox can already be gone by the next run,
+      // and Figma throws on member access of a removed node.
+      if (unremovable) throw new Error(`cannot remove ${id}`);
+    },
   };
   return probe;
 }
 
-/** An env whose figma calls are all recorded rather than performed. */
-function fakeEnv(strays: ReturnType<typeof makeProbe>[] = []) {
-  const probe = makeProbe();
+/**
+ * An env whose figma calls are recorded rather than performed. `log` is what
+ * makes the ordering claims assertable: sweeping has to happen before the probe
+ * exists, not merely somewhere in the call.
+ */
+function fakeEnv(strays: FakeProbe[] = []) {
+  const probe = makeProbe("probe");
+  const log: string[] = [];
   return {
     probe,
-    created: 0,
+    log,
     env: {
       create: () => {
+        log.push("create");
         return probe;
       },
-      prepare: (p: typeof probe) => {
+      prepare: (p: FakeProbe) => {
+        log.push("prepare");
         p.prepared += 1;
       },
-      strays: () => strays,
+      strayProbes: () => {
+        log.push("sweep");
+        return strays;
+      },
     },
   };
 }
 
 describe("withProbeFrame", () => {
-  it("removes the probe once the work is done, and returns its result", async () => {
-    const { probe, env } = fakeEnv();
+  it("prepares the probe, runs the work, then removes it", async () => {
+    const { probe, env, log } = fakeEnv();
 
     const result = await withProbeFrame(env, async (p) => {
-      // The work sees a prepared probe: named, sized and parented before use.
+      log.push("use");
       expect(p).toBe(probe);
       expect(probe.prepared).toBe(1);
       expect(probe.removed).toBe(0);
@@ -65,6 +80,10 @@ describe("withProbeFrame", () => {
 
     expect(result).toBe("resolved");
     expect(probe.removed).toBe(1);
+    // Sweeping precedes creation, so a run never resolves against a page that
+    // still holds a stale probe with pinned modes. Asserted on the order rather
+    // than from inside the callback, which cannot tell the two apart.
+    expect(log).toEqual(["sweep", "create", "prepare", "use"]);
   });
 
   // The path that could not be tested before, and the reason #131 was filed: the
@@ -97,27 +116,61 @@ describe("withProbeFrame", () => {
     expect(probe.removed).toBe(1);
   });
 
-  // The third of the issue's acceptance criterion no `finally` can reach. If the
-  // sandbox is torn down rather than unwound - which is what cancelling a plugin
-  // may do - teardown never runs and the probe is orphaned. Nothing inside the
-  // plugin can prevent that, so the next run cleans up after the last one.
-  it("sweeps probes an earlier run left behind, before creating its own", async () => {
+  // The third case in the issue's acceptance criterion, which no `finally` can
+  // reach. If the sandbox is torn down rather than unwound - which is what
+  // cancelling a plugin may do - teardown never runs and the probe is orphaned.
+  // Nothing inside the plugin can prevent that, so the next run cleans up after
+  // the last one.
+  it("sweeps probes an earlier run left behind", async () => {
     const orphans = [makeProbe("orphan-1"), makeProbe("orphan-2")];
     const { probe, env } = fakeEnv(orphans);
 
-    await withProbeFrame(env, async () => {
-      // Swept before the work starts, so a run never resolves against a page
-      // still holding a stale probe with pinned modes.
-      expect(orphans.map((o) => o.removed)).toEqual([1, 1]);
-      return null;
-    });
+    await withProbeFrame(env, async () => null);
 
+    expect(orphans.map((o) => o.removed)).toEqual([1, 1]);
     expect(probe.removed).toBe(1);
   });
 
-  it("still removes its own probe when sweeping finds nothing", async () => {
-    const { probe, env } = fakeEnv([]);
-    await withProbeFrame(env, async () => null);
+  // Cleaning up the last run's mess must never break this one. The sweep is a
+  // courtesy, and a stray that cannot be removed is exactly the state a killed
+  // sandbox leaves behind, so failing here would turn litter into a broken
+  // read-only query.
+  it("survives a stray it cannot remove, and sweeps the rest anyway", async () => {
+    const orphans = [
+      makeProbe("unremovable", true),
+      makeProbe("removable-after"),
+    ];
+    const { probe, env } = fakeEnv(orphans);
+
+    const result = await withProbeFrame(env, async () => "ran anyway");
+
+    expect(result).toBe("ran anyway");
+    // The throwing stray did not abort the loop before the next one.
+    expect(orphans[1].removed).toBe(1);
     expect(probe.removed).toBe(1);
+  });
+});
+
+describe("isStrayProbe", () => {
+  // The predicate the real env filters on. Pure, so the one branch the injected
+  // env would otherwise hide is testable - including the documented hazard that
+  // it matches on a name a designer could in principle also use.
+  it("matches an invisible probe frame by name", () => {
+    expect(isStrayProbe({ type: "FRAME", name: PROBE_NAME })).toBe(true);
+  });
+
+  it("ignores frames that are not probes", () => {
+    expect(isStrayProbe({ type: "FRAME", name: "Button" })).toBe(false);
+    expect(isStrayProbe({ type: "FRAME", name: `${PROBE_NAME}-old` })).toBe(
+      false,
+    );
+  });
+
+  it("ignores non-frames, whatever they are called", () => {
+    // The probe is always a frame, so a component set someone named this is
+    // somebody else's node and must survive.
+    expect(isStrayProbe({ type: "COMPONENT_SET", name: PROBE_NAME })).toBe(
+      false,
+    );
   });
 });
