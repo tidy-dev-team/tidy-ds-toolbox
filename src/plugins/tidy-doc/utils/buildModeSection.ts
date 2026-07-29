@@ -15,6 +15,12 @@ import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 import { buildModeShowcases, modeShowcaseLabel } from "./modes";
+import {
+  isDarkModeName,
+  neutralSurfaceFill,
+  polarityModeId,
+  resolveSurfaceVariable,
+} from "../../../shared/theme-surface";
 
 const MAX_MODE_SHOWCASES = 8;
 
@@ -34,63 +40,10 @@ function defaultFamilyValue(
 // fill is bound to it and — because the card also pins the theme mode — renders
 // the theme's own surface color (e.g. Kido's bg/surface → #172127 under
 // Industrial Dark), exactly as the hand-authored reference does.
-const SURFACE_VARIABLE_NAMES = [
-  "bg/surface",
-  "background/surface",
-  "surface",
-  "bg/default",
-  "background",
-];
-
-// Fallback when no DS surface token is available: a theme-appropriate neutral
-// approximated from the mode name — any "…Dark" mode gets the dark surface.
-function themedSurfaceFill(modeName: string): SolidPaint {
-  const isDark = /dark/i.test(modeName);
-  const color = isDark
-    ? { r: 0.06, g: 0.07, b: 0.09 }
-    : { r: 0.94, g: 0.95, b: 0.97 };
-  return { type: "SOLID", color };
-}
-
-// The DS surface variable to bind the theme card to, searched across the
-// component's bound collections (which is where the theme collection lives).
-// Returns null when the DS exposes no recognizable surface token, so the caller
-// falls back to a hardcoded neutral.
-async function resolveSurfaceVariable(
-  collections: VariableCollection[],
-): Promise<Variable | null> {
-  const ids = collections.flatMap((collection) => collection.variableIds);
-  const fetched = await Promise.all(
-    ids.map((id) => figma.variables.getVariableByIdAsync(id)),
-  );
-  const byName = new Map<string, Variable>();
-  for (const variable of fetched) {
-    if (variable && variable.resolvedType === "COLOR") {
-      byName.set(variable.name.toLowerCase(), variable);
-    }
-  }
-  for (const name of SURFACE_VARIABLE_NAMES) {
-    const variable = byName.get(name);
-    if (variable) return variable;
-  }
-  return null;
-}
-
-// The light/dark mode id of a collection matching a theme's polarity. The
-// surface token (e.g. bg/surface) lives in a separate light/dark collection
-// from the brand theme collection, so a "…Dark" brand theme still needs that
-// collection pinned to its dark mode for the card surface to actually go dark.
-function polarityModeId(
-  collection: VariableCollection,
-  wantDark: boolean,
-): string | null {
-  const needle = wantDark ? "dark" : "light";
-  const mode = collection.modes.find((m) =>
-    m.name.toLowerCase().includes(needle),
-  );
-  return mode?.modeId ?? null;
-}
-
+//
+// The surface resolution and polarity pinning now live in
+// shared/theme-surface.ts, shared with the QA per-mode showcase (#121) so the two
+// cannot disagree about what "this component in dark mode" means.
 // The component's representative specimens for a theme card: one per state-axis
 // value (default, empty, …) laid out in a row — or a single default specimen
 // when the component has no state axis. Mirrors the Variants Section's scene so
@@ -218,7 +171,10 @@ export async function buildModeSection(
     // the fill to the token. Falls back to a hardcoded neutral when no token.
     if (surfaceVariable && surfaceCollection) {
       if (!pinnedCollectionIds.has(surfaceCollection.id)) {
-        const modeId = polarityModeId(surfaceCollection, /dark/i.test(heading));
+        const modeId = polarityModeId(
+          surfaceCollection,
+          isDarkModeName(heading),
+        );
         if (modeId) {
           container.setExplicitVariableModeForCollection(
             surfaceCollection,
@@ -235,7 +191,7 @@ export async function buildModeSection(
         ),
       ];
     } else {
-      container.fills = [themedSurfaceFill(heading)];
+      container.fills = [neutralSurfaceFill(heading)];
     }
 
     for (const specimen of buildModeSpecimens(source, facts)) {
