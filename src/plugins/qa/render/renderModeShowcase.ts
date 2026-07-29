@@ -11,21 +11,19 @@ import { markProbe, unmarkProbe } from "../theme-probe";
 import type { ModeShowcasePlan } from "./mode-showcase";
 import {
   isDarkModeName,
-  neutralSurfaceFill,
   polarityModeId,
   resolveSurfaceVariable,
 } from "../../../shared/theme-surface";
-import { surfaceCaption } from "./stage-surface";
+import { fallbackStageFor, surfaceCaption } from "./stage-surface";
 import {
   autoLayout,
-  BORDER,
   card,
+  fill,
   FONT_BOLD,
   FONT_REGULAR,
   INK,
   loadRenderFonts,
   MUTED,
-  stroke,
   text,
 } from "./primitives";
 
@@ -222,12 +220,13 @@ function buildInto(
         ),
       ];
     } else {
-      stage.fills = [neutralSurfaceFill(mode.name)];
-      // A pale neutral has no edge against the white card, so that column would
-      // read as having no stage while its neighbour clearly does.
-      if (!wantDark) stroke(stage, BORDER);
+      // No surface token: one dark backdrop for *every* mode, not a pale one for
+      // light-named modes. #141 asked for this deliberately - the toolbox gets
+      // pointed at elements that are not from a well-formed DS, where there is no
+      // token to reproduce, and a pale backdrop there would hide exactly the pale
+      // element the check is looking for. The caption says it is a test backdrop.
+      fill(stage, fallbackStageFor(mode.name));
     }
-    stage.setExplicitVariableModeForCollection(collection, mode.modeId);
     stage.appendChild(track(main.createInstance()));
   }
 
