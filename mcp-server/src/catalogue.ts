@@ -9,23 +9,52 @@
 import { z } from "zod";
 import type { OperationKind } from "../../src/shared/operations/types.ts";
 import { DocSpecSchema } from "../../src/plugins/tidy-doc/utils/docSpec.ts";
-// Imported, not restated: the check ids and the row count used to be spelled out
-// in prose here and drifted from the engine twice (#133). The catalogue module is
-// pure - it pulls in the check functions but never the collector or `figma.*` -
-// so importing it costs the bundle a few KB of code this process never calls, in
-// exchange for an agent that cannot be told a check exists when it does not.
-import {
-  CHECKLIST_CATALOGUE,
-  CHECK_IDS,
-} from "../../src/plugins/qa/checklist-catalogue.ts";
 import {
   DEFAULT_FIND_LIMIT,
   MAX_FIND_LIMIT,
 } from "../../src/plugins/utilities/utils/findComponents.ts";
 
-/** `z.enum` wants a non-empty literal tuple; the catalogue guarantees non-empty. */
-const CHECK_ID_VALUES = CHECK_IDS as unknown as [string, ...string[]];
-const ROW_COUNT = CHECKLIST_CATALOGUE.length;
+/**
+ * The QA check ids and checklist row count, as agents are told them.
+ *
+ * Deliberately a local literal rather than an import from
+ * `src/plugins/qa/checklist-catalogue.ts`. Importing it would drag the whole
+ * pure check engine into this module's graph, and that graph uses extensionless
+ * specifiers throughout - fine for the bundled server, fatal for
+ * `npm run mcp:smoketest:src`, which runs this file through Node's raw ESM
+ * resolver where extensionless imports do not resolve. ADR-0004's hybrid
+ * discovery also has the MCP catalogue declaring operations independently of the
+ * plugin, and reaching into the engine for a list of strings crosses that line
+ * for very little.
+ *
+ * So drift is caught the same way `/tidy-qa`'s copy is: `agent-surface.test.ts`
+ * asserts this list is exactly the engine's `CHECK_IDS`, in order, and that the
+ * row count below matches `CHECKLIST_CATALOGUE.length`. That test runs under
+ * Vitest, which resolves the engine's imports happily, so the guarantee costs
+ * this file no dependency at all. #133 named this as the cheaper option; the
+ * expensive one turned out to be broken.
+ */
+const CHECK_IDS = [
+  "set-name-casing",
+  "variant-property-bindings",
+  "prop-order",
+  "tokens",
+  "responsive-bounds",
+  "asset-provenance",
+  "layer-naming-structure",
+  "grid-4px",
+  "interaction-hover-only",
+  "description",
+  "no-conflicts",
+  "nesting-depth",
+  "preferred-values",
+  "high-contrast",
+  "themes",
+  "documentation",
+] as const;
+
+/** Checklist rows. Asserted against `CHECKLIST_CATALOGUE.length` by the test above. */
+const ROW_COUNT = 19;
 
 export interface CatalogueEntry {
   id: string;
@@ -332,7 +361,7 @@ export const CATALOGUE: CatalogueEntry[] = [
       // the valid set in the error, instead of after a round trip to the plugin
       // (and only if the plugin happens to be connected).
       checks: z
-        .array(z.enum(CHECK_ID_VALUES))
+        .array(z.enum(CHECK_IDS))
         .optional()
         .describe(
           `Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: ${CHECK_IDS.join(", ")}.`,
@@ -354,7 +383,7 @@ export const CATALOGUE: CatalogueEntry[] = [
           "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Omit to fall back to the current selection. The checklist frame is placed next to this node unless `anchorNodeId` is given.",
         ),
       checks: z
-        .array(z.enum(CHECK_ID_VALUES))
+        .array(z.enum(CHECK_IDS))
         .optional()
         .describe(
           "Optional check-id filter (same ids as tidy_qa_run). Filtered-out automated rows render as skipped rather than pass/fail.",

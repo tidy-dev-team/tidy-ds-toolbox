@@ -13,9 +13,11 @@
  * `/tidy-ds:tidy-qa high-contrast` would hunt for a component called
  * "high-contrast" and report NOT_FOUND.
  *
- * The MCP schema now interpolates the list, so it cannot drift. The Markdown is
- * hand-written on purpose (it is the readable source of the command), so this is
- * what turns drift there into a red test rather than a stale instruction.
+ * Both copies are hand-written on purpose. The Markdown is the readable source of
+ * the command, and the MCP schema cannot import the engine at all: the engine's
+ * modules use extensionless specifiers, which Node's raw ESM resolver (used by
+ * `npm run mcp:smoketest:src`) will not resolve. So this file is what turns
+ * drift in either place into a red test rather than a stale instruction.
  */
 
 import { readFileSync } from "node:fs";
@@ -45,8 +47,21 @@ describe("the MCP input schema", () => {
   });
 
   for (const id of ["tidy_qa_run", "tidy_qa_build_checklist"] as const) {
-    it(`accepts every real check id and rejects a typo (${id})`, () => {
+    it(`enumerates exactly the engine's check ids (${id})`, () => {
       const schema = entry(id).inputSchema.checks;
+      // The enum's own options, not just what it accepts: asserting acceptance
+      // alone would let the schema carry an *extra* id the engine has never
+      // heard of, which is the drift direction that tells an agent a check
+      // exists when it does not.
+      // `z.array(z.enum(...)).optional().describe(...)` - unwrap the optional to
+      // the array, then read the element enum's own options.
+      const unwrapped = (
+        schema as unknown as {
+          unwrap(): { element: { options: readonly string[] } };
+        }
+      ).unwrap();
+      expect(unwrapped.element.options).toEqual([...CHECK_IDS]);
+
       expect(schema?.safeParse([...CHECK_IDS]).success).toBe(true);
       // Rejected here, with the valid set in the error, rather than after a
       // round trip to a plugin that may not even be connected.
