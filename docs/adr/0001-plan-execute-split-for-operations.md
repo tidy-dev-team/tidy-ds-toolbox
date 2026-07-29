@@ -13,6 +13,10 @@ To make agent-driven Figma work deterministic without baking DS knowledge into t
 "Read-only" for a Query Operation means **read-only toward its target**, not "performs no document write at all".
 `tidy_qa_run` creates and removes one temporary off-canvas frame in order to resolve variables per theme mode (see `src/plugins/qa/theme-probe.ts`).
 Two checks depend on it: #17 themes (issue #102, which introduced the probe) and #16 high contrast (issue #103, which needs each colour token's value per mode to compute contrast ratios).
+
+Extended 2026-07-29 (issue #121) to a second transient node under the same conditions: with `includeModeImages`, `tidy_qa_run` builds the per-mode showcase, exports it as one image, and removes it (see `src/plugins/qa/render/renderModeShowcase.ts`).
+It is the same shape of exception rather than a new kind - built, used and removed inside one call, never a descendant of the target - so it is held to the conditions below rather than treated as fresh latitude.
+The persistent copy of that block belongs to `tidy_qa_build_checklist`, an Execute Operation, where drawing on the canvas is the point and no carve-out is needed.
 It is permitted under these conditions:
 
 - The probe node is created, used and removed inside a single Operation call, in a `finally` so the error path cleans up too.

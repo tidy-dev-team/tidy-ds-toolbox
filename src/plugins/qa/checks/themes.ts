@@ -49,7 +49,11 @@
 
 import type { ComponentSetSnapshot } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
-import { collectVariableUsage, nodesPinning } from "../variable-usage";
+import {
+  bindsOwnThemeVariables,
+  collectVariableUsage,
+  nodesPinning,
+} from "../variable-usage";
 
 const TITLE = "Themes (per-mode variable resolution)";
 
@@ -69,9 +73,7 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   // not this component's bindings, so a set whose colour comes entirely from
   // styles has nothing for *this* check to judge - reporting `pass` off the
   // back of them would claim a verification that never happened.
-  const consumed = [...usage.keys()].some(
-    (id) => theme?.variables[id] !== undefined,
-  );
+  const consumed = bindsOwnThemeVariables(snapshot, theme);
   // The three causes are reported separately rather than sharing one string.
   // "This component has no theme axis" and "we could not check" are materially
   // different statements to a designer, and the row is where that distinction

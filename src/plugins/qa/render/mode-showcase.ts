@@ -52,28 +52,35 @@ export type ModeShowcasePlan =
  * reason: a set with no theme axis renders identically in every mode, so two
  * pictures of it are two identical pictures.
  */
-export function planModeShowcase(
-  theme: ThemeSnapshot | undefined,
+/** Everything the decision needs, as one value rather than three positionals. */
+export interface ModeShowcaseInput {
+  /** The resolved per-mode table, absent when the run did not probe. */
+  theme: ThemeSnapshot | undefined;
   /**
-   * What the `themes` check made of this set. The check owns the question of
-   * whether the set has a theme axis at all, and its own documentation defines
-   * `not_applicable` as "the component renders identically in every mode, so
-   * there is nothing to compare by eye" - which is precisely when a side-by-side
-   * comparison would be two identical pictures beside a row chipped "n/a".
+   * What the `themes` check made of this set, when it ran. An explicit
+   * `not_applicable` is honoured; its *absence* is not a reason to suppress,
+   * since a filtered run can resolve a theme without evaluating row 17 and an
+   * agent that asked to see the modes has still asked.
    */
-  themesStatus: CheckStatus | undefined,
-): ModeShowcasePlan {
-  // The block is row 17's evidence, so row 17 has to have been judged. A filtered
-  // run can resolve a theme without running `themes` at all - `high-contrast`
-  // needs the same facet - and then there is no verdict to defer to, so the
-  // not-applicable rule below could not apply even where it should.
-  if (themesStatus === undefined) {
-    return {
-      show: false,
-      reason:
-        "the themes check did not run, so there is no verdict to illustrate",
-    };
-  }
+  themesStatus: CheckStatus | undefined;
+  /**
+   * Whether the set binds theme variables of its own, as opposed to inheriting
+   * themed colour through shared styles. Derived from the same helper the
+   * `themes` check uses, so the two cannot disagree.
+   */
+  bindsOwnThemeVariables: boolean;
+}
+
+/**
+ * Decide whether a per-mode showcase is worth drawing.
+ *
+ * Suppressed in every case where it would imply a comparison that did not
+ * happen. #115 made row 17's manual remainder conditional for exactly this
+ * reason: a set with no theme axis renders identically in every mode, so two
+ * pictures of it are two identical pictures.
+ */
+export function planModeShowcase(input: ModeShowcaseInput): ModeShowcasePlan {
+  const { theme, themesStatus, bindsOwnThemeVariables } = input;
 
   if (themesStatus === "not_applicable") {
     return {
@@ -83,19 +90,13 @@ export function planModeShowcase(
   }
 
   if (!theme) {
-    return {
-      show: false,
-      reason: "no theme was resolved for this run",
-    };
+    return { show: false, reason: "no theme was resolved for this run" };
   }
 
   if (!theme.collectionId) {
     // Every variable the set binds failed to load, so there is no axis at all -
     // which is a defect `themes` reports, not something to illustrate.
-    return {
-      show: false,
-      reason: "no theme collection could be determined",
-    };
+    return { show: false, reason: "no theme collection could be determined" };
   }
 
   if (theme.modes.length < 2) {
@@ -103,6 +104,17 @@ export function planModeShowcase(
       show: false,
       reason:
         "the theme collection has only one mode, so every mode looks alike",
+    };
+  }
+
+  if (!bindsOwnThemeVariables) {
+    // Mode count cannot catch this: on a style-only set the probe picks its
+    // collection *from those styles*, so a two-mode axis exists while the
+    // component itself binds nothing that varies by mode.
+    return {
+      show: false,
+      reason:
+        "this set binds nothing from the theme collection - its themed values come from shared styles - so it renders alike in every mode",
     };
   }
 

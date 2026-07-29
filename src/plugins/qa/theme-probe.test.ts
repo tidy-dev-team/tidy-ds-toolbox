@@ -19,6 +19,7 @@ import {
   isStrayProbe,
   markProbe,
   sweepStrayProbes,
+  unmarkProbe,
   withProbeFrame,
   PROBE_NAME,
 } from "./theme-probe";
@@ -157,6 +158,19 @@ describe("probe ownership", () => {
 
   it("ignores an unmarked frame", () => {
     expect(isStrayProbe(fakeNode("FRAME", "Button"))).toBe(false);
+  });
+
+  // #121 claims a frame the moment it creates one, so a sandbox killed mid-build
+  // leaves something reclaimable, and releases it only once the frame is
+  // deliberately kept on the canvas. Without the release, the next run's sweep
+  // would delete the evidence it just drew.
+  it("releases a node that is deliberately kept", () => {
+    const node = fakeNode();
+    markProbe(node);
+    expect(isStrayProbe(node)).toBe(true);
+
+    unmarkProbe(node);
+    expect(isStrayProbe(node)).toBe(false);
   });
 
   it("ignores a marked node that is not a frame", () => {

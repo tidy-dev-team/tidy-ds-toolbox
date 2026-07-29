@@ -22,7 +22,7 @@ import {
   placeModeShowcase,
   removePriorShowcase,
 } from "./render/renderModeShowcase";
-import { markProbe } from "./theme-probe";
+import { bindsOwnThemeVariables } from "./variable-usage";
 
 interface QaRunParams {
   /** Figma node id of the target (instance / component / component set). */
@@ -177,6 +177,8 @@ async function runQa(params: QaRunParams): Promise<{
   result: QaRunResult;
   /** The resolved theme, when the run probed one - what #121's showcase needs. */
   theme: ThemeSnapshot | undefined;
+  /** Whether the set binds theme variables itself, rather than via styles. */
+  bindsOwnThemeVariables: boolean;
 }> {
   if (params.checks) {
     const unknown = unknownCheckIds(params.checks);
@@ -210,7 +212,22 @@ async function runQa(params: QaRunParams): Promise<{
       generatedFor,
     }),
   };
-  return { subject, origin, result, theme: snapshot.theme };
+  return {
+    subject,
+    origin,
+    result,
+    theme: snapshot.theme,
+    // Computed here, where the snapshot is, using the same helper the themes
+    // check uses - a style-only set has no theme axis of its own to show.
+    bindsOwnThemeVariables: bindsOwnThemeVariables(snapshot, snapshot.theme),
+  };
+}
+
+/** What the showcase decision needs from a completed run. */
+interface QaRunContext {
+  theme: ThemeSnapshot | undefined;
+  bindsOwnThemeVariables: boolean;
+  result: QaRunResult;
 }
 
 /**
@@ -222,13 +239,14 @@ async function runQa(params: QaRunParams): Promise<{
  */
 async function showcaseFor(
   subject: QaSubject,
-  theme: ThemeSnapshot | undefined,
-  result: QaRunResult,
+  run: QaRunContext,
 ): Promise<{ frame: FrameNode } | { skipped: string }> {
-  const themesStatus = result.results.find(
-    (r) => r.checkId === "themes",
-  )?.status;
-  const plan = planModeShowcase(theme, themesStatus);
+  const plan = planModeShowcase({
+    theme: run.theme,
+    themesStatus: run.result.results.find((r) => r.checkId === "themes")
+      ?.status,
+    bindsOwnThemeVariables: run.bindsOwnThemeVariables,
+  });
   if (!plan.show) return { skipped: plan.reason };
 
   const frame = await buildModeShowcase(plan, subject, plan.collectionId);
@@ -252,18 +270,15 @@ async function showcaseFor(
  */
 async function renderModeImage(
   subject: QaSubject,
-  theme: ThemeSnapshot | undefined,
-  result: QaRunResult,
+  run: QaRunContext,
 ): Promise<{ image?: string; skipped?: string }> {
-  const showcase = await showcaseFor(subject, theme, result);
+  const showcase = await showcaseFor(subject, run);
   if ("skipped" in showcase) return { skipped: showcase.skipped };
 
+  // The builder already claimed it as transient, so a kill anywhere between
+  // creation and here leaves something the next run's sweep reclaims.
   const frame = showcase.frame;
   try {
-    // Inside the guarantee, not before it: marking is itself a call that can
-    // fail, and a frame that exists outside the try/finally is a frame nothing
-    // removes. ADR-0001 asks for the whole lifecycle to be structural.
-    markProbe(frame);
     // One image of every mode side by side, not one per mode: it is what "see
     // the modes together" actually means, and it stays clear of the bridge's
     // per-response image cap.
@@ -283,13 +298,14 @@ registerOperation<QaRunParams, QaRunResult>(
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. The themes (#17) and high-contrast (#16) checks create and remove one temporary off-canvas probe frame to resolve variables per theme mode - a documented carve-out from ADR-0001's read-only Query definition.",
+      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. Two documented carve-outs from ADR-0001's read-only Query definition, both transient and both removed before the call returns: the themes (#17) and high-contrast (#16) checks create and remove one temporary off-canvas probe frame to resolve variables per theme mode, and `includeModeImages` builds, exports and removes the per-mode showcase it returns.",
     paramsExample: { name: "Button" },
   },
   async (params) => {
-    const { subject, result, theme } = await runQa(params);
+    const run = await runQa(params);
+    const { subject, result } = run;
     if (params.includeModeImages) {
-      const { image, skipped } = await renderModeImage(subject, theme, result);
+      const { image, skipped } = await renderModeImage(subject, run);
       if (image) result.modeImage = image;
       // Why there is no picture, rather than silently returning none: "this set
       // has no theme axis" is a fact about the component and worth saying.
@@ -341,7 +357,8 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     paramsExample: {},
   },
   async (params) => {
-    const { subject, origin, result, theme } = await runQa(params);
+    const run = await runQa(params);
+    const { subject, origin, result } = run;
     let anchor: SceneNode = origin ?? subject;
     if (params.anchorNodeId) {
       const anchorNode = await figma.getNodeByIdAsync(params.anchorNodeId);
@@ -380,10 +397,18 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     // Unlike the theme probe's frame this one deliberately survives: canvas
     // evidence is the whole point. That is why it is labelled and stamped, and
     // why it is *not* marked as a transient probe - the sweep would take it.
-    const showcase = await showcaseFor(subject, theme, result);
+    const showcase = await showcaseFor(subject, run);
     let modeShowcaseId: string | undefined;
     if ("frame" in showcase) {
-      placeModeShowcase(showcase.frame, frame, result.target.id);
+      try {
+        placeModeShowcase(showcase.frame, frame, result.target.id);
+      } catch (error) {
+        // Stamping, reparenting or positioning failing would leave a finished
+        // block on whatever page it was built on, which is exactly the litter the
+        // issue rules out: it survives only on the path where it is wanted.
+        showcase.frame.remove();
+        throw error;
+      }
       modeShowcaseId = showcase.frame.id;
     }
 
