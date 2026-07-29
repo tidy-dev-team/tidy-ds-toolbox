@@ -258,18 +258,22 @@ async function renderModeImage(
   const showcase = await showcaseFor(subject, theme, result);
   if ("skipped" in showcase) return { skipped: showcase.skipped };
 
-  markProbe(showcase.frame);
+  const frame = showcase.frame;
   try {
+    // Inside the guarantee, not before it: marking is itself a call that can
+    // fail, and a frame that exists outside the try/finally is a frame nothing
+    // removes. ADR-0001 asks for the whole lifecycle to be structural.
+    markProbe(frame);
     // One image of every mode side by side, not one per mode: it is what "see
     // the modes together" actually means, and it stays clear of the bridge's
     // per-response image cap.
-    const bytes = await showcase.frame.exportAsync({
+    const bytes = await frame.exportAsync({
       format: "PNG",
       constraint: { type: "SCALE", value: 2 },
     });
     return { image: `data:image/png;base64,${figma.base64Encode(bytes)}` };
   } finally {
-    showcase.frame.remove();
+    frame.remove();
   }
 }
 
