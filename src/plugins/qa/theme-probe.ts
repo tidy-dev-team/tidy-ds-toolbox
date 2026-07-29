@@ -41,20 +41,47 @@ import type {
 } from "./snapshot";
 
 /**
- * Deliberately unlovely, because the sweep below matches on it: a designer's own
- * node called this would be removed.
+ * The probe's name. Cosmetic only: it exists so a human who ever finds one of
+ * these in a file can tell what left it there. Ownership is decided by
+ * `isStrayProbe`, never by the name.
  */
 export const PROBE_NAME = "__tidy-qa-mode-probe";
 
 /**
- * Whether a node is a probe an earlier run left behind.
+ * Plugin data marking a node as this plugin's probe.
  *
- * Pure and exported so the one judgement the sweep makes is testable rather than
- * hidden inside the figma env. The type test matters: the probe is always a
- * frame, so anything else carrying this name belongs to somebody else.
+ * Figma namespaces plugin data per plugin, so nothing outside the toolbox can
+ * write this - which is the whole point. The sweep used to match on the name
+ * alone, and a name cannot establish ownership: a designer's own frame called
+ * `__tidy-qa-mode-probe` would have been deleted. ADR-0001's carve-out permits
+ * removing *our* transient nodes, not arbitrary user content, so a marker only we
+ * can set is what the carve-out actually licenses.
  */
-export function isStrayProbe(node: { type: string; name: string }): boolean {
-  return node.type === "FRAME" && node.name === PROBE_NAME;
+const PROBE_MARKER_KEY = "tidy-qa-probe";
+const PROBE_MARKER = "1";
+
+/** Claim a node as this plugin's probe. Paired with `isStrayProbe`. */
+export function markProbe(node: {
+  setPluginData(key: string, value: string): void;
+}): void {
+  node.setPluginData(PROBE_MARKER_KEY, PROBE_MARKER);
+}
+
+/**
+ * Whether a node is a probe this plugin left behind.
+ *
+ * Pure and exported so the judgement the sweep makes is testable rather than
+ * hidden inside the figma env. The type test is a cheap second condition: the
+ * probe is always a frame.
+ */
+export function isStrayProbe(node: {
+  type: string;
+  getPluginData(key: string): string;
+}): boolean {
+  return (
+    node.type === "FRAME" &&
+    node.getPluginData(PROBE_MARKER_KEY) === PROBE_MARKER
+  );
 }
 
 /** The bit of a probe node this lifecycle needs; `FrameNode` satisfies it. */
@@ -76,8 +103,8 @@ export interface ProbeEnv<N extends Removable> {
   /** Name, size, hide and parent the node. Called inside the try. */
   prepare(probe: N): void;
   /**
-   * Probe nodes an earlier run left behind. See the sweep in `withProbeFrame`
-   * for why they can exist at all.
+   * Probe nodes an earlier run left behind. See `sweepStrayProbes` for why they
+   * can exist at all, and `isStrayProbe` for how one is identified.
    */
   strayProbes(): readonly N[];
 }
@@ -96,6 +123,11 @@ export interface ProbeEnv<N extends Removable> {
 const figmaProbeEnv: ProbeEnv<FrameNode> = {
   create: () => figma.createFrame(),
   prepare: (probe) => {
+    // First, so the window in which a probe exists unmarked - and would therefore
+    // survive a later sweep - is as small as it can be. Erring that way is
+    // deliberate: leaking an invisible 1x1 frame is better than deleting a node
+    // we cannot prove is ours.
+    markProbe(probe);
     probe.name = PROBE_NAME;
     probe.resize(1, 1);
     probe.fills = [];
@@ -109,6 +141,37 @@ const figmaProbeEnv: ProbeEnv<FrameNode> = {
 };
 
 /**
+ * Remove probes an earlier run left behind.
+ *
+ * `finally` covers returning and throwing, not dying: cancelling a plugin may
+ * tear the sandbox down rather than unwind it, and then no teardown runs at all
+ * and the probe is orphaned carrying pinned modes. That is unprotectable from
+ * inside the plugin - there is no hook to run on the way out - so the remedy is
+ * the next run clearing the last one's residue.
+ *
+ * Separate from `withProbeFrame` on purpose. Sweeping is a per-*run* concern, not
+ * a per-probe one, and burying it in the lifecycle meant every early return in
+ * `probeThemeResolution` skipped the cleanup: a set with no bound variables never
+ * reached the lifecycle, so it never tidied up either.
+ *
+ * Best effort, and deliberately never allowed to fail the call. A stray is the
+ * *previous* run's mess, and an orphan may already be gone - Figma throws on
+ * member access of a removed node. Letting that escape would turn litter into a
+ * broken read-only query, and would abandon the remaining strays on the way out.
+ */
+export function sweepStrayProbes<N extends Removable>(
+  env: Pick<ProbeEnv<N>, "strayProbes">,
+): void {
+  for (const stray of env.strayProbes()) {
+    try {
+      stray.remove();
+    } catch {
+      // Leaves the stray in place, which is the state we were already in.
+    }
+  }
+}
+
+/**
  * Run `use` against a temporary probe node, and remove that node afterwards on
  * every path.
  *
@@ -118,31 +181,13 @@ const figmaProbeEnv: ProbeEnv<FrameNode> = {
  * `probeThemeResolution` with a comment asking the next reader not to separate
  * them.
  *
- * **Why it also sweeps.** `finally` covers returning and throwing, not dying:
- * cancelling a plugin may tear the sandbox down rather than unwind it, and then
- * no teardown runs at all and the probe is orphaned. That case is unprotectable
- * from inside the plugin - there is no hook to run on the way out - so the
- * remedy is the next run cleaning up after the last one. Sweeping *before*
- * creating also means a run never resolves against a page that still holds a
- * stale probe carrying pinned modes.
+ * Cleanup of an *earlier* run's residue is not here but in `sweepStrayProbes`,
+ * which the operation calls once per run - see there for why.
  */
 export async function withProbeFrame<N extends Removable, T>(
   env: ProbeEnv<N>,
   use: (probe: N) => Promise<T> | T,
 ): Promise<T> {
-  // Best effort, and deliberately not allowed to fail the call. A stray is the
-  // *previous* run's mess, and a node orphaned by a killed sandbox may already be
-  // gone - Figma throws on member access of a removed node. Letting that escape
-  // would turn litter into a broken read-only query, and would abandon the
-  // remaining strays on the way out.
-  for (const stray of env.strayProbes()) {
-    try {
-      stray.remove();
-    } catch {
-      // Leaves the stray in place, which is the state we were already in.
-    }
-  }
-
   const probe = env.create();
   try {
     env.prepare(probe);
@@ -172,6 +217,12 @@ function isAlias(value: VariableValue): boolean {
 export async function probeThemeResolution(
   snapshot: ComponentSetSnapshot,
 ): Promise<ThemeSnapshot | undefined> {
+  // Before anything else, including the early returns below: cleanup has to
+  // happen on every run that gets here, not only the ones that go on to build a
+  // probe of their own. A set with no bound variables returns early, and that run
+  // is just as able to clear the last one's residue.
+  sweepStrayProbes(figmaProbeEnv);
+
   // Same traversal the check uses, so the two cannot disagree about which
   // variables the set consumes.
   const boundIds = [...collectVariableUsage(snapshot).keys()];
