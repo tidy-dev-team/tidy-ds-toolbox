@@ -114,3 +114,26 @@ export function nodesPinning(
   for (const variant of snapshot.variants) visit(variant.tree);
   return pinned;
 }
+
+/**
+ * Whether any variable *this set binds itself* belongs to the resolved theme
+ * table.
+ *
+ * The distinction matters because the probe also resolves variables reached only
+ * through a shared fill style (#16 needs their per-mode colour). Those are not
+ * the component's own bindings, so a set whose colour comes entirely from styles
+ * has no theme axis of its own and renders alike in every mode.
+ *
+ * Shared by the `themes` check, which reports that as `not_applicable`, and by
+ * #121's showcase, which must not draw a comparison of two identical pictures.
+ * One helper so the two cannot disagree about the same set.
+ */
+export function bindsOwnThemeVariables(
+  snapshot: ComponentSetSnapshot,
+  theme: { variables: Record<string, unknown> } | undefined,
+): boolean {
+  if (!theme) return false;
+  return [...collectVariableUsage(snapshot).keys()].some(
+    (id) => theme.variables[id] !== undefined,
+  );
+}

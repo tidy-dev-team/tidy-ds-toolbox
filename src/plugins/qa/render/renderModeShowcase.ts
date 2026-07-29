@@ -7,6 +7,7 @@
  * modes is `mode-showcase.ts`, which stays pure and tested.
  */
 
+import { markProbe, unmarkProbe } from "../theme-probe";
 import type { ModeShowcasePlan } from "./mode-showcase";
 import {
   autoLayout,
@@ -91,6 +92,11 @@ function buildInto(
   const root = track(
     autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16),
   );
+  // Claimed immediately, before anything that can fail. `track` covers a *thrown*
+  // error; being killed mid-build unwinds nothing at all, and then the marker is
+  // the only thing that lets the next run reclaim what is left (#131). Released in
+  // `placeModeShowcase` once the block is deliberately kept.
+  markProbe(root);
   root.counterAxisSizingMode = "AUTO";
   card(root);
 
@@ -201,4 +207,10 @@ export function placeModeShowcase(
   parent.appendChild(showcase);
   showcase.x = anchor.x + anchor.width + GAP_FROM_ANCHOR;
   showcase.y = anchor.y;
+
+  // Last, once the block is where it belongs: until this point it is still a
+  // transient node the next run may reclaim, and after it the sweep will leave it
+  // alone. Anything that throws above therefore leaves something recoverable
+  // rather than a permanent orphan.
+  unmarkProbe(showcase);
 }

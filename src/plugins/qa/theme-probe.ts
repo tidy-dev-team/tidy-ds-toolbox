@@ -60,6 +60,20 @@ export const PROBE_NAME = "__tidy-qa-mode-probe";
 const PROBE_MARKER_KEY = "tidy-qa-probe";
 const PROBE_MARKER = "1";
 
+/**
+ * Release a node this plugin had claimed, so a later sweep leaves it alone.
+ *
+ * The pairing matters for #121: a frame is claimed the moment it is created, so
+ * that a sandbox killed mid-build leaves something reclaimable, and released only
+ * once the caller has committed to keeping it on the canvas. Failing in that
+ * direction leaks nothing and deletes nothing of the designer's.
+ */
+export function unmarkProbe(node: {
+  setPluginData(key: string, value: string): void;
+}): void {
+  node.setPluginData(PROBE_MARKER_KEY, "");
+}
+
 /** Claim a node as this plugin's probe. Paired with `isStrayProbe`. */
 export function markProbe(node: {
   setPluginData(key: string, value: string): void;
