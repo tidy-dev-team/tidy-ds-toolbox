@@ -9,10 +9,23 @@
 import { z } from "zod";
 import type { OperationKind } from "../../src/shared/operations/types.ts";
 import { DocSpecSchema } from "../../src/plugins/tidy-doc/utils/docSpec.ts";
+// Imported, not restated: the check ids and the row count used to be spelled out
+// in prose here and drifted from the engine twice (#133). The catalogue module is
+// pure - it pulls in the check functions but never the collector or `figma.*` -
+// so importing it costs the bundle a few KB of code this process never calls, in
+// exchange for an agent that cannot be told a check exists when it does not.
+import {
+  CHECKLIST_CATALOGUE,
+  CHECK_IDS,
+} from "../../src/plugins/qa/checklist-catalogue.ts";
 import {
   DEFAULT_FIND_LIMIT,
   MAX_FIND_LIMIT,
 } from "../../src/plugins/utilities/utils/findComponents.ts";
+
+/** `z.enum` wants a non-empty literal tuple; the catalogue guarantees non-empty. */
+const CHECK_ID_VALUES = CHECK_IDS as unknown as [string, ...string[]];
+const ROW_COUNT = CHECKLIST_CATALOGUE.length;
 
 export interface CatalogueEntry {
   id: string;
@@ -301,7 +314,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set. Read-only toward the target - it never modifies the component set - with one documented exception: the themes (#17) and high-contrast (#16) checks create and remove a temporary off-canvas probe frame in order to resolve variables per theme mode (carve-out from ADR-0001). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding; findings are deduped one-per-defect, so a finding covering several nodes carries `count`, a capped `nodeIds` list with `nodeId` as the representative, and `nodeNames` when those nodes had differing names - do not re-group them), ids of requested checks not implemented yet, and a 19-item `checklist` model (PRD order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run/not_applicable - the last when a check ran but had nothing applicable to evaluate, e.g. no instance-swap properties; every such row carries a `note` giving the specific reason, which on an asset set is most of what the run established).",
+      `Run the DS Component QA checklist against a component set. Read-only toward the target - it never modifies the component set - with one documented exception: the themes (#17) and high-contrast (#16) checks create and remove a temporary off-canvas probe frame in order to resolve variables per theme mode (carve-out from ADR-0001). Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding; findings are deduped one-per-defect, so a finding covering several nodes carries \`count\`, a capped \`nodeIds\` list with \`nodeId\` as the representative, and \`nodeNames\` when those nodes had differing names - do not re-group them), ids of requested checks not implemented yet, and a ${ROW_COUNT}-item \`checklist\` model (checklist order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run/not_applicable - the last when a check ran but had nothing applicable to evaluate, e.g. no instance-swap properties; every such row carries a \`note\` giving the specific reason, which on an asset set is most of what the run established).`,
     inputSchema: {
       nodeId: z
         .string()
@@ -315,11 +328,14 @@ export const CATALOGUE: CatalogueEntry[] = [
         .describe(
           "Name or glob (e.g. 'Button', 'Notification*') matched against components/sets in the file. Must resolve to exactly one component set — ambiguous matches error with the candidate list. Omit `name` and `nodeId` to use the current selection.",
         ),
+      // Enumerated rather than free strings: a typo is then rejected here, with
+      // the valid set in the error, instead of after a round trip to the plugin
+      // (and only if the plugin happens to be connected).
       checks: z
-        .array(z.string())
+        .array(z.enum(CHECK_ID_VALUES))
         .optional()
         .describe(
-          "Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: set-name-casing, prop-order, tokens, layer-naming-structure, grid-4px, interaction-hover-only, description, no-conflicts, preferred-values, nesting-depth, asset-provenance, themes, high-contrast, responsive-bounds, documentation, variant-property-bindings.",
+          `Optional check-id filter (e.g. ['tokens', 'grid-4px']). Defaults to the full catalogue: ${CHECK_IDS.join(", ")}.`,
         ),
     },
     timeoutMs: 60_000,
@@ -329,7 +345,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all 19 checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target — re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a `partial` overlay), never the full findings payload. The status counts sum to all 19 rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) — no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.",
+      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target — intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones as empty checkboxes. Idempotent per target — re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) — no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
     inputSchema: {
       nodeId: z
         .string()
@@ -338,7 +354,7 @@ export const CATALOGUE: CatalogueEntry[] = [
           "Figma node id of the target — an instance, component, or component set; resolved up to the owning component set. Omit to fall back to the current selection. The checklist frame is placed next to this node unless `anchorNodeId` is given.",
         ),
       checks: z
-        .array(z.string())
+        .array(z.enum(CHECK_ID_VALUES))
         .optional()
         .describe(
           "Optional check-id filter (same ids as tidy_qa_run). Filtered-out automated rows render as skipped rather than pass/fail.",

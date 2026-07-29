@@ -20,13 +20,14 @@ Split `$ARGUMENTS` on whitespace into tokens, then classify each:
 
 - **Canvas flag** — the token `--canvas` (or `--render`). Switches to canvas
   mode. Remove it from the token list before parsing the rest.
-- **Check-id** — a token that exactly matches one of the known check ids:
-  `set-name-casing`, `prop-order`, `tokens`, `layer-naming-structure`,
+- **Check-id** — a token that exactly matches one of the known check ids, in
+  checklist order:
+  `set-name-casing`, `variant-property-bindings`, `prop-order`, `tokens`,
+  `responsive-bounds`, `asset-provenance`, `layer-naming-structure`,
   `grid-4px`, `interaction-hover-only`, `description`, `no-conflicts`,
-  `preferred-values`, `nesting-depth`, `asset-provenance`, `themes`,
-  `high-contrast`, `responsive-bounds`, `documentation`,
-  `variant-property-bindings`. Collect these into
-  the `checks` array (a filter - only these checks run).
+  `nesting-depth`, `preferred-values`, `high-contrast`, `themes`,
+  `documentation`.
+  Collect these into the `checks` array (a filter - only these checks run).
 - **Id** — a token matching `^\d+:\d+$` (e.g. `2625:10445`). Use as `nodeId`.
 - **Target name / glob** — every remaining token. Join them with spaces (names
   can contain spaces, e.g. `Button Icon`) and pass as `name`. A `*` makes it a
@@ -76,9 +77,10 @@ rather than duplicating it.
 The response is a small stub only:
 `{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, notApplicable, notRun, partial } }`.
 `partial` counts automated rows that still need a human tick because the check
-covers only part of the item (currently #3, #7, #17 and #19). Those rows are also
-counted by their own status, so report them as outstanding work even when
-`manual` is 0.
+covers only part of the item — several rows are like this, and which ones can
+depend on what the check found, so read it off the response rather than assuming
+a fixed set. Those rows are also counted by their own status, so report them as
+outstanding work even when `manual` is 0.
 Report it directly - do not invent findings detail that isn't in the stub;
 tell the user to look at the frame on canvas (e.g. "Checklist for Button: 9
 pass, 4 warn, 2 fail, 3 manual, 4 partly manual - see the frame next to it on
