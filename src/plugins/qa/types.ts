@@ -6,12 +6,22 @@
  */
 
 import type { SeverityLevel } from "../audit/types";
+import type { ComponentSetSnapshot } from "./snapshot";
 
 export type { SeverityLevel };
 
 export type CheckStatus = "pass" | "warn" | "fail" | "not_applicable";
 
-/** Stable ids of the static checks (PRD section in CHECKS): 10 Tier 1 plus Tier 2's 6. */
+/**
+ * Stable, agent-facing ids of the automated checks - the wire vocabulary a
+ * `checks` filter is written in, which is why it lives with the wire types
+ * rather than with the checklist.
+ *
+ * Which checklist row each id backs, and which function implements it, is
+ * declared once in `checklist-catalogue.ts`. That every id here is claimed by
+ * exactly one row (and vice versa) is asserted in `checklist-catalogue.test.ts`
+ * rather than left to review.
+ */
 export type CheckId =
   | "set-name-casing"
   | "prop-order"
@@ -106,80 +116,13 @@ export interface CheckResult {
   manualRemainder?: string;
 }
 
-export interface CheckDefinition {
-  id: CheckId;
-  /** Section number in docs/prd-automated-qa.md. */
-  prdSection: number;
-  title: string;
-}
-
-/** Catalogue of all 16 automated checks (10 Tier 1 plus 6 Tier 2), in shipping order. */
-export const CHECKS: readonly CheckDefinition[] = [
-  { id: "set-name-casing", prdSection: 2, title: "Component set name casing" },
-  {
-    id: "prop-order",
-    prdSection: 4,
-    title: "Prop order (consolidated catalogue)",
-  },
-  { id: "tokens", prdSection: 5, title: "Tokens (Styles & Variables)" },
-  {
-    id: "layer-naming-structure",
-    prdSection: 9,
-    title: "Layer naming + structure",
-  },
-  { id: "grid-4px", prdSection: 10, title: "4px grid alignment" },
-  {
-    id: "interaction-hover-only",
-    prdSection: 11,
-    title: "Interaction (hover-only)",
-  },
-  {
-    id: "description",
-    prdSection: 12,
-    title: "Description (also-known-as + misprint keywords)",
-  },
-  { id: "no-conflicts", prdSection: 13, title: "No conflicts" },
-  { id: "preferred-values", prdSection: 15, title: "Preferred values" },
-  {
-    id: "nesting-depth",
-    prdSection: 14,
-    title: "Nested instance depth",
-  },
-  {
-    id: "asset-provenance",
-    prdSection: 8,
-    title: "Icons / illustrations / logos from Foundations",
-  },
-  {
-    id: "themes",
-    prdSection: 17,
-    title: "Themes (per-mode variable resolution)",
-  },
-  {
-    id: "high-contrast",
-    prdSection: 16,
-    title: "High contrast (WCAG AA)",
-  },
-  {
-    id: "responsive-bounds",
-    prdSection: 7,
-    title: "Responsiveness (size bounds)",
-  },
-  {
-    id: "documentation",
-    prdSection: 19,
-    title: "Documentation",
-  },
-  {
-    id: "variant-property-bindings",
-    prdSection: 3,
-    title: "Property bindings across variants",
-  },
-];
-
-export function getCheck(id: string): CheckDefinition | undefined {
-  return CHECKS.find((c) => c.id === id);
-}
+/**
+ * A check: pure `(snapshot) → CheckResult`, no Figma API, fixture-testable.
+ *
+ * Lives here rather than in `checks/index.ts` so the catalogue can carry the
+ * function on its row without importing the run helper that reads the catalogue.
+ */
+export type CheckFn = (snapshot: ComponentSetSnapshot) => CheckResult;
 
 export type ItemStatus =
   | "pass"
@@ -221,7 +164,9 @@ export interface ChecklistReport {
   items: ChecklistItem[];
   /**
    * Row tallies. `pass`/`warn`/`fail`/`manual`/`notImplemented`/`notApplicable`/
-   * `notRun` are mutually exclusive statuses and sum to exactly 19.
+   * `notRun` are mutually exclusive statuses and sum to one per catalogue row
+   * (`CHECKLIST_CATALOGUE.length`) - never a literal, so widening the checklist
+   * cannot leave this comment claiming a stale total.
    *
    * `notApplicable` and `notRun` are reported rather than dropped even though
    * neither is actionable. `tidy_qa_build_checklist` returns only these counts
@@ -255,6 +200,6 @@ export interface QaRunResult {
   results: CheckResult[];
   /** Requested checks whose pure check function hasn't shipped yet. */
   notImplemented: CheckId[];
-  /** 19-item checklist model merging engine results with the PRD catalogue. */
+  /** Checklist model, one row per catalogue item, merging in engine results. */
   checklist: ChecklistReport;
 }

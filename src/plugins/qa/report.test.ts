@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { CHECKLIST_CATALOGUE } from "./checklist-catalogue";
 import { buildChecklistReport } from "./report";
 import type { CheckResult, Finding } from "./types";
 
@@ -32,15 +33,15 @@ function result(
 const REMAINDER = "Confirm the half this check cannot see.";
 
 describe("buildChecklistReport", () => {
-  it("returns exactly 19 rows in PRD order", () => {
+  it("returns one row per catalogue item, in catalogue order", () => {
     const report = buildChecklistReport({
       target: TARGET,
       results: [],
       notImplemented: [],
     });
-    expect(report.items).toHaveLength(19);
+    expect(report.items).toHaveLength(CHECKLIST_CATALOGUE.length);
     expect(report.items.map((item) => item.n)).toEqual(
-      Array.from({ length: 19 }, (_, i) => i + 1),
+      CHECKLIST_CATALOGUE.map((entry) => entry.n),
     );
     expect(report.target).toEqual(TARGET);
   });
@@ -100,7 +101,7 @@ describe("buildChecklistReport", () => {
     expect(report.counts).not.toHaveProperty("not_applicable");
   });
 
-  it("tallies every row, so the status buckets sum to 19", () => {
+  it("tallies every row, so the status buckets sum to the catalogue", () => {
     // An asset-like set: several checks run and find nothing to judge, one is
     // filtered out, the rest never ran. Previously this summed to 2 of 19.
     const report = buildChecklistReport({
@@ -119,7 +120,7 @@ describe("buildChecklistReport", () => {
     expect(notApplicable).toBe(4);
     expect(
       pass + warn + fail + manual + notImplemented + notApplicable + notRun,
-    ).toBe(19);
+    ).toBe(CHECKLIST_CATALOGUE.length);
   });
 
   it("strips findings on pass even if the engine attached any", () => {
@@ -249,7 +250,7 @@ describe("buildChecklistReport", () => {
       partial: 0,
     });
     expect(notRunCount).toBeGreaterThan(0);
-    // Every status bucket is reported, so the tallies account for all 19 rows
+    // Every status bucket is reported, so the tallies account for every row
     // without the caller having to infer a shortfall (#126).
     expect(
       report.counts.pass +
@@ -259,7 +260,7 @@ describe("buildChecklistReport", () => {
         report.counts.notImplemented +
         report.counts.notApplicable +
         report.counts.notRun,
-    ).toBe(19);
+    ).toBe(CHECKLIST_CATALOGUE.length);
     // partial is an overlay, not a status: excluded from the sum on purpose.
     expect(report.counts.partial).toBe(0);
   });
