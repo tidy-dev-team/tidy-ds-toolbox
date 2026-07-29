@@ -14,7 +14,7 @@ import {
   polarityModeId,
   resolveSurfaceVariable,
 } from "../../../shared/theme-surface";
-import { fallbackStageFor, surfaceCaption } from "./stage-surface";
+import { FALLBACK_STAGE, surfaceCaption } from "./stage-surface";
 import {
   autoLayout,
   card,
@@ -225,7 +225,7 @@ function buildInto(
       // pointed at elements that are not from a well-formed DS, where there is no
       // token to reproduce, and a pale backdrop there would hide exactly the pale
       // element the check is looking for. The caption says it is a test backdrop.
-      fill(stage, fallbackStageFor(mode.name));
+      fill(stage, FALLBACK_STAGE);
     }
     stage.appendChild(track(main.createInstance()));
   }

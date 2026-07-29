@@ -35,6 +35,16 @@ describe("polarityModeId", () => {
     expect(polarityModeId(modes, false)).toBe("m1");
   });
 
+  // JavaScript counts `_` as a word character, so `\b` did not see a boundary
+  // here and an underscore-separated dark mode was read as light - pinning the
+  // polarity collection the wrong way, silently.
+  it.each(["Industrial_Dark", "dark_mode", "dark-mode", "dark.mode"])(
+    "reads polarity across %s",
+    (name) => {
+      expect(polarityModeId(collection("Light", name), true)).toBe("m1");
+    },
+  );
+
   it("returns null when the collection has no such polarity", () => {
     const modes = collection("Compact", "Comfortable");
 
@@ -51,7 +61,14 @@ describe("isDarkModeName", () => {
     },
   );
 
-  it.each(["Light", "Darkness", "Darjeeling", "Compact"])(
+  it.each(["Industrial_Dark", "dark_mode", "night_mode"])(
+    "reads %s as dark",
+    (name) => {
+      expect(isDarkModeName(name)).toBe(true);
+    },
+  );
+
+  it.each(["Light", "Darkness", "Darjeeling", "Darkroom", "Compact"])(
     "does not read %s as dark",
     (name) => {
       expect(isDarkModeName(name)).toBe(false);

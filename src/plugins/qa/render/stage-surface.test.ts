@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  FALLBACK_STAGE,
-  fallbackStageFor,
-  surfaceCaption,
-} from "./stage-surface";
+import { FALLBACK_STAGE, surfaceCaption } from "./stage-surface";
 
 describe("surfaceCaption", () => {
   // Naming the token is how a wrong backdrop reads as a wrong backdrop rather
@@ -14,26 +10,19 @@ describe("surfaceCaption", () => {
     expect(surfaceCaption("bg/surface")).toMatch(/resolved per mode/i);
   });
 
-  it("says the backdrop is an approximation when no token was found", () => {
+  it("says what the fallback actually does, without a token", () => {
     const caption = surfaceCaption(undefined);
 
     expect(caption).toMatch(/no surface token/i);
     // Must not imply it is the real surface, since a reader would then draw
     // contrast conclusions the picture does not support.
     expect(caption).not.toMatch(/resolved per mode/i);
-  });
-});
-
-describe("fallbackStageFor", () => {
-  // The policy #141 asked for, and the one an earlier version broke: every mode
-  // gets the same dark backdrop, including light-named ones. A pale backdrop for
-  // a light-named mode hides the pale element the check is looking for, and a
-  // file with no surface token is usually not a well-formed DS at all.
-  it("gives every mode the same dark backdrop, whatever it is called", () => {
-    const names = ["Industrial Light", "Industrial Dark", "Compact", "light"];
-    const fills = new Set(names.map(fallbackStageFor));
-
-    expect(fills).toEqual(new Set([FALLBACK_STAGE]));
+    // Nor imply the backdrop varies by mode: it does not, and an earlier version
+    // of this caption said it was "approximated from each mode's name" while the
+    // code returned one constant. A caption that describes behaviour the drawing
+    // does not have is worse than no caption.
+    expect(caption).not.toMatch(/from (each|the) mode's name/i);
+    expect(caption).toMatch(/every mode gets the same/i);
   });
 });
 
