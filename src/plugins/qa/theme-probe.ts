@@ -40,7 +40,22 @@ import type {
   VariableResolutionSnapshot,
 } from "./snapshot";
 
-const PROBE_NAME = "__tidy-qa-mode-probe";
+/**
+ * Deliberately unlovely, because the sweep below matches on it: a designer's own
+ * node called this would be removed.
+ */
+export const PROBE_NAME = "__tidy-qa-mode-probe";
+
+/**
+ * Whether a node is a probe an earlier run left behind.
+ *
+ * Pure and exported so the one judgement the sweep makes is testable rather than
+ * hidden inside the figma env. The type test matters: the probe is always a
+ * frame, so anything else carrying this name belongs to somebody else.
+ */
+export function isStrayProbe(node: { type: string; name: string }): boolean {
+  return node.type === "FRAME" && node.name === PROBE_NAME;
+}
 
 /** The bit of a probe node this lifecycle needs; `FrameNode` satisfies it. */
 interface Removable {
@@ -64,7 +79,7 @@ export interface ProbeEnv<N extends Removable> {
    * Probe nodes an earlier run left behind. See the sweep in `withProbeFrame`
    * for why they can exist at all.
    */
-  strays(): readonly N[];
+  strayProbes(): readonly N[];
 }
 
 /**
@@ -72,10 +87,11 @@ export interface ProbeEnv<N extends Removable> {
  * visible in the file `CLAUDE.md` names as figma-touching, rather than migrating
  * into the pure layer behind an injected interface.
  *
- * `strays` looks only at the current page's direct children, which is where a
- * probe is parented, so the sweep costs nothing like a document walk. It matches
- * on the deliberately unlovely `PROBE_NAME`, and would remove a designer's own
- * node if one happened to carry that name.
+ * `strayProbes` looks only at the current page's direct children, which is where a
+ * probe is parented, so the sweep costs nothing like a document walk. The limit
+ * of that: an orphan is left on whichever page was current when the sandbox died,
+ * so a run started from a different page will not find it. Sweeping the whole
+ * document on every run is not worth that, and the orphan is invisible and 1x1.
  */
 const figmaProbeEnv: ProbeEnv<FrameNode> = {
   create: () => figma.createFrame(),
@@ -86,10 +102,9 @@ const figmaProbeEnv: ProbeEnv<FrameNode> = {
     probe.visible = false;
     figma.currentPage.appendChild(probe);
   },
-  strays: () =>
-    figma.currentPage.children.filter(
-      (node): node is FrameNode =>
-        node.type === "FRAME" && node.name === PROBE_NAME,
+  strayProbes: () =>
+    figma.currentPage.children.filter((node): node is FrameNode =>
+      isStrayProbe(node),
     ),
 };
 
@@ -115,7 +130,18 @@ export async function withProbeFrame<N extends Removable, T>(
   env: ProbeEnv<N>,
   use: (probe: N) => Promise<T> | T,
 ): Promise<T> {
-  for (const stray of env.strays()) stray.remove();
+  // Best effort, and deliberately not allowed to fail the call. A stray is the
+  // *previous* run's mess, and a node orphaned by a killed sandbox may already be
+  // gone - Figma throws on member access of a removed node. Letting that escape
+  // would turn litter into a broken read-only query, and would abandon the
+  // remaining strays on the way out.
+  for (const stray of env.strayProbes()) {
+    try {
+      stray.remove();
+    } catch {
+      // Leaves the stray in place, which is the state we were already in.
+    }
+  }
 
   const probe = env.create();
   try {

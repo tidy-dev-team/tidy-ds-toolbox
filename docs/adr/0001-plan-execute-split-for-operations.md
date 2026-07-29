@@ -19,7 +19,8 @@ It is permitted under these conditions:
   Nothing survives a call that returns or throws.
   Clarified 2026-07-29 (issue #131): a call that is *killed* is a third case, and `finally` cannot cover it.
   Cancelling a plugin may tear the sandbox down rather than unwind it, which leaves the probe orphaned - carrying pinned modes - with no hook available to clean up on the way out.
-  That is unprotectable from inside the plugin, so the condition is met by the next run instead: `withProbeFrame` sweeps stray probes off the current page before creating its own.
+  That is unprotectable from inside the plugin, so the condition is met on a best-effort basis by the next run instead: `withProbeFrame` sweeps stray probes off the current page before creating its own.
+  Best-effort in two senses worth stating plainly rather than implying a guarantee: the sweep reads only the current page, so an orphan left on another page is not found until a run starts from that page, and a stray that cannot be removed is skipped rather than allowed to fail the call.
   The lifecycle is now one function with an injected env (`ProbeEnv`), so this condition is testable rather than resting on reading the code.
 - It is never a descendant of, and never modifies, the Operation's target.
 - The Operation's MCP summary states it, so an agent reading the catalogue is not misled about what "query" implies here.
