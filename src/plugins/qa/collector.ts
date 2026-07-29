@@ -10,7 +10,9 @@
  * stays pure and fixture-tested.
  */
 
+import { requiredFacets } from "./checklist-catalogue";
 import { toHex } from "./color";
+import { probeThemeResolution } from "./theme-probe";
 import type {
   ColorStyleSnapshot,
   ComponentPropertySnapshot,
@@ -417,4 +419,40 @@ export async function collectColorStyles(
     if (paints) styles[id] = { name: style.name, paints };
   }
   return Object.keys(styles).length > 0 ? styles : undefined;
+}
+
+/**
+ * Collect the snapshot a run of `requested` checks needs (an absent filter means
+ * the whole catalogue): the unconditional walk, plus exactly those expensive
+ * facets some requested check declared in its catalogue `needs`.
+ *
+ * The two facets are conditional for different reasons - the style table costs an
+ * async round trip per referenced style, and the probe is the one part of a QA
+ * run that touches the document (one temporary frame, removed in a `finally` -
+ * see theme-probe.ts and the ADR-0001 carve-out). So a filtered run that needs
+ * neither stays inert.
+ *
+ * The ordering below is load-bearing and lives here, next to the reason for it,
+ * rather than in the operation: a paint style's own paint can be variable-bound,
+ * and the probe reads the style table to decide which variables need a per-mode
+ * value. Styles first, therefore, whenever both are wanted.
+ *
+ * Which checks need what is *not* decided here - `requiredFacets` reads it off
+ * the catalogue rows, so adding a check that reads a facet is one edit in the
+ * table and this function needs no change (#134).
+ */
+export async function prepareSnapshot(
+  subject: ComponentSetNode | ComponentNode,
+  requested?: readonly string[],
+): Promise<ComponentSetSnapshot> {
+  const snapshot = collectSnapshot(subject);
+  const facets = requiredFacets(requested);
+
+  if (facets.has("colorStyles")) {
+    snapshot.colorStyles = await collectColorStyles(snapshot);
+  }
+  if (facets.has("theme")) {
+    snapshot.theme = await probeThemeResolution(snapshot);
+  }
+  return snapshot;
 }

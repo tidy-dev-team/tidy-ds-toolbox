@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CHECK_REGISTRY, runChecks, unknownCheckIds } from "./index";
 import type { CheckFn } from "./index";
-import { CHECKS, getCheck } from "../types";
+import { CHECK_IDS } from "../checklist-catalogue";
 import type { CheckId } from "../types";
 import type { ComponentSetSnapshot } from "../snapshot";
 import { isOnGrid } from "../qa-config";
@@ -34,25 +34,20 @@ const FIXTURE: ComponentSetSnapshot = {
   ],
 };
 
-describe("check catalogue", () => {
-  it("lists the 10 Tier 1 checks plus the 6 Tier 2 checks, with unique ids", () => {
-    expect(CHECKS).toHaveLength(16);
-    expect(new Set(CHECKS.map((c) => c.id)).size).toBe(16);
-    // The static Tier 1 PRD sections (issue #76), then Tier 2 appended in
-    // shipping order: #14 (issue #99), #8 (issue #101), #17 (issue #102),
-    // #16 (issue #103), then #7 and #19: the two items the source interview
-    // showed were narrow advisory checks rather than the broad ones the PRD
-    // described (docs/qa-source-interview.md). #3 lands last: its automatable
-    // core turned out to be per-variant property *wiring*, which is structural
-    // and so Tier 1 shaped, not the dynamic test it was filed as.
-    expect(CHECKS.map((c) => c.prdSection)).toEqual([
-      2, 4, 5, 9, 10, 11, 12, 13, 15, 14, 8, 17, 16, 7, 19, 3,
-    ]);
+describe("the derived check registry", () => {
+  // The registry used to be a second hand-written index of the catalogue, which
+  // let a check be registered while no checklist row claimed it - it then ran on
+  // every pass and had its result silently dropped by buildChecklistReport
+  // (#132). Deriving it means the two cannot disagree; this asserts they don't.
+  it("holds exactly the catalogue's check ids, and a function for each", () => {
+    expect(Object.keys(CHECK_REGISTRY).sort()).toEqual([...CHECK_IDS].sort());
+    for (const id of CHECK_IDS) {
+      expect(typeof CHECK_REGISTRY[id]).toBe("function");
+    }
   });
 
-  it("resolves ids via getCheck and rejects unknown ones", () => {
-    expect(getCheck("tokens")?.prdSection).toBe(5);
-    expect(unknownCheckIds(["tokens", "nope"])).toEqual(["nope"]);
+  it("rejects an id no catalogue row claims", () => {
+    expect(unknownCheckIds([...CHECK_IDS, "nope"])).toEqual(["nope"]);
   });
 });
 
@@ -60,8 +55,8 @@ describe("runChecks", () => {
   it("partitions the catalogue into implemented results and not-implemented ids", () => {
     const outcome = runChecks(FIXTURE);
     const implemented = new Set(Object.keys(CHECK_REGISTRY));
-    const order = CHECKS.map((c) => c.id);
-    // Results come back in PRD (CHECKS) order, restricted to implemented checks;
+    const order = CHECK_IDS;
+    // Results come back in checklist order, restricted to implemented checks;
     // everything else in the catalogue lands in notImplemented, same order.
     expect(outcome.results.map((r) => r.checkId)).toEqual(
       order.filter((id) => implemented.has(id)),
@@ -70,7 +65,7 @@ describe("runChecks", () => {
       order.filter((id) => !implemented.has(id)),
     );
     expect(outcome.results.length + outcome.notImplemented.length).toBe(
-      CHECKS.length,
+      CHECK_IDS.length,
     );
   });
 

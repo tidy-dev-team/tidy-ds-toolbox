@@ -6,7 +6,7 @@
 
 > **Counts below are as-written (9 automated / 10 manual) and have since moved.**
 > Tier 2 added checks, and #7 and #19 landed after the source interview showed them to be narrow advisory checks.
-> The mapping table in §4 is kept current; for the live figure, `CHECKS` in [`src/plugins/qa/types.ts`](../src/plugins/qa/types.ts) is the source of truth.
+> The mapping table in §4 is kept current; for the live figure, `CHECKLIST_CATALOGUE` in [`src/plugins/qa/checklist-catalogue.ts`](../src/plugins/qa/checklist-catalogue.ts) is the source of truth - one table, one row per item, carrying each row's check function and the snapshot facets it needs.
 > Nothing else in this PRD's design depends on the number.
 
 ## 1. Summary
@@ -215,9 +215,13 @@ interface ChecklistReport {
 
 ## 8. Testing
 
-- **Pure, TDD-first:** the 19-item catalogue and the report model
-  (`checklist-catalogue.test.ts`, `report.test.ts`) — assert all 19 items present
-  and ordered, correct check→item mapping, and status resolution (automated
+- **Pure, TDD-first:** the catalogue and the report model
+  (`checklist-catalogue.test.ts`, `report.test.ts`) — assert the catalogue's
+  *invariants* rather than today's headcount (rows numbered `1..length`, each
+  check id claimed by exactly one row with a runnable function, titles and blurbs
+  unique, one report row per catalogue row, buckets summing to the catalogue
+  length), plus one deliberate list snapshot of the shipped rows so a scope change
+  shows up in a diff. Status resolution is covered the same way (automated
   pass/warn/fail, manual, not_implemented, not_run when filtered).
 - **Renderer / operation:** Figma-touching, verified manually in-file (consistent
   with the untested collector/operation boundary today). Keep rendering logic thin

@@ -10,10 +10,9 @@
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { globToRegex } from "../../shared/operations/glob";
 import { registerOperation } from "../../shared/operations/registry";
-import { collectColorStyles, collectSnapshot } from "./collector";
+import { prepareSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
-import { probeThemeResolution } from "./theme-probe";
 import { renderChecklist } from "./render/renderChecklist";
 import type { CheckId, QaRunResult } from "./types";
 
@@ -144,19 +143,17 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
   };
 }
 
-/** Whether `id` is in the requested set (an absent filter means everything). */
-function willRun(requested: string[] | undefined, id: CheckId): boolean {
-  return requested === undefined || requested.includes(id);
-}
-
 /**
  * Shared pipeline for both QA operations: validate the check filter, resolve the
- * target up to its set, snapshot it, run the checks, and build the full
- * QaRunResult (results + 19-item checklist). Returns the resolved subject and
- * origin node too, so the canvas op can place its frame next to the instance.
+ * target up to its set, collect the snapshot the requested checks need, run them,
+ * and build the full QaRunResult (results + checklist). Returns the resolved
+ * subject and origin node too, so the canvas op can place its frame next to the
+ * instance.
  *
- * Both operations share this, deliberately: probing only in the execute op
- * would leave the two QA surfaces silently disagreeing about what was checked.
+ * Both operations share this, deliberately: collecting or probing in only one of
+ * them would leave the two QA surfaces silently disagreeing about what was
+ * checked. Which snapshot facets a filtered run needs is the catalogue's business
+ * rather than this module's - see `prepareSnapshot` (#134).
  */
 async function runQa(params: QaRunParams): Promise<{
   subject: QaSubject;
@@ -176,24 +173,7 @@ async function runQa(params: QaRunParams): Promise<{
   }
 
   const { subject, origin } = await resolveTarget(params);
-  const snapshot = collectSnapshot(subject);
-
-  // #16 resolves colours through paint styles as well as variables, since the
-  // `tokens` check accepts either. Resolved *before* the probe, deliberately: a
-  // style's paint can itself be variable-bound, and the probe reads the style
-  // table to decide which variables need a per-mode value.
-  const needsColour = willRun(params.checks, "high-contrast");
-  if (needsColour) {
-    snapshot.colorStyles = await collectColorStyles(snapshot);
-  }
-
-  // The per-mode resolution probe is the one part of a QA run that touches the
-  // document (one temporary frame, removed in a `finally` - see theme-probe.ts
-  // and the ADR-0001 carve-out). Skipped entirely unless a check that needs it
-  // is actually going to run, so a filtered run stays inert.
-  if (willRun(params.checks, "themes") || needsColour) {
-    snapshot.theme = await probeThemeResolution(snapshot);
-  }
+  const snapshot = await prepareSnapshot(subject, params.checks);
 
   const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
   const target = { id: subject.id, name: subject.name };

@@ -1,6 +1,17 @@
 /**
- * Static 19-item DS Component QA Checklist catalogue (issue #91).
- * Single source mapping PRD sections to engine check ids.
+ * The DS Component QA Checklist: **one table, one row per checklist item** —
+ * the single declaration of what QA covers (issues #91, #132).
+ *
+ * A row carries everything about its item: its number (which is its identity),
+ * the printed title and blurb, and — when the item is automated — the check
+ * function that backs it plus the snapshot facets that check needs. A row with
+ * no `run` is manual, and that absence is the whole definition of manual.
+ *
+ * Adding or dropping a check is therefore one edit here, not four hand-synced
+ * lists. Everything else is derived: the run helper's registry and default order
+ * (`checks/index.ts`), the agent-facing id list (`CHECK_IDS`, interpolated into
+ * the MCP schema), the row count (never the literal 19), and which expensive
+ * collector passes a filtered run needs (`requiredFacets`).
  *
  * PRD: `docs/prd-automated-qa.md`. What design actually asked for, item by item,
  * is in `docs/qa-source-interview.md`. Consult it before widening a check or
@@ -14,20 +25,57 @@
  * hadn't read the PRD.
  */
 
-import type { CheckId } from "./types";
+import type { CheckFn, CheckId } from "./types";
+import { checkSetNameCasing } from "./checks/set-name-casing";
+import { checkPropOrder } from "./checks/prop-order";
+import { checkInteractionHoverOnly } from "./checks/interaction-hover-only";
+import { checkNoConflicts } from "./checks/no-conflicts";
+import { checkDescription } from "./checks/description";
+import { checkPreferredValues } from "./checks/preferred-values";
+import { checkTokens } from "./checks/tokens";
+import { checkGrid4px } from "./checks/grid-4px";
+import { checkLayerNamingStructure } from "./checks/layer-naming-structure";
+import { checkNestingDepth } from "./checks/nesting-depth";
+import { checkAssetProvenance } from "./checks/asset-provenance";
+import { checkThemes } from "./checks/themes";
+import { checkHighContrast } from "./checks/high-contrast";
+import { checkResponsiveBounds } from "./checks/responsive-bounds";
+import { checkDocumentation } from "./checks/documentation";
+import { checkVariantPropertyBindings } from "./checks/variant-property-bindings";
+
+/**
+ * A part of the snapshot that is *not* collected unconditionally, because it is
+ * expensive and — in the probe's case — the one thing in a QA run that touches
+ * the document (the ADR-0001 carve-out).
+ *
+ * A check that reads one must declare it in `needs`, so the requirement lives
+ * with the check that has it. Forgetting to declare one is not a wrong green:
+ * the facet is simply never collected for a run of that check alone, and every
+ * check treats absent data as `not_applicable` *with a reason* — which is what
+ * a reader would then see, rather than a confident tick.
+ */
+export type SnapshotFacet = "colorStyles" | "theme";
 
 export interface CatalogueItem {
+  /** Checklist row number — the row's identity, and its printed order. */
   n: number;
   title: string;
-  /** 1 = Tier 1 automated; 2 = Tier 2 (automated once it carries a checkId, otherwise still planned); null = manual-only. */
+  /** 1 = Tier 1 automated; 2 = Tier 2 automated; null = manual-only. */
   tier: 1 | 2 | null;
-  /** Present when an engine check backs this item. */
+  /**
+   * The engine check backing this item. Present together with `run`, or absent
+   * together with it: the id is the agent-facing name of exactly this row's check.
+   */
   checkId?: CheckId;
+  /** The check itself. Absent means the item is manual. */
+  run?: CheckFn;
+  /** Snapshot facets `run` reads; see `SnapshotFacet`. */
+  needs?: readonly SnapshotFacet[];
   /** One-line plain-language description of what the item checks. */
   blurb: string;
 }
 
-/** All 19 PRD checklist items, in PRD order. */
+/** Every checklist item, in printed order. The count is `.length`, never a literal. */
 export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
   {
     n: 1,
@@ -43,6 +91,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Components Naming Dev Alignment",
     tier: 1,
     checkId: "set-name-casing",
+    run: checkSetNameCasing,
     blurb: "Set name matches the dev component name, in the agreed casing.",
   },
   {
@@ -50,6 +99,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Check All the Props",
     tier: 1,
     checkId: "variant-property-bindings",
+    run: checkVariantPropertyBindings,
     // The automated core is *wiring*, not appearance: Figma defines a boolean
     // property on the set but binds it per variant, so a toggle can appear in
     // the panel for a variant that has no binding and does nothing. That is
@@ -66,6 +116,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Prop Names Aligned to Catalogue",
     tier: 1,
     checkId: "prop-order",
+    run: checkPropOrder,
     blurb: "Property names and their order follow the shared catalogue.",
   },
   {
@@ -73,6 +124,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Tokens (Styles & Variables)",
     tier: 1,
     checkId: "tokens",
+    run: checkTokens,
     blurb: "Colour, spacing and type come from variables, not raw values.",
   },
   {
@@ -86,6 +138,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Responsiveness (+ Min-Max)",
     tier: 2,
     checkId: "responsive-bounds",
+    run: checkResponsiveBounds,
     // Only the size-bounds half is automated; the check emits a
     // `manualRemainder` so the row keeps its tickbox for the resize test.
     blurb:
@@ -96,6 +149,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Icons/Illustrations/Logos → Foundations",
     tier: 2,
     checkId: "asset-provenance",
+    run: checkAssetProvenance,
     blurb: "Nested icons, illustrations and logos come from the DS library.",
   },
   {
@@ -103,6 +157,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Layer Naming + Structure",
     tier: 1,
     checkId: "layer-naming-structure",
+    run: checkLayerNamingStructure,
     blurb: "Layers follow the naming pattern - no default or stray names.",
   },
   {
@@ -110,6 +165,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "4px Grid Alignment",
     tier: 1,
     checkId: "grid-4px",
+    run: checkGrid4px,
     blurb: "Sizes and spacing land on the 4px grid.",
   },
   {
@@ -117,6 +173,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Interaction (Hover Only)",
     tier: 1,
     checkId: "interaction-hover-only",
+    run: checkInteractionHoverOnly,
     blurb: "Prototype interactions are limited to hover triggers.",
   },
   {
@@ -124,6 +181,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Description (AKA + Misprint)",
     tier: 1,
     checkId: "description",
+    run: checkDescription,
     blurb: "Description carries the also-known-as line and misprint marker.",
   },
   {
@@ -131,6 +189,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "No Conflicts",
     tier: 1,
     checkId: "no-conflicts",
+    run: checkNoConflicts,
     blurb: "No two variants share the same property combination.",
   },
   {
@@ -138,6 +197,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Nested Instance Depth",
     tier: 2,
     checkId: "nesting-depth",
+    run: checkNestingDepth,
     blurb:
       "Exposed nested instances stay shallow, so the configuration panel stays readable.",
   },
@@ -146,6 +206,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Preferred (Instance Swapping)",
     tier: 1,
     checkId: "preferred-values",
+    run: checkPreferredValues,
     blurb: "Instance-swap properties offer a curated list, not everything.",
   },
   {
@@ -153,6 +214,8 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "High Contrast (A11y)",
     tier: 2,
     checkId: "high-contrast",
+    run: checkHighContrast,
+    needs: ["colorStyles", "theme"],
     blurb:
       "Text meets WCAG AA contrast against the surface behind it, in every theme mode.",
   },
@@ -167,6 +230,8 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Themes (per-mode resolution)",
     tier: 2,
     checkId: "themes",
+    run: checkThemes,
+    needs: ["theme"],
     // States the item, which is wider than the check: design asked that the
     // component work and *look good* in every mode, while `themes` establishes
     // only that every bound variable resolves. The check emits a
@@ -185,6 +250,7 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     title: "Documentation",
     tier: 2,
     checkId: "documentation",
+    run: checkDocumentation,
     // This blurb claims something about the documentation's *content*, which
     // the check cannot see - it reads Figma's documentation-link field. The
     // check emits a `manualRemainder` asking for the content review, but only
@@ -192,3 +258,44 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     blurb: "Usage guidance, do/don't examples and properties are documented.",
   },
 ];
+
+/** Rows an engine check backs, narrowed so `checkId`/`run` are no longer optional. */
+export type AutomatedItem = CatalogueItem &
+  Required<Pick<CatalogueItem, "checkId" | "run">>;
+
+/** The automated rows, in checklist order. */
+export const AUTOMATED_ITEMS: readonly AutomatedItem[] =
+  CHECKLIST_CATALOGUE.filter(
+    (item): item is AutomatedItem =>
+      item.checkId !== undefined && item.run !== undefined,
+  );
+
+/**
+ * Every check id, in checklist order - the default run order, and the list
+ * interpolated into the MCP schema and asserted against `/tidy-qa` (#133) so an
+ * added or dropped check cannot leave an agent told something untrue.
+ */
+export const CHECK_IDS: readonly CheckId[] = AUTOMATED_ITEMS.map(
+  (item) => item.checkId,
+);
+
+/** The row backing `id`, or undefined when no row claims it. */
+export function itemForCheck(id: string): AutomatedItem | undefined {
+  return AUTOMATED_ITEMS.find((item) => item.checkId === id);
+}
+
+/**
+ * The snapshot facets a run of `requested` needs collecting (an absent filter
+ * means the whole catalogue). Pure, so the union is testable without Figma -
+ * the enrichment it drives is not (see `prepareSnapshot` in collector.ts).
+ */
+export function requiredFacets(
+  requested?: readonly string[],
+): Set<SnapshotFacet> {
+  const facets = new Set<SnapshotFacet>();
+  for (const item of AUTOMATED_ITEMS) {
+    if (requested !== undefined && !requested.includes(item.checkId)) continue;
+    for (const facet of item.needs ?? []) facets.add(facet);
+  }
+  return facets;
+}
