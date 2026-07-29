@@ -14,7 +14,13 @@ import { prepareSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
 import { renderChecklist } from "./render/renderChecklist";
+import type { ThemeSnapshot } from "./snapshot";
 import type { CheckId, QaRunResult } from "./types";
+import { planModeShowcase } from "./render/mode-showcase";
+import {
+  buildModeShowcase,
+  placeModeShowcase,
+} from "./render/renderModeShowcase";
 
 interface QaRunParams {
   /** Figma node id of the target (instance / component / component set). */
@@ -23,6 +29,14 @@ interface QaRunParams {
   name?: string;
   /** Optional filter; defaults to all catalogue checks. */
   checks?: string[];
+  /**
+   * Render the component once per theme mode and return it as an image, so an
+   * agent with no designer in the loop can actually judge row 17's visual half
+   * rather than leaving a blank tick (#121 step 2).
+   *
+   * Off by default: it costs a render per mode, and most runs do not need it.
+   */
+  includeModeImages?: boolean;
 }
 
 type QaSubject = ComponentSetNode | ComponentNode;
@@ -159,6 +173,8 @@ async function runQa(params: QaRunParams): Promise<{
   subject: QaSubject;
   origin: SceneNode | null;
   result: QaRunResult;
+  /** The resolved theme, when the run probed one - what #121's showcase needs. */
+  theme: ThemeSnapshot | undefined;
 }> {
   if (params.checks) {
     const unknown = unknownCheckIds(params.checks);
@@ -192,7 +208,42 @@ async function runQa(params: QaRunParams): Promise<{
       generatedFor,
     }),
   };
-  return { subject, origin, result };
+  return { subject, origin, result, theme: snapshot.theme };
+}
+
+/**
+ * Render the per-mode showcase, export it, and remove it again (#121 step 2).
+ *
+ * Transient, deliberately. `tidy_qa_run` is a Query, and the block it draws for
+ * `tidy_qa_build_checklist` is canvas evidence a designer asked for; an agent
+ * asking to *see* the modes has not asked to have its file drawn on. So this
+ * leaves nothing behind, on the error path too - the same rule as the theme
+ * probe, and for the same reason.
+ *
+ * Returns undefined rather than throwing when there is nothing to show: a set
+ * with one mode, or none, is a fact about the component, not a failure.
+ */
+async function renderModeImage(
+  subject: QaSubject,
+  theme: ThemeSnapshot | undefined,
+): Promise<string | undefined> {
+  const plan = planModeShowcase(theme);
+  if (!plan.show || !theme?.collectionId) return undefined;
+
+  const showcase = await buildModeShowcase(plan, subject, theme.collectionId);
+  if (!showcase) return undefined;
+  try {
+    // One image of every mode side by side, not one per mode: it is what "see
+    // the modes together" actually means, and it stays clear of the bridge's
+    // per-response image cap.
+    const bytes = await showcase.exportAsync({
+      format: "PNG",
+      constraint: { type: "SCALE", value: 2 },
+    });
+    return `data:image/png;base64,${figma.base64Encode(bytes)}`;
+  } finally {
+    showcase.remove();
+  }
 }
 
 registerOperation<QaRunParams, QaRunResult>(
@@ -205,7 +256,10 @@ registerOperation<QaRunParams, QaRunResult>(
     paramsExample: { name: "Button" },
   },
   async (params) => {
-    const { result } = await runQa(params);
+    const { subject, result, theme } = await runQa(params);
+    if (params.includeModeImages) {
+      result.modeImage = await renderModeImage(subject, theme);
+    }
     return result;
   },
 );
@@ -214,6 +268,12 @@ interface BuildChecklistResult {
   frameId: string;
   target: { id: string; name: string };
   counts: QaRunResult["checklist"]["counts"];
+  /**
+   * The per-mode showcase frame drawn beside the checklist (#121), when the set
+   * has a theme axis worth showing. Absent means there was nothing to show, not
+   * that anything failed.
+   */
+  modeShowcaseId?: string;
 }
 
 // No `name`/glob field: per CONTEXT.md, Execute Operations take explicit ids
@@ -246,7 +306,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     paramsExample: {},
   },
   async (params) => {
-    const { subject, origin, result } = await runQa(params);
+    const { subject, origin, result, theme } = await runQa(params);
     let anchor: SceneNode = origin ?? subject;
     if (params.anchorNodeId) {
       const anchorNode = await figma.getNodeByIdAsync(params.anchorNodeId);
@@ -270,10 +330,34 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       params.anchorNodeId !== undefined ||
       (origin !== null && origin.id !== result.target.id);
     const frame = await renderChecklist(result.checklist, anchor, relocate);
+
+    // The per-mode block, beside the checklist (#121 step 1). Costs no tokens and
+    // no agent: it just puts every mode on one canvas, which nothing in a Figma
+    // file otherwise does, so the row-17 tick becomes a glance instead of
+    // switching modes and remembering what the other one looked like.
+    //
+    // Placed after the checklist, and anchored to it, so the two move together.
+    // Unlike the theme probe's frame this one deliberately survives - canvas
+    // evidence is the whole point - which is why it is labelled and stamped.
+    const plan = planModeShowcase(theme);
+    let modeShowcaseId: string | undefined;
+    if (plan.show && theme?.collectionId) {
+      const showcase = await buildModeShowcase(
+        plan,
+        subject,
+        theme.collectionId,
+      );
+      if (showcase) {
+        placeModeShowcase(showcase, frame, result.target.id);
+        modeShowcaseId = showcase.id;
+      }
+    }
+
     return {
       frameId: frame.id,
       target: result.target,
       counts: result.checklist.counts,
+      ...(modeShowcaseId ? { modeShowcaseId } : {}),
     };
   },
 );
