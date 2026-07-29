@@ -1,13 +1,16 @@
 name: CI
 
-# Node versions come from .nvmrc, never inlined here, so "what the maintainer
-# develops on" is stated once. Two jobs additionally run a matrix over the
-# supported floor from package.json engines (20) as well as .nvmrc's version:
-# the unit tests and the bundled MCP smoketest, because those are where a
-# runtime behaviour difference actually shows. That is not hypothetical - V8
-# changed JSON.stringify's nesting limit between Node 21 and 22, and a test
-# passing on the maintainer's 24 failed on CI's 20 (see #116). The bundled server
-# is also the artifact designers run with whatever Node they happen to have.
+# No Node version is written in this file. Single-version jobs read .nvmrc
+# directly; the two matrix jobs get their versions from the `versions` job below,
+# which derives them from .nvmrc and package.json `engines`. Bump either of those
+# and CI follows, with nothing here to leave stale.
+#
+# Why a matrix at all, rather than just tracking .nvmrc: running only the newest
+# Node is what would hide a runtime difference. V8 changed JSON.stringify's
+# nesting limit between Node 21 and 22, and a #116 test that passed on the
+# maintainer's 24 failed on CI's 20. The unit tests and the bundled MCP smoketest
+# are where such a difference shows, and the bundled server is the artifact
+# designers run with whatever Node they happen to have.
 
 on:
   push:
@@ -17,6 +20,34 @@ on:
   workflow_call: # Allow this workflow to be called by other workflows
 
 jobs:
+  # The one place versions are computed. `floor` comes from package.json engines,
+  # `dev` from .nvmrc; each is reduced to its major (so a range like ">=20" and a
+  # pinned "24.10.0" both work). `unique` collapses them to a single leg when they
+  # agree, so setting engines to match .nvmrc does the sane thing rather than
+  # running the same version twice.
+  versions:
+    name: Resolve Node versions
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Resolve from .nvmrc and package.json engines
+        id: resolve
+        run: |
+          set -euo pipefail
+          floor="$(jq -r '.engines.node' package.json | grep -oE '[0-9]+' | head -1)"
+          dev="$(grep -oE '[0-9]+' .nvmrc | head -1)"
+          if [ -z "$floor" ] || [ -z "$dev" ]; then
+            echo "could not resolve Node versions (floor='$floor' dev='$dev')" >&2
+            exit 1
+          fi
+          matrix="$(jq -cn --arg f "$floor" --arg d "$dev" '[$f, $d] | unique')"
+          echo "resolved Node matrix: $matrix"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   lint-and-format:
     name: Lint & Format Check
     runs-on: ubuntu-latest
@@ -30,6 +61,8 @@ jobs:
           node-version-file: ".nvmrc"
           cache: "npm"
 
+      # Root install also installs mcp-server's tree, via postinstall - several
+      # scripts here (typecheck, mcp:smoketest, build:plugin) need both.
       - name: Install dependencies
         run: npm ci
 
@@ -45,10 +78,11 @@ jobs:
   unit-tests:
     name: Unit Tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    needs: versions
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "24"]
+        node: ${{ fromJSON(needs.versions.outputs.matrix) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,21 +115,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # `npm run typecheck` also checks mcp-server, whose sources import ws, zod
-      # and the MCP SDK from its own node_modules.
-      - name: Install MCP server dependencies
-        run: npm ci --prefix mcp-server
-
       - name: Run TypeScript compiler
         run: npm run typecheck
 
   mcp-smoketest:
     name: MCP Server Smoketest (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    needs: versions
     strategy:
       fail-fast: false
       matrix:
-        node: ["20", "24"]
+        node: ${{ fromJSON(needs.versions.outputs.matrix) }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -108,9 +138,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install MCP server dependencies
-        run: npm ci --prefix mcp-server
 
       - name: Bundle and smoketest the MCP server
         run: npm run mcp:smoketest
@@ -136,9 +163,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install MCP server dependencies
-        run: npm ci --prefix mcp-server
-
       - name: Smoketest the MCP server from raw source
         run: npm run mcp:smoketest:src
 
@@ -157,9 +181,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install MCP server dependencies
-        run: npm ci --prefix mcp-server
 
       - name: Build plugin
         run: npm run build

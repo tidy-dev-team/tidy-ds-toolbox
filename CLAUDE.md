@@ -24,7 +24,10 @@ npm run release:push   # Push commits and tags to remote
 ```
 
 Node version: `.nvmrc` is the single source of truth (`package.json` `engines` records the supported floor).
-CI reads `.nvmrc` for every job and additionally runs the unit tests and the bundled MCP smoketest against the floor, because runtime behaviour genuinely differs between majors - V8 changed `JSON.stringify`'s nesting limit between Node 21 and 22, and a test that passed on 24 failed on 20.
+Single-version CI jobs read `.nvmrc`; the unit tests and the bundled MCP smoketest run a matrix that CI derives from `.nvmrc` and `engines` at run time, so no Node version is written into the workflow.
+The floor is covered as well as the current version because runtime behaviour genuinely differs between majors - V8 changed `JSON.stringify`'s nesting limit between Node 21 and 22, and a test that passed on 24 failed on 20.
+
+`npm ci` at the root also installs `mcp-server/node_modules` (via `postinstall`), which `npm run typecheck`, `npm run mcp:smoketest` and `npm run build:plugin` all need - the repo is two dependency trees, not an npm workspace.
 
 Tests run under Vitest (`*.test.ts`, co-located with sources). Coverage is
 partial — pure logic (analytics capture, operations) is tested; UI and Figma-API
