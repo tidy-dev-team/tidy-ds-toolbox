@@ -8,10 +8,13 @@
  */
 
 import { markProbe, unmarkProbe } from "../theme-probe";
+import type { ThemeSnapshot } from "../snapshot";
 import type { ModeShowcasePlan } from "./mode-showcase";
+import { planStageSurface, surfaceCaption } from "./stage-surface";
 import {
   autoLayout,
   card,
+  fill,
   FONT_BOLD,
   FONT_REGULAR,
   INK,
@@ -56,6 +59,8 @@ export async function buildModeShowcase(
   plan: Extract<ModeShowcasePlan, { show: true }>,
   subject: ShowcaseSubject,
   collectionId: string,
+  /** Resolved per-mode table, read for the surface to paint behind each instance. */
+  theme: ThemeSnapshot,
 ): Promise<FrameNode | null> {
   const main = instantiable(subject);
   if (!main) return null;
@@ -73,7 +78,7 @@ export async function buildModeShowcase(
   // one. #131 has been round this loop: the guarantee has to be structural.
   const created: SceneNode[] = [];
   try {
-    return buildInto(plan, subject, main, collection, (node) => {
+    return buildInto(plan, subject, main, collection, theme, (node) => {
       created.push(node);
       return node;
     });
@@ -95,8 +100,10 @@ function buildInto(
   subject: ShowcaseSubject,
   main: ComponentNode,
   collection: VariableCollection,
+  theme: ThemeSnapshot,
   track: Track,
 ): FrameNode {
+  const surface = planStageSurface(theme);
   const root = track(
     autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16),
   );
@@ -136,9 +143,14 @@ function buildInto(
     // mode at once - which is the whole ask, since nothing in a file otherwise
     // ever shows two modes together.
     const stage = track(
-      autoLayout(`${mode.name} - stage`, "VERTICAL", 12, 12, 0),
+      autoLayout(`${mode.name} - stage`, "VERTICAL", 16, 16, 0),
     );
     column.appendChild(stage);
+    // The surface this mode implies, so an element that vanishes into it is
+    // visible as vanishing (#141). Transparent stages showed a dark-mode
+    // component on white, which answered a different question.
+    fill(stage, surface.byMode[mode.modeId]);
+    stage.cornerRadius = 6;
     stage.setExplicitVariableModeForCollection(collection, mode.modeId);
     stage.appendChild(track(main.createInstance()));
   }
@@ -148,8 +160,7 @@ function buildInto(
   // block is for, and what it cannot show.
   const note = track(
     text(
-      "Aid only: this row's status comes from the themes check, and the tick is still yours. " +
-        "Stages are transparent, so a component that relies on the page behind it reads thinner here than in place.",
+      `Aid only: this row's status comes from the themes check, and the tick is still yours. ${surfaceCaption(surface)}`,
       10,
       FONT_REGULAR,
       MUTED,
