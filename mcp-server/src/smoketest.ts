@@ -15,7 +15,7 @@
 // exercising zod end-to-end.
 //
 // It also round-trips one real operation through the Bridge against a **plugin
-// sim** — a bare WebSocket client that answers a canned result. That covers the
+// sim** - a bare WebSocket client that answers a canned result. That covers the
 // whole path an agent actually travels (MCP stdio -> catalogue -> bridge
 // envelope -> content blocks) with only Figma itself replaced, which is what
 // makes it able to prove #116: that an image comes back as a *viewable* image

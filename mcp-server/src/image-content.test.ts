@@ -49,6 +49,18 @@ describe("liftImages", () => {
     expect(result).toEqual({ a: svg, b: notBase64 });
   });
 
+  // An earlier depth cap returned anything nested deeper untouched, which
+  // silently recreated the very bug this module exists to fix. Nesting depth is
+  // not something a result should have to stay under to be seen.
+  it("finds an image however deeply it is nested", () => {
+    let value: unknown = { image: PNG_URL };
+    for (let i = 0; i < 60; i++) value = { inner: value };
+
+    const { result, images } = liftImages(value);
+    expect(images).toEqual([{ data: PNG, mimeType: "image/png" }]);
+    expect(JSON.stringify(result)).not.toContain(PNG);
+  });
+
   it("caps the images it lifts and says so instead of dropping them", () => {
     const many = Array.from({ length: 10 }, () => PNG_URL);
     const { result, images } = liftImages(many);
