@@ -30,6 +30,28 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+  # The suite existed long before this job did, so 600+ tests gated nothing and a
+  # broken one could merge unnoticed. Added while fixing #116, whose own
+  # regression test lives here.
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vitest
+        run: npm test
+
   typecheck:
     name: Type Safety Check
     runs-on: ubuntu-latest

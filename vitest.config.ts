@@ -12,6 +12,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // mcp-server is a separate package but its pure modules are testable from
+    // here; without this line nothing under it could have a unit test at all.
+    include: ["src/**/*.test.ts", "mcp-server/src/**/*.test.ts"],
   },
 });
