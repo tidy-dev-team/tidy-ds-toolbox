@@ -1,5 +1,14 @@
 name: CI
 
+# Node versions come from .nvmrc, never inlined here, so "what the maintainer
+# develops on" is stated once. Two jobs additionally run a matrix over the
+# supported floor from package.json engines (20) as well as .nvmrc's version:
+# the unit tests and the bundled MCP smoketest, because those are where a
+# runtime behaviour difference actually shows. That is not hypothetical - V8
+# changed JSON.stringify's nesting limit between Node 21 and 22, and a test
+# passing on the maintainer's 24 failed on CI's 20 (see #116). The bundled server
+# is also the artifact designers run with whatever Node they happen to have.
+
 on:
   push:
     branches: [main]
@@ -18,7 +27,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
@@ -34,8 +43,12 @@ jobs:
   # broken one could merge unnoticed. Added while fixing #116, whose own
   # regression test lives here.
   unit-tests:
-    name: Unit Tests
+    name: Unit Tests (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "24"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -43,7 +56,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
           cache: "npm"
 
       - name: Install dependencies
@@ -62,18 +75,27 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
+      # `npm run typecheck` also checks mcp-server, whose sources import ws, zod
+      # and the MCP SDK from its own node_modules.
+      - name: Install MCP server dependencies
+        run: npm ci --prefix mcp-server
+
       - name: Run TypeScript compiler
         run: npm run typecheck
 
   mcp-smoketest:
-    name: MCP Server Smoketest
+    name: MCP Server Smoketest (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "24"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,7 +103,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node }}
           cache: "npm"
 
       - name: Install dependencies
@@ -92,9 +114,6 @@ jobs:
 
       - name: Bundle and smoketest the MCP server
         run: npm run mcp:smoketest
-
-      - name: Assemble and structurally check the Claude Code plugin
-        run: npm run build:plugin
 
   mcp-smoketest-src:
     name: MCP Server Smoketest (raw source)
@@ -111,7 +130,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
@@ -133,14 +152,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: ".nvmrc"
           cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Install MCP server dependencies
+        run: npm ci --prefix mcp-server
+
       - name: Build plugin
         run: npm run build
+
+      - name: Assemble and structurally check the Claude Code plugin
+        run: npm run build:plugin
 
       - name: Validate manifest.json
         run: |
