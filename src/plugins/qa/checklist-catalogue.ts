@@ -1,9 +1,9 @@
 /**
- * The DS Component QA Checklist: **one table, one row per checklist item** —
+ * The DS Component QA Checklist: **one table, one row per checklist item** -
  * the single declaration of what QA covers (issues #91, #132).
  *
  * A row carries everything about its item: its number (which is its identity),
- * the printed title and blurb, and — when the item is automated — the check
+ * the printed title and blurb, and - when the item is automated - the check
  * function that backs it plus the snapshot facets that check needs. A row with
  * no `run` is manual, and that absence is the whole definition of manual.
  *
@@ -25,7 +25,7 @@
  * hadn't read the PRD.
  */
 
-import type { CheckFn, CheckId } from "./types";
+import type { CheckFn } from "./types";
 import { checkSetNameCasing } from "./checks/set-name-casing";
 import { checkPropOrder } from "./checks/prop-order";
 import { checkInteractionHoverOnly } from "./checks/interaction-hover-only";
@@ -45,19 +45,24 @@ import { checkVariantPropertyBindings } from "./checks/variant-property-bindings
 
 /**
  * A part of the snapshot that is *not* collected unconditionally, because it is
- * expensive and — in the probe's case — the one thing in a QA run that touches
+ * expensive and - in the probe's case - the one thing in a QA run that touches
  * the document (the ADR-0001 carve-out).
  *
  * A check that reads one must declare it in `needs`, so the requirement lives
  * with the check that has it. Forgetting to declare one is not a wrong green:
  * the facet is simply never collected for a run of that check alone, and every
- * check treats absent data as `not_applicable` *with a reason* — which is what
+ * check treats absent data as `not_applicable` *with a reason* - which is what
  * a reader would then see, rather than a confident tick.
  */
 export type SnapshotFacet = "colorStyles" | "theme";
 
-export interface CatalogueItem {
-  /** Checklist row number — the row's identity, and its printed order. */
+/**
+ * The shape each row must satisfy. Deliberately types `checkId` as a plain
+ * string: `CheckId` is derived *from* the literal below, so the shape that
+ * validates the literal cannot be the thing that already knows the ids.
+ */
+interface CatalogueRowShape {
+  /** Checklist row number - the row's identity, and its printed order. */
   n: number;
   title: string;
   /** 1 = Tier 1 automated; 2 = Tier 2 automated; null = manual-only. */
@@ -66,7 +71,7 @@ export interface CatalogueItem {
    * The engine check backing this item. Present together with `run`, or absent
    * together with it: the id is the agent-facing name of exactly this row's check.
    */
-  checkId?: CheckId;
+  checkId?: string;
   /** The check itself. Absent means the item is manual. */
   run?: CheckFn;
   /** Snapshot facets `run` reads; see `SnapshotFacet`. */
@@ -75,8 +80,14 @@ export interface CatalogueItem {
   blurb: string;
 }
 
-/** Every checklist item, in printed order. The count is `.length`, never a literal. */
-export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
+/**
+ * The rows themselves. `as const` so the literal survives for `CheckId` to be
+ * read off it; `satisfies` so it is still checked against the row shape. Kept
+ * internal because the literal's type is a union of 19 distinct row shapes, on
+ * which `row.checkId` cannot be spoken of at all - consumers want the widened
+ * `CHECKLIST_CATALOGUE` below.
+ */
+const ROWS = [
   {
     n: 1,
     title: "Storybook Alignment + Note",
@@ -257,7 +268,26 @@ export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = [
     // when a link exists; with no documentation there is nothing to review.
     blurb: "Usage guidance, do/don't examples and properties are documented.",
   },
-];
+] as const satisfies readonly CatalogueRowShape[];
+
+/**
+ * The stable, agent-facing id of every automated check - read off the table
+ * rather than restated, so the compiler (not a test, and not review) is what
+ * guarantees the id vocabulary and the checklist cannot disagree. An id no row
+ * claims cannot be spelled anywhere.
+ */
+export type CheckId = Extract<
+  (typeof ROWS)[number],
+  { checkId: string }
+>["checkId"];
+
+/** One checklist row, widened so the optional keys can be read on any row. */
+export interface CatalogueItem extends Omit<CatalogueRowShape, "checkId"> {
+  checkId?: CheckId;
+}
+
+/** Every checklist item, in printed order. The count is `.length`, never a literal. */
+export const CHECKLIST_CATALOGUE: readonly CatalogueItem[] = ROWS;
 
 /** Rows an engine check backs, narrowed so `checkId`/`run` are no longer optional. */
 export type AutomatedItem = CatalogueItem &

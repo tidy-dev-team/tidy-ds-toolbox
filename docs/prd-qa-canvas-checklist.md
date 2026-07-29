@@ -215,14 +215,8 @@ interface ChecklistReport {
 
 ## 8. Testing
 
-- **Pure, TDD-first:** the catalogue and the report model
-  (`checklist-catalogue.test.ts`, `report.test.ts`) — assert the catalogue's
-  *invariants* rather than today's headcount (rows numbered `1..length`, each
-  check id claimed by exactly one row with a runnable function, titles and blurbs
-  unique, one report row per catalogue row, buckets summing to the catalogue
-  length), plus one deliberate list snapshot of the shipped rows so a scope change
-  shows up in a diff. Status resolution is covered the same way (automated
-  pass/warn/fail, manual, not_implemented, not_run when filtered).
+- **Pure, TDD-first:** the catalogue and the report model (`checklist-catalogue.test.ts`, `report.test.ts`) assert the catalogue's *invariants* rather than today's headcount (rows numbered `1..length`, each check id claimed by exactly one row with a runnable function, titles and blurbs unique, one report row per catalogue row, buckets summing to the catalogue length), plus one deliberate list snapshot of the shipped rows so a scope change shows up in a diff.
+  Status resolution is covered the same way (automated pass/warn/fail, manual, not_implemented, not_run when filtered).
 - **Renderer / operation:** Figma-touching, verified manually in-file (consistent
   with the untested collector/operation boundary today). Keep rendering logic thin
   and driven by the report model so most correctness lives in the pure layer.

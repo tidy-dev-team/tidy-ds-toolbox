@@ -3,7 +3,7 @@
  *
  * Each check is a pure function `(snapshot) → CheckResult` in its own file under
  * checks/. Which checks exist, and which checklist row each backs, is declared
- * once in `../checklist-catalogue.ts` — this module only *reads* that table, so
+ * once in `../checklist-catalogue.ts` - this module only *reads* that table, so
  * implementing a check never touches the collector, the operation, or this file.
  */
 
@@ -43,7 +43,7 @@ export function unknownCheckIds(requested: string[]): string[] {
 
 /**
  * Run the requested checks (default: the whole catalogue, in checklist order)
- * against one snapshot. Pure — no Figma API, fully fixture-testable.
+ * against one snapshot. Pure - no Figma API, fully fixture-testable.
  *
  * Findings are deduped here rather than inside each check (#118). Variants share
  * their layers, so one mistake in a shared layer is a separate node in every
