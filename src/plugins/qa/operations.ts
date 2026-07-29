@@ -249,7 +249,19 @@ async function showcaseFor(
   });
   if (!plan.show) return { skipped: plan.reason };
 
-  const frame = await buildModeShowcase(plan, subject, plan.collectionId);
+  // Every collection the set binds, so the showcase can pin the one that actually
+  // carries light/dark polarity as well as the theme collection itself.
+  const boundCollectionIds = [
+    ...new Set(
+      Object.values(run.theme?.variables ?? {}).map((v) => v.collectionId),
+    ),
+  ];
+  const frame = await buildModeShowcase(
+    plan,
+    subject,
+    plan.collectionId,
+    boundCollectionIds,
+  );
   return frame
     ? { frame }
     : { skipped: "the set has no default variant to render" };

@@ -10,15 +10,16 @@
 import { markProbe, unmarkProbe } from "../theme-probe";
 import type { ModeShowcasePlan } from "./mode-showcase";
 import {
-  needsOutline,
-  planStageSurfaces,
-  surfaceCaption,
-} from "./stage-surface";
+  isDarkModeName,
+  neutralSurfaceFill,
+  polarityModeId,
+  resolveSurfaceVariable,
+} from "../../../shared/theme-surface";
+import { surfaceCaption } from "./stage-surface";
 import {
   autoLayout,
   BORDER,
   card,
-  fill,
   FONT_BOLD,
   FONT_REGULAR,
   INK,
@@ -64,6 +65,8 @@ export async function buildModeShowcase(
   plan: Extract<ModeShowcasePlan, { show: true }>,
   subject: ShowcaseSubject,
   collectionId: string,
+  /** Ids of every collection the set binds, from the resolved theme table. */
+  boundCollectionIds: readonly string[],
 ): Promise<FrameNode | null> {
   const main = instantiable(subject);
   if (!main) return null;
@@ -71,6 +74,29 @@ export async function buildModeShowcase(
   const collection =
     await figma.variables.getVariableCollectionByIdAsync(collectionId);
   if (!collection) return null;
+
+  // Every bound collection, not only the theme one. A brand or vertical
+  // collection can carry mode names that read as themes - "Industrial Dark" -
+  // while the tokens that actually make a surface dark live in a *separate*
+  // light/dark collection. Pinning only the widest collection left this component
+  // looking identical in all four of its modes, which is what tidy-doc's Mode
+  // Section had already solved.
+  const others = (
+    await Promise.all(
+      boundCollectionIds
+        .filter((id) => id !== collectionId)
+        .map((id) => figma.variables.getVariableCollectionByIdAsync(id)),
+    )
+  ).filter((c): c is VariableCollection => c !== null);
+
+  // Searched across the collections themselves, so it can see the page surface -
+  // a token no component binds, because no component sits on one.
+  const surfaceVariable = await resolveSurfaceVariable([collection, ...others]);
+  const surfaceCollection = surfaceVariable
+    ? [collection, ...others].find(
+        (c) => c.id === surfaceVariable.variableCollectionId,
+      )
+    : undefined;
 
   await loadRenderFonts();
 
@@ -81,10 +107,16 @@ export async function buildModeShowcase(
   // one. #131 has been round this loop: the guarantee has to be structural.
   const created: SceneNode[] = [];
   try {
-    return buildInto(plan, subject, main, collection, (node) => {
-      created.push(node);
-      return node;
-    });
+    return buildInto(
+      plan,
+      subject,
+      main,
+      { collection, others, surfaceVariable, surfaceCollection },
+      (node) => {
+        created.push(node);
+        return node;
+      },
+    );
   } catch (error) {
     // Last created first, so a parent never takes its children with it and leaves
     // the loop removing an already-removed node.
@@ -102,10 +134,15 @@ function buildInto(
   plan: Extract<ModeShowcasePlan, { show: true }>,
   subject: ShowcaseSubject,
   main: ComponentNode,
-  collection: VariableCollection,
+  theme: {
+    collection: VariableCollection;
+    others: VariableCollection[];
+    surfaceVariable: Variable | null;
+    surfaceCollection: VariableCollection | undefined;
+  },
   track: Track,
 ): FrameNode {
-  const surfaces = planStageSurfaces(plan.modes);
+  const { collection, others, surfaceVariable, surfaceCollection } = theme;
   const root = track(
     autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16),
   );
@@ -148,15 +185,47 @@ function buildInto(
       autoLayout(`${mode.name} - stage`, "VERTICAL", 16, 16, 0),
     );
     column.appendChild(stage);
-    // A backdrop the mode's name implies, so an element that would vanish is
-    // visible as vanishing (#141) and a light mode does not read as dark.
-    const surface = surfaces.byMode[mode.modeId];
-    fill(stage, surface);
     stage.cornerRadius = 6;
-    // A white backdrop has no edge against the white card, so that column would
-    // read as having no stage while its neighbour clearly does.
-    if (needsOutline(surface)) {
-      stroke(stage, BORDER);
+
+    // The theme mode itself.
+    stage.setExplicitVariableModeForCollection(collection, mode.modeId);
+
+    // Then the polarity of every *other* bound collection, matched to this mode's
+    // name. Without this the component's own colours resolve through a collection
+    // still sitting at its default mode, and every column renders light.
+    const wantDark = isDarkModeName(mode.name);
+    for (const other of others) {
+      const otherMode = polarityModeId(other, wantDark);
+      if (otherMode) {
+        stage.setExplicitVariableModeForCollection(other, otherMode);
+      }
+    }
+
+    // The backdrop: bound to the DS surface token so Figma resolves it against
+    // the modes just pinned, which is what makes it the theme's real surface
+    // rather than a guess from the mode's name (#141).
+    if (surfaceVariable) {
+      if (surfaceCollection && surfaceCollection.id !== collection.id) {
+        const surfaceMode = polarityModeId(surfaceCollection, wantDark);
+        if (surfaceMode) {
+          stage.setExplicitVariableModeForCollection(
+            surfaceCollection,
+            surfaceMode,
+          );
+        }
+      }
+      stage.fills = [
+        figma.variables.setBoundVariableForPaint(
+          { type: "SOLID", color: { r: 0, g: 0, b: 0 } },
+          "color",
+          surfaceVariable,
+        ),
+      ];
+    } else {
+      stage.fills = [neutralSurfaceFill(mode.name)];
+      // A pale neutral has no edge against the white card, so that column would
+      // read as having no stage while its neighbour clearly does.
+      if (!wantDark) stroke(stage, BORDER);
     }
     stage.setExplicitVariableModeForCollection(collection, mode.modeId);
     stage.appendChild(track(main.createInstance()));
@@ -167,7 +236,7 @@ function buildInto(
   // block is for, and what it cannot show.
   const note = track(
     text(
-      `Aid only: this row's status comes from the themes check, and the tick is still yours. ${surfaceCaption(surfaces)}`,
+      `Aid only: this row's status comes from the themes check, and the tick is still yours. ${surfaceCaption(surfaceVariable?.name)}`,
       10,
       FONT_REGULAR,
       MUTED,
