@@ -16,7 +16,11 @@ Two checks depend on it: #17 themes (issue #102, which introduced the probe) and
 It is permitted under these conditions:
 
 - The probe node is created, used and removed inside a single Operation call, in a `finally` so the error path cleans up too.
-  Nothing survives the call.
+  Nothing survives a call that returns or throws.
+  Clarified 2026-07-29 (issue #131): a call that is *killed* is a third case, and `finally` cannot cover it.
+  Cancelling a plugin may tear the sandbox down rather than unwind it, which leaves the probe orphaned - carrying pinned modes - with no hook available to clean up on the way out.
+  That is unprotectable from inside the plugin, so the condition is met by the next run instead: `withProbeFrame` sweeps stray probes off the current page before creating its own.
+  The lifecycle is now one function with an injected env (`ProbeEnv`), so this condition is testable rather than resting on reading the code.
 - It is never a descendant of, and never modifies, the Operation's target.
 - The Operation's MCP summary states it, so an agent reading the catalogue is not misled about what "query" implies here.
 
