@@ -42,6 +42,90 @@ import type {
 
 const PROBE_NAME = "__tidy-qa-mode-probe";
 
+/** The bit of a probe node this lifecycle needs; `FrameNode` satisfies it. */
+interface Removable {
+  remove(): void;
+}
+
+/**
+ * The figma calls the probe lifecycle makes, injected so the lifecycle itself can
+ * be tested without Figma (#131).
+ *
+ * Split into `create` and `prepare` on purpose: creation must be the last thing
+ * before the `try`, while preparation belongs *inside* it, so a frame that fails
+ * half-way through being configured is still removed.
+ */
+export interface ProbeEnv<N extends Removable> {
+  /** Create the bare node. Nothing else - see above. */
+  create(): N;
+  /** Name, size, hide and parent the node. Called inside the try. */
+  prepare(probe: N): void;
+  /**
+   * Probe nodes an earlier run left behind. See the sweep in `withProbeFrame`
+   * for why they can exist at all.
+   */
+  strays(): readonly N[];
+}
+
+/**
+ * The real thing. Kept next to the lifecycle it feeds so the figma calls stay
+ * visible in the file `CLAUDE.md` names as figma-touching, rather than migrating
+ * into the pure layer behind an injected interface.
+ *
+ * `strays` looks only at the current page's direct children, which is where a
+ * probe is parented, so the sweep costs nothing like a document walk. It matches
+ * on the deliberately unlovely `PROBE_NAME`, and would remove a designer's own
+ * node if one happened to carry that name.
+ */
+const figmaProbeEnv: ProbeEnv<FrameNode> = {
+  create: () => figma.createFrame(),
+  prepare: (probe) => {
+    probe.name = PROBE_NAME;
+    probe.resize(1, 1);
+    probe.fills = [];
+    probe.visible = false;
+    figma.currentPage.appendChild(probe);
+  },
+  strays: () =>
+    figma.currentPage.children.filter(
+      (node): node is FrameNode =>
+        node.type === "FRAME" && node.name === PROBE_NAME,
+    ),
+};
+
+/**
+ * Run `use` against a temporary probe node, and remove that node afterwards on
+ * every path.
+ *
+ * The whole point is that the guarantee is structural rather than a convention:
+ * there is nowhere to put an early `return` between the creation and the `try`,
+ * because the creation and the `try` are this function. Previously both lived in
+ * `probeThemeResolution` with a comment asking the next reader not to separate
+ * them.
+ *
+ * **Why it also sweeps.** `finally` covers returning and throwing, not dying:
+ * cancelling a plugin may tear the sandbox down rather than unwind it, and then
+ * no teardown runs at all and the probe is orphaned. That case is unprotectable
+ * from inside the plugin - there is no hook to run on the way out - so the
+ * remedy is the next run cleaning up after the last one. Sweeping *before*
+ * creating also means a run never resolves against a page that still holds a
+ * stale probe carrying pinned modes.
+ */
+export async function withProbeFrame<N extends Removable, T>(
+  env: ProbeEnv<N>,
+  use: (probe: N) => Promise<T> | T,
+): Promise<T> {
+  for (const stray of env.strays()) stray.remove();
+
+  const probe = env.create();
+  try {
+    env.prepare(probe);
+    return await use(probe);
+  } finally {
+    probe.remove();
+  }
+}
+
 function isAlias(value: VariableValue): boolean {
   return (
     typeof value === "object" &&
@@ -154,14 +238,9 @@ export async function probeThemeResolution(
     };
   }
 
-  const probe = figma.createFrame();
-  try {
-    probe.name = PROBE_NAME;
-    probe.resize(1, 1);
-    probe.fills = [];
-    probe.visible = false;
-    figma.currentPage.appendChild(probe);
-
+  // Creation, preparation and removal all belong to withProbeFrame, which
+  // guarantees the node goes away on every path it can reach (#131).
+  await withProbeFrame(figmaProbeEnv, (probe) => {
     for (const mode of primary.modes) {
       probe.setExplicitVariableModeForCollection(themeCollection, mode.modeId);
 
@@ -174,11 +253,7 @@ export async function probeThemeResolution(
         );
       }
     }
-  } finally {
-    // Removed on the error path too - a probe left behind would be a stray
-    // node in the user's file, and worse, one carrying pinned modes.
-    probe.remove();
-  }
+  });
 
   return {
     collectionId: primary.id,
