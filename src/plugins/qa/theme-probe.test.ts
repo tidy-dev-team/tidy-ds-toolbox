@@ -13,13 +13,30 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { PROBE_NAME, isStrayProbe, withProbeFrame } from "./theme-probe";
+import {
+  isStrayProbe,
+  markProbe,
+  sweepStrayProbes,
+  withProbeFrame,
+  PROBE_NAME,
+} from "./theme-probe";
 
 interface FakeProbe {
   id: string;
   removed: number;
   prepared: number;
   remove(): void;
+}
+
+/** A node with real plugin-data storage, so marking and matching must agree. */
+function fakeNode(type = "FRAME", name = "Frame 1") {
+  const data = new Map<string, string>();
+  return {
+    type,
+    name,
+    getPluginData: (key: string) => data.get(key) ?? "",
+    setPluginData: (key: string, value: string) => void data.set(key, value),
+  };
 }
 
 /** A probe node that records what the lifecycle did to it. */
@@ -83,7 +100,10 @@ describe("withProbeFrame", () => {
     // Sweeping precedes creation, so a run never resolves against a page that
     // still holds a stale probe with pinned modes. Asserted on the order rather
     // than from inside the callback, which cannot tell the two apart.
-    expect(log).toEqual(["sweep", "create", "prepare", "use"]);
+    // Sweeping is not in here: it is a per-run concern, not a per-probe one, and
+    // burying it in the lifecycle meant every early return in
+    // probeThemeResolution skipped the cleanup entirely.
+    expect(log).toEqual(["create", "prepare", "use"]);
   });
 
   // The path that could not be tested before, and the reason #131 was filed: the
@@ -115,62 +135,61 @@ describe("withProbeFrame", () => {
 
     expect(probe.removed).toBe(1);
   });
+});
 
-  // The third case in the issue's acceptance criterion, which no `finally` can
-  // reach. If the sandbox is torn down rather than unwound - which is what
-  // cancelling a plugin may do - teardown never runs and the probe is orphaned.
-  // Nothing inside the plugin can prevent that, so the next run cleans up after
-  // the last one.
-  it("sweeps probes an earlier run left behind", async () => {
-    const orphans = [makeProbe("orphan-1"), makeProbe("orphan-2")];
-    const { probe, env } = fakeEnv(orphans);
-
-    await withProbeFrame(env, async () => null);
-
-    expect(orphans.map((o) => o.removed)).toEqual([1, 1]);
-    expect(probe.removed).toBe(1);
+describe("probe ownership", () => {
+  // Matching on the name alone was destructive: it could not tell our probe from
+  // a designer's frame that happened to carry the name, and would delete theirs.
+  // Plugin data can, because Figma namespaces it to this plugin - nobody else can
+  // write it, by accident or otherwise.
+  it("recognises a probe this plugin marked", () => {
+    const node = fakeNode();
+    markProbe(node);
+    expect(isStrayProbe(node)).toBe(true);
   });
 
-  // Cleaning up the last run's mess must never break this one. The sweep is a
-  // courtesy, and a stray that cannot be removed is exactly the state a killed
-  // sandbox leaves behind, so failing here would turn litter into a broken
-  // read-only query.
-  it("survives a stray it cannot remove, and sweeps the rest anyway", async () => {
+  it("leaves a designer's frame alone even when it carries the probe name", () => {
+    // The exact false positive the old name match would have deleted.
+    expect(isStrayProbe(fakeNode("FRAME", PROBE_NAME))).toBe(false);
+  });
+
+  it("ignores an unmarked frame", () => {
+    expect(isStrayProbe(fakeNode("FRAME", "Button"))).toBe(false);
+  });
+
+  it("ignores a marked node that is not a frame", () => {
+    const node = fakeNode("COMPONENT_SET");
+    markProbe(node);
+    expect(isStrayProbe(node)).toBe(false);
+  });
+});
+
+describe("sweepStrayProbes", () => {
+  // Cleanup for the case no `finally` can reach: if the sandbox is torn down
+  // rather than unwound - which is what cancelling a plugin may do - teardown
+  // never runs and the probe is orphaned. Nothing inside the plugin can prevent
+  // that, so the next run clears the last one's residue.
+  it("removes every stray it is given", () => {
+    const orphans = [makeProbe("orphan-1"), makeProbe("orphan-2")];
+    sweepStrayProbes({ strayProbes: () => orphans });
+    expect(orphans.map((o) => o.removed)).toEqual([1, 1]);
+  });
+
+  // Cleaning up the last run's mess must never break this one. A stray that
+  // cannot be removed is exactly the state a killed sandbox leaves behind, since
+  // Figma throws on member access of a removed node.
+  it("survives a stray it cannot remove, and sweeps the rest anyway", () => {
     const orphans = [
       makeProbe("unremovable", true),
       makeProbe("removable-after"),
     ];
-    const { probe, env } = fakeEnv(orphans);
-
-    const result = await withProbeFrame(env, async () => "ran anyway");
-
-    expect(result).toBe("ran anyway");
-    // The throwing stray did not abort the loop before the next one.
+    expect(() =>
+      sweepStrayProbes({ strayProbes: () => orphans }),
+    ).not.toThrow();
     expect(orphans[1].removed).toBe(1);
-    expect(probe.removed).toBe(1);
-  });
-});
-
-describe("isStrayProbe", () => {
-  // The predicate the real env filters on. Pure, so the one branch the injected
-  // env would otherwise hide is testable - including the documented hazard that
-  // it matches on a name a designer could in principle also use.
-  it("matches an invisible probe frame by name", () => {
-    expect(isStrayProbe({ type: "FRAME", name: PROBE_NAME })).toBe(true);
   });
 
-  it("ignores frames that are not probes", () => {
-    expect(isStrayProbe({ type: "FRAME", name: "Button" })).toBe(false);
-    expect(isStrayProbe({ type: "FRAME", name: `${PROBE_NAME}-old` })).toBe(
-      false,
-    );
-  });
-
-  it("ignores non-frames, whatever they are called", () => {
-    // The probe is always a frame, so a component set someone named this is
-    // somebody else's node and must survive.
-    expect(isStrayProbe({ type: "COMPONENT_SET", name: PROBE_NAME })).toBe(
-      false,
-    );
+  it("does nothing when the page is clean", () => {
+    expect(() => sweepStrayProbes({ strayProbes: () => [] })).not.toThrow();
   });
 });

@@ -19,9 +19,15 @@ It is permitted under these conditions:
   Nothing survives a call that returns or throws.
   Clarified 2026-07-29 (issue #131): a call that is *killed* is a third case, and `finally` cannot cover it.
   Cancelling a plugin may tear the sandbox down rather than unwind it, which leaves the probe orphaned - carrying pinned modes - with no hook available to clean up on the way out.
-  That is unprotectable from inside the plugin, so the condition is met on a best-effort basis by the next run instead: `withProbeFrame` sweeps stray probes off the current page before creating its own.
-  Best-effort in two senses worth stating plainly rather than implying a guarantee: the sweep reads only the current page, so an orphan left on another page is not found until a run starts from that page, and a stray that cannot be removed is skipped rather than allowed to fail the call.
   The lifecycle is now one function with an injected env (`ProbeEnv`), so this condition is testable rather than resting on reading the code.
+  That is unprotectable from inside the plugin, so the condition is met on a best-effort basis by the next run instead: `sweepStrayProbes` clears stray probes before a run begins.
+  Best-effort in three senses, worth stating plainly rather than implying a guarantee.
+  It reads only the current page, so an orphan left on another page is not found until a run starts from that page.
+  It runs only on a QA run that resolves theme modes at all, since a run requesting neither #16 nor #17 never enters this file.
+  And a stray that cannot be removed is skipped rather than allowed to fail the call - cleaning up the previous run's residue must never break this one.
+- A node is only swept when it carries this plugin's own plugin data (`markProbe` / `isStrayProbe`), never on its name alone.
+  This condition is what keeps the carve-out to *our* transient nodes: a name match would have deleted a designer's own frame that happened to be called `__tidy-qa-mode-probe`, which the carve-out never licensed.
+  The consequence of erring this way is that a probe orphaned in the instant between creation and marking is leaked rather than swept, which is the right direction to fail in.
 - It is never a descendant of, and never modifies, the Operation's target.
 - The Operation's MCP summary states it, so an agent reading the catalogue is not misled about what "query" implies here.
 
