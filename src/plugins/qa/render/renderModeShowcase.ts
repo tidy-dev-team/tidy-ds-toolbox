@@ -9,9 +9,14 @@
 
 import { markProbe, unmarkProbe } from "../theme-probe";
 import type { ModeShowcasePlan } from "./mode-showcase";
-import { NEUTRAL_STAGE, STAGE_CAPTION } from "./stage-surface";
+import {
+  needsOutline,
+  planStageSurfaces,
+  surfaceCaption,
+} from "./stage-surface";
 import {
   autoLayout,
+  BORDER,
   card,
   fill,
   FONT_BOLD,
@@ -19,6 +24,7 @@ import {
   INK,
   loadRenderFonts,
   MUTED,
+  stroke,
   text,
 } from "./primitives";
 
@@ -99,6 +105,7 @@ function buildInto(
   collection: VariableCollection,
   track: Track,
 ): FrameNode {
+  const surfaces = planStageSurfaces(plan.modes);
   const root = track(
     autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16),
   );
@@ -141,11 +148,16 @@ function buildInto(
       autoLayout(`${mode.name} - stage`, "VERTICAL", 16, 16, 0),
     );
     column.appendChild(stage);
-    // A backdrop rather than white, so an element that would vanish is visible as
-    // vanishing (#141). Neutral rather than the mode's own surface - see
-    // stage-surface.ts for why the theme table cannot supply that.
-    fill(stage, NEUTRAL_STAGE);
+    // A backdrop the mode's name implies, so an element that would vanish is
+    // visible as vanishing (#141) and a light mode does not read as dark.
+    const surface = surfaces.byMode[mode.modeId];
+    fill(stage, surface);
     stage.cornerRadius = 6;
+    // A white backdrop has no edge against the white card, so that column would
+    // read as having no stage while its neighbour clearly does.
+    if (needsOutline(surface)) {
+      stroke(stage, BORDER);
+    }
     stage.setExplicitVariableModeForCollection(collection, mode.modeId);
     stage.appendChild(track(main.createInstance()));
   }
@@ -155,7 +167,7 @@ function buildInto(
   // block is for, and what it cannot show.
   const note = track(
     text(
-      `Aid only: this row's status comes from the themes check, and the tick is still yours. ${STAGE_CAPTION}`,
+      `Aid only: this row's status comes from the themes check, and the tick is still yours. ${surfaceCaption(surfaces)}`,
       10,
       FONT_REGULAR,
       MUTED,
