@@ -19,6 +19,7 @@
  */
 
 import type { ThemeModeSnapshot, ThemeSnapshot } from "../snapshot";
+import type { CheckStatus } from "../types";
 
 /**
  * What the showcase covers, stated so a tick against it is not mistaken for
@@ -32,6 +33,12 @@ export type ModeShowcasePlan =
   | {
       show: true;
       modes: readonly ThemeModeSnapshot[];
+      /**
+       * The collection the modes belong to. Carried here so a caller that has
+       * narrowed on `show` has everything it needs, rather than re-deriving a
+       * fact this decision already established.
+       */
+      collectionId: string;
       /** Names the limit of what was rendered; see `COVERAGE_NOTE`. */
       coverageNote: string;
     }
@@ -47,7 +54,22 @@ export type ModeShowcasePlan =
  */
 export function planModeShowcase(
   theme: ThemeSnapshot | undefined,
+  /**
+   * What the `themes` check made of this set. The check owns the question of
+   * whether the set has a theme axis at all, and its own documentation defines
+   * `not_applicable` as "the component renders identically in every mode, so
+   * there is nothing to compare by eye" - which is precisely when a side-by-side
+   * comparison would be two identical pictures beside a row chipped "n/a".
+   */
+  themesStatus: CheckStatus | undefined,
 ): ModeShowcasePlan {
+  if (themesStatus === "not_applicable") {
+    return {
+      show: false,
+      reason: "the themes check reported not applicable for this set",
+    };
+  }
+
   if (!theme) {
     return {
       show: false,
@@ -74,6 +96,7 @@ export function planModeShowcase(
 
   return {
     show: true,
+    collectionId: theme.collectionId,
     // The collection's own order, deliberately unsorted: designers read modes in
     // the order Figma lists them, and light-before-dark is a convention we would
     // be imposing rather than observing.
