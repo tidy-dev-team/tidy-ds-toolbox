@@ -10,12 +10,9 @@
 import type { ModeShowcasePlan } from "./mode-showcase";
 import {
   autoLayout,
-  BORDER,
-  CARD,
-  fill,
+  card,
   FONT_BOLD,
   FONT_REGULAR,
-  hexToRgb,
   INK,
   loadRenderFonts,
   MUTED,
@@ -60,14 +57,30 @@ export async function buildModeShowcase(
 
   await loadRenderFonts();
 
-  const root = autoLayout(`Themes — ${subject.name}`, "VERTICAL", 24, 24, 16);
-  root.counterAxisSizingMode = "AUTO";
-  root.cornerRadius = 12;
-  fill(root, CARD);
-  root.strokes = [{ type: "SOLID", color: hexToRgb(BORDER) }];
-  root.strokeWeight = 1;
+  // `createFrame` parents to the current page immediately, so from here on every
+  // step is a litter risk: `createInstance`, a stale `modeId`, a font that failed
+  // to load. Guarded at the point of creation rather than at each call site,
+  // because #131 has already been round this loop - the guarantee has to be
+  // structural, and both callers would otherwise have to remember.
+  const root = autoLayout(`Themes - ${subject.name}`, "VERTICAL", 24, 24, 16);
+  try {
+    return buildInto(root, plan, main, collection);
+  } catch (error) {
+    root.remove();
+    throw error;
+  }
+}
 
-  root.appendChild(text(`Themes — ${subject.name}`, 16, FONT_BOLD, INK));
+function buildInto(
+  root: FrameNode,
+  plan: Extract<ModeShowcasePlan, { show: true }>,
+  main: ComponentNode,
+  collection: VariableCollection,
+): FrameNode {
+  root.counterAxisSizingMode = "AUTO";
+  card(root);
+
+  root.appendChild(text(root.name, 16, FONT_BOLD, INK));
   root.appendChild(
     text(
       `${plan.modes.length} modes of "${collection.name}" - ${plan.coverageNote}`,
@@ -89,7 +102,7 @@ export async function buildModeShowcase(
     // variables against the mode explicitly set here, so one canvas shows every
     // mode at once - which is the whole ask, since nothing in a file otherwise
     // ever shows two modes together.
-    const stage = autoLayout(`${mode.name} — stage`, "VERTICAL", 12, 12, 0);
+    const stage = autoLayout(`${mode.name} - stage`, "VERTICAL", 12, 12, 0);
     stage.setExplicitVariableModeForCollection(collection, mode.modeId);
     stage.appendChild(main.createInstance());
     column.appendChild(stage);
@@ -108,13 +121,28 @@ export async function buildModeShowcase(
   return root;
 }
 
-/** A prior showcase for this target, so a rebuild replaces rather than stacks. */
-function findPriorShowcase(page: PageNode, targetId: string): FrameNode | null {
-  for (const node of page.children) {
-    if (node.type !== "FRAME") continue;
-    if (node.getPluginData(SHOWCASE_DATA_KEY) === targetId) return node;
+/**
+ * Remove any prior showcase for this target, wherever it is.
+ *
+ * Scans every page at any depth, matching `renderChecklist`'s own lookup: a
+ * designer may have moved the block into a frame or section, or onto another
+ * page, and a lookup limited to the current page's direct children would miss it
+ * and stack a second copy beside the first.
+ *
+ * Called even when this run draws nothing, so a re-run that suppresses the
+ * showcase - a filtered `checks` run resolving no theme, say - clears last run's
+ * block instead of leaving it beside a freshly rebuilt checklist as stale
+ * evidence.
+ */
+export async function removePriorShowcase(targetId: string): Promise<void> {
+  await figma.loadAllPagesAsync();
+  for (const page of figma.root.children) {
+    for (const node of page.findAll(
+      (candidate) => candidate.getPluginData(SHOWCASE_DATA_KEY) === targetId,
+    )) {
+      node.remove();
+    }
   }
-  return null;
 }
 
 /**
@@ -131,12 +159,12 @@ export function placeModeShowcase(
   anchor: SceneNode,
   targetId: string,
 ): void {
-  const page =
-    anchor.parent?.type === "PAGE" ? anchor.parent : figma.currentPage;
-  findPriorShowcase(page, targetId)?.remove();
-
   showcase.setPluginData(SHOWCASE_DATA_KEY, targetId);
-  page.appendChild(showcase);
+  // Into the anchor's own parent, not the current page: `x`/`y` are
+  // parent-relative, so placing it anywhere else puts the offset in a different
+  // coordinate space and the block lands nowhere near the checklist.
+  const parent = anchor.parent ?? figma.currentPage;
+  parent.appendChild(showcase);
   showcase.x = anchor.x + anchor.width + GAP_FROM_ANCHOR;
   showcase.y = anchor.y;
 }

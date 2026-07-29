@@ -17,7 +17,7 @@ function theme(partial: Partial<ThemeSnapshot> = {}): ThemeSnapshot {
 
 describe("planModeShowcase", () => {
   it("shows one frame per mode, in the collection's own order", () => {
-    const plan = planModeShowcase(theme());
+    const plan = planModeShowcase(theme(), "warn");
 
     expect(plan.show).toBe(true);
     if (!plan.show) return;
@@ -27,6 +27,23 @@ describe("planModeShowcase", () => {
       { modeId: "1:0", name: "light" },
       { modeId: "1:1", name: "dark" },
     ]);
+    // Carried on the plan so a caller that has narrowed to `show: true` has
+    // everything it needs, instead of re-deriving a fact already decided here.
+    expect(plan.collectionId).toBe("VariableCollectionId:1:2");
+  });
+
+  // The themes check owns the question "does this set have a theme axis at all",
+  // and its own docs say not_applicable means "the component renders identically
+  // in every mode, so there is nothing to compare by eye". Drawing a comparison
+  // beside a row chipped n/a would contradict the row. The case that motivated
+  // this: a set whose colours come only from styles, where the probe still picks
+  // a collection with two modes but nothing the set binds is theme-aware.
+  it("shows nothing when the themes row itself reported not applicable", () => {
+    const plan = planModeShowcase(theme(), "not_applicable");
+
+    expect(plan.show).toBe(false);
+    if (plan.show) return;
+    expect(plan.reason).toMatch(/not applicable/i);
   });
 
   // #115 made row 17's remainder conditional for this reason: a set with no
@@ -35,6 +52,7 @@ describe("planModeShowcase", () => {
   it("shows nothing when the set has only one mode", () => {
     const plan = planModeShowcase(
       theme({ modes: [{ modeId: "1:0", name: "Mode 1" }] }),
+      "pass",
     );
 
     expect(plan.show).toBe(false);
@@ -50,6 +68,7 @@ describe("planModeShowcase", () => {
     // this test did exactly that.
     const plan = planModeShowcase(
       theme({ collectionId: undefined, collectionName: undefined }),
+      "pass",
     );
 
     expect(plan.show).toBe(false);
@@ -58,7 +77,7 @@ describe("planModeShowcase", () => {
   });
 
   it("shows nothing when the run never probed", () => {
-    const plan = planModeShowcase(undefined);
+    const plan = planModeShowcase(undefined, undefined);
 
     expect(plan.show).toBe(false);
     if (plan.show) return;

@@ -17,7 +17,7 @@ import type { ChecklistReport, SeverityLevel } from "../types";
 import { decidePlacement } from "./placement";
 import {
   autoLayout,
-  BORDER,
+  card,
   CARD,
   CHECKBOX_BORDER,
   fill,
@@ -209,10 +209,7 @@ export async function renderChecklist(
   );
   root.counterAxisSizingMode = "FIXED";
   root.resize(520, root.height);
-  fill(root, CARD);
-  root.strokes = [{ type: "SOLID", color: hexToRgb(BORDER) }];
-  root.strokeWeight = 1;
-  root.cornerRadius = 12;
+  card(root);
 
   const header = autoLayout("header", "VERTICAL", 0, 0, 4);
   header.layoutAlign = "STRETCH";

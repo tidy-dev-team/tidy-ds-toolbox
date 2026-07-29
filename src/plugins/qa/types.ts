@@ -198,4 +198,10 @@ export interface QaRunResult {
    * by it.
    */
   modeImage?: string;
+  /**
+   * Why there is no `modeImage`, when one was asked for. Usually a fact about the
+   * component rather than a failure: a set with no theme axis has nothing to
+   * compare, and the themes row says so too.
+   */
+  modeImageSkipped?: string;
 }

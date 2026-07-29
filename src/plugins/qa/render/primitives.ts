@@ -93,3 +93,19 @@ export function text(
   fill(node, hex);
   return node;
 }
+
+/** Give a frame a single-colour border. The stroke twin of `fill`. */
+export function stroke(node: FrameNode, hex: string, weight = 1): void {
+  node.strokes = [{ type: "SOLID", color: hexToRgb(hex) }];
+  node.strokeWeight = weight;
+}
+
+/**
+ * The card chrome both QA frames wear: white, rounded, hairline border. Shared so
+ * the checklist and the per-mode block cannot drift apart visually.
+ */
+export function card(node: FrameNode, radius = 12): void {
+  fill(node, CARD);
+  stroke(node, BORDER);
+  node.cornerRadius = radius;
+}

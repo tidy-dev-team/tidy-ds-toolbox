@@ -20,7 +20,9 @@ import { planModeShowcase } from "./render/mode-showcase";
 import {
   buildModeShowcase,
   placeModeShowcase,
+  removePriorShowcase,
 } from "./render/renderModeShowcase";
+import { markProbe } from "./theme-probe";
 
 interface QaRunParams {
   /** Figma node id of the target (instance / component / component set). */
@@ -212,37 +214,62 @@ async function runQa(params: QaRunParams): Promise<{
 }
 
 /**
+ * The showcase this run would draw, or the reason there is none.
+ *
+ * One helper for both operations so they cannot disagree about when a block is
+ * warranted: the canvas path and the agent path differ only in what they do with
+ * the frame afterwards.
+ */
+async function showcaseFor(
+  subject: QaSubject,
+  theme: ThemeSnapshot | undefined,
+  result: QaRunResult,
+): Promise<{ frame: FrameNode } | { skipped: string }> {
+  const themesStatus = result.results.find(
+    (r) => r.checkId === "themes",
+  )?.status;
+  const plan = planModeShowcase(theme, themesStatus);
+  if (!plan.show) return { skipped: plan.reason };
+
+  const frame = await buildModeShowcase(plan, subject, plan.collectionId);
+  return frame
+    ? { frame }
+    : { skipped: "the set has no default variant to render" };
+}
+
+/**
  * Render the per-mode showcase, export it, and remove it again (#121 step 2).
  *
  * Transient, deliberately. `tidy_qa_run` is a Query, and the block it draws for
  * `tidy_qa_build_checklist` is canvas evidence a designer asked for; an agent
  * asking to *see* the modes has not asked to have its file drawn on. So this
  * leaves nothing behind, on the error path too - the same rule as the theme
- * probe, and for the same reason.
+ * probe, and ADR-0001 requires it of any transient node in a Query.
  *
- * Returns undefined rather than throwing when there is nothing to show: a set
- * with one mode, or none, is a fact about the component, not a failure.
+ * Marked as a transient probe as well, so that if the sandbox is killed between
+ * building and removing, the next run's sweep reclaims it (#131). `finally`
+ * cannot cover being killed; the marker is what does.
  */
 async function renderModeImage(
   subject: QaSubject,
   theme: ThemeSnapshot | undefined,
-): Promise<string | undefined> {
-  const plan = planModeShowcase(theme);
-  if (!plan.show || !theme?.collectionId) return undefined;
+  result: QaRunResult,
+): Promise<{ image?: string; skipped?: string }> {
+  const showcase = await showcaseFor(subject, theme, result);
+  if ("skipped" in showcase) return { skipped: showcase.skipped };
 
-  const showcase = await buildModeShowcase(plan, subject, theme.collectionId);
-  if (!showcase) return undefined;
+  markProbe(showcase.frame);
   try {
     // One image of every mode side by side, not one per mode: it is what "see
     // the modes together" actually means, and it stays clear of the bridge's
     // per-response image cap.
-    const bytes = await showcase.exportAsync({
+    const bytes = await showcase.frame.exportAsync({
       format: "PNG",
       constraint: { type: "SCALE", value: 2 },
     });
-    return `data:image/png;base64,${figma.base64Encode(bytes)}`;
+    return { image: `data:image/png;base64,${figma.base64Encode(bytes)}` };
   } finally {
-    showcase.remove();
+    showcase.frame.remove();
   }
 }
 
@@ -258,7 +285,11 @@ registerOperation<QaRunParams, QaRunResult>(
   async (params) => {
     const { subject, result, theme } = await runQa(params);
     if (params.includeModeImages) {
-      result.modeImage = await renderModeImage(subject, theme);
+      const { image, skipped } = await renderModeImage(subject, theme, result);
+      if (image) result.modeImage = image;
+      // Why there is no picture, rather than silently returning none: "this set
+      // has no theme axis" is a fact about the component and worth saying.
+      if (skipped) result.modeImageSkipped = skipped;
     }
     return result;
   },
@@ -336,21 +367,20 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     // file otherwise does, so the row-17 tick becomes a glance instead of
     // switching modes and remembering what the other one looked like.
     //
-    // Placed after the checklist, and anchored to it, so the two move together.
-    // Unlike the theme probe's frame this one deliberately survives - canvas
-    // evidence is the whole point - which is why it is labelled and stamped.
-    const plan = planModeShowcase(theme);
+    // Cleared unconditionally first. A re-run that now has nothing to show - a
+    // filtered `checks` run that resolves no theme, a collection that lost a mode
+    // - must not leave the last run's block sitting beside a freshly rebuilt
+    // checklist, where it reads as current evidence.
+    await removePriorShowcase(result.target.id);
+
+    // Unlike the theme probe's frame this one deliberately survives: canvas
+    // evidence is the whole point. That is why it is labelled and stamped, and
+    // why it is *not* marked as a transient probe - the sweep would take it.
+    const showcase = await showcaseFor(subject, theme, result);
     let modeShowcaseId: string | undefined;
-    if (plan.show && theme?.collectionId) {
-      const showcase = await buildModeShowcase(
-        plan,
-        subject,
-        theme.collectionId,
-      );
-      if (showcase) {
-        placeModeShowcase(showcase, frame, result.target.id);
-        modeShowcaseId = showcase.id;
-      }
+    if ("frame" in showcase) {
+      placeModeShowcase(showcase.frame, frame, result.target.id);
+      modeShowcaseId = showcase.frame.id;
     }
 
     return {
