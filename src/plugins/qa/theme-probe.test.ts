@@ -100,12 +100,9 @@ describe("withProbeFrame", () => {
 
     expect(result).toBe("resolved");
     expect(probe.removed).toBe(1);
-    // Sweeping precedes creation, so a run never resolves against a page that
-    // still holds a stale probe with pinned modes. Asserted on the order rather
-    // than from inside the callback, which cannot tell the two apart.
-    // Sweeping is not in here: it is a per-run concern, not a per-probe one, and
-    // burying it in the lifecycle meant every early return in
-    // probeThemeResolution skipped the cleanup entirely.
+    // Sweeping is deliberately absent: it is a per-run concern, not a per-probe
+    // one, and burying it in the lifecycle meant every early return in
+    // probeThemeResolution skipped the cleanup entirely. See sweepStrayProbes.
     expect(log).toEqual(["create", "prepare", "use"]);
   });
 
