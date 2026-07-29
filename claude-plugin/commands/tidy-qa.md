@@ -20,7 +20,7 @@ Split `$ARGUMENTS` on whitespace into tokens, then classify each:
 
 - **Canvas flag** — the token `--canvas` (or `--render`). Switches to canvas
   mode. Remove it from the token list before parsing the rest.
-- **Check-id** — a token that exactly matches one of the known check ids, in
+- **Check-id** - a token that exactly matches one of the known check ids, in
   checklist order:
   `set-name-casing`, `variant-property-bindings`, `prop-order`, `tokens`,
   `responsive-bounds`, `asset-provenance`, `layer-naming-structure`,
@@ -76,11 +76,9 @@ rather than duplicating it.
 
 The response is a small stub only:
 `{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, notApplicable, notRun, partial } }`.
-`partial` counts automated rows that still need a human tick because the check
-covers only part of the item — several rows are like this, and which ones can
-depend on what the check found, so read it off the response rather than assuming
-a fixed set. Those rows are also counted by their own status, so report them as
-outstanding work even when `manual` is 0.
+`partial` counts automated rows that still need a human tick because the check covers only part of the item.
+Several rows are like this, and which ones can depend on what the check found, so read it off the response rather than assuming a fixed set.
+Those rows are also counted by their own status, so report them as outstanding work even when `manual` is 0.
 Report it directly - do not invent findings detail that isn't in the stub;
 tell the user to look at the frame on canvas (e.g. "Checklist for Button: 9
 pass, 4 warn, 2 fail, 3 manual, 4 partly manual - see the frame next to it on
@@ -118,8 +116,9 @@ nodes carries:
   in the message, so a finding reading `"Right Icon" itemSpacing is 10` with
   `count: 56` means one layer, 56 times.
 
-So **do not re-group by hand**; report the counts as given. Findings come
-severity-first, so the order is already the reporting order.
+So **do not re-group by hand**; report the counts as given.
+Findings come severity-first, so the order is already the reporting order.
+`results` comes in checklist order, the same order as the printed checklist and the `checklist.items` rows, so the two can be read side by side.
 
 **Do not echo the raw payload** - a set with many genuinely distinct defects is
 still long. Summarise:

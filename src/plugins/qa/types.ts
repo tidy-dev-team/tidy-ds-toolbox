@@ -13,32 +13,16 @@ export type { SeverityLevel };
 export type CheckStatus = "pass" | "warn" | "fail" | "not_applicable";
 
 /**
- * Stable, agent-facing ids of the automated checks - the wire vocabulary a
- * `checks` filter is written in, which is why it lives with the wire types
- * rather than with the checklist.
+ * The agent-facing check ids, derived from the checklist table and re-exported
+ * here so the wire types can name them.
  *
- * Which checklist row each id backs, and which function implements it, is
- * declared once in `checklist-catalogue.ts`. That every id here is claimed by
- * exactly one row (and vice versa) is asserted in `checklist-catalogue.test.ts`
- * rather than left to review.
+ * Declared *by the table* rather than beside it: a hand-written union was a
+ * second list to keep in step, and the compiler joined neither copy to the other
+ * (#132). Extracting it from the rows means an id that no row claims cannot be
+ * spelled at all.
  */
-export type CheckId =
-  | "set-name-casing"
-  | "prop-order"
-  | "tokens"
-  | "layer-naming-structure"
-  | "grid-4px"
-  | "interaction-hover-only"
-  | "description"
-  | "no-conflicts"
-  | "preferred-values"
-  | "nesting-depth"
-  | "asset-provenance"
-  | "themes"
-  | "high-contrast"
-  | "responsive-bounds"
-  | "documentation"
-  | "variant-property-bindings";
+export type { CheckId } from "./checklist-catalogue";
+import type { CheckId } from "./checklist-catalogue";
 
 export interface Finding {
   severity: SeverityLevel;
