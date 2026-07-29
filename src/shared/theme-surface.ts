@@ -62,6 +62,16 @@ export async function resolveSurfaceVariable(
   return null;
 }
 
+/**
+ * Whole words only. Substring matching pinned the wrong mode: a collection
+ * offering "Highlight" alongside "Light" resolved a request for light to
+ * "Highlight", and "Darkness" counted as dark. Both are the sort of name a real
+ * file has, and pinning an unrelated mode is silent - everything still renders,
+ * just against the wrong theme.
+ */
+const LIGHT_WORD = /\b(light|lite|day)\b/i;
+const DARK_WORD = /\b(dark|night)\b/i;
+
 /** Just the shape `polarityModeId` reads, so it can be tested without Figma. */
 export interface ModeNamesOnly {
   modes: readonly { modeId: string; name: string }[];
@@ -79,16 +89,14 @@ export function polarityModeId(
   collection: ModeNamesOnly,
   wantDark: boolean,
 ): string | null {
-  const needle = wantDark ? "dark" : "light";
-  const mode = collection.modes.find((m) =>
-    m.name.toLowerCase().includes(needle),
-  );
+  const wanted = wantDark ? DARK_WORD : LIGHT_WORD;
+  const mode = collection.modes.find((m) => wanted.test(m.name));
   return mode?.modeId ?? null;
 }
 
 /** Whether a mode name reads as a dark theme. */
 export function isDarkModeName(modeName: string): boolean {
-  return /dark/i.test(modeName);
+  return DARK_WORD.test(modeName);
 }
 
 /**

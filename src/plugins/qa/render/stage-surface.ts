@@ -22,6 +22,30 @@
  * reads as a wrong backdrop instead of as a broken component (#127's lesson).
  */
 
+/**
+ * The backdrop when the DS exposes no surface token, for *every* mode rather than
+ * a pale one for light-named modes (#141).
+ *
+ * Deliberate: a file with no surface token is usually not a well-formed DS at all,
+ * which is where "does this element disappear" matters most - and a pale backdrop
+ * would hide the pale element being looked for. Dark, and not pure black, so it
+ * reads as a deliberate backdrop rather than a hole.
+ */
+export const FALLBACK_STAGE = "#2E2E2E";
+
+/**
+ * The fallback backdrop for a mode, which **deliberately ignores the mode name**.
+ *
+ * A function rather than the bare constant so the policy is guarded: the earlier
+ * version gave light-named modes a pale backdrop, which reintroduced the blind
+ * spot #141 asked to remove, and nothing failed when it did. The invariance is
+ * the decision here, so the invariance is what the test asserts.
+ */
+export function fallbackStageFor(modeName: string): string {
+  void modeName;
+  return FALLBACK_STAGE;
+}
+
 /** What the block says about the backdrop it painted. */
 export function surfaceCaption(surfaceTokenName: string | undefined): string {
   return surfaceTokenName
