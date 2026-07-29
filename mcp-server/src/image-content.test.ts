@@ -51,21 +51,31 @@ describe("liftImages", () => {
 
   // Two failure modes have lived here. A depth cap returned anything deeper
   // untouched, silently recreating the very bug this module fixes. Uncapped
-  // *recursion* then threw RangeError at a few thousand levels - while
-  // JSON.stringify handles them fine, so a result the server could serialise
-  // failed in the extractor alone. Depth is now bounded by the heap, not the
-  // call stack.
+  // *recursion* then threw RangeError a few thousand levels down. Depth is now
+  // bounded by the heap rather than the call stack.
   //
-  // 5,000 is the depth the second bug was caught at; the assertion below proves
-  // the payload is genuinely serialisable at it, so this is a depth a real
-  // result could reach rather than a synthetic one.
+  // Asserted by descending the copy iteratively rather than via JSON.stringify:
+  // how deep V8 can serialise varies by version (Node 24 manages 5,000 levels,
+  // Node 20 does not), and a test for *this module's* depth-independence must
+  // not fail on someone else's limit. Serialisability is covered at 60 levels
+  // below, where every supported runtime is comfortable.
   it.each([60, 5_000])("finds an image nested %i levels deep", (depth) => {
     let value: unknown = { image: PNG_URL };
     for (let i = 0; i < depth; i++) value = { inner: value };
 
     const { result, images } = liftImages(value);
     expect(images).toEqual([{ data: PNG, mimeType: "image/png" }]);
-    const json = JSON.stringify(result);
+
+    let node = result as Record<string, unknown>;
+    for (let i = 0; i < depth; i++) node = node.inner as Record<string, unknown>;
+    expect(node.image).toContain("returned as image block 1");
+    expect(node.image).not.toContain(PNG);
+  });
+
+  it("keeps a shallow result serialisable, image lifted out", () => {
+    let value: unknown = { image: PNG_URL };
+    for (let i = 0; i < 60; i++) value = { inner: value };
+    const json = JSON.stringify(liftImages(value).result);
     expect(json).not.toContain(PNG);
     expect(json).toContain("returned as image block 1");
   });
