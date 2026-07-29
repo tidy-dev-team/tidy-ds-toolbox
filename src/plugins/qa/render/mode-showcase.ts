@@ -44,14 +44,6 @@ export type ModeShowcasePlan =
     }
   | { show: false; reason: string };
 
-/**
- * Decide whether a per-mode showcase is worth drawing.
- *
- * Suppressed in every case where it would imply a comparison that did not
- * happen. #115 made row 17's manual remainder conditional for exactly this
- * reason: a set with no theme axis renders identically in every mode, so two
- * pictures of it are two identical pictures.
- */
 /** Everything the decision needs, as one value rather than three positionals. */
 export interface ModeShowcaseInput {
   /** The resolved per-mode table, absent when the run did not probe. */

@@ -25,6 +25,14 @@ const SHOWCASE_DATA_KEY = "tidy:qa-mode-showcase";
 
 const GAP_FROM_ANCHOR = 32;
 
+/**
+ * Narrowest the prose may wrap to. The block's width should come from the
+ * component it shows, not from the longest sentence explaining it - left to hug,
+ * a single unwrapped caption made the card roughly twice as wide as two buttons
+ * needed and stranded them in white space.
+ */
+const MIN_BODY_WIDTH = 240;
+
 export type ShowcaseSubject = ComponentSetNode | ComponentNode;
 
 /** The component this showcase illustrates: the set's default variant. */
@@ -101,16 +109,16 @@ function buildInto(
   card(root);
 
   root.appendChild(track(text(root.name, 16, FONT_BOLD, INK)));
-  root.appendChild(
-    track(
-      text(
-        `${plan.modes.length} modes of "${collection.name}" - ${plan.coverageNote}`,
-        11,
-        FONT_REGULAR,
-        MUTED,
-      ),
+
+  const caption = track(
+    text(
+      `${plan.modes.length} modes of "${collection.name}" - ${plan.coverageNote}`,
+      11,
+      FONT_REGULAR,
+      MUTED,
     ),
   );
+  root.appendChild(caption);
 
   const columns = track(autoLayout("modes", "HORIZONTAL", 0, 0, 16));
   columns.counterAxisAlignItems = "MIN";
@@ -135,29 +143,29 @@ function buildInto(
     stage.appendChild(track(main.createInstance()));
   }
 
-  root.appendChild(
-    track(
-      text(
-        // The transparent-stage limit, stated where the person judging will see
-        // it. Inventing a surface colour would mean guessing which variable is
-        // "the background", which nothing here can know.
-        "Stages are transparent, so a component that relies on the page behind it will read thinner here than in place.",
-        10,
-        FONT_REGULAR,
-        MUTED,
-      ),
+  // One note rather than two: at 10px, a pair of grey disclaimers under two
+  // buttons is more chrome than substance. Both facts still get said - what the
+  // block is for, and what it cannot show.
+  const note = track(
+    text(
+      "Aid only: this row's status comes from the themes check, and the tick is still yours. " +
+        "Stages are transparent, so a component that relies on the page behind it reads thinner here than in place.",
+      10,
+      FONT_REGULAR,
+      MUTED,
     ),
   );
-  root.appendChild(
-    track(
-      text(
-        "Aid only: this row's status comes from the themes check, and the tick is still yours.",
-        10,
-        FONT_REGULAR,
-        MUTED,
-      ),
-    ),
-  );
+  root.appendChild(note);
+
+  // Sized after everything is in place, because the width to wrap to is the width
+  // the modes ended up needing. The root keeps hugging, so the card ends up as
+  // wide as its content rather than as wide as its prose.
+  const bodyWidth = Math.max(MIN_BODY_WIDTH, columns.width);
+  for (const node of [caption, note]) {
+    node.textAutoResize = "HEIGHT";
+    node.resize(bodyWidth, node.height);
+  }
+
   return root;
 }
 
