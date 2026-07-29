@@ -51,9 +51,6 @@ const IMAGE_DATA_URL =
  */
 const MAX_IMAGES = 8;
 
-/** Depth cap: results are JSON off the bridge, so this only guards pathology. */
-const MAX_DEPTH = 12;
-
 function describe(bytes: number, mimeType: string, index: number): string {
   const kb = (bytes / 1024).toFixed(1);
   return `<${mimeType}, ${kb} KB - returned as image block ${index + 1} of this response>`;
@@ -70,9 +67,17 @@ function describe(bytes: number, mimeType: string, index: number): string {
 export function liftImages(result: unknown): LiftImagesResult {
   const images: LiftedImage[] = [];
 
-  const walk = (value: unknown, depth: number): unknown => {
-    if (depth > MAX_DEPTH) return value;
-
+  // Unbounded on purpose. An earlier depth cap here returned anything deeper
+  // untouched, which silently recreated the exact bug this module exists to fix:
+  // an image nested past the cap went back to the agent as base64 text. A cap
+  // that degrades to the defect is worse than no cap.
+  //
+  // No cap is needed, either. The value is always `JSON.parse` output from the
+  // bridge, so it is acyclic, and `JSON.stringify` runs over the same value
+  // immediately afterwards with the same recursion - anything deep enough to
+  // exhaust the stack here could never have been serialised into a response
+  // anyway, so this adds no failure mode that the caller did not already have.
+  const walk = (value: unknown): unknown => {
     if (typeof value === "string") {
       const match = IMAGE_DATA_URL.exec(value);
       if (!match) return value;
@@ -87,16 +92,16 @@ export function liftImages(result: unknown): LiftImagesResult {
       return placeholder;
     }
 
-    if (Array.isArray(value)) return value.map((v) => walk(v, depth + 1));
+    if (Array.isArray(value)) return value.map((v) => walk(v));
 
     if (value !== null && typeof value === "object") {
       const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(value)) out[k] = walk(v, depth + 1);
+      for (const [k, v] of Object.entries(value)) out[k] = walk(v);
       return out;
     }
 
     return value;
   };
 
-  return { result: walk(result, 0), images };
+  return { result: walk(result), images };
 }
