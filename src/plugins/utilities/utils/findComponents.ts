@@ -12,9 +12,19 @@
 //
 // The two limit constants are imported by mcp-server/src/catalogue.ts so the
 // advertised schema and the enforced behaviour cannot drift apart.
+//
+// The `.ts` extensions below are load-bearing, unlike everywhere else in the
+// plugin: importing this file puts it in the MCP server's module graph, and
+// `npm run mcp:smoketest:src` runs that graph through Node's raw ESM resolver,
+// which will not resolve an extensionless specifier. Bundled builds don't care,
+// so dropping them fails only in CI. Anything else this module comes to import
+// needs the same treatment.
 
-import { ErrorCode, OperationError } from "../../../shared/operations/errors";
-import { globToRegex } from "../../../shared/operations/glob";
+import {
+  ErrorCode,
+  OperationError,
+} from "../../../shared/operations/errors.ts";
+import { globToRegex } from "../../../shared/operations/glob.ts";
 
 /** Default cap, chosen to stay inside the MCP output ceiling at ~95 chars/row. */
 export const DEFAULT_FIND_LIMIT = 200;
