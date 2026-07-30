@@ -269,8 +269,7 @@ function absoluteAnomalies(
         nodeName: node.name,
         detail:
           `"${node.name}" draws a shadow, stroke or glow ${grew}, and ` +
-          `"${clipper.name}" clips it, so part of it is cropped. Deliberate on ` +
-          `some components; confirm it is here.`,
+          `"${clipper.name}" clips it, so part of it is cropped.`,
         ...stamp,
       });
     } else if (isText) {
@@ -383,11 +382,13 @@ function driftAnomalies(
       // opens to change it.
       nodeId: node.id,
       nodeName: node.name,
+      // The measurement only. What a grown gap *means* is the same sentence on
+      // every one of these findings, so it is said once in the check's note
+      // instead of repeated per finding - on a set that produced eight of them,
+      // the repeated clause was most of the payload.
       detail:
         `the gap between "${prev.name}" and "${next.name}" went from ` +
-        `${px(wasGap)} to ${px(gap)}. Correct for a component that spreads its ` +
-        `content (a select, a list row, a nav item); a hole in the middle of ` +
-        `anything else.`,
+        `${px(wasGap)} to ${px(gap)}.`,
       ...stamp,
     });
   }

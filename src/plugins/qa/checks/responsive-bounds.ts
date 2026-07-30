@@ -111,9 +111,12 @@ function anomalyFinding(anomaly: Anomaly): Finding {
     severity: verdict ? "high" : "low",
     nodeId: anomaly.nodeId,
     nodeName: anomaly.nodeName,
-    message: verdict
-      ? `${anomaly.state}: ${anomaly.detail}`
-      : `${anomaly.state}: ${anomaly.detail} Confirm this is intended.`,
+    // Just the state and the measurement. The advisory - that a candidate is a
+    // measurement rather than a verdict, and what the common intentional cases are -
+    // is identical on every candidate, so it is said once in the note. Repeating it
+    // per finding made the boilerplate most of the payload on a set that produced
+    // eight of them.
+    message: `${anomaly.state}: ${anomaly.detail}`,
     ...(verdict
       ? {
           suggestedFix:
@@ -283,6 +286,17 @@ function probeOutcome(probe: ResizeProbeSnapshot | undefined): {
     ...(probe.textStress?.anomalies ?? []),
   ];
   const findings = anomalies.map(anomalyFinding);
+
+  // Said once, on the row, rather than on every candidate finding. Only when there
+  // is a candidate to explain.
+  if (anomalies.some((a) => a.confidence === "candidate")) {
+    notes.push(
+      "Low-severity findings here are measurements, not verdicts: a grown gap or " +
+        "a new overlap is correct on a component that spreads its content (a " +
+        "select, a list row, a nav item) or stacks it (an avatar stack), and a " +
+        "hole in the middle of anything else. Confirm each is intended.",
+    );
+  }
 
   const states = probe.states ?? [];
   notes.push(

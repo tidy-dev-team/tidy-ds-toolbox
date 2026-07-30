@@ -223,7 +223,33 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
     );
     expect(result.status).toBe("warn");
     expect(result.findings[0].severity).toBe("low");
-    expect(result.findings[0].message).toContain("Confirm this is intended");
+    // The advisory lives on the row, once - not repeated into every finding, where
+    // it was most of the payload on a set that produced eight of them.
+    expect(result.findings[0].message).not.toContain(
+      "Confirm each is intended",
+    );
+    expect(result.note).toContain("Confirm each is intended");
+  });
+
+  it("says the candidate advisory once, however many candidates there are", () => {
+    const result = checkResponsiveBounds(
+      withProbe(
+        measured([
+          anomaly("candidate", "gap one."),
+          anomaly("candidate", "gap two."),
+          anomaly("candidate", "gap three."),
+        ]),
+      ),
+    );
+    expect(result.findings).toHaveLength(3);
+    expect(result.note?.match(/Confirm each is intended/g)).toHaveLength(1);
+  });
+
+  it("omits the candidate advisory when there is no candidate", () => {
+    const result = checkResponsiveBounds(
+      withProbe(measured([anomaly("verdict")])),
+    );
+    expect(result.note ?? "").not.toContain("Confirm each is intended");
   });
 
   it("carries the measured numbers and the state into the finding", () => {

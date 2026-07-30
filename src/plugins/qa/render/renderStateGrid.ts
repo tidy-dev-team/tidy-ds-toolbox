@@ -68,22 +68,31 @@ function buildCell(
   cell.counterAxisSizingMode = "AUTO";
   cell.appendChild(track(text(panel.label, 10, FONT_BOLD, INK)));
 
-  // The stage is what the width is driven through, so it has to be configured the
-  // same way the probe configured its own - which is why that helper is shared
-  // rather than reimplemented here. Getting the FILL case wrong would show a
-  // component that never actually resized.
   const stage = track(
     autoLayout(`${panel.label} - stage`, "VERTICAL", 0, 0, 0),
   );
   cell.appendChild(stage);
 
   const instance = track(subject.main.createInstance());
-  const drive = driveWidthThrough(
-    stage,
-    instance,
-    subject.path,
-    instance.width,
-  );
+
+  // **Only a cell with a width to drive gets a driven stage.**
+  //
+  // `driveWidthThrough` pins the stage to a FIXED width and, on the FILL path, tells
+  // the instance to fill it. That is exactly right when a width is being driven and
+  // exactly wrong otherwise: a contact-sheet cell then sits in a stage frozen at the
+  // instance's *pre-property* width, so opening a dropdown or showing a footer makes
+  // the content bigger than a stage that cannot grow, and it spills over its
+  // neighbours and out of the card. That is what the first real contact sheet did -
+  // the sheet is where this shows up, because it is the only block whose cells have
+  // no width to drive.
+  //
+  // With nothing to drive there is nothing to configure: let the stage hug, and the
+  // instance is whatever its properties make it.
+  const drive =
+    panel.width === undefined
+      ? undefined
+      : driveWidthThrough(stage, instance, subject.path, instance.width);
+  if (drive === undefined) stage.appendChild(instance);
 
   const problems: string[] = [];
   if (panel.properties && Object.keys(panel.properties).length > 0) {
@@ -95,7 +104,7 @@ function buildCell(
   }
   // After the properties, not before: setting a boolean or swapping text changes
   // what the component wants to be, and the width has to be applied to that.
-  if (panel.width !== undefined) drive(panel.width);
+  if (drive !== undefined && panel.width !== undefined) drive(panel.width);
 
   for (const caption of [...problems, ...panel.captions]) {
     const line = track(text(caption, 10, FONT_REGULAR, MUTED));
