@@ -23,6 +23,15 @@ export default defineConfig({
   build: {
     target: "esnext",
     assetsInlineLimit: 100000000,
+    // Vite would otherwise wipe dist/ before writing, taking `dist/code.js` with
+    // it - the plugin thread's bundle, which esbuild writes in a *separate* step
+    // afterwards. Between the two, manifest.json points at a file that does not
+    // exist, and reloading the plugin in Figma fails with
+    // "Unable to load code: ENOENT ... dist/code.js". That window is seconds long
+    // and lands exactly during the dogfood loop, where rebuilding and reloading
+    // is the whole activity. Nothing stale accumulates: vite-plugin-singlefile
+    // inlines everything into the one index.html it emits.
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         manualChunks: undefined,
