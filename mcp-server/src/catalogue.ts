@@ -380,7 +380,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "qa",
     summary:
-      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones on a tinted row with no status chip. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. Idempotent per target - re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
+      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones on a tinted row with no status chip. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. Idempotent per target - re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload - pass \`includeImage\` to also get a picture of the drawn frame. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
     inputSchema: {
       nodeId: z
         .string()
@@ -399,6 +399,12 @@ export const CATALOGUE: CatalogueEntry[] = [
         .optional()
         .describe(
           "Optional: place the checklist frame next to this node instead of the resolved target — lets the frame stay by the instance even though checks ran against its owning component set.",
+        ),
+      includeImage: z
+        .boolean()
+        .optional()
+        .describe(
+          "If true, also return `image`: the drawn checklist as a viewable image block. The frame stays on the canvas either way - this only lets you look at what was drawn, which is otherwise the one artifact here you cannot see. Useful when reporting on the checklist's own appearance, or when the designer cannot look at the canvas themselves. Costs a render, so ask for it when seeing it matters rather than on every run.",
         ),
     },
     timeoutMs: 60_000,

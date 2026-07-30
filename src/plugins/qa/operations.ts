@@ -337,6 +337,12 @@ interface BuildChecklistResult {
    * that anything failed.
    */
   modeShowcaseId?: string;
+  /**
+   * The checklist frame as a PNG data URL, when `includeImage` asked for it.
+   * Lifted into a viewable image block by the bridge (#116), which recognises an
+   * image by the payload being a data URL rather than by any field name.
+   */
+  image?: string;
 }
 
 // No `name`/glob field: per CONTEXT.md, Execute Operations take explicit ids
@@ -353,6 +359,20 @@ interface BuildChecklistParams {
    * though checks ran against the owning set.
    */
   anchorNodeId?: string;
+  /**
+   * Return the drawn checklist as an image as well as an id (#146).
+   *
+   * The frame is the primary artifact this operation produces, and until this
+   * existed it was the one thing an agent could not look at - the per-mode
+   * showcase beside it was exportable while the checklist was not. Three visual
+   * defects in this module passed a full test suite and were only caught by
+   * rendering, so a change to the checklist's appearance had no way to be
+   * checked except by asking a human.
+   *
+   * Off by default: it costs a render, and a run that only wants the counts
+   * should not pay for one.
+   */
+  includeImage?: boolean;
 }
 
 function isSceneNode(node: BaseNode): node is SceneNode {
@@ -424,11 +444,25 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       modeShowcaseId = showcase.frame.id;
     }
 
+    // Exported after everything is placed, so the picture is of the finished
+    // artifact rather than of a frame still being assembled. 2x because the
+    // finding lines are 10-11px: at 1x they are the size where a vision model
+    // stops being able to read them, which would make the image decorative.
+    const image = params.includeImage
+      ? `data:image/png;base64,${figma.base64Encode(
+          await frame.exportAsync({
+            format: "PNG",
+            constraint: { type: "SCALE", value: 2 },
+          }),
+        )}`
+      : undefined;
+
     return {
       frameId: frame.id,
       target: result.target,
       counts: result.checklist.counts,
       ...(modeShowcaseId ? { modeShowcaseId } : {}),
+      ...(image ? { image } : {}),
     };
   },
 );
