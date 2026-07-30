@@ -79,6 +79,24 @@ describe("the MCP input schema", () => {
   });
 });
 
+describe("the checklist image flag", () => {
+  // The checklist frame is the primary artifact this module draws, and until
+  // #146 it was the one thing an agent could not look at. A flag that exists in
+  // the plugin but is undeclared here is a capability nobody can reach, and one
+  // documented in the command but absent from the schema is a promise that
+  // errors - both have happened to this catalogue before (#133).
+  it("is declared on the operation an agent actually calls", () => {
+    const schema = entry("tidy_qa_build_checklist").inputSchema.includeImage;
+
+    expect(schema).toBeDefined();
+    expect(schema?.description).toMatch(/image/i);
+  });
+
+  it("is described to the agent in the command it reads", () => {
+    expect(QA_COMMAND).toMatch(/includeImage/);
+  });
+});
+
 describe("the /tidy-ds:tidy-qa command", () => {
   it("classifies exactly the engine's check ids as check filters", () => {
     // The ids live in the "Check-id" bullet, backticked one per id, between the

@@ -76,6 +76,8 @@ rather than duplicating it.
 
 The response is a small stub only:
 `{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, notApplicable, notRun, partial } }`.
+`modeShowcaseId` is also present when the set has more than one theme mode: a labelled block drawn beside the checklist showing the default variant per mode.
+Pass `includeImage: true` to get `image` as well - the drawn checklist as a viewable picture - when you need to describe how the frame itself looks, or when the user cannot see their canvas.
 `partial` counts automated rows that still need a human tick because the check covers only part of the item.
 Several rows are like this, and which ones can depend on what the check found, so read it off the response rather than assuming a fixed set.
 Those rows are also counted by their own status, so report them as outstanding work even when `manual` is 0.
