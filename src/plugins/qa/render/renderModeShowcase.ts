@@ -14,7 +14,7 @@ import {
   polarityModeId,
   resolveSurfaceVariable,
 } from "../../../shared/theme-surface";
-import { FALLBACK_STAGE, surfaceCaption } from "./stage-surface";
+import { fallbackStage, surfaceCaption } from "./stage-surface";
 import {
   autoLayout,
   card,
@@ -220,12 +220,13 @@ function buildInto(
         ),
       ];
     } else {
-      // No surface token: one dark backdrop for *every* mode, not a pale one for
-      // light-named modes. #141 asked for this deliberately - the toolbox gets
-      // pointed at elements that are not from a well-formed DS, where there is no
-      // token to reproduce, and a pale backdrop there would hide exactly the pale
-      // element the check is looking for. The caption says it is a test backdrop.
-      fill(stage, FALLBACK_STAGE);
+      // No surface token, so the mode's name is the only signal left - and the
+      // honest answer for most modes is to add nothing. A pale box behind a
+      // light-mode component is a surface the component does not have, and it
+      // reads as part of the component. Only a dark-named mode needs a backdrop,
+      // because judging one against the white card misrepresents it just as much.
+      const backdrop = fallbackStage(mode.name);
+      if (backdrop) fill(stage, backdrop);
     }
     stage.appendChild(track(main.createInstance()));
   }

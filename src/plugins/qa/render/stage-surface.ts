@@ -1,3 +1,5 @@
+import { isDarkModeName } from "../../../shared/theme-surface";
+
 /**
  * What the per-mode block says about the backdrop behind each instance (#141).
  *
@@ -23,19 +25,32 @@
  */
 
 /**
- * The backdrop when the DS exposes no surface token, for *every* mode rather than
- * a pale one for light-named modes (#141).
+ * The fallback backdrop when the DS exposes no surface token.
  *
- * Deliberate: a file with no surface token is usually not a well-formed DS at all,
- * which is where "does this element disappear" matters most - and a pale backdrop
- * would hide the pale element being looked for. Dark, and not pure black, so it
- * reads as a deliberate backdrop rather than a hole.
+ * **A dark mode gets one; nothing else does.** Painting a pale box behind a
+ * light-mode component adds a surface the component does not have - the card is
+ * already the surface it sits on - and that box then reads as part of the
+ * component. A collection whose modes are brands rather than polarities
+ * ("Isracard", "Amex") has no dark theme at all, so none of its columns should
+ * gain a backdrop.
+ *
+ * A dark-named mode is the one case where doing nothing is wrong: showing a
+ * dark-mode component against the white card misrepresents it just as badly.
+ *
+ * Achromatic on purpose. It sits behind arbitrary components, so any colour cast
+ * reads as belonging to the component - borrowing tidy-doc's cool grey (#F0F2F7)
+ * made a blue-accented slider look like it had a lavender background of its own.
  */
-export const FALLBACK_STAGE = "#2E2E2E";
+export const NEUTRAL_DARK = "#2E2E2E";
+
+/** The backdrop for a mode, or null to leave the stage transparent. */
+export function fallbackStage(modeName: string): string | null {
+  return isDarkModeName(modeName) ? NEUTRAL_DARK : null;
+}
 
 /** What the block says about the backdrop it painted. */
 export function surfaceCaption(surfaceTokenName: string | undefined): string {
   return surfaceTokenName
     ? `Backdrops are the "${surfaceTokenName}" token resolved per mode. If that is not the surface these sit on, the backdrop is wrong even though the component may not be.`
-    : "No surface token was found, so every mode gets the same neutral dark backdrop - it is a test surface rather than any mode's real one, so judge whether anything disappears, not how it looks against it.";
+    : "No surface token was found. A mode whose name says dark gets a neutral dark backdrop so it is not judged against white; every other mode is shown as it is, with nothing added behind it.";
 }
