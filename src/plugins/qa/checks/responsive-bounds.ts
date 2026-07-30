@@ -81,8 +81,9 @@ function measuredRemainder(variantName: string, otherVariants: number): string {
       ? ` Geometry was measured on "${variantName}" only, so eyeball the other ${otherVariants} variant(s).`
       : "";
   return (
-    "Look for what geometry cannot see: an image or gradient that distorts " +
-    "when stretched, or a corner radius or border that reads wrong at width." +
+    "Look for what geometry cannot see: an image or gradient that distorts when " +
+    "stretched, a corner radius or border that reads wrong at width, or a shadow " +
+    "or border cut off at an edge - effect clipping is measured on text only." +
     others
   );
 }

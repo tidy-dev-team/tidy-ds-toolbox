@@ -83,18 +83,23 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > Correct wiring says nothing about whether the states it exposes render correctly.
 
 > **Amended 2026-07-30 (issue #112), after re-judging what the wiring check left.**
-> #112 offered three products and said to re-judge them once wiring shipped. It has, and that changes the answer.
+> #112 offered three products and said to re-judge them once wiring shipped.
+> It has, and that changes the answer.
 > Option A - the plugin pixel-diffing renders against each other - is now largely redundant: dead properties are exactly what it would find, and the wiring check finds them better, by naming the layer.
 > Option B - an agent looking at 48 renders and writing prose - is the expensive, non-deterministic one, the only one that can mislead a designer with a confidently wrong subjective finding, and still blocked on the image bridge.
 > Two things survived, and neither is a new check id.
 >
-> **The text stress test is shipped**, through row 7's resize harness rather than here: every TEXT property is set to a long string at once - one measurement pass instead of one per property, and the harsher test, since real content is long in more than one slot at a time - and the same geometry rules judge the result. Clipping and overflow under long text are `fail`.
+> **The text stress test is shipped**, through row 7's resize harness rather than here: every TEXT property is set to a long string at once, and the same geometry rules judge the result.
+> One measurement pass instead of one per property, and the harsher test, since real content is long in more than one slot at a time.
+> Clipping and overflow under long text are `fail`.
 > The harness measures the default variant only, so item 3's *"all combinations, long text always"* is narrower here than the ask and the row's remainder still says so.
 >
 > **The contact sheet is shipped as canvas evidence, with no verdict at all.**
 > `tidy_qa_build_checklist --sheet` (`includeContactSheet: true`) draws one row per variant and one column per boolean combination, capped at 48 instances with the cap stated on the block, and returns it as `contactSheetId`.
-> It removes the genuinely worst part of manual QA on this row - clicking through every combination in the properties panel one at a time, trying to remember what Ghost/Hover looked like eleven clicks ago - and makes side-by-side comparison possible for the first time, which is when a human spots an inverted pressed state instantly *and correctly*, because they know the design intent.
-> Row 3's status still comes from the wiring check alone. That the sheet claims nothing is exactly what makes it safe to draw.
+> It removes the genuinely worst part of manual QA on this row: clicking through every combination in the properties panel one at a time, trying to remember what Ghost/Hover looked like eleven clicks ago.
+> It also makes side-by-side comparison possible for the first time, which is when a human spots an inverted pressed state instantly *and correctly*, because they know the design intent.
+> Row 3's status still comes from the wiring check alone.
+> That the sheet claims nothing is exactly what makes it safe to draw.
 > The combinatorial ceiling is answered by capping and **saying so** rather than by sampling silently: a sheet that looks complete but is not would be worse than no sheet.
 
 
@@ -170,13 +175,18 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > Everything decided from those boxes is pure and fixture-tested under `src/plugins/qa/resize/`.
 >
 > *Breaks* is defined, and it is **not** "spacing did not scale proportionally".
-> In auto-layout spacing deliberately does not scale, so widening a FILL button correctly leaves padding and gap alone and only re-positions the content block; a proportional rule would fail every correctly built component in the file.
+> In auto-layout spacing deliberately does not scale, so widening a FILL button correctly leaves padding and gap alone and only re-positions the content block.
+> A proportional rule would fail every correctly built component in the file.
 > The intended meaning is **nothing drifted**.
 >
 > Findings split two ways, and the split is what makes the row trustworthy:
 >
-> * **Verdicts** - content clipped away, collapsed to nothing, overflowing a clipping frame, or growing past a `maxWidth` the component itself declares. Wrong however they arose, so these `fail` the row at `high` severity. This is the first thing on row 7 that can go red.
-> * **Candidates** - a newly overlapping pair, a gap that grew, a height that moved. `SPACE_BETWEEN` on a stretching container is exactly correct for a select, a dropdown, a list row or a nav item, and an avatar stack overlaps by design, so these are *measured and stated* - "the gap went from 8px to 288px" - at `low` severity, and only `warn`. Ruling on them needs design intent, which the engine does not have.
+> * **Verdicts** - content clipped away, collapsed to nothing, overflowing a clipping frame, or growing past a `maxWidth` the component itself declares.
+>   Wrong however they arose, so these `fail` the row at `high` severity.
+>   This is the first thing on row 7 that can go red.
+> * **Candidates** - a newly overlapping pair, a gap that grew, a height that moved.
+>   `SPACE_BETWEEN` on a stretching container is exactly correct for a select, a dropdown, a list row or a nav item, and an avatar stack overlaps by design, so these are *measured and stated* - "the gap went from 8px to 288px" - at `low` severity, and only `warn`.
+>   Ruling on them needs design intent, which the engine does not have.
 >
 > A **structural pre-scan** reads `primaryAxisAlignItems: "SPACE_BETWEEN"` plus a non-HUG horizontal sizing off *every* variant, recovering most of the coverage the probe's one-variant scope gives up.
 > Unmeasured suspicions go in the remainder, never on the chip.
@@ -187,11 +197,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > That is also the self-check for the one load-bearing assumption in the design - that layout recomputation after `resize()` is synchronous, so post-resize bounds are readable in the same tick - which means a broken assumption surfaces as a stated limitation instead of a wrong green.
 >
 > The remainder shrinks accordingly rather than disappearing.
-> Once geometry has been measured, what genuinely remains is what geometry cannot see: an image or gradient fill that distorts when stretched, a corner radius or border that reads wrong at width, and the variants the probe did not instance.
+> Once geometry has been measured, what genuinely remains is what geometry cannot see: an image or gradient fill that distorts when stretched, a corner radius or border that reads wrong at width, a shadow or border cut off at an edge, and the variants the probe did not instance.
 >
 > **Evidence goes on the canvas, only when something broke.**
 > `tidy_qa_build_checklist` draws the baseline beside the state that broke, labelled with the measured numbers, and returns it as `resizeEvidenceId`.
-> This answers design's stage-2 ask literally - *"then let it show me what the problem is"* - in the medium she already works in, and the picture is **proof, not analysis**: geometry has already written the finding, so nothing reasons over the pixels and no image goes to an agent.
+> This answers design's stage-2 ask literally - *"then let it show me what the problem is"* - in the medium she already works in.
+> The picture is **proof, not analysis**: geometry has already written the finding, so nothing reasons over the pixels and no image goes to an agent.
 > A healthy component draws no block at all, so a clean run costs exactly what it did before.
 > The row's status text still stands alone, because the default read-only run produces no canvas and therefore no evidence.
 

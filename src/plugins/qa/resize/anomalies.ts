@@ -25,6 +25,22 @@
  * The payoff of measuring at all is in that second group: it turns "this property
  * combination is suspicious" into "the icon-to-label gap went from 8px to 288px",
  * which can go on a row without hedging.
+ *
+ * **Two of #111's measurements are deliberately not attempted, and the row says so
+ * rather than implying full coverage.**
+ *
+ * *Padding drift* is not measured separately. Under auto-layout padding is a
+ * declared number Figma does not recompute, so a drifting inset in practice shows up
+ * as the gap or overflow rules firing; a padding rule of its own would mostly restate
+ * them, and on a non-auto-layout frame with absolutely-positioned children it would
+ * fire on layout that is working as built.
+ *
+ * *Shadow and stroke clipping* is not measured either, and that one is a real gap
+ * rather than a redundancy. It would need ink-versus-box on every node, which is
+ * exactly the comparison that cannot distinguish a clipped shadow from a perfectly
+ * healthy one - see the `text-clipped` rule below, where restricting to TEXT and
+ * gating on drift is what stops it reporting every shadowed frame in the file.
+ * `measuredRemainder` in the check asks a human for both.
  */
 
 import type { MeasuredBox, MeasuredNode, Measurement } from "./measured";
@@ -114,6 +130,22 @@ function intersects(a: MeasuredBox, b: MeasuredBox): boolean {
   );
 }
 
+/**
+ * How far a node's ink escapes its own layout box, on its worst edge. Zero when the
+ * ink fits, or when Figma reports no render bounds at all.
+ */
+function inkOverhang(node: MeasuredNode): number {
+  const ink = node.renderBox;
+  if (!ink) return 0;
+  return Math.max(
+    0,
+    node.box.x - ink.x,
+    node.box.y - ink.y,
+    right(ink) - right(node.box),
+    bottom(ink) - bottom(node.box),
+  );
+}
+
 function px(value: number): string {
   // Whole pixels where the number is whole, one decimal otherwise: findings read
   // as "8px to 288px", not "8.0px to 288.0px".
@@ -180,24 +212,44 @@ function absoluteAnomalies(
     });
   }
 
-  // Clipping is only visible by comparing ink to layout box: the box stays put
-  // when the text inside it is cut off. `renderBox` is absent for a node that
-  // draws nothing, which is not a clipping question.
-  if (node.renderBox && !contains(node.box, node.renderBox)) {
-    out.push({
-      kind: "text-clipped",
-      confidence: "verdict",
-      nodeId: node.id,
-      nodeName: node.name,
-      detail:
-        `"${node.name}" draws ${px(node.renderBox.width)}×` +
-        `${px(node.renderBox.height)} of ink in a ${px(node.box.width)}×` +
-        `${px(node.box.height)} box, so it is cut off.`,
-      ...stamp,
-    });
+  const was = baseline.get(node.id);
+
+  // Clipping is only visible by comparing ink to layout box: the box stays put when
+  // the text inside it is cut off, and `renderBox` is what shrinks or spills.
+  //
+  // **Two guards, and the check is wrong without either.**
+  //
+  // TEXT only. `absoluteRenderBounds` is *larger* than the bounding box for any node
+  // with a drop shadow or an outside stroke, so a bare ink-versus-box comparison
+  // reads every shadowed frame in the file as clipped and reds this row at every
+  // measured width. Only glyphs can be cut off, so only glyphs are asked about.
+  //
+  // And drift, not absolute. Text can carry an effect too, so what establishes a
+  // defect is that the resize made the overhang *worse* - not that ink and box
+  // disagree, which they may always have done.
+  //
+  // The limit of this: ink Figma has already clipped away is reported at its clipped
+  // size, so a text box that fits its parent while its glyphs are cut is invisible
+  // here. `measuredRemainder` in the check asks a human for that, along with the
+  // shadow-or-border-cut-off case this deliberately does not attempt.
+  if (node.type === "TEXT") {
+    const overhang = inkOverhang(node);
+    const before = was ? inkOverhang(was) : 0;
+    if (overhang - before > TOLERANCE_PX) {
+      out.push({
+        kind: "text-clipped",
+        confidence: "verdict",
+        nodeId: node.id,
+        nodeName: node.name,
+        detail:
+          `"${node.name}" draws ${px(node.renderBox?.width ?? 0)} of ink in a ` +
+          `${px(node.box.width)} box, overhanging it by ${px(overhang)} where it ` +
+          `overhung by ${px(before)} at the baseline, so it is cut off.`,
+        ...stamp,
+      });
+    }
   }
 
-  const was = baseline.get(node.id);
   const collapsed =
     node.box.width < COLLAPSED_PX || node.box.height < COLLAPSED_PX;
   // Only a node that *had* size and lost it. One that was already zero-sized was
@@ -313,9 +365,12 @@ export function detectAnomalies(
   // auto-layout working, while the *component* changing height when only its
   // width was driven is the thing worth naming.
   //
-  // Growth only. A wrapping label unwraps when given room, so a component getting
-  // shorter as it widens is correct, and flagging it would fire on every
-  // multi-line component in the file.
+  // Growth on *widening* only, which excludes two cases for two different reasons.
+  // A component getting shorter as it widens is a wrapping label unwrapping, which is
+  // correct. And a component getting taller as it *narrows* is the same label wrapping
+  // the other way, which is equally correct and happens on nearly every component with
+  // text in it - so reporting the narrowing pass here would bury the widening signal
+  // this rule exists for.
   const wasRoot = was.get(resized.root.id);
   if (
     wasRoot &&

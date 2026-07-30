@@ -33,7 +33,12 @@ import {
   type Anomaly,
 } from "./resize/anomalies";
 import type { MeasuredNode, Measurement } from "./resize/measured";
-import { planResizeProbe, STRESS_TEXT, type DrivePath } from "./resize/plan";
+import {
+  planResizeProbe,
+  STRESS_TEXT,
+  textPropertyKeys,
+  type DrivePath,
+} from "./resize/plan";
 import { markProbe, sweepQaProbes, withProbeFrame } from "./theme-probe";
 import type {
   ComponentSetSnapshot,
@@ -116,8 +121,15 @@ function measureNode(clone: SceneNode, source: NodeSnapshot): MeasuredNode {
   return measured;
 }
 
-/** The variant the probe will instance, and its snapshot tree. */
-function chooseVariant(
+/**
+ * The variant to instance, and its snapshot tree.
+ *
+ * Exported because the canvas op needs exactly the same answer when it builds an
+ * evidence block: the picture has to be of the variant that was measured, and two
+ * copies of "resolve the default variant, then find its snapshot entry" could drift
+ * into illustrating a different variant than the row describes.
+ */
+export function chooseVariant(
   subject: ComponentSetNode | ComponentNode,
   snapshot: ComponentSetSnapshot,
 ): { component: ComponentNode; variant: VariantSnapshot } | undefined {
@@ -200,13 +212,6 @@ function measure(
   };
 }
 
-/** Every TEXT component property's raw key, which is what `setProperties` wants. */
-function textPropertyKeys(snapshot: ComponentSetSnapshot): string[] {
-  return snapshot.properties
-    .filter((property) => property.type === "TEXT")
-    .map((property) => property.key);
-}
-
 /**
  * Drive the width both ways, and long text through it, and report what drifted.
  *
@@ -280,70 +285,82 @@ export async function probeResizeBehaviour(
       strayProbes: () => [],
     },
     (frame) => {
+      // `createInstance` parents to the *current page* the moment it is called, and
+      // only becomes the frame's child inside `driveWidthThrough`. Anything throwing
+      // between those two points - a frame property write on the FILL path - would
+      // leave the instance orphaned on the page, because `withProbeFrame`'s `finally`
+      // removes only the frame. Worse, nothing could ever reclaim it: `isStrayProbe`
+      // requires `type === "FRAME"`, so an orphaned instance is invisible to every
+      // future sweep. Hence its own `finally`, which is a no-op once the instance is
+      // safely inside the frame and the frame takes it on the way out.
       const instance = component.createInstance();
-      const drive = driveWidthThrough(
-        frame,
-        instance,
-        plan.path,
-        plan.baselineWidth,
-      );
+      try {
+        const drive = driveWidthThrough(
+          frame,
+          instance,
+          plan.path,
+          plan.baselineWidth,
+        );
 
-      const baseline = measure(
-        instance,
-        variant,
-        plan.baselineWidth,
-        `at its default ${plan.baselineWidth}px`,
-      );
+        const baseline = measure(
+          instance,
+          variant,
+          plan.baselineWidth,
+          `at its default ${plan.baselineWidth}px`,
+        );
 
-      for (const target of plan.targets) {
-        drive(target.width);
-        const state = measure(instance, variant, target.width, target.label);
-        states.push(target.label);
-        if (
-          Math.abs(state.root.box.width - baseline.root.box.width) > MOVED_PX
-        ) {
-          unmoved = false;
+        for (const target of plan.targets) {
+          drive(target.width);
+          const state = measure(instance, variant, target.width, target.label);
+          states.push(target.label);
+          if (
+            Math.abs(state.root.box.width - baseline.root.box.width) > MOVED_PX
+          ) {
+            unmoved = false;
+          }
+          anomalies.push(...detectAnomalies(baseline, state));
+          anomalies.push(...detectBoundAnomalies(state, bounds));
         }
-        anomalies.push(...detectAnomalies(baseline, state));
-        anomalies.push(...detectBoundAnomalies(state, bounds));
-      }
 
-      // Long text, at the component's own width. Restoring the width first means
-      // any clipping found belongs to the text rather than to the last drive.
-      const textKeys = textPropertyKeys(snapshot);
-      if (textKeys.length === 0) {
-        textStress = {
-          skipped:
-            "the component defines no text properties, so there is no text to lengthen.",
-        };
-      } else {
-        drive(plan.baselineWidth);
-        try {
-          instance.setProperties(
-            Object.fromEntries(textKeys.map((key) => [key, STRESS_TEXT])),
-          );
-          const stressed = measure(
-            instance,
-            variant,
-            plan.baselineWidth,
-            "with long text in every text property",
-          );
+        // Long text, at the component's own width. Restoring the width first means
+        // any clipping found belongs to the text rather than to the last drive.
+        const textKeys = textPropertyKeys(snapshot);
+        if (textKeys.length === 0) {
           textStress = {
-            anomalies: [
-              ...detectAnomalies(baseline, stressed),
-              ...detectBoundAnomalies(stressed, bounds),
-            ],
+            skipped:
+              "the component defines no text properties, so there is no text to lengthen.",
           };
-        } catch (error) {
-          // A text property Figma refuses to set - a missing font on the bound
-          // layer is the common one - is a limitation to state, not a failed run.
-          // The width passes above have already been recorded either way.
-          textStress = {
-            skipped: `Figma would not set the text properties: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          };
+        } else {
+          drive(plan.baselineWidth);
+          try {
+            instance.setProperties(
+              Object.fromEntries(textKeys.map((key) => [key, STRESS_TEXT])),
+            );
+            const stressed = measure(
+              instance,
+              variant,
+              plan.baselineWidth,
+              "with long text in every text property",
+            );
+            textStress = {
+              anomalies: [
+                ...detectAnomalies(baseline, stressed),
+                ...detectBoundAnomalies(stressed, bounds),
+              ],
+            };
+          } catch (error) {
+            // A text property Figma refuses to set - a missing font on the bound
+            // layer is the common one - is a limitation to state, not a failed run.
+            // The width passes above have already been recorded either way.
+            textStress = {
+              skipped: `Figma would not set the text properties: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            };
+          }
         }
+      } finally {
+        if (!instance.removed) instance.remove();
       }
     },
   );

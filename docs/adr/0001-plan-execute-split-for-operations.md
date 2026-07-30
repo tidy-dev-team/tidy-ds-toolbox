@@ -17,6 +17,14 @@ Two checks depend on it: #17 themes (issue #102, which introduced the probe) and
 Extended 2026-07-29 (issue #121) to a second transient node under the same conditions: with `includeModeImages`, `tidy_qa_run` builds the per-mode showcase, exports it as one image, and removes it (see `src/plugins/qa/render/renderModeShowcase.ts`).
 It is the same shape of exception rather than a new kind - built, used and removed inside one call, never a descendant of the target - so it is held to the conditions below rather than treated as fresh latitude.
 The persistent copy of that block belongs to `tidy_qa_build_checklist`, an Execute Operation, where drawing on the canvas is the point and no carve-out is needed.
+
+Extended 2026-07-30 (issue #111) to a third transient node, and this one is worth naming separately because it writes more than the other two.
+The responsiveness check (#7) instances the target's own default variant into a temporary off-canvas frame, drives its width narrower and wider, sets every text property to a long string, records geometry, and removes everything (see `src/plugins/qa/resize-probe.ts`).
+The question it answers is not recorded anywhere in the file - the snapshot describes the component as it sits, and this asks what happens at a width it is not currently at - so building one and measuring it is the only way to know.
+It is still the same shape of exception: the writes land on a throwaway *instance*, never on the component set, so the target is untouched and read-only-toward-its-target holds exactly as before.
+Two clauses of the conditions below do extra work here.
+The instance is parented to the page the moment it is created and only later becomes the frame's child, so it carries its own `finally` rather than relying on the frame's - an orphaned instance could never be swept, because the sweep matches frames.
+And because a component Figma declines to resize cannot be told apart from a probe that failed to drive it, the check reports that outcome as *not established* rather than as a pass.
 It is permitted under these conditions:
 
 - The probe node is created, used and removed inside a single Operation call, in a `finally` so the error path cleans up too.
