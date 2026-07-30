@@ -375,8 +375,7 @@ export async function probeResizeBehaviour(
     baselineWidth: plan.baselineWidth,
     states,
     anomalies,
-    bounds:
-      Object.keys(bounds).length > 0 ? bounds : undefined,
+    bounds: Object.keys(bounds).length > 0 ? bounds : undefined,
     requestedWidths: [plan.baselineWidth, ...plan.targets.map((t) => t.width)],
     ...(unmoved ? { unmoved: true } : {}),
     ...(textStress ? { textStress } : {}),
