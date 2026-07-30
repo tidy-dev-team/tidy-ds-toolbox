@@ -70,7 +70,7 @@ If a `nodeId` token was found, or no target was given (selection fallback),
 skip straight to `tidy_qa_build_checklist` with `{ nodeId?, checks? }`.
 
 This draws a checklist frame on the canvas next to the target — every
-automated item with grouped findings, every manual item as an empty checkbox —
+automated item with grouped findings, every manual item on a tinted row -
 and is **idempotent**: re-running for the same target replaces its prior frame
 rather than duplicating it.
 

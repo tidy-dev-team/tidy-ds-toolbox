@@ -18,8 +18,13 @@ export const MUTED = "#6B7280";
 export const CARD = "#FFFFFF";
 export const BORDER = "#E5E7EB";
 export const ROW_BORDER = "#F3F4F6";
-export const MANUAL_TINT = "#FAFAFA";
-export const CHECKBOX_BORDER = "#9CA3AF";
+/**
+ * Manual rows. A very light blue rather than the near-white grey it used to be:
+ * with the tick boxes gone, the tint is the only thing marking these rows, and
+ * #FAFAFA against #FFFFFF was too faint to read as deliberate. Blue also reads
+ * as "yours to do" rather than as another status, which the greys are for.
+ */
+export const MANUAL_TINT = "#EFF6FF";
 
 export const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
 export const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
@@ -60,7 +65,7 @@ export function fill(
  * invisible on the white card but paints over `MANUAL_TINT` on a manual row -
  * the tint then survived only in the sliver the row did not cover. Every
  * wrapper frame here is meant to be see-through; the ones that carry a colour
- * (root, a manual row, a chip, a checkbox) set it explicitly afterwards.
+ * (root, a manual row, a chip) set it explicitly afterwards.
  */
 export function autoLayout(
   name: string,

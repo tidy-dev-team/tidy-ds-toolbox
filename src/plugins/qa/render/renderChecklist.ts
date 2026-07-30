@@ -6,8 +6,9 @@
  * can be swapped without touching the checking logic. #92 rendered the minimal
  * tracer (one row per item with a status chip); #93 adds grouped finding lines
  * under automated rows with findings; #94 renders the 10 non-automated items as
- * empty tickable checkboxes with a tinted row background instead of a status
- * chip. #95 makes rebuilds idempotent: a prior checklist frame for the same
+ * a tinted row background instead of a status chip. The tick boxes that first
+ * shipped alongside that tint were removed later: nothing ever ticked them, and
+ * a box drawn on a Figma frame is not something a designer marks up in practice. #95 makes rebuilds idempotent: a prior checklist frame for the same
  * target (found via its plugin-data stamp, mirroring tidy-doc's
  * findExistingDocPages) is deleted before the new one is placed.
  */
@@ -18,8 +19,6 @@ import { decidePlacement } from "./placement";
 import {
   autoLayout,
   card,
-  CARD,
-  CHECKBOX_BORDER,
   fill,
   FONT_BOLD,
   FONT_REGULAR,
@@ -105,21 +104,6 @@ function statusChip(label: string, hex: string): FrameNode {
   return chip;
 }
 
-/**
- * An empty, tickable checkbox for manual (non-automated) items — a plain
- * bordered square left for the designer to mark up themselves on canvas.
- */
-function checkbox(): FrameNode {
-  const box = figma.createFrame();
-  box.name = "checkbox";
-  box.resize(16, 16);
-  box.cornerRadius = 4;
-  fill(box, CARD);
-  box.strokes = [{ type: "SOLID", color: hexToRgb(CHECKBOX_BORDER) }];
-  box.strokeWeight = 1.5;
-  return box;
-}
-
 function summaryLine(counts: ChecklistReport["counts"]): string {
   const parts = [
     `${counts.pass} pass`,
@@ -135,7 +119,7 @@ function summaryLine(counts: ChecklistReport["counts"]): string {
   if (counts.notImplemented > 0) parts.push(`${counts.notImplemented} pending`);
   if (counts.notApplicable > 0) parts.push(`${counts.notApplicable} n/a`);
   if (counts.notRun > 0) parts.push(`${counts.notRun} skipped`);
-  // Partial rows carry an unticked box despite having a status chip, so a
+  // Partial rows still owe human work despite having a status chip, so a
   // summary that omitted them could read "0 manual" with work still to do.
   if (counts.partial > 0) parts.push(`${counts.partial} partly manual`);
   return parts.join(" · ");
@@ -256,26 +240,19 @@ export async function renderChecklist(
     if (item.automated) {
       const style = statusStyle(item.status);
       row.appendChild(statusChip(style.label, style.hex));
-      // A partially automated row keeps its box: the chip speaks only for the
-      // half the engine checked, so dropping the box would let a green chip
-      // stand for work nobody did.
-      if (item.manualRemainder) {
-        row.appendChild(checkbox());
-      }
-    } else {
-      row.appendChild(checkbox());
     }
     itemBlock.appendChild(row);
     // Set after parenting, and as `layoutSizingHorizontal` rather than
     // `layoutAlign = "STRETCH"`: for a HORIZONTAL frame the width is its
     // *primary* axis, which STRETCH does not govern, so the row kept hugging its
     // content. Every row then ended at a different width and the chips and
-    // checkboxes sat in a ragged diagonal instead of a right-hand column - while
+    // chips sat in a ragged diagonal instead of a right-hand column - while
     // the note and finding blocks below them, being VERTICAL, did stretch.
     row.layoutSizingHorizontal = "FILL";
 
-    // What the engine did NOT cover on a partially automated row, spelled out
-    // next to the box it left unticked.
+    // What the engine did NOT cover on a partially automated row. With no tick
+    // box on the row, this line is the only thing that says the chip speaks for
+    // half the item, so it carries the whole weight of that.
     if (item.manualRemainder) {
       const remainderBlock = autoLayout(
         `item-${item.n}-manual-remainder`,
