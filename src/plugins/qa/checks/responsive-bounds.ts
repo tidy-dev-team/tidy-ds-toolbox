@@ -308,6 +308,43 @@ function probeOutcome(probe: ResizeProbeSnapshot | undefined): {
     notes.push(`Long text was not tested: ${probe.textStress.skipped}`);
   }
 
+  // The remaining limit, stated on the row rather than hidden: ink Figma has
+  // already cropped is reported at its cropped size, so text whose glyphs are cut
+  // while its box still fits its clipper is invisible to this check.
+  notes.push(
+    "Text whose glyphs are already cropped by Figma at the baseline width " +
+      "cannot be detected as clipped: Figma reports render bounds at their " +
+      "cropped size, so text that is cut off while its layout box still fits " +
+      "its clipper is invisible to this check.",
+  );
+
+  // Declared bounds that the probe's drive never reached: the narrowing floor or
+  // widening ceiling kept the probe's target above or below the declared bound,
+  // so the bound was never actually tested.
+  if (probe.bounds && probe.requestedWidths && probe.requestedWidths.length > 0) {
+    const driven = probe.requestedWidths;
+    if (probe.bounds.minWidth !== undefined) {
+      const narrowest = Math.min(...driven);
+      if (narrowest >= probe.bounds.minWidth) {
+        notes.push(
+          `Declared minWidth of ${probe.bounds.minWidth}px was not tested: ` +
+            `the probe's narrowing floor kept the narrowest driven width ` +
+            `(${narrowest}px) above it.`,
+        );
+      }
+    }
+    if (probe.bounds.maxWidth !== undefined) {
+      const widest = Math.max(...driven);
+      if (widest <= probe.bounds.maxWidth) {
+        notes.push(
+          `Declared maxWidth of ${probe.bounds.maxWidth}px was not tested: ` +
+            `the probe's widening ceiling kept the widest driven width ` +
+            `(${widest}px) below it.`,
+        );
+      }
+    }
+  }
+
   return {
     measured: true,
     unmeasurable: false,

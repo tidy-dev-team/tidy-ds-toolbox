@@ -397,6 +397,13 @@ export interface ResizeProbeSnapshot {
    * green chip would be actively misleading.
    */
   unmoved?: boolean;
+  /** The declared size bounds on the probed variant. */
+  bounds?: {
+    minWidth?: number;
+    maxWidth?: number;
+  };
+  /** The widths the probe actually drove to, in order. */
+  requestedWidths?: number[];
   /**
    * The long-text stress pass (#112's text half): every TEXT property set to a
    * long string at once, then measured.

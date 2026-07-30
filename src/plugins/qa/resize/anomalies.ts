@@ -220,6 +220,29 @@ function absoluteAnomalies(
     });
   }
 
+  // The immediate parent does not clip, but a higher ancestor does. A node
+  // escaping a clipping grandparent through a non-clipping parent has its
+  // content cut off just the same, so it needs its own overflow finding.
+  if (
+    parent?.clipsContent !== true &&
+    clipper !== undefined &&
+    !contains(clipper.box, node.box)
+  ) {
+    out.push({
+      kind: "overflow",
+      confidence: "verdict",
+      nodeId: node.id,
+      nodeName: node.name,
+      detail:
+        `"${node.name}" extends outside "${clipper.name}", which clips its ` +
+        `content, so part of it is not drawn: ` +
+        `${px(node.box.width)}×${px(node.box.height)} at ` +
+        `(${px(node.box.x - clipper.box.x)}, ${px(node.box.y - clipper.box.y)}) ` +
+        `inside ${px(clipper.box.width)}×${px(clipper.box.height)}.`,
+      ...stamp,
+    });
+  }
+
   const was = baseline.get(node.id);
 
   // Ink that has left its own box. Three guards, and the rule is wrong without any
@@ -418,26 +441,25 @@ export function detectAnomalies(
   // auto-layout working, while the *component* changing height when only its
   // width was driven is the thing worth naming.
   //
-  // Growth on *widening* only, which excludes two cases for two different reasons.
-  // A component getting shorter as it widens is a wrapping label unwrapping, which is
-  // correct. And a component getting taller as it *narrows* is the same label wrapping
-  // the other way, which is equally correct and happens on nearly every component with
-  // text in it - so reporting the narrowing pass here would bury the widening signal
-  // this rule exists for.
+  // Reported in all directions, as a candidate: height growth or shrinkage in
+  // either the widening or narrowing pass is stated so a human can confirm
+  // whether it is legitimate (a label wrapping or unwrapping) or unintended drift.
   const wasRoot = was.get(resized.root.id);
   if (
     wasRoot &&
-    resized.root.box.height - wasRoot.box.height > TOLERANCE_PX &&
-    resized.requestedWidth > baseline.requestedWidth
+    Math.abs(resized.root.box.height - wasRoot.box.height) > TOLERANCE_PX
   ) {
+    const grew = resized.root.box.height > wasRoot.box.height;
+    const widened = resized.requestedWidth > baseline.requestedWidth;
     out.push({
       kind: "height-changed",
       confidence: "candidate",
       nodeId: resized.root.id,
       nodeName: resized.root.name,
       detail:
-        `height went from ${px(wasRoot.box.height)} to ` +
-        `${px(resized.root.box.height)} while only the width was driven.`,
+        `height ${grew ? "grew" : "shrank"} from ${px(wasRoot.box.height)} ` +
+        `to ${px(resized.root.box.height)} while the component was ` +
+        `${widened ? "widened" : "narrowed"}.`,
       measuredAtWidth: resized.requestedWidth,
       state: resized.label,
     });

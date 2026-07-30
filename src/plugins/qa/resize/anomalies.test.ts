@@ -320,6 +320,46 @@ describe("detectAnomalies", () => {
     expect(find(anomalies, "text-clipped").confidence).toBe("verdict");
   });
 
+  it("reports overflow when content escapes a non-immediate clipping ancestor through a non-clipping parent", () => {
+    // Grandparent clips at 60x40, parent does not clip and fits inside the
+    // grandparent, but child extends outside the grandparent's box.
+    // The overflow of the clipping ancestor must still be reported even though
+    // the immediate parent does not clip.
+    const baseline = node("grandparent", box(0, 0, 120, 60), {
+      clipsContent: true,
+      children: [
+        node("parent", box(16, 8, 40, 30), {
+          clipsContent: false,
+          children: [
+            node("child", box(0, 0, 20, 20)),
+          ],
+        }),
+      ],
+    });
+    const narrowed = node("grandparent", box(0, 0, 60, 40), {
+      clipsContent: true,
+      children: [
+        node("parent", box(8, 4, 40, 30), {
+          clipsContent: false,
+          children: [
+            // Child extends outside grandparent's box but fits inside its
+            // non-clipping parent.
+            node("child", box(30, 5, 50, 30)),
+          ],
+        }),
+      ],
+    });
+
+    const anomalies = detectAnomalies(
+      measurement(baseline, 120),
+      measurement(narrowed, 60),
+    );
+    const overflow = find(anomalies, "overflow");
+    expect(overflow.confidence).toBe("verdict");
+    expect(overflow.nodeId).toBe("child");
+    expect(overflow.detail).toContain("grandparent");
+  });
+
   it("reports a node that collapsed to nothing", () => {
     const widened = node("root", box(0, 0, 400, 40), {
       clipsContent: true,
@@ -463,9 +503,9 @@ describe("detectAnomalies", () => {
     expect(grew.detail).toContain("96");
   });
 
-  it("does not report height shrinking as the component is widened", () => {
-    // A wrapping label unwraps when given room; the component getting shorter is
-    // the auto-layout working, not drifting.
+  it("reports height shrinking as the component is widened, as a candidate", () => {
+    // A wrapping label unwraps when given room, so the component gets shorter.
+    // This is now reported as a candidate so a human can confirm it is legitimate.
     const widened = node("root", box(0, 0, 400, 40), {
       clipsContent: true,
       children: [node("label", box(16, 12, 64, 16), { type: "TEXT" })],
@@ -475,11 +515,36 @@ describe("detectAnomalies", () => {
       children: [node("label", box(16, 12, 64, 16), { type: "TEXT" })],
     });
 
-    expect(
-      kinds(
-        detectAnomalies(measurement(baseline, 120), measurement(widened, 400)),
-      ),
-    ).not.toContain("height-changed");
+    const anomalies = detectAnomalies(
+      measurement(baseline, 120),
+      measurement(widened, 400),
+    );
+    const grew = find(anomalies, "height-changed");
+    expect(grew.confidence).toBe("candidate");
+    expect(grew.detail).toContain("shrank");
+    expect(grew.detail).toContain("widened");
+  });
+
+  it("reports height change when the component is narrowed", () => {
+    // A label that wraps when narrowed legitimately grows taller, but the
+    // measurement is reported so a human can confirm it.
+    const narrowed = node("root", box(0, 0, 60, 96), {
+      clipsContent: true,
+      children: [node("label", box(16, 12, 28, 16), { type: "TEXT" })],
+    });
+    const baseline = node("root", box(0, 0, 120, 40), {
+      clipsContent: true,
+      children: [node("label", box(16, 12, 64, 16), { type: "TEXT" })],
+    });
+
+    const anomalies = detectAnomalies(
+      measurement(baseline, 120),
+      measurement(narrowed, 60),
+    );
+    const grew = find(anomalies, "height-changed");
+    expect(grew.confidence).toBe("candidate");
+    expect(grew.detail).toContain("grew");
+    expect(grew.detail).toContain("narrowed");
   });
 
   it("tolerates sub-pixel drift everywhere", () => {
