@@ -307,10 +307,32 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
     const result = checkResponsiveBounds(
       withProbe({ ...measured([]), unmoved: true }),
     );
-    expect(result.status).toBe("pass"); // from the bounds half alone
+    // Not a pass: a green chip on a row titled "Responsiveness" would read as
+    // though resize behaviour had been established, and it has not been. The bounds
+    // half did pass, which is why this is amber rather than red.
+    expect(result.status).toBe("warn");
     expect(result.note).toContain("could not be measured");
     expect(result.manualRemainder).toContain(
       "Only min/max bounds are checked automatically",
+    );
+  });
+
+  it("leaves an unmoved component's other statuses alone", () => {
+    // Only a `pass` is misleading. A warn already asks for attention, and
+    // not_applicable states more honestly than an amber that neither half evaluated
+    // anything.
+    const unbounded = {
+      ...fixture([root("1", true)]),
+      resizeProbe: { ...measured([]), unmoved: true },
+    };
+    expect(checkResponsiveBounds(unbounded).status).toBe("warn");
+
+    const cannotHoldBounds = {
+      ...fixture([root("1", false)]),
+      resizeProbe: { ...measured([]), unmoved: true },
+    };
+    expect(checkResponsiveBounds(cannotHoldBounds).status).toBe(
+      "not_applicable",
     );
   });
 
