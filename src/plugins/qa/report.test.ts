@@ -346,7 +346,7 @@ describe("buildChecklistReport", () => {
 
     it("reports partial work even when nothing is fully manual", () => {
       // The regression this guards: a summary reading "0 manual" while a row
-      // still has an unticked box.
+      // still owes the human half.
       const report = buildChecklistReport({
         target: TARGET,
         results: [result("documentation", "pass", [], REMAINDER)],

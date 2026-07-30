@@ -52,14 +52,22 @@ import type { CheckResult, CheckStatus, Finding } from "../types";
 import {
   bindsOwnThemeVariables,
   collectVariableUsage,
+  colorStyleVariableIds,
   nodesPinning,
 } from "../variable-usage";
 
 const TITLE = "Themes (per-mode variable resolution)";
 
 /**
- * How many colours the set binds that the probe could compare, and whether any
- * of them actually differs between modes.
+ * How many colours this set's appearance depends on that the probe could
+ * compare, and whether any of them differs between modes.
+ *
+ * **Both sources of colour, not just direct bindings.** A component's visible
+ * colour can come from a fill style whose paint is itself variable-bound, and
+ * those variables are resolved by the probe but never appear in `usage`.
+ * Comparing only direct bindings would call a set invariant while a style-backed
+ * colour changed underneath it - a false "renders identically" on a component
+ * that plainly does not.
  *
  * **Colours only, deliberately.** The probe records a resolved *value* for
  * COLOR variables alone (#16 needs them for contrast); a FLOAT or STRING is
@@ -71,14 +79,19 @@ const TITLE = "Themes (per-mode variable resolution)";
  * `fail` on its own terms, and comparing a broken chain says nothing.
  */
 function colourInvariance(
+  snapshot: ComponentSetSnapshot,
   theme: ThemeSnapshot,
   usage: ReturnType<typeof collectVariableUsage>,
 ): { compared: number; varies: boolean } {
   let compared = 0;
   let varies = false;
+  const contributes = new Set([
+    ...usage.keys(),
+    ...colorStyleVariableIds(snapshot),
+  ]);
 
   for (const [variableId, variable] of Object.entries(theme.variables)) {
-    if (!usage.has(variableId)) continue;
+    if (!contributes.has(variableId)) continue;
 
     // Built as it goes rather than filtered then mapped, so the colour test and
     // the signature read the same value and no assertion is needed to link them.
@@ -260,7 +273,7 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   //
   // Only when nothing else failed: a broken binding resolves to nothing in any
   // mode, which would look like invariance while being a different defect.
-  const invariance = colourInvariance(theme, usage);
+  const invariance = colourInvariance(snapshot, theme, usage);
   const rendersIdentically =
     resolutionFailures === 0 && invariance.compared > 0 && !invariance.varies;
   if (rendersIdentically) {
@@ -268,11 +281,11 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
       severity: "medium",
       nodeId: snapshot.id,
       nodeName: snapshot.name,
-      message: `Every colour this set binds resolves to the same value in all ${theme.modes.length} modes (${modeList}), so the component renders identically in each.`,
+      message: `Every colour this set binds, or applies through a style, resolves to the same value in all ${theme.modes.length} modes (${modeList}) - so nothing this check can see changes between them.`,
       expected: "at least one bound colour that differs between modes",
       actual: `${invariance.compared} bound colour${invariance.compared === 1 ? "" : "s"}, identical in every mode`,
       suggestedFix:
-        "Check the set is bound to theme-aware tokens rather than to values that happen to be the same in every mode. If it is meant to look the same everywhere, this row needs no action.",
+        "Check the set is bound to theme-aware tokens rather than to values that happen to be the same in every mode. If it is meant to look the same everywhere, this row needs no action. Only colours are compared, and only this set's own layers - a nested instance theming itself internally would not be seen here.",
       count: 1,
     });
   }

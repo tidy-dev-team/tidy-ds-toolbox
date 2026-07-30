@@ -149,7 +149,8 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > A set where no root can carry bounds reports `not_applicable`.
 >
 > **Simulating resize is not attempted.**
-> "Doesn't break when resized" needs a definition of *breaks* and stays a human judgement, so the checklist row carries a `manualRemainder` and **keeps its tickbox alongside the status chip**.
+> "Doesn't break when resized" needs a definition of *breaks* and stays a human judgement, so the checklist row carries a `manualRemainder` alongside the status chip.
+> Amended 2026-07-30: the tick boxes were removed from the rendered checklist - nothing ever ticked them - so the remainder line beneath the chip is what now carries the outstanding work.
 > A green chip here speaks only for the bounds; without the box it would stand for a resize test nobody performed.
 
 
@@ -369,7 +370,8 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 >
 > **The visual half is a human tick, not an omission.**
 > The source ask was that for every mode the component has, it works and *looks good* in all of them, which resolution integrity does not establish: a set can resolve perfectly in both modes and still read wrong in one.
-> Every reported outcome therefore carries a `manualRemainder` naming the modes to review, so the row shows a status chip **and** a tickbox and counts toward `counts.partial`.
+> Every reported outcome therefore carries a `manualRemainder` naming the modes to review, so the row shows a status chip with the remainder spelled out beneath it, and counts toward `counts.partial`.
+> Amended 2026-07-30: this said "and a tickbox" before the boxes were removed from the rendering.
 > Without it a green chip stood for the visual review on every run.
 >
 > That remainder is **conditional**, on item 19's logic rather than item 7's.
@@ -412,7 +414,8 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > Hence the `note` on both outcomes, so an empty row reads as "nothing found here" rather than as green.
 > **Worth confirming with design before treating the row as authoritative.**
 >
-> The row's blurb claims usage guidance, examples and properties are documented, which a link cannot establish, so a `pass` also emits a `manualRemainder` asking for the content review and **keeps the row's tickbox**.
+> The row's blurb claims usage guidance, examples and properties are documented, which a link cannot establish, so a `pass` also emits a `manualRemainder` asking for the content review.
+> Amended 2026-07-30: this said "keeps the row's tickbox" before the boxes were removed from the rendering.
 > Only on `pass`: with no documentation there is nothing to read, and asking for a review there would contradict treating absence as normal.
 >
 > **Source:** the "nothing ships without its manual" framing inverts the reality - *"many times we do QA before documentation, because it's often only a later stage."*

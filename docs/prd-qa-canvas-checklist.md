@@ -44,7 +44,7 @@ artifact *is* their checklist — not a second thing to reconcile.
   engine over all variants. **Completeness is preserved.**
 - Render **all 19** checklist items as a frame on the canvas, positioned next to
   the instance: the 9 automated items filled with status + findings; the other 10
-  as manual checkboxes.
+  as manual rows (tinted, with no status chip; the tick boxes were removed 2026-07-30).
 - Return only a **small stub** over MCP (frame id + pass/warn/fail counts) — never
   the full findings payload.
 - Keep the **rendering isolated in its own module** so the visual design can be
@@ -236,7 +236,7 @@ interface ChecklistReport {
 
 - Selecting an instance and running the command renders a checklist frame beside
   it covering **all 19 items**, with the 9 automated ones showing real
-  pass/warn/fail + grouped findings and the rest as manual checkboxes.
+  pass/warn/fail + grouped findings and the rest as tinted manual rows.
 - Checking walks the full set (same coverage as `tidy_qa_run`).
 - The MCP call returns only the stub — no large payload.
 - Re-running replaces the prior frame for that target (no duplicates).

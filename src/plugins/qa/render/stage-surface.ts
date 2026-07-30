@@ -37,6 +37,16 @@ import { isDarkModeName } from "../../../shared/theme-surface";
  * A dark-named mode is the one case where doing nothing is wrong: showing a
  * dark-mode component against the white card misrepresents it just as badly.
  *
+ * **This supersedes #141, deliberately.** That issue asked for a neutral
+ * backdrop on any file with no surface token, so a pale element could not hide
+ * against the card. Shipping it showed the cost was higher than the benefit: on a
+ * collection whose modes are brands rather than polarities, every column gained a
+ * surface the component does not have, and the box read as part of the component
+ * - the first version was mistaken for the component's own purple background.
+ * The maintainer's call, made against the rendered artifact rather than the
+ * written requirement: no dark theme, no backdrop. The pale-element blind spot is
+ * the accepted cost.
+ *
  * Achromatic on purpose. It sits behind arbitrary components, so any colour cast
  * reads as belonging to the component - borrowing tidy-doc's cool grey (#F0F2F7)
  * made a blue-accented slider look like it had a lavender background of its own.
