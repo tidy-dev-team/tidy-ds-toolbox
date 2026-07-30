@@ -19,6 +19,7 @@ side — this service just needs to accept fast and never be publicly writable.
 
 ```
 server.js                       the service (~90 lines)
+dashboard/docker-compose.yml    local Metabase dashboard (#61)
 sql/01_roles_and_db.sql         roles + database (run as superuser, on `postgres`)
 sql/02_schema.sql               events table, dashboard views, grants (on toolbox_logs)
 sql/03_privacy_drop_client_data.sql  one-time migration: drop/purge client-identifying columns
@@ -227,10 +228,99 @@ TIDY_INGEST_TOKEN="$(ssh tidy@204.48.22.123 'sudo grep ^INGEST_TOKEN= /etc/toolb
 `manifest.json` `networkAccess.allowedDomains` is the single ingest origin
 (`https://toolbox-logs.wearekido.dev`); production builds reach nothing else.
 
-## Checking results manually
+## Dashboard (Metabase, #61)
 
-Until the Metabase dashboard (#45) exists, query Postgres directly from your
-laptop (uses the `tidy` SSH alias; `-t` allocates a TTY so `sudo` can prompt):
+Metabase runs locally in Docker and connects to the droplet's Postgres over an SSH tunnel.
+No new services on the droplet; the dashboard lives on your laptop.
+
+**Prerequisites:** Docker Desktop, SSH access to the droplet (`tidy` alias).
+
+### 1. Reset the `toolbox_readonly` password (one-time, on the droplet)
+
+The password was lost; reset it once via SQL.
+SSH into the droplet and run:
+
+```bash
+ssh tidy 'sudo -u postgres psql -p 5432 -c "ALTER ROLE toolbox_readonly PASSWORD '\''<choose-a-password>'\'';"'
+```
+
+Keep this password out of git.
+You will enter it once in Metabase's UI.
+
+### 2. Open the SSH tunnel
+
+Run this in its own terminal (it holds until you Ctrl-C):
+
+```bash
+npm run dashboard:tunnel
+```
+
+This forwards `localhost:15432` → droplet's Postgres on `5432` over the `tidy` SSH alias (`ssh -N -L 127.0.0.1:15432:localhost:5432 tidy`).
+The tunnel must stay up while you use the dashboard.
+
+> **Droplet needs no new services.**
+> This is the only connection path - no pg_hba changes, no open ports.
+> The tunnel runs on your laptop; the droplet sees a local `psql` connection.
+
+### 3. Start Metabase
+
+```bash
+npm run dashboard:up
+```
+
+First run pulls the `metabase/metabase` image (~500 MB).
+Metabase starts on `http://127.0.0.1:3000` and stores its state in a named Docker volume (saved questions, dashboards, connection config all persist across restarts).
+
+```bash
+npm run dashboard:down   # stop when done
+```
+
+### 4. Connect Metabase to the database
+
+Open `http://127.0.0.1:3000` in a browser.
+Complete the one-time setup:
+
+1. Choose language, create your admin account (local only, pick anything).
+2. **Add database** → PostgreSQL:
+   - Display name: `toolbox_logs`
+   - Host: `host.docker.internal`
+   - Port: `15432`
+   - Database name: `toolbox_logs`
+   - Username: `toolbox_readonly`
+   - Password: (the one you set in step 1)
+3. Click **Save**.
+   Metabase tests the connection through the tunnel.
+
+The credentials are stored in Metabase's persisted volume, never in git.
+
+### 5. Build the four dashboard cards
+
+Each card is a SQL question built on one of the existing views.
+After creating each question, add it to a **Tidy DS Toolbox** dashboard.
+
+| Card | View | What to build |
+|------|------|---------------|
+| Module daily | `v_module_daily` | Bar or line chart: `day` on X, `events` + `sessions` on Y, grouped by `module`. Order by `day` DESC. |
+| File breadth | `v_module_file_breadth` | Bar chart or table: `module` vs `distinct_files`. Order by `distinct_files` DESC. |
+| Opens vs actions | `v_module_opens_vs_actions` | Bar chart: `module` on axis, `opens` and `actions` as stacked/side-by-side bars. Order by `actions` DESC. |
+| Action breakdown | `v_action_breakdown` | Table: `module`, `action`, `events`. Order by `events` DESC. |
+
+All views key off `received_at` (server truth, not client clocks).
+No file names or raw file keys appear anywhere - the only file-scoped field is `file_hash`, a one-way hash.
+
+### 6. Verify
+
+With the tunnel up and Metabase running, confirm each card shows plausible rows.
+If the `toolbox_readonly` connection test fails, check that:
+- The tunnel is still open (`lsof -i :15432` should show `ssh` listening).
+- The password was set correctly (step 1).
+- The droplet's Postgres is running (`ssh tidy 'sudo systemctl status postgresql@14-main'`).
+
+---
+
+## Checking results manually (no-Docker fallback)
+
+If you don't have Docker or prefer the terminal, query Postgres directly from your laptop (uses the `tidy` SSH alias; `-t` allocates a TTY so `sudo` can prompt):
 
 ```bash
 # Latest raw events — batched events share an identical received_at

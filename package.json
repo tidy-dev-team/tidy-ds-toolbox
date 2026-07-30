@@ -29,6 +29,9 @@
     "verify:plugin": "node scripts/verify-installed-plugin.mjs",
     "mcp:smoketest": "npm run build:mcp && node mcp-server/dist/smoketest.cjs mcp-server/dist/server.cjs",
     "mcp:smoketest:src": "node --experimental-strip-types mcp-server/src/smoketest.ts mcp-server/src/server.ts",
+    "dashboard:tunnel": "ssh -N -L 127.0.0.1:15432:localhost:5432 tidy",
+    "dashboard:up": "docker compose -f analytics-server/dashboard/docker-compose.yml up -d",
+    "dashboard:down": "docker compose -f analytics-server/dashboard/docker-compose.yml down",
     "manifest:assets": "node scripts/generate-asset-manifest.mjs",
     "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts",
     "eval:icon-hash": "node --experimental-strip-types scripts/eval-icon-hash.mts"
