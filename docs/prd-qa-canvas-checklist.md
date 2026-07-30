@@ -210,6 +210,7 @@ interface ChecklistReport {
   items with findings, a compact grouped summary (dedupe repeated per-node
   findings with counts — the visual analogue of the aggregation TODO).
 - Manual items render with an empty checkbox for the designer to tick.
+  Superseded 2026-07-30: the boxes were removed. Nothing ever ticked them - a box drawn on a Figma frame is not something a designer marks up in practice - so manual rows are distinguished by their tinted background and the absence of a status chip, and a partially automated row states its outstanding work in the remainder line beneath the chip.
 - Reuse the `tidy-doc` code-as-template layout approach (ADR-0006) for visual
   consistency with other generated artifacts.
 

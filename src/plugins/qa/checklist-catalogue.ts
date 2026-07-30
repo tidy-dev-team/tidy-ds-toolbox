@@ -119,7 +119,7 @@ const ROWS = [
     // This blurb states the item, which is wider than the check: design asked
     // for all combinations cycled, long text always, and icon colour following
     // text colour. The check emits an unconditional `manualRemainder` for that
-    // rest, so the row keeps a tickbox next to its chip.
+    // rest, so the row states the outstanding work next to its chip.
     blurb: "Every property combination renders correctly across the set.",
   },
   {
@@ -151,7 +151,7 @@ const ROWS = [
     checkId: "responsive-bounds",
     run: checkResponsiveBounds,
     // Only the size-bounds half is automated; the check emits a
-    // `manualRemainder` so the row keeps its tickbox for the resize test.
+    // `manualRemainder` so the row still names the resize test as outstanding.
     blurb:
       "Resizing behaves under auto-layout, with min/max bounds where they apply.",
   },
@@ -247,7 +247,7 @@ const ROWS = [
     // component work and *look good* in every mode, while `themes` establishes
     // only that every bound variable resolves. The check emits a
     // `manualRemainder` naming the modes for the visual half, so the row carries
-    // a tickbox beside its chip (#115).
+    // the outstanding visual review beside its chip (#115).
     blurb: "The component resolves and reads correctly in every theme mode.",
   },
   {

@@ -12,7 +12,7 @@
  * The other half of item 7 - actually resizing a variant and judging whether it
  * breaks - needs a definition of "breaks" and is deliberately not attempted
  * here, which is why every result carries a `manualRemainder` so the row keeps
- * its tickbox: a green chip here must not stand for the resize test.
+ * its remainder line: a green chip here must not stand for the resize test.
  *
  * **Absence of *all four* bounds is the reported case, not incompleteness.**
  * Requiring every bound on every component would put four findings on nearly

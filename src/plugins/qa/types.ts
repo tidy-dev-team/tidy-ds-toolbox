@@ -89,8 +89,9 @@ export interface CheckResult {
   note?: string;
   /**
    * Human work this check leaves behind, when it covers only part of its
-   * checklist item. The checklist row then carries a status chip **and** keeps a
-   * tickable box, so a green chip cannot stand for the half nobody performed.
+   * checklist item. The row still carries its status chip, and the remainder is
+   * spelled out beneath it, so a green chip cannot stand for the half nobody
+   * performed.
    *
    * The check owns this rather than the catalogue because whether work remains
    * can depend on what the check found: #19 asks for a content review only when
@@ -128,8 +129,8 @@ export interface ChecklistItem {
   /**
    * What a human must still check on this row, forwarded from the backing
    * check's `manualRemainder`. Present means the row is *partially* automated:
-   * it carries a status chip AND keeps a tickable box, because a green chip that
-   * silently stood for the unchecked half would be a false pass.
+   * it carries a status chip and, beneath it, the work still owed - because a
+   * green chip silently standing for the unchecked half would be a false pass.
    */
   manualRemainder?: string;
   status: ItemStatus;
@@ -163,8 +164,8 @@ export interface ChecklistReport {
    * `partial` is **not** a status: it is an overlay counting automated rows that
    * still carry a `manualRemainder`, and every such row is *also* counted by its
    * own status. Without it a report could read "0 manual" while rows 7 and 19
-   * had unticked boxes on the canvas, so it is deliberately excluded from the
-   * sum rather than folded into `manual`.
+   * still owed a human review, so it is deliberately excluded from the sum
+   * rather than folded into `manual`.
    */
   counts: Record<
     | "pass"
