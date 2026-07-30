@@ -366,6 +366,16 @@ function driftAnomalies(
     const gap = next.box.x - right(prev.box);
     const wasGap = wasNext.box.x - right(wasPrev.box);
     if (gap - wasGap <= GAP_TOLERANCE_PX) continue;
+    // A gap only means anything when it *is* a gap. Two siblings stacked at the
+    // same x give `gap = -width`, so narrowing shrinks the width and the gap
+    // "grows" from -280px to -204px - an artifact of the node getting narrower,
+    // with no space opening up anywhere. Found on a real dropdown, where it
+    // produced every finding row 7 reported and all of them were noise.
+    //
+    // Overlapping siblings are the overlap rule's business, and it stays quiet
+    // when they already overlapped at the baseline, which is the correct answer:
+    // the resize did not do that.
+    if (wasGap < -TOLERANCE_PX || gap < -TOLERANCE_PX) continue;
     out.push({
       kind: "gap-grew",
       confidence: "candidate",
