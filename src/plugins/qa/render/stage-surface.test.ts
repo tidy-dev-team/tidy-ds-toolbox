@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { FALLBACK_STAGE, surfaceCaption } from "./stage-surface";
+import { fallbackStage, NEUTRAL_DARK, surfaceCaption } from "./stage-surface";
 
 describe("surfaceCaption", () => {
   // Naming the token is how a wrong backdrop reads as a wrong backdrop rather
@@ -17,25 +17,47 @@ describe("surfaceCaption", () => {
     // Must not imply it is the real surface, since a reader would then draw
     // contrast conclusions the picture does not support.
     expect(caption).not.toMatch(/resolved per mode/i);
-    // Nor imply the backdrop varies by mode: it does not, and an earlier version
-    // of this caption said it was "approximated from each mode's name" while the
-    // code returned one constant. A caption that describes behaviour the drawing
-    // does not have is worse than no caption.
-    expect(caption).not.toMatch(/from (each|the) mode's name/i);
-    expect(caption).toMatch(/every mode gets the same/i);
+    // Nor claim one tone for every mode. That is what it used to paint, and on a
+    // collection whose modes are brands rather than polarities it invented a dark
+    // theme the file did not have. A caption outliving the behaviour it describes
+    // is how a false one shipped before.
+    expect(caption).not.toMatch(/every mode gets the same/i);
+    // And must say that most modes get nothing behind them, because a caption
+    // implying a backdrop where there is none is the same failure in reverse.
+    expect(caption).toMatch(/nothing added behind it/i);
   });
 });
 
-describe("FALLBACK_STAGE", () => {
-  // #141 asked for a dark fallback specifically, because the toolbox is pointed
-  // at elements that are not from a well-formed DS - and a pale backdrop there
-  // hides the pale element the check is looking for.
-  it("is dark, and not pure black", () => {
-    const channels = [1, 3, 5].map((at) =>
-      parseInt(FALLBACK_STAGE.slice(at, at + 2), 16),
+describe("fallbackStage", () => {
+  // The default is *nothing*. A pale box behind a light-mode component is a
+  // surface the component does not have, and it reads as part of the component -
+  // which is exactly how a grey stage got mistaken for the component's own
+  // background. The card is already the surface these sit on.
+  it.each(["Isracard", "Amex", "Isracard-Orange", "Isracard-purple", "Light"])(
+    "adds no backdrop for %s",
+    (name) => {
+      expect(fallbackStage(name)).toBeNull();
+    },
+  );
+
+  // The one case where doing nothing is wrong: a dark-mode component judged
+  // against the white card is misrepresented just as badly.
+  it.each(["Industrial Dark", "night_mode", "Dark"])(
+    "backs %s with a neutral dark",
+    (name) => {
+      expect(fallbackStage(name)).toBe(NEUTRAL_DARK);
+    },
+  );
+
+  // It sits behind arbitrary components, so any colour cast reads as belonging to
+  // the component. Borrowing tidy-doc's cool grey made a blue-accented slider
+  // look like it had a lavender background of its own.
+  it("is achromatic", () => {
+    const [r, g, b] = [1, 3, 5].map((at) =>
+      parseInt(NEUTRAL_DARK.slice(at, at + 2), 16),
     );
 
-    expect(Math.max(...channels)).toBeLessThan(0x60);
-    expect(Math.max(...channels)).toBeGreaterThan(0x10);
+    expect(r).toBe(g);
+    expect(g).toBe(b);
   });
 });
