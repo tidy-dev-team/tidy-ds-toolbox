@@ -20,6 +20,9 @@ Split `$ARGUMENTS` on whitespace into tokens, then classify each:
 
 - **Canvas flag** — the token `--canvas` (or `--render`). Switches to canvas
   mode. Remove it from the token list before parsing the rest.
+- **Contact-sheet flag** — the token `--sheet` (or `--combinations`). Implies
+  canvas mode, and sets `includeContactSheet: true` on the call.
+  Remove it from the token list before parsing the rest.
 - **Check-id** - a token that exactly matches one of the known check ids, in
   checklist order:
   `set-name-casing`, `variant-property-bindings`, `prop-order`, `tokens`,
@@ -55,6 +58,7 @@ Examples:
 - `/tidy-ds:tidy-qa --canvas` → `tidy_qa_build_checklist {}` (current selection)
 - `/tidy-ds:tidy-qa --canvas 2625:10445` → `tidy_qa_build_checklist { nodeId: "2625:10445" }`
 - `/tidy-ds:tidy-qa --canvas Button` → resolve `Button` to a nodeId first (see below), then `tidy_qa_build_checklist { nodeId }`
+- `/tidy-ds:tidy-qa --sheet Button` → resolve `Button` to a nodeId, then `tidy_qa_build_checklist { nodeId, includeContactSheet: true }`
 
 ## Canvas mode (`--canvas`)
 
@@ -77,6 +81,10 @@ rather than duplicating it.
 The response is a small stub only:
 `{ frameId, target: { id, name }, counts: { pass, warn, fail, manual, notImplemented, notApplicable, notRun, partial } }`.
 `modeShowcaseId` is also present when the set has more than one theme mode: a labelled block drawn beside the checklist showing the default variant per mode.
+`resizeEvidenceId` is present when the responsiveness probe measured something breaking: the baseline drawn beside the state that broke, labelled with the measured numbers.
+It appears only when there is a defect, so its absence on a passing row is the expected case and not a failure.
+`contactSheetId` is present when `--sheet` asked for the property-combination grid.
+Neither block ever changes a row's status - they are evidence for a tick a human still owns.
 Pass `includeImage: true` to get `image` as well - the drawn checklist as a viewable picture - when you need to describe how the frame itself looks, or when the user cannot see their canvas.
 `partial` counts automated rows that still need a human tick because the check covers only part of the item.
 Several rows are like this, and which ones can depend on what the check found, so read it off the response rather than assuming a fixed set.

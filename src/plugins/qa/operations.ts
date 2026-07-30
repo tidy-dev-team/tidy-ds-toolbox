@@ -4,8 +4,10 @@
 //
 // Single agent-facing surface: `tidy_qa_run`. Returns structured CheckResults
 // plus a 19-item ChecklistReport (PRD catalogue merge). The checks never touch
-// the component set; the one document write in a run is the per-mode resolution
-// probe's temporary frame (see theme-probe.ts and the ADR-0001 carve-out).
+// the component set. The document writes in a run are both transient probe
+// frames, removed before the call returns: the per-mode resolution probe
+// (theme-probe.ts) and the resize probe (resize-probe.ts), which instances the
+// default variant to measure what breaks. Both are the ADR-0001 carve-out.
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { globToRegex } from "../../shared/operations/glob";
@@ -14,7 +16,17 @@ import { prepareSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
 import { renderChecklist } from "./render/renderChecklist";
-import type { ThemeSnapshot } from "./snapshot";
+import type { ComponentSetSnapshot, ThemeSnapshot } from "./snapshot";
+import { planResizeProbe } from "./resize/plan";
+import { planResizeEvidence } from "./render/resize-evidence";
+import { planContactSheet } from "./render/contact-sheet";
+import { isPlan, type StateGridPlan } from "./render/state-grid";
+import {
+  buildStateGrid,
+  placeStateGrid,
+  removePriorStateGrid,
+  type StateGridSubject,
+} from "./render/renderStateGrid";
 import type { CheckId, QaRunResult } from "./types";
 import { planModeShowcase } from "./render/mode-showcase";
 import {
@@ -175,6 +187,12 @@ async function runQa(params: QaRunParams): Promise<{
   subject: QaSubject;
   origin: SceneNode | null;
   result: QaRunResult;
+  /**
+   * The collected snapshot. Returned so the canvas op can plan its evidence blocks
+   * from the same data the checks judged, rather than re-collecting and risking the
+   * picture describing a different reading than the row.
+   */
+  snapshot: ComponentSetSnapshot;
   /** The resolved theme, when the run probed one - what #121's showcase needs. */
   theme: ThemeSnapshot | undefined;
   /** Whether the set binds theme variables itself, rather than via styles. */
@@ -216,6 +234,7 @@ async function runQa(params: QaRunParams): Promise<{
     subject,
     origin,
     result,
+    snapshot,
     theme: snapshot.theme,
     // Computed here, where the snapshot is, using the same helper the themes
     // check uses - a style-only set has no theme axis of its own to show.
@@ -327,6 +346,75 @@ registerOperation<QaRunParams, QaRunResult>(
   },
 );
 
+/** Stamps, so a re-run replaces its own prior block instead of stacking copies. */
+const EVIDENCE_DATA_KEY = "tidy:qa-resize-evidence";
+const CONTACT_SHEET_DATA_KEY = "tidy:qa-contact-sheet";
+
+/** Vertical breathing room between two stacked blocks beside the checklist. */
+const BLOCK_GAP = 32;
+
+/**
+ * What a grid block needs to instance the component: the default variant, and how a
+ * width has to be driven through it.
+ *
+ * The drive path is re-planned from the snapshot rather than carried on the probe
+ * result, so the evidence block drives the width exactly the way the measurement
+ * did - one source of that judgement, and it is the tested one (`planResizeProbe`).
+ * Returns null when there is no variant to instance, or none the probe measured.
+ */
+function gridSubject(
+  subject: QaSubject,
+  snapshot: ComponentSetSnapshot,
+): StateGridSubject | null {
+  const main =
+    subject.type === "COMPONENT_SET" ? subject.defaultVariant : subject;
+  if (!main) return null;
+  const variant = snapshot.variants.find(
+    (candidate) => candidate.id === main.id,
+  );
+  if (!variant) return null;
+  const planned = planResizeProbe(variant.tree);
+  return {
+    main,
+    // A component the probe declined to resize (a hugging one) can still be
+    // instanced for a contact sheet; it simply never has a width driven through it,
+    // and "direct" is the inert choice there.
+    path: "plan" in planned ? planned.plan.path : "direct",
+  };
+}
+
+/**
+ * Draw one grid block beside the checklist, replacing any prior copy.
+ *
+ * The prior copy is cleared **unconditionally**, before deciding whether to draw a
+ * new one. A component that has since been fixed produces no evidence this run, and
+ * last run's broken-state pictures must not be left sitting beside a freshly rebuilt
+ * checklist, where they read as current.
+ */
+async function drawGridBlock(
+  dataKey: string,
+  plan: StateGridPlan | { reason: string },
+  subject: StateGridSubject | null,
+  anchor: SceneNode,
+  targetId: string,
+  offsetY: number,
+): Promise<FrameNode | undefined> {
+  await removePriorStateGrid(dataKey, targetId);
+  if (!isPlan(plan) || !subject) return undefined;
+
+  const block = await buildStateGrid(plan, subject);
+  try {
+    placeStateGrid(block, anchor, dataKey, targetId, offsetY);
+  } catch (error) {
+    // Stamping, reparenting or positioning failing would leave a finished block on
+    // whatever page it was built on - exactly the litter ADR-0001 rules out. It
+    // survives only on the path where it is wanted.
+    block.remove();
+    throw error;
+  }
+  return block;
+}
+
 interface BuildChecklistResult {
   frameId: string;
   target: { id: string; name: string };
@@ -337,6 +425,17 @@ interface BuildChecklistResult {
    * that anything failed.
    */
   modeShowcaseId?: string;
+  /**
+   * The baseline beside the state that broke, when the resize probe measured an
+   * anomaly (#111). Absent on a healthy component, which is the common case and
+   * costs nothing.
+   */
+  resizeEvidenceId?: string;
+  /**
+   * The property-combination contact sheet, when `includeContactSheet` asked for it
+   * and the component has combinations worth comparing (#112).
+   */
+  contactSheetId?: string;
   /**
    * The checklist frame as a PNG data URL, when `includeImage` asked for it.
    * Lifted into a viewable image block by the bridge (#116), which recognises an
@@ -373,6 +472,18 @@ interface BuildChecklistParams {
    * should not pay for one.
    */
   includeImage?: boolean;
+  /**
+   * Draw the property-combination contact sheet beside the checklist (#112): one row
+   * per variant, one column per boolean combination, capped at 48 instances.
+   *
+   * Off by default, unlike the resize evidence beside it. The evidence block only
+   * exists when something is actually broken, so it costs nothing on a healthy
+   * component; the contact sheet is dozens of instances every time, and it carries no
+   * verdict - it is there to remove the worst part of manual QA on row 3, which is
+   * clicking through every combination one at a time. That is worth asking for
+   * explicitly.
+   */
+  includeContactSheet?: boolean;
 }
 
 function isSceneNode(node: BaseNode): node is SceneNode {
@@ -444,6 +555,43 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       modeShowcaseId = showcase.frame.id;
     }
 
+    // The blocks beside the checklist stack downward, so each one starts below
+    // whatever was placed above it. Tracked as a running offset rather than
+    // computed per block, because whether any given block exists depends on the
+    // component.
+    let nextY =
+      modeShowcaseId && "frame" in showcase
+        ? showcase.frame.height + BLOCK_GAP
+        : 0;
+
+    const grid = gridSubject(subject, run.snapshot);
+
+    // #111's evidence: automatic, because it only exists when a measurement found
+    // something, and a finding a designer cannot see is the thing the block was
+    // asked for.
+    const evidence = await drawGridBlock(
+      EVIDENCE_DATA_KEY,
+      planResizeEvidence(run.snapshot.resizeProbe, run.snapshot),
+      grid,
+      frame,
+      result.target.id,
+      nextY,
+    );
+    if (evidence) nextY += evidence.height + BLOCK_GAP;
+
+    // #112's contact sheet: opt-in, because it is dozens of instances every time and
+    // carries no verdict.
+    const contactSheet = await drawGridBlock(
+      CONTACT_SHEET_DATA_KEY,
+      params.includeContactSheet
+        ? planContactSheet(run.snapshot)
+        : { reason: "not requested" },
+      grid,
+      frame,
+      result.target.id,
+      nextY,
+    );
+
     // Exported after everything is placed, so the picture is of the finished
     // artifact rather than of a frame still being assembled. 2x because the
     // finding lines are 10-11px: at 1x they are the size where a vision model
@@ -462,6 +610,8 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       target: result.target,
       counts: result.checklist.counts,
       ...(modeShowcaseId ? { modeShowcaseId } : {}),
+      ...(evidence ? { resizeEvidenceId: evidence.id } : {}),
+      ...(contactSheet ? { contactSheetId: contactSheet.id } : {}),
       ...(image ? { image } : {}),
     };
   },

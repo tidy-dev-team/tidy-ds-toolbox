@@ -33,7 +33,7 @@ import {
   type Anomaly,
 } from "./resize/anomalies";
 import type { MeasuredNode, Measurement } from "./resize/measured";
-import { planResizeProbe, type ResizePlan } from "./resize/plan";
+import { planResizeProbe, STRESS_TEXT, type DrivePath } from "./resize/plan";
 import { markProbe, sweepQaProbes, withProbeFrame } from "./theme-probe";
 import type {
   ComponentSetSnapshot,
@@ -54,18 +54,6 @@ const PROBE_NAME = "__tidy-qa-resize-probe";
  * placed somewhere it cannot land on top of the designer's work.
  */
 const PARK_AT = 200_000;
-
-/**
- * The long string the text-stress pass injects (#112's text half).
- *
- * Long enough to overflow any realistic label and to force wrapping in any
- * realistic container, and real prose rather than a repeated character so that
- * wrapping behaves the way it would with real content.
- */
-const LONG_TEXT =
-  "This label is deliberately far longer than anything a designer would " +
-  "reasonably put here, so that clipping and overflow have a chance to show " +
-  "themselves before a user finds them.";
 
 /** How much the root has to move for the drive to count as having taken effect. */
 const MOVED_PX = 0.5;
@@ -144,8 +132,8 @@ function chooseVariant(
 }
 
 /**
- * Configure the scratch frame for the chosen drive path, and return how to drive a
- * width through it.
+ * Configure a frame for the chosen drive path, append the instance to it, and return
+ * how to drive a width through it.
  *
  * The `FILL` path is the one with a trap in it: a `FILL` instance resized directly
  * does not move at all, because `FILL` means "take your width from your parent". So
@@ -153,13 +141,20 @@ function chooseVariant(
  * *frame* is what gets resized. Getting this wrong produces a confident pass on a
  * component that was never measured, which is why the path is decided in
  * `planResizeProbe` and tested there.
+ *
+ * Exported, and imported by the render layer, which is otherwise kept clear of the
+ * checking half. The alternative is a second implementation of exactly this trap
+ * inside `renderStateGrid.ts`, and if the two ever disagreed the evidence block
+ * would draw a component that had not actually resized - a picture contradicting the
+ * finding it exists to prove. One implementation is worth the import.
  */
-function prepareDrive(
+export function driveWidthThrough(
   frame: FrameNode,
   instance: InstanceNode,
-  plan: ResizePlan,
+  path: DrivePath,
+  baselineWidth: number,
 ): (width: number) => void {
-  if (plan.path === "parent") {
+  if (path === "parent") {
     frame.layoutMode = "HORIZONTAL";
     // The frame's width is driven; its height follows the instance, so the
     // measurement is never distorted by a frame taller than its content.
@@ -172,7 +167,7 @@ function prepareDrive(
     frame.itemSpacing = 0;
     frame.appendChild(instance);
     instance.layoutSizingHorizontal = "FILL";
-    frame.resize(plan.baselineWidth, frame.height);
+    frame.resize(baselineWidth, frame.height);
     return (width) => frame.resize(width, frame.height);
   }
 
@@ -286,7 +281,12 @@ export async function probeResizeBehaviour(
     },
     (frame) => {
       const instance = component.createInstance();
-      const drive = prepareDrive(frame, instance, plan);
+      const drive = driveWidthThrough(
+        frame,
+        instance,
+        plan.path,
+        plan.baselineWidth,
+      );
 
       const baseline = measure(
         instance,
@@ -320,7 +320,7 @@ export async function probeResizeBehaviour(
         drive(plan.baselineWidth);
         try {
           instance.setProperties(
-            Object.fromEntries(textKeys.map((key) => [key, LONG_TEXT])),
+            Object.fromEntries(textKeys.map((key) => [key, STRESS_TEXT])),
           );
           const stressed = measure(
             instance,
