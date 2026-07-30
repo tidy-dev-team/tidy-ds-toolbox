@@ -359,7 +359,8 @@ Reading item 3 only as written would have produced a render harness and left the
 ### Partial automation is the norm, not the exception
 
 Reading the source against what shipped shows several rows where a check covers only part of its item.
-Item 7 is the one modelled explicitly so far, via a `manualRemainder` on the check result: the row keeps a tickable box next to its status chip, because a green chip standing for an unperformed resize test is a false pass.
+Item 7 is the one modelled explicitly so far, via a `manualRemainder` on the check result: the row states the outstanding work next to its status chip, because a green chip standing for an unperformed resize test is a false pass.
+(Written when the row also carried a tick box; those were removed on 2026-07-30, and the remainder line now carries this alone.)
 
 Item 19 is modelled the same way, for a different reason: the row claims usage guidance, examples and properties are documented, while the check only reads Figma's documentation-link field.
 A link is evidence that documentation exists, never that its content is adequate.
@@ -372,7 +373,7 @@ Item 3 is another, and unconditional like item 7's: the check establishes that e
 Correct wiring says nothing about whether the states it exposes render correctly, so the tick is owed on every outcome.
 
 The report also counts these rows separately, as `counts.partial`.
-Without that, a run could report "0 manual" while rows 3, 7, 17 and 19 still had unticked boxes on the canvas.
+Without that, a run could report "0 manual" while rows 3, 7, 17 and 19 still owed a human review.
 
 The same treatment is owed to at least these, all pre-existing:
 

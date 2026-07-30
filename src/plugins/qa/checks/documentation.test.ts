@@ -52,7 +52,7 @@ describe("checkDocumentation (#19)", () => {
   });
 
   // The regression: a static per-item remainder put "Read the documentation"
-  // and an unticked box on the row precisely when there was no documentation,
+  // and outstanding work on the row precisely when there was no documentation,
   // contradicting the whole point of not treating absence as a defect.
   it("asks for no content review when there is no documentation", () => {
     for (const fx of [fixture(), fixture([])]) {

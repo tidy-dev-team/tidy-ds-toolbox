@@ -563,7 +563,12 @@ describe("checkThemes - a set that renders the same in every mode", () => {
     expect(result.status).toBe("warn");
     const messages = result.findings.map((f) => f.message);
     expect(messages.some((m) => /same value in all/i.test(m))).toBe(true);
-    expect(messages.some((m) => /renders identically/i.test(m))).toBe(true);
+    // States what was compared rather than claiming the rendering is identical:
+    // a nested instance theming itself internally is not visible here, so the
+    // stronger claim would be one the check cannot support.
+    expect(
+      messages.some((m) => /nothing this check can see changes/i.test(m)),
+    ).toBe(true);
   });
 
   it("stays a pass when at least one bound colour differs between modes", () => {
@@ -595,7 +600,65 @@ describe("checkThemes - a set that renders the same in every mode", () => {
 
     expect(result.status).toBe("pass");
     expect(result.findings.map((f) => f.message)).not.toContainEqual(
-      expect.stringMatching(/renders identically/i),
+      expect.stringMatching(/nothing this check can see changes/i),
     );
+  });
+});
+
+/** A paint style whose fill is bound to `variableId`. */
+function styleBoundTo(variableId: string) {
+  return {
+    name: "Surface",
+    paints: [
+      {
+        type: "SOLID",
+        visible: true,
+        opacity: 1,
+        hex: "#123456",
+        boundVariableId: variableId,
+      },
+    ],
+  };
+}
+
+describe("checkThemes - colour that arrives through a style", () => {
+  const modeIds = THEME_MODES.map((m) => m.modeId);
+
+  // A component's visible colour can come from a fill style whose paint is
+  // itself variable-bound. The probe resolves those variables, but they never
+  // appear in `usage` - so comparing direct bindings alone would call this set
+  // invariant while a style-backed colour changed underneath it.
+  it("does not warn when a style-backed colour varies between modes", () => {
+    const snapshot = fixture(
+      [[filled("v-bg")]],
+      theme({
+        variables: {
+          "v-bg": invariant("bg/constant", modeIds),
+          "v-style": resolved("bg/from-style", modeIds),
+        },
+      }),
+    );
+    snapshot.colorStyles = { "S:1": styleBoundTo("v-style") };
+
+    const result = checkThemes(snapshot);
+
+    expect(result.findings.map((f) => f.message).join(" ")).not.toMatch(
+      /nothing this check can see changes/i,
+    );
+  });
+
+  it("still warns when the style-backed colour is invariant too", () => {
+    const snapshot = fixture(
+      [[filled("v-bg")]],
+      theme({
+        variables: {
+          "v-bg": invariant("bg/constant", modeIds),
+          "v-style": invariant("bg/from-style", modeIds),
+        },
+      }),
+    );
+    snapshot.colorStyles = { "S:1": styleBoundTo("v-style") };
+
+    expect(checkThemes(snapshot).status).toBe("warn");
   });
 });
