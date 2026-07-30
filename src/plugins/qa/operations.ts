@@ -310,7 +310,7 @@ registerOperation<QaRunParams, QaRunResult>(
     kind: "query",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. Two documented carve-outs from ADR-0001's read-only Query definition, both transient and both removed before the call returns: the themes (#17) and high-contrast (#16) checks create and remove one temporary off-canvas probe frame to resolve variables per theme mode, and `includeModeImages` builds, exports and removes the per-mode showcase it returns.",
+      "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. Three documented carve-outs from ADR-0001's read-only Query definition, all transient and all removed before the call returns: the themes (#17) and high-contrast (#16) checks create and remove one temporary off-canvas probe frame to resolve variables per theme mode; the responsiveness check (#7) instances the default variant into a temporary off-canvas frame, drives its width and lengthens its text to measure what breaks, then removes it; and `includeModeImages` builds, exports and removes the per-mode showcase it returns.",
     paramsExample: { name: "Button" },
   },
   async (params) => {

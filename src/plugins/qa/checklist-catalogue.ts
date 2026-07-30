@@ -54,7 +54,7 @@ import { checkVariantPropertyBindings } from "./checks/variant-property-bindings
  * check treats absent data as `not_applicable` *with a reason* - which is what
  * a reader would then see, rather than a confident tick.
  */
-export type SnapshotFacet = "colorStyles" | "theme";
+export type SnapshotFacet = "colorStyles" | "theme" | "resizeProbe";
 
 /**
  * The shape each row must satisfy. Deliberately types `checkId` as a plain
@@ -150,8 +150,12 @@ const ROWS = [
     tier: 2,
     checkId: "responsive-bounds",
     run: checkResponsiveBounds,
-    // Only the size-bounds half is automated; the check emits a
-    // `manualRemainder` so the row still names the resize test as outstanding.
+    needs: ["resizeProbe"],
+    // Both halves are automated now (#111): the advisory min/max scan, and the
+    // measured resize behaviour that instances the default variant and drives its
+    // width. The remainder shrinks accordingly - once geometry has been measured
+    // the row asks only for what geometry cannot see (a fill that distorts when
+    // stretched) rather than for the whole resize test.
     blurb:
       "Resizing behaves under auto-layout, with min/max bounds where they apply.",
   },

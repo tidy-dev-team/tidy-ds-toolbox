@@ -12,6 +12,7 @@
 
 import { requiredFacets } from "./checklist-catalogue";
 import { toHex } from "./color";
+import { probeResizeBehaviour } from "./resize-probe";
 import { probeThemeResolution } from "./theme-probe";
 import type {
   ColorStyleSnapshot,
@@ -233,6 +234,12 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     snap.paddingBottom = node.paddingBottom;
     snap.paddingLeft = node.paddingLeft;
     snap.itemSpacing = node.itemSpacing;
+    // Only on a real auto-layout frame: Figma reports a value on `layoutMode:
+    // "NONE"` frames too, where it means nothing, and carrying it would let the
+    // stretch pre-scan reason about a distribution that does not happen.
+    if (node.layoutMode !== "NONE") {
+      snap.primaryAxisAlignItems = node.primaryAxisAlignItems;
+    }
   }
   if ("layoutSizingHorizontal" in node) {
     snap.layoutSizingHorizontal = node.layoutSizingHorizontal;
@@ -453,6 +460,12 @@ export async function prepareSnapshot(
   }
   if (facets.has("theme")) {
     snapshot.theme = await probeThemeResolution(snapshot);
+  }
+  // Last, and after the snapshot is otherwise complete: the resize probe reads the
+  // collected variant tree to decide what to drive and to give every measured box a
+  // source-node identity, so it cannot run before the walk it depends on.
+  if (facets.has("resizeProbe")) {
+    snapshot.resizeProbe = await probeResizeBehaviour(subject, snapshot);
   }
   return snapshot;
 }
