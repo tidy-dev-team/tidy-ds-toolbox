@@ -82,8 +82,8 @@ function measuredRemainder(variantName: string, otherVariants: number): string {
       : "";
   return (
     "Look for what geometry cannot see: an image or gradient that distorts when " +
-    "stretched, a corner radius or border that reads wrong at width, or a shadow " +
-    "or border cut off at an edge - effect clipping is measured on text only." +
+    "stretched, a corner radius or border that reads wrong at width, or padding " +
+    "that drifts on a frame without auto-layout." +
     others
   );
 }
@@ -240,30 +240,33 @@ function boundsOutcome(snapshot: ComponentSetSnapshot): {
  */
 function probeOutcome(probe: ResizeProbeSnapshot | undefined): {
   measured: boolean;
+  /**
+   * The probe ran, tried to drive the width, and came back unable to say anything.
+   * Distinct from `!measured`: a probe that never ran, or declined for a stated
+   * reason, leaves the row exactly as the bounds half found it, while this actively
+   * contradicts a green chip.
+   */
+  unmeasurable: boolean;
   findings: Finding[];
   notes: string[];
   hasVerdict: boolean;
   hasCandidate: boolean;
 } {
   const notes: string[] = [];
+  const nothing = {
+    measured: false,
+    unmeasurable: false,
+    findings: [],
+    notes,
+    hasVerdict: false,
+    hasCandidate: false,
+  };
   if (!probe) {
-    return {
-      measured: false,
-      findings: [],
-      notes,
-      hasVerdict: false,
-      hasCandidate: false,
-    };
+    return nothing;
   }
   if (probe.skipped) {
     notes.push(`Resize behaviour was not measured: ${probe.skipped}`);
-    return {
-      measured: false,
-      findings: [],
-      notes,
-      hasVerdict: false,
-      hasCandidate: false,
-    };
+    return nothing;
   }
   if (probe.unmoved) {
     notes.push(
@@ -272,13 +275,7 @@ function probeOutcome(probe: ResizeProbeSnapshot | undefined): {
         "it cannot be driven from a plugin. Nothing about its resize behaviour " +
         "is established either way.",
     );
-    return {
-      measured: false,
-      findings: [],
-      notes,
-      hasVerdict: false,
-      hasCandidate: false,
-    };
+    return { ...nothing, unmeasurable: true };
   }
 
   const anomalies = [
@@ -299,6 +296,7 @@ function probeOutcome(probe: ResizeProbeSnapshot | undefined): {
 
   return {
     measured: true,
+    unmeasurable: false,
     findings,
     notes,
     hasVerdict: anomalies.some((a) => a.confidence === "verdict"),
@@ -319,6 +317,17 @@ export function checkResponsiveBounds(
   if (probe.hasVerdict) {
     status = "fail";
   } else if (probe.hasCandidate && status !== "fail") {
+    status = "warn";
+  } else if (probe.unmeasurable && status === "pass") {
+    // The probe drove the width and the component did not move, so nothing about its
+    // resize behaviour is established - and a green chip on a row titled
+    // "Responsiveness" would read as though it were. The bounds half genuinely
+    // passed, which is why this is `warn` and not `fail`, and the note says which
+    // half spoke.
+    //
+    // Only from `pass`. A `warn` or `fail` the bounds half reached already asks for
+    // attention, and `not_applicable` means neither half evaluated anything, which
+    // its own chip states more honestly than an amber would.
     status = "warn";
   } else if (status === "not_applicable" && probe.measured) {
     // The bounds half had nothing to say, but the resize half measured this

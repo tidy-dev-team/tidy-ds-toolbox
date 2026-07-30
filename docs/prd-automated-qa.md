@@ -181,10 +181,10 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 >
 > Findings split two ways, and the split is what makes the row trustworthy:
 >
-> * **Verdicts** - content clipped away, collapsed to nothing, overflowing a clipping frame, or growing past a `maxWidth` the component itself declares.
+> * **Verdicts** - content collapsed to nothing, overflowing a clipping frame, text whose glyphs a clipping ancestor actually hides, or growth past a `maxWidth` the component itself declares.
 >   Wrong however they arose, so these `fail` the row at `high` severity.
 >   This is the first thing on row 7 that can go red.
-> * **Candidates** - a newly overlapping pair, a gap that grew, a height that moved.
+> * **Candidates** - a newly overlapping pair, a gap that grew, a root that got taller as it was widened, text spilling out with nothing clipping it, and a shadow or stroke cropped by a clipping ancestor.
 >   `SPACE_BETWEEN` on a stretching container is exactly correct for a select, a dropdown, a list row or a nav item, and an avatar stack overlaps by design, so these are *measured and stated* - "the gap went from 8px to 288px" - at `low` severity, and only `warn`.
 >   Ruling on them needs design intent, which the engine does not have.
 >
@@ -197,7 +197,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > That is also the self-check for the one load-bearing assumption in the design - that layout recomputation after `resize()` is synchronous, so post-resize bounds are readable in the same tick - which means a broken assumption surfaces as a stated limitation instead of a wrong green.
 >
 > The remainder shrinks accordingly rather than disappearing.
-> Once geometry has been measured, what genuinely remains is what geometry cannot see: an image or gradient fill that distorts when stretched, a corner radius or border that reads wrong at width, a shadow or border cut off at an edge, and the variants the probe did not instance.
+> Once geometry has been measured, what genuinely remains is what geometry cannot see: an image or gradient fill that distorts when stretched, a corner radius or border that reads wrong at width, padding drifting on a frame without auto-layout, and the variants the probe did not instance.
+>
+> Two judgements in the geometry are worth stating, because both are narrower than the PRD's own wording.
+> *Cut off* requires a clipping ancestor: ink leaving its own box with nothing clipping it is reported as text spilling over its neighbours, a candidate, because the text is still visible and calling it cut off would be a confident claim about something that did not happen.
+> And *height changed* is asked only of growth while widening.
+> A component getting shorter as it widens is a wrapping label unwrapping, and one getting taller as it narrows is the same label wrapping the other way; both are correct, and both happen on nearly every component with text in it, so reporting them would bury the signal the rule exists for.
 >
 > **Evidence goes on the canvas, only when something broke.**
 > `tidy_qa_build_checklist` draws the baseline beside the state that broke, labelled with the measured numbers, and returns it as `resizeEvidenceId`.

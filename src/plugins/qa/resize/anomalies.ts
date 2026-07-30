@@ -26,7 +26,7 @@
  * combination is suspicious" into "the icon-to-label gap went from 8px to 288px",
  * which can go on a row without hedging.
  *
- * **Two of #111's measurements are deliberately not attempted, and the row says so
+ * **One of #111's measurements is deliberately not attempted, and the row says so
  * rather than implying full coverage.**
  *
  * *Padding drift* is not measured separately. Under auto-layout padding is a
@@ -35,12 +35,7 @@
  * them, and on a non-auto-layout frame with absolutely-positioned children it would
  * fire on layout that is working as built.
  *
- * *Shadow and stroke clipping* is not measured either, and that one is a real gap
- * rather than a redundancy. It would need ink-versus-box on every node, which is
- * exactly the comparison that cannot distinguish a clipped shadow from a perfectly
- * healthy one - see the `text-clipped` rule below, where restricting to TEXT and
- * gating on drift is what stops it reporting every shadowed frame in the file.
- * `measuredRemainder` in the check asks a human for both.
+ * `measuredRemainder` in the check asks a human for it.
  */
 
 import type { MeasuredBox, MeasuredNode, Measurement } from "./measured";
@@ -65,8 +60,12 @@ const COLLAPSED_PX = 0.5;
 export type AnomalyKind =
   /** Content escaped a frame that clips, so it is invisible. */
   | "overflow"
-  /** A node's ink no longer fits the box it is drawn in. */
+  /** Glyphs have left their box and a clipping ancestor hides them. */
   | "text-clipped"
+  /** Glyphs have left their box with nothing clipping them, so they spill over. */
+  | "text-overflows"
+  /** A shadow, stroke or glow is cropped by a clipping ancestor. */
+  | "effect-clipped"
   /** A node that had size lost it. */
   | "collapse"
   /** The component grew past a size bound it declares. */
@@ -186,6 +185,15 @@ function visibleChildren(node: MeasuredNode): MeasuredNode[] {
 function absoluteAnomalies(
   node: MeasuredNode,
   parent: MeasuredNode | undefined,
+  /**
+   * Nearest ancestor that clips its content, if any - the thing that decides
+   * whether ink leaving a box is *cut off* or merely untidy.
+   *
+   * Threaded down the walk rather than looked up, because "is this ink actually
+   * hidden" is a question about the whole ancestor chain: the clipper is often a
+   * card two levels above the text, not its own parent.
+   */
+  clipper: MeasuredNode | undefined,
   at: Measurement,
   baseline: Map<string, MeasuredNode>,
   out: Anomaly[],
@@ -214,37 +222,66 @@ function absoluteAnomalies(
 
   const was = baseline.get(node.id);
 
-  // Clipping is only visible by comparing ink to layout box: the box stays put when
-  // the text inside it is cut off, and `renderBox` is what shrinks or spills.
+  // Ink that has left its own box. Three guards, and the rule is wrong without any
+  // one of them.
   //
-  // **Two guards, and the check is wrong without either.**
+  // **Drift, not absolute.** Anything with a drop shadow or an outside stroke draws
+  // ink outside its bounding box permanently, so what establishes a defect is the
+  // resize making the overhang *worse* - never that ink and box merely disagree.
   //
-  // TEXT only. `absoluteRenderBounds` is *larger* than the bounding box for any node
-  // with a drop shadow or an outside stroke, so a bare ink-versus-box comparison
-  // reads every shadowed frame in the file as clipped and reds this row at every
-  // measured width. Only glyphs can be cut off, so only glyphs are asked about.
+  // **Cut off only when something actually clips it.** Ink leaving its own box is not
+  // by itself proof of clipping: with no clipping ancestor the text simply spills
+  // over whatever is next to it, which looks wrong but is visible, and calling that
+  // "cut off" at `high` would be a confident claim about something that did not
+  // happen. So the verdict needs the ink to escape the nearest *clipping* ancestor;
+  // without one it is a candidate, worded for what was really measured.
   //
-  // And drift, not absolute. Text can carry an effect too, so what establishes a
-  // defect is that the resize made the overhang *worse* - not that ink and box
-  // disagree, which they may always have done.
+  // **Text and effects are different findings.** Glyphs disappearing is a content
+  // defect; a shadow or border cropped at an edge is cosmetic and sometimes
+  // deliberate, so it is only ever a candidate.
   //
-  // The limit of this: ink Figma has already clipped away is reported at its clipped
-  // size, so a text box that fits its parent while its glyphs are cut is invisible
-  // here. `measuredRemainder` in the check asks a human for that, along with the
-  // shadow-or-border-cut-off case this deliberately does not attempt.
-  if (node.type === "TEXT") {
-    const overhang = inkOverhang(node);
-    const before = was ? inkOverhang(was) : 0;
-    if (overhang - before > TOLERANCE_PX) {
+  // The remaining limit, stated on the row rather than hidden: ink Figma has
+  // *already* cropped is reported at its cropped size, so text whose glyphs are cut
+  // while its box still fits its clipper is invisible to this.
+  const overhang = inkOverhang(node);
+  const before = was ? inkOverhang(was) : 0;
+  if (overhang - before > TOLERANCE_PX && node.renderBox) {
+    const hidden =
+      clipper !== undefined && !contains(clipper.box, node.renderBox);
+    const isText = node.type === "TEXT";
+    const grew = `overhanging its ${px(node.box.width)}×${px(node.box.height)} box by ${px(overhang)}, where it overhung by ${px(before)} at the baseline`;
+    if (hidden && isText) {
       out.push({
         kind: "text-clipped",
         confidence: "verdict",
         nodeId: node.id,
         nodeName: node.name,
         detail:
-          `"${node.name}" draws ${px(node.renderBox?.width ?? 0)} of ink in a ` +
-          `${px(node.box.width)} box, overhanging it by ${px(overhang)} where it ` +
-          `overhung by ${px(before)} at the baseline, so it is cut off.`,
+          `"${node.name}" draws text ${grew}, and "${clipper.name}" clips it, so ` +
+          `part of the text is not drawn.`,
+        ...stamp,
+      });
+    } else if (hidden) {
+      out.push({
+        kind: "effect-clipped",
+        confidence: "candidate",
+        nodeId: node.id,
+        nodeName: node.name,
+        detail:
+          `"${node.name}" draws a shadow, stroke or glow ${grew}, and ` +
+          `"${clipper.name}" clips it, so part of it is cropped. Deliberate on ` +
+          `some components; confirm it is here.`,
+        ...stamp,
+      });
+    } else if (isText) {
+      out.push({
+        kind: "text-overflows",
+        confidence: "candidate",
+        nodeId: node.id,
+        nodeName: node.name,
+        detail:
+          `"${node.name}" draws text ${grew}. Nothing clips it, so the text ` +
+          `stays visible but spills over whatever sits beside it.`,
         ...stamp,
       });
     }
@@ -272,8 +309,11 @@ function absoluteAnomalies(
     });
   }
 
+  // A node that clips becomes the clipper for everything beneath it; otherwise the
+  // nearest one above stays in force.
+  const inner = node.clipsContent === true ? node : clipper;
   for (const child of visibleChildren(node)) {
-    absoluteAnomalies(child, node, at, baseline, out);
+    absoluteAnomalies(child, node, inner, at, baseline, out);
   }
 }
 
@@ -358,7 +398,9 @@ export function detectAnomalies(
   const was = index(baseline.root);
   const out: Anomaly[] = [];
 
-  absoluteAnomalies(resized.root, undefined, resized, was, out);
+  // The root's own `clipsContent` is picked up inside the walk, so the chain starts
+  // empty rather than assuming the component clips.
+  absoluteAnomalies(resized.root, undefined, undefined, resized, was, out);
   driftAnomalies(resized.root, resized, was, out);
 
   // Height is asked of the root alone: a child's height following its content is

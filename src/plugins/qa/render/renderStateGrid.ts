@@ -36,6 +36,9 @@ const GAP_FROM_ANCHOR = 32;
 /** Width reserved for the row labels down the left of a multi-row grid. */
 const ROW_LABEL_WIDTH = 96;
 
+/** Horizontal gap between columns. Shared so the header and every row agree. */
+const COLUMN_GAP = 16;
+
 /** Widest a caption wraps to, so a long measurement cannot stretch its column. */
 const CAPTION_WIDTH = 200;
 
@@ -134,20 +137,25 @@ function buildInto(
   // there is no column/row distinction to draw and a header over one row is
   // redundant chrome.
   const headerRow = plan.rows.length > 1;
+  const headings: TextNode[] = [];
   if (headerRow) {
-    const header = track(autoLayout("columns", "HORIZONTAL", 0, 0, 16));
+    const header = track(autoLayout("columns", "HORIZONTAL", 0, 0, COLUMN_GAP));
     grid.appendChild(header);
     const corner = track(text("", 10, FONT_BOLD, MUTED));
     corner.resize(ROW_LABEL_WIDTH, corner.height);
     header.appendChild(corner);
     for (const cell of plan.rows[0].cells) {
-      header.appendChild(track(text(cell.label, 10, FONT_BOLD, MUTED)));
+      const heading = track(text(cell.label, 10, FONT_BOLD, MUTED));
+      headings.push(heading);
+      header.appendChild(heading);
     }
   }
 
+  // Cells are collected per column so their widths can be reconciled afterwards.
+  const columns: SceneNode[][] = [];
   for (const row of plan.rows) {
     const rowFrame = track(
-      autoLayout(row.label || "row", "HORIZONTAL", 0, 0, 16),
+      autoLayout(row.label || "row", "HORIZONTAL", 0, 0, COLUMN_GAP),
     );
     rowFrame.counterAxisAlignItems = "MIN";
     grid.appendChild(rowFrame);
@@ -159,7 +167,7 @@ function buildInto(
       rowFrame.appendChild(label);
     }
 
-    for (const panel of row.cells) {
+    row.cells.forEach((panel, column) => {
       const cell = buildCell(
         // On a multi-row grid the column heading is already drawn above, so the
         // per-cell label would repeat it once per row.
@@ -168,8 +176,36 @@ function buildInto(
         track,
       );
       rowFrame.appendChild(cell);
-    }
+      (columns[column] ??= []).push(cell);
+    });
   }
+
+  // **Columns are squared up after the fact, and have to be.**
+  //
+  // Left to hug, every cell takes its own intrinsic width, so a wide variant in row
+  // two shifts every cell after it and the headings at the top line up with nothing.
+  // A contact sheet whose columns do not align is not a contact sheet - the whole
+  // point is scanning *down* a column to compare one state across variants.
+  //
+  // Figma has no grid layout to lean on here, so the widest cell in each column sets
+  // that column's width and every other cell in it is pinned to the same number.
+  columns.forEach((cells, column) => {
+    const heading = headings[column];
+    const width = Math.max(
+      ...cells.map((cell) => cell.width),
+      heading ? heading.width : 0,
+    );
+    for (const cell of cells) {
+      if (cell.type !== "FRAME") continue;
+      // Hugging has to be switched off before a width will stick.
+      cell.counterAxisSizingMode = "FIXED";
+      cell.resize(width, cell.height);
+    }
+    if (heading) {
+      heading.textAutoResize = "HEIGHT";
+      heading.resize(width, heading.height);
+    }
+  });
 
   const footnote = track(text(plan.footnote, 10, FONT_REGULAR, MUTED));
   root.appendChild(footnote);

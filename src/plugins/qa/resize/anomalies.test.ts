@@ -242,6 +242,84 @@ describe("detectAnomalies", () => {
     ).not.toContain("text-clipped");
   });
 
+  it("will not call text cut off when nothing clips it", () => {
+    // Ink leaving its box is not proof of clipping. With no clipping ancestor the
+    // text is still visible, it just spills over its neighbours - so claiming "cut
+    // off" at high severity would be confident about something that did not happen.
+    const spilling = (width: number, ink: number): MeasuredNode =>
+      node("root", box(0, 0, width, 40), {
+        clipsContent: false,
+        children: [
+          node("label", box(16, 12, 28, 16), {
+            type: "TEXT",
+            renderBox: box(16, 14, ink, 12),
+          }),
+        ],
+      });
+
+    const anomalies = detectAnomalies(
+      measurement(spilling(120, 20), 120),
+      measurement(spilling(60, 90), 60),
+    );
+    expect(kinds(anomalies)).not.toContain("text-clipped");
+    const overflow = find(anomalies, "text-overflows");
+    expect(overflow.confidence).toBe("candidate");
+    expect(overflow.detail).toContain("spills over");
+  });
+
+  it("reports a cropped shadow as a candidate, not as clipped text", () => {
+    // A shadow cropped at an edge is cosmetic and sometimes deliberate, so it is
+    // stated rather than ruled on - and it is never a text finding.
+    const shadowGrew = (overhang: number): MeasuredNode =>
+      node("root", box(0, 0, 120, 40), {
+        clipsContent: true,
+        children: [
+          node("chip", box(0, 0, 120, 40), {
+            renderBox: box(
+              -overhang,
+              -overhang,
+              120 + overhang * 2,
+              40 + overhang * 2,
+            ),
+          }),
+        ],
+      });
+
+    const anomalies = detectAnomalies(
+      measurement(shadowGrew(0), 120),
+      measurement(shadowGrew(10), 400),
+    );
+    const cropped = find(anomalies, "effect-clipped");
+    expect(cropped.confidence).toBe("candidate");
+    expect(kinds(anomalies)).not.toContain("text-clipped");
+  });
+
+  it("finds the clipping ancestor above the immediate parent", () => {
+    // The thing that hides the text is often a card two levels up, not its own
+    // parent, so the clipper has to be carried down the whole walk.
+    const nested = (ink: number): MeasuredNode =>
+      node("card", box(0, 0, 60, 40), {
+        clipsContent: true,
+        children: [
+          node("row", box(0, 0, 60, 40), {
+            clipsContent: false,
+            children: [
+              node("label", box(16, 12, 28, 16), {
+                type: "TEXT",
+                renderBox: box(16, 14, ink, 12),
+              }),
+            ],
+          }),
+        ],
+      });
+
+    const anomalies = detectAnomalies(
+      measurement(nested(20), 120),
+      measurement(nested(200), 60),
+    );
+    expect(find(anomalies, "text-clipped").confidence).toBe("verdict");
+  });
+
   it("reports a node that collapsed to nothing", () => {
     const widened = node("root", box(0, 0, 400, 40), {
       clipsContent: true,
