@@ -229,6 +229,10 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
       "Confirm each is intended",
     );
     expect(result.note).toContain("Confirm each is intended");
+    // The text-clipping limitation note is present when measured.
+    expect(result.note).toContain(
+      "Text whose glyphs are already cropped by Figma",
+    );
   });
 
   it("says the candidate advisory once, however many candidates there are", () => {
@@ -311,7 +315,8 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
       ...fixture([root("1", true, { minWidth: 120 }), root("2", true)]),
       resizeProbe: measured([]),
     };
-    expect(checkResponsiveBounds(snapshot).manualRemainder).toContain(
+    const result = checkResponsiveBounds(snapshot);
+    expect(result.manualRemainder).toContain(
       "other 1 variant(s)",
     );
   });
@@ -394,6 +399,70 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
     expect(result.manualRemainder).toContain(
       "Only min/max bounds are checked automatically",
     );
+  });
+
+  it("notes when declared minWidth was not tested because the narrowing floor kept the drive above it", () => {
+    const probe: ResizeProbeSnapshot = {
+      variantId: "1",
+      variantName: "Variant 1",
+      baselineWidth: 300,
+      states: ["narrowed to 120px", "widened to 750px"],
+      anomalies: [],
+      bounds: { minWidth: 100 },
+      // Narrowest driven width is 120, which is above minWidth of 100.
+      requestedWidths: [300, 120, 750],
+    };
+    const result = checkResponsiveBounds(withProbe(probe));
+    expect(result.note).toContain("minWidth of 100px was not tested");
+    expect(result.note).toContain("120px");
+  });
+
+  it("notes when declared maxWidth was not tested because the ceiling kept the drive below it", () => {
+    const probe: ResizeProbeSnapshot = {
+      variantId: "1",
+      variantName: "Variant 1",
+      baselineWidth: 120,
+      states: ["narrowed to 48px", "widened to 300px"],
+      anomalies: [],
+      bounds: { maxWidth: 400 },
+      // Widest driven width is 300, which is below maxWidth of 400.
+      requestedWidths: [120, 48, 300],
+    };
+    const result = checkResponsiveBounds(withProbe(probe));
+    expect(result.note).toContain("maxWidth of 400px was not tested");
+    expect(result.note).toContain("300px");
+  });
+
+  it("does not note untested minWidth when the drive actually went below it", () => {
+    const probe: ResizeProbeSnapshot = {
+      variantId: "1",
+      variantName: "Variant 1",
+      baselineWidth: 120,
+      states: ["narrowed to 48px", "widened to 300px"],
+      anomalies: [],
+      bounds: { minWidth: 100 },
+      // Narrowest is 48, which is below minWidth of 100 — bound was tested.
+      requestedWidths: [120, 48, 300],
+    };
+    const result = checkResponsiveBounds(withProbe(probe));
+    // The probe-level note about untested minWidth should not appear.
+    expect(result.note ?? "").not.toContain("minWidth of 100px was not tested");
+  });
+
+  it("does not note untested maxWidth when the drive actually went above it", () => {
+    const probe: ResizeProbeSnapshot = {
+      variantId: "1",
+      variantName: "Variant 1",
+      baselineWidth: 120,
+      states: ["narrowed to 48px", "widened to 300px"],
+      anomalies: [],
+      bounds: { maxWidth: 200 },
+      // Widest is 300, which is above maxWidth of 200 — bound was tested.
+      requestedWidths: [120, 48, 300],
+    };
+    const result = checkResponsiveBounds(withProbe(probe));
+    // The probe-level note about untested maxWidth should not appear.
+    expect(result.note ?? "").not.toContain("maxWidth of 200px was not tested");
   });
 });
 
