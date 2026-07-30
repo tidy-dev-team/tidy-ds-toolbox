@@ -255,15 +255,12 @@ Run this in its own terminal (it holds until you Ctrl-C):
 npm run dashboard:tunnel
 ```
 
-This forwards `localhost:15432` → droplet's Postgres on `5432` over the `tidy`
-SSH alias (`ssh -N -L 127.0.0.1:15432:localhost:5432 tidy`).
+This forwards `localhost:15432` → droplet's Postgres on `5432` over the `tidy` SSH alias (`ssh -N -L 127.0.0.1:15432:localhost:5432 tidy`).
 The tunnel must stay up while you use the dashboard.
 
 > **Droplet needs no new services.**
-> This is the only connection path - no
-> pg_hba changes, no open ports.
-> The tunnel runs on your laptop; the droplet
-> sees a local `psql` connection.
+> This is the only connection path - no pg_hba changes, no open ports.
+> The tunnel runs on your laptop; the droplet sees a local `psql` connection.
 
 ### 3. Start Metabase
 
@@ -272,9 +269,7 @@ npm run dashboard:up
 ```
 
 First run pulls the `metabase/metabase` image (~500 MB).
-Metabase starts on `http://127.0.0.1:3000` and stores its state in a named
-Docker volume (saved questions, dashboards, connection config all persist
-across restarts).
+Metabase starts on `http://127.0.0.1:3000` and stores its state in a named Docker volume (saved questions, dashboards, connection config all persist across restarts).
 
 ```bash
 npm run dashboard:down   # stop when done
@@ -311,8 +306,7 @@ After creating each question, add it to a **Tidy DS Toolbox** dashboard.
 | Action breakdown | `v_action_breakdown` | Table: `module`, `action`, `events`. Order by `events` DESC. |
 
 All views key off `received_at` (server truth, not client clocks).
-No file names or raw file keys appear anywhere - the only file-scoped field is
-`file_hash`, a one-way hash.
+No file names or raw file keys appear anywhere - the only file-scoped field is `file_hash`, a one-way hash.
 
 ### 6. Verify
 
@@ -326,9 +320,7 @@ If the `toolbox_readonly` connection test fails, check that:
 
 ## Checking results manually (no-Docker fallback)
 
-If you don't have Docker or prefer the terminal, query Postgres directly from
-your laptop (uses the `tidy` SSH alias; `-t` allocates a TTY so `sudo` can
-prompt):
+If you don't have Docker or prefer the terminal, query Postgres directly from your laptop (uses the `tidy` SSH alias; `-t` allocates a TTY so `sudo` can prompt):
 
 ```bash
 # Latest raw events — batched events share an identical received_at
