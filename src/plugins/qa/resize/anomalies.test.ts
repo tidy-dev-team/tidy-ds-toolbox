@@ -330,9 +330,7 @@ describe("detectAnomalies", () => {
       children: [
         node("parent", box(16, 8, 40, 30), {
           clipsContent: false,
-          children: [
-            node("child", box(0, 0, 20, 20)),
-          ],
+          children: [node("child", box(0, 0, 20, 20))],
         }),
       ],
     });
@@ -503,9 +501,9 @@ describe("detectAnomalies", () => {
     expect(grew.detail).toContain("96");
   });
 
-  it("reports height shrinking as the component is widened, as a candidate", () => {
+  it("does not report height shrinking as the component is widened", () => {
     // A wrapping label unwraps when given room, so the component gets shorter.
-    // This is now reported as a candidate so a human can confirm it is legitimate.
+    // This is correct and near-universal, so reporting it would bury the signal.
     const widened = node("root", box(0, 0, 400, 40), {
       clipsContent: true,
       children: [node("label", box(16, 12, 64, 16), { type: "TEXT" })],
@@ -515,36 +513,11 @@ describe("detectAnomalies", () => {
       children: [node("label", box(16, 12, 64, 16), { type: "TEXT" })],
     });
 
-    const anomalies = detectAnomalies(
-      measurement(baseline, 120),
-      measurement(widened, 400),
-    );
-    const grew = find(anomalies, "height-changed");
-    expect(grew.confidence).toBe("candidate");
-    expect(grew.detail).toContain("shrank");
-    expect(grew.detail).toContain("widened");
-  });
-
-  it("reports height change when the component is narrowed", () => {
-    // A label that wraps when narrowed legitimately grows taller, but the
-    // measurement is reported so a human can confirm it.
-    const narrowed = node("root", box(0, 0, 60, 96), {
-      clipsContent: true,
-      children: [node("label", box(16, 12, 28, 16), { type: "TEXT" })],
-    });
-    const baseline = node("root", box(0, 0, 120, 40), {
-      clipsContent: true,
-      children: [node("label", box(16, 12, 64, 16), { type: "TEXT" })],
-    });
-
-    const anomalies = detectAnomalies(
-      measurement(baseline, 120),
-      measurement(narrowed, 60),
-    );
-    const grew = find(anomalies, "height-changed");
-    expect(grew.confidence).toBe("candidate");
-    expect(grew.detail).toContain("grew");
-    expect(grew.detail).toContain("narrowed");
+    expect(
+      kinds(
+        detectAnomalies(measurement(baseline, 120), measurement(widened, 400)),
+      ),
+    ).not.toContain("height-changed");
   });
 
   it("tolerates sub-pixel drift everywhere", () => {

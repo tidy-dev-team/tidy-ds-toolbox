@@ -316,9 +316,7 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
       resizeProbe: measured([]),
     };
     const result = checkResponsiveBounds(snapshot);
-    expect(result.manualRemainder).toContain(
-      "other 1 variant(s)",
-    );
+    expect(result.manualRemainder).toContain("other 1 variant(s)");
   });
 
   it("keeps owing the whole resize test when the probe skipped", () => {
@@ -441,7 +439,7 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
       states: ["narrowed to 48px", "widened to 300px"],
       anomalies: [],
       bounds: { minWidth: 100 },
-      // Narrowest is 48, which is below minWidth of 100 — bound was tested.
+      // Narrowest is 48, which is below minWidth of 100 -- bound was tested.
       requestedWidths: [120, 48, 300],
     };
     const result = checkResponsiveBounds(withProbe(probe));
@@ -457,7 +455,7 @@ describe("checkResponsiveBounds, resize half (#111)", () => {
       states: ["narrowed to 48px", "widened to 300px"],
       anomalies: [],
       bounds: { maxWidth: 200 },
-      // Widest is 300, which is above maxWidth of 200 — bound was tested.
+      // Widest is 300, which is above maxWidth of 200 -- bound was tested.
       requestedWidths: [120, 48, 300],
     };
     const result = checkResponsiveBounds(withProbe(probe));

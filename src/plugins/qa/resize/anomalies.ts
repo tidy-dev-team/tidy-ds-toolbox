@@ -438,28 +438,25 @@ export function detectAnomalies(
   driftAnomalies(resized.root, resized, was, out);
 
   // Height is asked of the root alone: a child's height following its content is
-  // auto-layout working, while the *component* changing height when only its
-  // width was driven is the thing worth naming.
-  //
-  // Reported in all directions, as a candidate: height growth or shrinkage in
-  // either the widening or narrowing pass is stated so a human can confirm
-  // whether it is legitimate (a label wrapping or unwrapping) or unintended drift.
+  // auto-layout working, while the *component* growing taller when only its
+  // width was driven is the thing worth naming. Growth on narrowing is a label
+  // wrapping (near-universal; would bury the signal), and shrinkage on widening
+  // is the same label unwrapping (correct). So only growth on widening is
+  // reported.
   const wasRoot = was.get(resized.root.id);
   if (
     wasRoot &&
-    Math.abs(resized.root.box.height - wasRoot.box.height) > TOLERANCE_PX
+    resized.root.box.height - wasRoot.box.height > TOLERANCE_PX &&
+    resized.requestedWidth > baseline.requestedWidth
   ) {
-    const grew = resized.root.box.height > wasRoot.box.height;
-    const widened = resized.requestedWidth > baseline.requestedWidth;
     out.push({
       kind: "height-changed",
       confidence: "candidate",
       nodeId: resized.root.id,
       nodeName: resized.root.name,
       detail:
-        `height ${grew ? "grew" : "shrank"} from ${px(wasRoot.box.height)} ` +
-        `to ${px(resized.root.box.height)} while the component was ` +
-        `${widened ? "widened" : "narrowed"}.`,
+        `height went from ${px(wasRoot.box.height)} to ` +
+        `${px(resized.root.box.height)} while only the width was driven.`,
       measuredAtWidth: resized.requestedWidth,
       state: resized.label,
     });

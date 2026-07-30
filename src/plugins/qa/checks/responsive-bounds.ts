@@ -312,16 +312,20 @@ function probeOutcome(probe: ResizeProbeSnapshot | undefined): {
   // already cropped is reported at its cropped size, so text whose glyphs are cut
   // while its box still fits its clipper is invisible to this check.
   notes.push(
-    "Text whose glyphs are already cropped by Figma at the baseline width " +
-      "cannot be detected as clipped: Figma reports render bounds at their " +
-      "cropped size, so text that is cut off while its layout box still fits " +
-      "its clipper is invisible to this check.",
+    "Text whose glyphs are already cropped by Figma cannot be detected as " +
+      "clipped: Figma reports render bounds at their cropped size, so text " +
+      "that is cut off while its layout box still fits its clipper is " +
+      "invisible to this check at every measured width.",
   );
 
   // Declared bounds that the probe's drive never reached: the narrowing floor or
   // widening ceiling kept the probe's target above or below the declared bound,
   // so the bound was never actually tested.
-  if (probe.bounds && probe.requestedWidths && probe.requestedWidths.length > 0) {
+  if (
+    probe.bounds &&
+    probe.requestedWidths &&
+    probe.requestedWidths.length > 0
+  ) {
     const driven = probe.requestedWidths;
     if (probe.bounds.minWidth !== undefined) {
       const narrowest = Math.min(...driven);
