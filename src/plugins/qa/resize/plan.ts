@@ -60,6 +60,17 @@ const WIDE_FACTOR = 2.5;
 const BOUND_OVERSHOOT_PX = 200;
 
 /**
+ * Floor on the narrowing pass, as a fraction of the component's own width.
+ *
+ * The overshoot above is a flat number, and on a component whose `minWidth` is near
+ * it that lands somewhere absurd: a real dropdown with `minWidth: 204` was driven to
+ * 4px, where every measurement is a degenerate artifact rather than a defect. The
+ * bound is still tested from well below it, so nothing is lost by refusing to go
+ * lower than this.
+ */
+const NARROW_FLOOR_FRACTION = 0.1;
+
+/**
  * Absolute ceiling on a driven width. A component with a 4000px default would
  * otherwise be driven to 10000px, where Figma's own layout starts producing
  * numbers nobody wants to reason about, for no extra evidence.
@@ -145,11 +156,13 @@ export function planResizeProbe(
     root.layoutSizingHorizontal === "FILL" ? "parent" : "direct";
 
   // Narrow enough to be past any declared minWidth, so the same pass that hunts
-  // for clipping also establishes whether the bound holds.
+  // for clipping also establishes whether the bound holds - but never so narrow
+  // that the state stops resembling the component at all.
   let narrow = baselineWidth * NARROW_FACTOR;
   if (root.minWidth !== undefined) {
     narrow = Math.min(narrow, root.minWidth - BOUND_OVERSHOOT_PX);
   }
+  narrow = Math.max(narrow, baselineWidth * NARROW_FLOOR_FRACTION);
 
   let wide = baselineWidth * WIDE_FACTOR;
   if (root.maxWidth !== undefined) {

@@ -397,6 +397,50 @@ describe("detectAnomalies", () => {
     ).not.toContain("overlap");
   });
 
+  it("does not call it a grown gap when the siblings overlap", () => {
+    // Found on a real dropdown. Two nodes stacked at the same x give
+    // `gap = -width`, so narrowing shrinks the width and the gap "grows" from
+    // -280px to -204px - an artifact of the node getting narrower, not a gap
+    // opening up. It fired on every finding row 7 produced.
+    const stacked = (width: number): MeasuredNode =>
+      node("root", box(0, 0, 400, 40), {
+        children: [
+          node("item-a", box(16, 12, width, 16)),
+          node("item-b", box(16, 12, width, 16)),
+        ],
+      });
+
+    expect(
+      kinds(
+        detectAnomalies(
+          measurement(stacked(280), 700),
+          measurement(stacked(204), 204),
+        ),
+      ),
+    ).not.toContain("gap-grew");
+  });
+
+  it("still reports a real gap opening up from zero", () => {
+    // The boundary case worth keeping: touching siblings that come apart is a
+    // genuine gap, and must not be lost to the overlap guard.
+    const before = node("root", box(0, 0, 120, 40), {
+      children: [
+        node("a", box(16, 12, 32, 16)),
+        node("b", box(48, 12, 32, 16)),
+      ],
+    });
+    const after = node("root", box(0, 0, 400, 40), {
+      children: [
+        node("a", box(16, 12, 32, 16)),
+        node("b", box(300, 12, 32, 16)),
+      ],
+    });
+
+    expect(
+      kinds(detectAnomalies(measurement(before, 120), measurement(after, 400))),
+    ).toContain("gap-grew");
+  });
+
   it("reports a root that grew taller when only its width was driven", () => {
     const widened = node("root", box(0, 0, 400, 96), {
       clipsContent: true,

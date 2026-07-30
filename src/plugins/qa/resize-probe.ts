@@ -192,9 +192,13 @@ export function driveWidthThrough(
  * Measure the instance once, now.
  *
  * Rests on layout recomputation being synchronous after `resize()`, so that
- * post-resize `absoluteBoundingBox` values are readable in the same tick. That
- * assumption is load-bearing for the whole design, and rather than trust it, the
- * probe checks it: if no driven width moves the root at all, `unmoved` is recorded
+ * post-resize `absoluteBoundingBox` values are readable in the same tick.
+ * **Confirmed on a real file (2026-07-30):** a dropdown driven both ways reported
+ * moved widths and coherent child geometry in the same tick, so the assumption
+ * holds rather than merely being believed.
+ *
+ * The guard below stays anyway, because the assumption is load-bearing for the whole
+ * design and one file confirming it is not a proof: if no driven width moves the root at all, `unmoved` is recorded
  * and the row reports the resize half as not established instead of as a pass. A
  * broken assumption therefore surfaces as a stated limitation, never as a wrong
  * green.
