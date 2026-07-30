@@ -47,7 +47,7 @@
  * consuming usages (#100), never one row per consuming node.
  */
 
-import type { ComponentSetSnapshot } from "../snapshot";
+import type { ComponentSetSnapshot, ThemeSnapshot } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
 import {
   bindsOwnThemeVariables,
@@ -56,6 +56,49 @@ import {
 } from "../variable-usage";
 
 const TITLE = "Themes (per-mode variable resolution)";
+
+/**
+ * How many colours the set binds that the probe could compare, and whether any
+ * of them actually differs between modes.
+ *
+ * **Colours only, deliberately.** The probe records a resolved *value* for
+ * COLOR variables alone (#16 needs them for contrast); a FLOAT or STRING is
+ * recorded as having resolved, with no value to compare. Judging invariance from
+ * data we do not have is how a check earns a false-positive reputation, so a set
+ * binding only spacing tokens is simply not assessed here.
+ *
+ * A variable that fails to resolve in any mode is skipped: that is already a
+ * `fail` on its own terms, and comparing a broken chain says nothing.
+ */
+function colourInvariance(
+  theme: ThemeSnapshot,
+  usage: ReturnType<typeof collectVariableUsage>,
+): { compared: number; varies: boolean } {
+  let compared = 0;
+  let varies = false;
+
+  for (const [variableId, variable] of Object.entries(theme.variables)) {
+    if (!usage.has(variableId)) continue;
+
+    // Built as it goes rather than filtered then mapped, so the colour test and
+    // the signature read the same value and no assertion is needed to link them.
+    const signatures = new Set<string>();
+    for (const mode of theme.modes) {
+      const resolved = variable.byMode[mode.modeId];
+      if (!resolved?.ok || resolved.type !== "COLOR" || !resolved.hex) {
+        signatures.clear();
+        break;
+      }
+      signatures.add(`${resolved.hex}|${resolved.alpha ?? 1}`);
+    }
+    if (signatures.size === 0) continue;
+
+    compared += 1;
+    if (signatures.size > 1) varies = true;
+  }
+
+  return { compared, varies };
+}
 
 export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   const theme = snapshot.theme;
@@ -208,6 +251,32 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
 
   const modeList = theme.modes.map((m) => m.name).join(", ");
 
+  // Everything resolved, and resolved to the *same* value everywhere - so the
+  // component is provably identical in every mode. Resolution integrity is a
+  // weaker claim than it looks, and without this the row reports pass on a set
+  // that is not wired to the theme axis at all. Advisory rather than a failure:
+  // a component can legitimately be mode-invariant, and the warning states the
+  // fact rather than judging it.
+  //
+  // Only when nothing else failed: a broken binding resolves to nothing in any
+  // mode, which would look like invariance while being a different defect.
+  const invariance = colourInvariance(theme, usage);
+  const rendersIdentically =
+    resolutionFailures === 0 && invariance.compared > 0 && !invariance.varies;
+  if (rendersIdentically) {
+    findings.push({
+      severity: "medium",
+      nodeId: snapshot.id,
+      nodeName: snapshot.name,
+      message: `Every colour this set binds resolves to the same value in all ${theme.modes.length} modes (${modeList}), so the component renders identically in each.`,
+      expected: "at least one bound colour that differs between modes",
+      actual: `${invariance.compared} bound colour${invariance.compared === 1 ? "" : "s"}, identical in every mode`,
+      suggestedFix:
+        "Check the set is bound to theme-aware tokens rather than to values that happen to be the same in every mode. If it is meant to look the same everywhere, this row needs no action.",
+      count: 1,
+    });
+  }
+
   // Design's ask was visual - for every mode, see that it works and *looks good*.
   // This check proves only that every bound variable resolves, which is a
   // different claim: a set can resolve perfectly in both modes and still read
@@ -231,7 +300,11 @@ export function checkThemes(snapshot: ComponentSetSnapshot): CheckResult {
   findings.sort((a, b) => a.message.localeCompare(b.message));
 
   const status: CheckStatus =
-    resolutionFailures > 0 ? "fail" : pinnedNodes.length > 0 ? "warn" : "pass";
+    resolutionFailures > 0
+      ? "fail"
+      : pinnedNodes.length > 0 || rendersIdentically
+        ? "warn"
+        : "pass";
 
   return {
     checkId: "themes",

@@ -23,8 +23,31 @@ function node(overrides: Partial<NodeSnapshot> = {}): NodeSnapshot {
   };
 }
 
-/** A variable resolving cleanly in every listed mode. */
+/**
+ * A variable resolving cleanly in every listed mode, to a *different* colour in
+ * each - which is what a themed token actually does. Resolving to one colour
+ * everywhere is its own finding (see `invariant`), so the default fixture must
+ * not quietly be that case.
+ */
 function resolved(
+  name: string,
+  modeIds: string[],
+  collectionId = "c-theme",
+): VariableResolutionSnapshot {
+  return {
+    name,
+    collectionId,
+    byMode: Object.fromEntries(
+      modeIds.map((m, i) => [
+        m,
+        { ok: true, type: "COLOR", hex: `#${String(i + 1).repeat(6)}` },
+      ]),
+    ),
+  };
+}
+
+/** A variable resolving to the same colour in every mode. */
+function invariant(
   name: string,
   modeIds: string[],
   collectionId = "c-theme",
@@ -519,5 +542,60 @@ describe("checkThemes", () => {
     );
     const messages = result.findings.map((f) => f.message);
     expect(messages).toEqual([...messages].sort());
+  });
+});
+
+describe("checkThemes - a set that renders the same in every mode", () => {
+  const modeIds = THEME_MODES.map((m) => m.modeId);
+
+  // Resolution integrity is a weaker claim than it looks: every variable can
+  // resolve perfectly while resolving to the *same* value everywhere, and then
+  // the component is provably identical in every mode. Two real sets showed this
+  // - four brand modes, pixel-identical - while the row reported pass.
+  it("warns when every bound colour resolves to one value in all modes", () => {
+    const snapshot = fixture(
+      [[filled("v-bg")]],
+      theme({ variables: { "v-bg": invariant("bg/surface", modeIds) } }),
+    );
+
+    const result = checkThemes(snapshot);
+
+    expect(result.status).toBe("warn");
+    const messages = result.findings.map((f) => f.message);
+    expect(messages.some((m) => /same value in all/i.test(m))).toBe(true);
+    expect(messages.some((m) => /renders identically/i.test(m))).toBe(true);
+  });
+
+  it("stays a pass when at least one bound colour differs between modes", () => {
+    const snapshot = fixture(
+      [[filled("v-bg")]],
+      theme({ variables: { "v-bg": resolved("bg/surface", modeIds) } }),
+    );
+
+    expect(checkThemes(snapshot).status).toBe("pass");
+  });
+
+  // The probe records a value only for colours, so a set binding only spacing or
+  // number tokens cannot be judged this way - and guessing from data we do not
+  // have is how a check earns its false-positive reputation.
+  it("says nothing when no bound variable is a colour", () => {
+    const spacing: VariableResolutionSnapshot = {
+      name: "space/md",
+      collectionId: "c-theme",
+      byMode: Object.fromEntries(
+        modeIds.map((m) => [m, { ok: true, type: "FLOAT" }]),
+      ),
+    };
+    const snapshot = fixture(
+      [[filled("v-space")]],
+      theme({ variables: { "v-space": spacing } }),
+    );
+
+    const result = checkThemes(snapshot);
+
+    expect(result.status).toBe("pass");
+    expect(result.findings.map((f) => f.message)).not.toContainEqual(
+      expect.stringMatching(/renders identically/i),
+    );
   });
 });
