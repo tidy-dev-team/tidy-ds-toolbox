@@ -155,6 +155,18 @@ const figmaProbeEnv: ProbeEnv<FrameNode> = {
 };
 
 /**
+ * Sweep every stray QA probe on the current page, whatever created it.
+ *
+ * Exported so the *resize* probe (#111) shares one sweep with this one rather than
+ * standing up a second. Both mark their scratch nodes with the same plugin-data
+ * marker, so a single sweep reclaims either, and a run that probes only one of the
+ * two still clears the other's residue.
+ */
+export function sweepQaProbes(): void {
+  sweepStrayProbes(figmaProbeEnv);
+}
+
+/**
  * Remove probes an earlier run left behind.
  *
  * `finally` covers returning and throwing, not dying: cancelling a plugin may
@@ -247,7 +259,7 @@ export async function probeThemeResolution(
    * on *every* run - would itself rest on a careful reading, since moving this
    * call under an early return breaks nothing else.
    */
-  sweep: () => void = () => sweepStrayProbes(figmaProbeEnv),
+  sweep: () => void = sweepQaProbes,
 ): Promise<ThemeSnapshot | undefined> {
   // Before anything else, including the early returns below: cleanup has to
   // happen on every run that gets here, not only the ones that go on to build a

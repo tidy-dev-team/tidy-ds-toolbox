@@ -7,6 +7,8 @@
  * snapshots without the Figma API.
  */
 
+import type { Anomaly } from "./resize/anomalies";
+
 export interface PaintSnapshot {
   /** "SOLID" | "IMAGE" | "GRADIENT_LINEAR" | … */
   type: string;
@@ -155,6 +157,19 @@ export interface NodeSnapshot {
   layoutMode?: "NONE" | "HORIZONTAL" | "VERTICAL" | "GRID";
   layoutSizingHorizontal?: "FIXED" | "HUG" | "FILL";
   layoutSizingVertical?: "FIXED" | "HUG" | "FILL";
+  /**
+   * How children are distributed along the auto-layout primary axis (#7's
+   * resize half).
+   *
+   * Recorded because `SPACE_BETWEEN` on a container that can stretch is the
+   * canonical "looks fine at rest, breaks when stretched" defect: at its default
+   * width the component looks perfect, and widening it sends the icon to the far
+   * left and the label to the far right with a hole in between. That the trigger
+   * is *structural* - two snapshot fields - is what lets the whole set be
+   * pre-scanned for it without resizing anything, which is how the probe's
+   * one-variant coverage limit is mostly recovered (see `resize/stretch-risk.ts`).
+   */
+  primaryAxisAlignItems?: "MIN" | "MAX" | "CENTER" | "SPACE_BETWEEN";
   paddingTop?: number;
   paddingRight?: number;
   paddingBottom?: number;
@@ -339,6 +354,65 @@ export interface ColorStyleSnapshot {
   paints: PaintSnapshot[];
 }
 
+/**
+ * What the resize probe measured (#7's resize half, issue #111).
+ *
+ * Produced by `resize-probe.ts`, which instances one variant into a scratch frame,
+ * drives its width, records boxes, and removes everything in a `finally` - the same
+ * ADR-0001 carve-out the theme probe documents. Every judgement made from it is
+ * pure (`resize/anomalies.ts`), so what lands here is observation only.
+ *
+ * Absent when the probe did not run at all. Present-with-`skipped` is different and
+ * says more: the probe ran and declined, for a reason the row then prints, rather
+ * than a row going quietly green on a test that never happened.
+ */
+export interface ResizeProbeSnapshot {
+  /**
+   * Why nothing was measured, when nothing was. A hugging component has no
+   * resize behaviour to test; a set with no default variant has nothing to
+   * instance.
+   */
+  skipped?: string;
+  /**
+   * The variant that was probed. One variant, deliberately: instancing every
+   * variant is the combinatorial cost #112 was re-scoped away from. The coverage
+   * limit is stated on the row rather than implied away, and the structural
+   * pre-scan (`resize/stretch-risk.ts`) covers the whole set to make up for it.
+   */
+  variantId?: string;
+  variantName?: string;
+  /** Width the component sat at when instanced - what everything is compared to. */
+  baselineWidth?: number;
+  /** Labels of the states actually measured, e.g. "widened to 300px". */
+  states?: string[];
+  /** What drifted. Empty means measured and clean; absent means not measured. */
+  anomalies?: Anomaly[];
+  /**
+   * The probe drove the width and the component did not move at all.
+   *
+   * Recorded because the two explanations are indistinguishable from in here - the
+   * component is pinned by bounds Figma is enforcing, or the probe could not drive
+   * it - and both make a clean measurement worthless. The row reports the resize
+   * half as not established rather than as a pass: this is the one outcome where a
+   * green chip would be actively misleading.
+   */
+  unmoved?: boolean;
+  /**
+   * The long-text stress pass (#112's text half): every TEXT property set to a
+   * long string at once, then measured.
+   *
+   * All properties at once rather than one pass each: it is one measurement
+   * instead of N, and it is also the harsher and more realistic test, since real
+   * content is long in more than one slot at a time.
+   */
+  textStress?: {
+    /** Why there was no stress pass - usually that the set defines no text properties. */
+    skipped?: string;
+    /** What drifted under long text. */
+    anomalies?: Anomaly[];
+  };
+}
+
 export interface ComponentSetSnapshot {
   id: string;
   name: string;
@@ -362,6 +436,8 @@ export interface ComponentSetSnapshot {
   pinnedAncestors?: PinnedAncestorSnapshot[];
   /** Per-mode variable resolution (#17). Absent when the probe didn't run. */
   theme?: ThemeSnapshot;
+  /** Measured resize behaviour (#7's resize half). Absent when the probe didn't run. */
+  resizeProbe?: ResizeProbeSnapshot;
   /**
    * Fill styles referenced anywhere in the set, keyed by style id (#16).
    * Memoized by the collector, so cost scales with distinct styles rather than

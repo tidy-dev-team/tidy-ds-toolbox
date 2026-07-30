@@ -3,8 +3,10 @@ import { checkResponsiveBounds } from "./responsive-bounds";
 import type {
   ComponentSetSnapshot,
   NodeSnapshot,
+  ResizeProbeSnapshot,
   VariantSnapshot,
 } from "../snapshot";
+import type { Anomaly } from "../resize/anomalies";
 
 type Bounds = Pick<
   NodeSnapshot,
@@ -164,6 +166,243 @@ describe("checkResponsiveBounds (#7)", () => {
   it("reports under the right check id and title", () => {
     const result = checkResponsiveBounds(fixture([root("1", true)]));
     expect(result.checkId).toBe("responsive-bounds");
-    expect(result.title).toBe("Responsiveness (size bounds)");
+    expect(result.title).toBe("Responsiveness (bounds + resize)");
+  });
+});
+
+/**
+ * The resize half (#111). Every case below drives the check through
+ * `snapshot.resizeProbe`, which is a plain-JSON facet, so the measured behaviour
+ * is fixture-tested exactly like everything else here.
+ */
+describe("checkResponsiveBounds, resize half (#111)", () => {
+  const anomaly = (
+    confidence: "verdict" | "candidate",
+    detail = "something drifted.",
+  ): Anomaly => ({
+    kind: confidence === "verdict" ? "overflow" : "gap-grew",
+    confidence,
+    nodeId: "layer",
+    nodeName: "Label",
+    detail,
+    measuredAtWidth: 300,
+    state: "widened to 300px",
+  });
+
+  /** A set whose bounds half passes, so the resize half is what moves the row. */
+  function withProbe(probe: ResizeProbeSnapshot): ComponentSetSnapshot {
+    return {
+      ...fixture([root("1", true, { minWidth: 120 })]),
+      resizeProbe: probe,
+    };
+  }
+
+  const measured = (anomalies: Anomaly[]): ResizeProbeSnapshot => ({
+    variantId: "1",
+    variantName: "Variant 1",
+    baselineWidth: 120,
+    states: ["narrowed to 48px", "widened to 300px"],
+    anomalies,
+  });
+
+  it("fails the row on a verdict anomaly", () => {
+    // Content clipped away or collapsed is wrong however it got there, so this is
+    // the first thing on row 7 that can go red.
+    const result = checkResponsiveBounds(
+      withProbe(measured([anomaly("verdict")])),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings[0].severity).toBe("high");
+  });
+
+  it("only warns on a candidate anomaly, and asks for confirmation", () => {
+    // SPACE_BETWEEN is correct on a select or a list row; a wrong red there costs
+    // more trust than a missed finding.
+    const result = checkResponsiveBounds(
+      withProbe(measured([anomaly("candidate")])),
+    );
+    expect(result.status).toBe("warn");
+    expect(result.findings[0].severity).toBe("low");
+    expect(result.findings[0].message).toContain("Confirm this is intended");
+  });
+
+  it("carries the measured numbers and the state into the finding", () => {
+    const result = checkResponsiveBounds(
+      withProbe(
+        measured([anomaly("candidate", "the gap went from 8px to 288px.")]),
+      ),
+    );
+    expect(result.findings[0].message).toContain("widened to 300px");
+    expect(result.findings[0].message).toContain("288px");
+  });
+
+  it("passes when the probe measured the component and found nothing", () => {
+    const result = checkResponsiveBounds(withProbe(measured([])));
+    expect(result.status).toBe("pass");
+    expect(result.note).toContain("narrowed to 48px");
+    expect(result.note).toContain("widened to 300px");
+  });
+
+  it("reaches a verdict even when the bounds half had nothing to say", () => {
+    // Bounds n/a plus a clean measurement is a real result, and leaving the row
+    // not_applicable would throw it away.
+    const snapshot = {
+      ...fixture([root("1", false)]),
+      resizeProbe: measured([]),
+    };
+    expect(checkResponsiveBounds(snapshot).status).toBe("pass");
+  });
+
+  it("lets the resize half fail a row whose bounds half is not_applicable", () => {
+    const snapshot = {
+      ...fixture([root("1", false)]),
+      resizeProbe: measured([anomaly("verdict")]),
+    };
+    expect(checkResponsiveBounds(snapshot).status).toBe("fail");
+  });
+
+  it("keeps a bounds warning when the resize half is clean", () => {
+    // Escalation runs one way only: the resize half cannot lower a warn the
+    // bounds half reached.
+    const snapshot = {
+      ...fixture([root("1", true)]),
+      resizeProbe: measured([]),
+    };
+    expect(checkResponsiveBounds(snapshot).status).toBe("warn");
+  });
+
+  it("drops the whole-resize remainder once geometry was measured", () => {
+    const result = checkResponsiveBounds(withProbe(measured([])));
+    expect(result.manualRemainder).not.toContain(
+      "Only min/max bounds are checked automatically",
+    );
+    // What genuinely remains is what geometry cannot see.
+    expect(result.manualRemainder).toContain("distorts");
+  });
+
+  it("names the variants the probe did not measure", () => {
+    const snapshot = {
+      ...fixture([root("1", true, { minWidth: 120 }), root("2", true)]),
+      resizeProbe: measured([]),
+    };
+    expect(checkResponsiveBounds(snapshot).manualRemainder).toContain(
+      "other 1 variant(s)",
+    );
+  });
+
+  it("keeps owing the whole resize test when the probe skipped", () => {
+    const result = checkResponsiveBounds(
+      withProbe({ skipped: "the component hugs its content horizontally." }),
+    );
+    expect(result.manualRemainder).toContain(
+      "Only min/max bounds are checked automatically",
+    );
+    expect(result.note).toContain("hugs its content");
+  });
+
+  it("refuses to pass on an unmoved component, and says why", () => {
+    // Bounds Figma is enforcing and a component the probe could not drive are
+    // indistinguishable from in here, and a clean measurement is worthless
+    // either way. This is the one outcome where green would be misleading.
+    const result = checkResponsiveBounds(
+      withProbe({ ...measured([]), unmoved: true }),
+    );
+    expect(result.status).toBe("pass"); // from the bounds half alone
+    expect(result.note).toContain("could not be measured");
+    expect(result.manualRemainder).toContain(
+      "Only min/max bounds are checked automatically",
+    );
+  });
+
+  it("reports long-text anomalies alongside the width ones", () => {
+    const result = checkResponsiveBounds(
+      withProbe({
+        ...measured([]),
+        textStress: {
+          anomalies: [anomaly("verdict", "the label is cut off.")],
+        },
+      }),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings[0].message).toContain("cut off");
+  });
+
+  it("says so when long text could not be tested", () => {
+    const result = checkResponsiveBounds(
+      withProbe({
+        ...measured([]),
+        textStress: { skipped: "the component defines no text properties." },
+      }),
+    );
+    expect(result.note).toContain("no text properties");
+    expect(result.status).toBe("pass");
+  });
+
+  it("behaves exactly as before when the facet was never collected", () => {
+    // A filtered run that does not collect the probe must not change the row: the
+    // facet mechanism is what keeps an unrequested probe inert.
+    const result = checkResponsiveBounds(fixture([root("1", true)]));
+    expect(result.status).toBe("warn");
+    expect(result.manualRemainder).toContain(
+      "Only min/max bounds are checked automatically",
+    );
+  });
+});
+
+describe("checkResponsiveBounds, stretch pre-scan (#111)", () => {
+  function spreader(id: string): NodeSnapshot {
+    return {
+      ...root(id, true, { minWidth: 120 }),
+      layoutMode: "HORIZONTAL",
+      primaryAxisAlignItems: "SPACE_BETWEEN",
+      layoutSizingHorizontal: "FILL",
+      children: [
+        { ...root(`${id}-icon`, false), name: "Icon" },
+        { ...root(`${id}-label`, false), name: "Label" },
+      ],
+    };
+  }
+
+  it("names an unmeasured spreader in the remainder without moving the row", () => {
+    // A suspicion is not a chip: SPACE_BETWEEN is exactly right for a select or a
+    // list row, and turning every one of those amber would make the row noise.
+    const snapshot: ComponentSetSnapshot = {
+      ...fixture([root("1", true, { minWidth: 120 }), spreader("2")]),
+      resizeProbe: {
+        variantId: "1",
+        variantName: "Variant 1",
+        baselineWidth: 120,
+        states: ["widened to 300px"],
+        anomalies: [],
+      },
+    };
+    const result = checkResponsiveBounds(snapshot);
+    expect(result.status).toBe("pass");
+    expect(result.note).toContain("spread content apart when stretched");
+    expect(result.note).toContain("Variant 2");
+  });
+
+  it("stays quiet about the variant the probe actually measured", () => {
+    // The probe measured it, so either there is a real gap finding or there is
+    // nothing to say - repeating the suspicion would double-report it.
+    const snapshot: ComponentSetSnapshot = {
+      ...fixture([spreader("1")]),
+      resizeProbe: {
+        variantId: "1",
+        variantName: "Variant 1",
+        baselineWidth: 120,
+        states: ["widened to 300px"],
+        anomalies: [],
+      },
+    };
+    expect(checkResponsiveBounds(snapshot).note).not.toContain(
+      "spread content apart",
+    );
+  });
+
+  it("scans the whole set even with no probe at all", () => {
+    expect(checkResponsiveBounds(fixture([spreader("1")])).note).toContain(
+      "spread content apart when stretched",
+    );
   });
 });
