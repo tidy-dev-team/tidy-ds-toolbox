@@ -18,6 +18,7 @@ import { buildChecklistReport } from "./report";
 import { renderChecklist } from "./render/renderChecklist";
 import type { ComponentSetSnapshot, ThemeSnapshot } from "./snapshot";
 import { planResizeProbe } from "./resize/plan";
+import { chooseVariant } from "./resize-probe";
 import { planResizeEvidence } from "./render/resize-evidence";
 import { planContactSheet } from "./render/contact-sheet";
 import { isPlan, type StateGridPlan } from "./render/state-grid";
@@ -366,16 +367,11 @@ function gridSubject(
   subject: QaSubject,
   snapshot: ComponentSetSnapshot,
 ): StateGridSubject | null {
-  const main =
-    subject.type === "COMPONENT_SET" ? subject.defaultVariant : subject;
-  if (!main) return null;
-  const variant = snapshot.variants.find(
-    (candidate) => candidate.id === main.id,
-  );
-  if (!variant) return null;
-  const planned = planResizeProbe(variant.tree);
+  const chosen = chooseVariant(subject, snapshot);
+  if (!chosen) return null;
+  const planned = planResizeProbe(chosen.variant.tree);
   return {
-    main,
+    main: chosen.component,
     // A component the probe declined to resize (a hugging one) can still be
     // instanced for a contact sheet; it simply never has a width driven through it,
     // and "direct" is the inert choice there.

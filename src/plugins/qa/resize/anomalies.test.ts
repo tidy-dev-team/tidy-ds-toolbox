@@ -171,6 +171,77 @@ describe("detectAnomalies", () => {
     expect(clipped.nodeId).toBe("label");
   });
 
+  it("does not mistake a drop shadow for clipped text", () => {
+    // `absoluteRenderBounds` is *larger* than the bounding box whenever a node has
+    // a drop shadow or an outside stroke. Reading that as "ink does not fit its
+    // box" reds row 7 on every shadowed component in the file, at every width.
+    const shadowed = (width: number): MeasuredNode =>
+      node("root", box(0, 0, width, 40), {
+        clipsContent: false,
+        // Ink 6px proud of the box on every edge: a shadow, not a defect.
+        renderBox: box(-6, -6, width + 12, 52),
+        children: [
+          node("label", box(16, 12, 64, 16), {
+            type: "TEXT",
+            renderBox: box(16, 14, 60, 12),
+          }),
+        ],
+      });
+
+    expect(
+      detectAnomalies(
+        measurement(shadowed(120), 120),
+        measurement(shadowed(400), 400),
+      ),
+    ).toEqual([]);
+  });
+
+  it("does not report a text layer whose ink already overhung at baseline", () => {
+    // Text can carry an effect too. What matters is whether the resize made it
+    // worse, not that ink and box disagree.
+    const shadowedText = (width: number): MeasuredNode =>
+      node("root", box(0, 0, width, 40), {
+        children: [
+          node("label", box(16, 12, 64, 16), {
+            type: "TEXT",
+            renderBox: box(12, 8, 72, 24),
+          }),
+        ],
+      });
+
+    expect(
+      kinds(
+        detectAnomalies(
+          measurement(shadowedText(120), 120),
+          measurement(shadowedText(400), 400),
+        ),
+      ),
+    ).not.toContain("text-clipped");
+  });
+
+  it("only ever calls text clipped, never a frame", () => {
+    // A frame whose ink escapes its box is a shadow or a stroke; only a TEXT node
+    // can have glyphs cut off, which is what this rule is for.
+    const framey = (width: number): MeasuredNode =>
+      node("root", box(0, 0, width, 40), {
+        children: [
+          node("shape", box(16, 12, 20, 16), {
+            type: "RECTANGLE",
+            renderBox: box(0, 0, width, 40),
+          }),
+        ],
+      });
+
+    expect(
+      kinds(
+        detectAnomalies(
+          measurement(framey(120), 120),
+          measurement(framey(60), 60),
+        ),
+      ),
+    ).not.toContain("text-clipped");
+  });
+
   it("reports a node that collapsed to nothing", () => {
     const widened = node("root", box(0, 0, 400, 40), {
       clipsContent: true,

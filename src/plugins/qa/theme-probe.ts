@@ -1,8 +1,9 @@
 /// <reference types="@figma/plugin-typings" />
 
 /**
- * Per-mode variable resolution for #17 (issue #102) - the second and only other
- * figma-touching piece of the QA engine besides the collector.
+ * Per-mode variable resolution for #17 (issue #102) - one of three figma-touching
+ * pieces of the QA engine's checking half, beside the collector and the resize
+ * probe (#111), which shares this module's probe marker and stray sweep.
  *
  * **Why a probe at all.** Getting a variable's value *per mode* is awkward:
  * `valuesByMode` does not resolve aliases, and `resolveForConsumer` resolves

@@ -20,7 +20,7 @@ Split `$ARGUMENTS` on whitespace into tokens, then classify each:
 
 - **Canvas flag** — the token `--canvas` (or `--render`). Switches to canvas
   mode. Remove it from the token list before parsing the rest.
-- **Contact-sheet flag** — the token `--sheet` (or `--combinations`). Implies
+- **Contact-sheet flag** - the token `--sheet` (or `--combinations`). Implies
   canvas mode, and sets `includeContactSheet: true` on the call.
   Remove it from the token list before parsing the rest.
 - **Check-id** - a token that exactly matches one of the known check ids, in

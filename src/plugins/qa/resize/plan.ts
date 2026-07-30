@@ -7,7 +7,7 @@
  * issue's open "which widths?" question - and belongs somewhere a test can read it.
  */
 
-import type { NodeSnapshot } from "../snapshot";
+import type { ComponentSetSnapshot, NodeSnapshot } from "../snapshot";
 
 /**
  * How the width has to be driven, which follows entirely from the root's own
@@ -82,6 +82,20 @@ export const STRESS_TEXT =
   "This label is deliberately far longer than anything a designer would " +
   "reasonably put here, so that clipping and overflow have a chance to show " +
   "themselves before a user finds them.";
+
+/**
+ * The TEXT property keys a long-text pass has to set, as `setProperties` wants them
+ * (the raw suffixed key, not the display name).
+ *
+ * Beside `STRESS_TEXT` and for the same reason: the probe injects the string and the
+ * evidence block re-injects it, and if the two ever disagreed about *which*
+ * properties to fill, the picture would not reproduce the measurement it illustrates.
+ */
+export function textPropertyKeys(snapshot: ComponentSetSnapshot): string[] {
+  return snapshot.properties
+    .filter((property) => property.type === "TEXT")
+    .map((property) => property.key);
+}
 
 /** Below this a component has no meaningful width to scale from. */
 const MIN_MEANINGFUL_PX = 1;

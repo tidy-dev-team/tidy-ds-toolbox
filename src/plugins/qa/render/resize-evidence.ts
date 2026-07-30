@@ -22,7 +22,7 @@
 
 import type { ComponentSetSnapshot, ResizeProbeSnapshot } from "../snapshot";
 import type { Anomaly } from "../resize/anomalies";
-import { STRESS_TEXT } from "../resize/plan";
+import { STRESS_TEXT, textPropertyKeys } from "../resize/plan";
 import type {
   NoStateGrid,
   StateGridPlan,
@@ -65,13 +65,6 @@ function captionsFor(anomalies: readonly Anomaly[]): string[] {
   const shown = ordered.slice(0, MAX_CAPTIONS).map((a) => a.detail);
   const hidden = ordered.length - shown.length;
   return hidden > 0 ? [...shown, `+${hidden} more on the row.`] : shown;
-}
-
-/** The TEXT property keys the long-text cell has to set, as `setProperties` wants them. */
-function textPropertyKeys(snapshot: ComponentSetSnapshot): string[] {
-  return snapshot.properties
-    .filter((property) => property.type === "TEXT")
-    .map((property) => property.key);
 }
 
 export function planResizeEvidence(
