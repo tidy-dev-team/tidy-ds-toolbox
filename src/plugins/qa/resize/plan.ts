@@ -66,6 +66,23 @@ const BOUND_OVERSHOOT_PX = 200;
  */
 const MAX_DRIVEN_PX = 4000;
 
+/**
+ * The long string the text-stress pass injects (#112's text half).
+ *
+ * Long enough to overflow any realistic label and to force wrapping in any
+ * realistic container, and real prose rather than a repeated character so that
+ * wrapping behaves the way it would with real content.
+ *
+ * Lives here, in the pure layer, rather than in the probe that injects it, because
+ * the *evidence* block has to draw the very same string: if the drawn text were
+ * shorter than the measured text it might not clip, and the picture would then
+ * quietly contradict the finding it exists to prove.
+ */
+export const STRESS_TEXT =
+  "This label is deliberately far longer than anything a designer would " +
+  "reasonably put here, so that clipping and overflow have a chance to show " +
+  "themselves before a user finds them.";
+
 /** Below this a component has no meaningful width to scale from. */
 const MIN_MEANINGFUL_PX = 1;
 

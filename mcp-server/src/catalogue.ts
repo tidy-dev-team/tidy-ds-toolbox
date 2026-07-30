@@ -380,7 +380,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "qa",
     summary:
-      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones on a tinted row with no status chip. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. Idempotent per target - re-running replaces the prior checklist frame instead of duplicating it. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload - pass \`includeImage\` to also get a picture of the drawn frame. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
+      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones on a tinted row with no status chip. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. When the responsiveness probe measured something breaking, also draws the baseline beside the state that broke, labelled with the measured numbers (returned as \`resizeEvidenceId\`) - proof of the row-7 finding, drawn only when there is a defect, so a healthy component costs nothing. Pass \`includeContactSheet\` for a grid of every property combination (returned as \`contactSheetId\`). Neither block ever changes a row's status. Idempotent per target - re-running replaces the prior checklist frame, and each block beside it, instead of duplicating them. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload - pass \`includeImage\` to also get a picture of the drawn frame. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
     inputSchema: {
       nodeId: z
         .string()
@@ -399,6 +399,12 @@ export const CATALOGUE: CatalogueEntry[] = [
         .optional()
         .describe(
           "Optional: place the checklist frame next to this node instead of the resolved target — lets the frame stay by the instance even though checks ran against its owning component set.",
+        ),
+      includeContactSheet: z
+        .boolean()
+        .optional()
+        .describe(
+          "Draw a contact sheet of every property combination beside the checklist: one row per variant, one column per boolean combination, capped at 48 instances with the cap stated on the block. Off by default - it is dozens of instances every time and carries no verdict; it exists so a human can compare all the states at a glance instead of clicking through them one at a time. The resize evidence block is separate and automatic.",
         ),
       includeImage: z
         .boolean()
