@@ -36,7 +36,7 @@ import {
   buildDoDontGridSection,
   appliesDoDontGridSection,
 } from "./buildDoDontGridSection";
-import { getPersistedDocLayout, type DocLayout } from "./docLayout";
+import { DEFAULT_DOC_LAYOUT, type DocLayout } from "./docLayout";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
 
@@ -156,13 +156,9 @@ async function findExistingDocPages(
   return matches;
 }
 
-// An explicit layout override, for tests and future callers — both current
-// callers (the MCP operation and the panel fallback) pass nothing and rely
-// on the persisted panel setting resolved internally below.
 export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
-  layoutOverride?: DocLayout,
 ): Promise<FrameNode> {
   if (buildsInFlight.has(source.id)) {
     throw new OperationError(
@@ -174,7 +170,7 @@ export async function buildDocPage(
   buildsInFlight.add(source.id);
 
   try {
-    return await buildDocPageUnguarded(source, spec, layoutOverride);
+    return await buildDocPageUnguarded(source, spec);
   } finally {
     buildsInFlight.delete(source.id);
   }
@@ -183,9 +179,17 @@ export async function buildDocPage(
 async function buildDocPageUnguarded(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
-  layoutOverride?: DocLayout,
 ): Promise<FrameNode> {
-  const layout = layoutOverride ?? (await getPersistedDocLayout());
+  // Fixed, and the single place that fixes it (ADR-0010). The vertical branch
+  // below is parked on purpose - the sections, the header builder and the
+  // chrome-less assembly path are all still here and still compiled - but
+  // there is no longer any way to select it: no panel control, no persisted
+  // setting, no override parameter, and nothing in the Doc Spec. Bringing it
+  // back is a one-line change here, which is the intended cost.
+  //
+  // Typed as the union rather than inferred, so the branch stays live code
+  // instead of something the compiler narrows away.
+  const layout: DocLayout = DEFAULT_DOC_LAYOUT;
   const facts = await deriveFacts(source);
 
   const { unresolved } = resolveDocSpecReferences(spec, facts);

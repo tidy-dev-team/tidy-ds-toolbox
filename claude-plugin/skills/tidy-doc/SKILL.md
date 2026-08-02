@@ -13,9 +13,9 @@ This skill authors the Doc Spec and drives the two `tidy-doc` Operations:
 
 There is **no mandatory approval gate**. The rendered Figma page is the review surface; the Doc Spec is logged for on-demand inspection and cheap re-runs replace the generated page wholesale.
 
-## Layout is a panel setting, not a skill argument
+## There is one layout
 
-The Documentation Page renders in one of two layouts (horizontal or vertical), chosen by the designer from a selector on the tidy-doc panel and persisted across plugin reopens. This skill never chooses or passes a layout — `tidy_doc_build_page` always honors whichever layout is currently selected on the panel, with no layout field in the Doc Spec and no extra argument on the Operation call. Author and build exactly as described below regardless of which layout is active; the same Doc Spec renders correctly into either one.
+Every Documentation Page renders in the same horizontal layout. There is no layout choice anywhere — not on the panel, not in the Doc Spec, and not as an argument on the Operation call. If a user asks for a different layout, tell them the tool builds one shape; do not look for a setting.
 
 ## Required references
 

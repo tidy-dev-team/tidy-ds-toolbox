@@ -1,5 +1,9 @@
 # Documentation Page layout is a persisted panel setting, not a Doc Spec field
 
+> **Superseded by [ADR-0010](0010-one-documentation-page-layout.md).**
+> The panel selector and the persisted setting are gone; the horizontal layout is the only reachable one.
+> The reasoning below is kept because it still explains why layout never became a Doc Spec field, which ADR-0010 does not reverse.
+
 A **Documentation Page** can now be built in one of two layouts: **horizontal** (the original left-to-right series of Sections) or **vertical** (a top-to-bottom size-grouped variant matrix, constraints redlines, and a Dos and Don'ts grid). Layout is a **code-owned rendering branch** — one of `"horizontal" | "vertical"` — selected by a setting persisted per Figma client (`figma.clientStorage`) and read once, internally, by the build orchestrator. The **Doc Spec** gains no layout field: the exact same authored spec renders into whichever layout is currently selected.
 
 Two options were on the table:

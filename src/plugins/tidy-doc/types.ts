@@ -1,12 +1,14 @@
 /// <reference types="@figma/plugin-typings" />
 
-import type { DocLayout } from "./utils/docLayout";
+// No layout anywhere in this contract (ADR-0010): the panel no longer offers a
+// choice, so `set-layout` and the layout field on the context readout are gone
+// rather than kept as a channel nothing sends on. `DocLayout` stays a private
+// detail of the renderer.
 
-export type TidyDocAction = "get-context" | "document-selection" | "set-layout";
+export type TidyDocAction = "get-context" | "document-selection";
 
 export interface GetContextResult {
   fileKey: string | null;
-  layout: DocLayout;
 }
 
 export interface DocumentSelectionResult {
@@ -15,15 +17,6 @@ export interface DocumentSelectionResult {
   sourceComponentName: string;
 }
 
-export interface SetLayoutPayload {
-  layout: DocLayout;
-}
-
-export interface SetLayoutResult {
-  layout: DocLayout;
-}
-
 export type { DocSpec, DocStatus } from "./utils/docSpec";
 export type { DerivedFacts } from "./utils/facts";
 export type { UnresolvedRef } from "./utils/resolveReferences";
-export type { DocLayout } from "./utils/docLayout";

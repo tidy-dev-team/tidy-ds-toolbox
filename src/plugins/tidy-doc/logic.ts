@@ -12,31 +12,13 @@ import {
   TidyDocAction,
   GetContextResult,
   DocumentSelectionResult,
-  SetLayoutPayload,
-  SetLayoutResult,
 } from "./types";
 import { deriveFacts } from "./utils/deriveFacts";
 import { buildDocPage } from "./utils/buildDocPage";
-import {
-  getPersistedDocLayout,
-  normalizeDocLayout,
-  setPersistedDocLayout,
-} from "./utils/docLayout";
 import type { DocSpec } from "./utils/docSpec";
 
 async function getContext(): Promise<GetContextResult> {
-  return {
-    fileKey: figma.fileKey ?? null,
-    layout: await getPersistedDocLayout(),
-  };
-}
-
-async function setLayout(payload: unknown): Promise<SetLayoutResult> {
-  const layout = normalizeDocLayout(
-    (payload as Partial<SetLayoutPayload> | undefined)?.layout,
-  );
-  await setPersistedDocLayout(layout);
-  return { layout };
+  return { fileKey: figma.fileKey ?? null };
 }
 
 /**
@@ -82,16 +64,17 @@ async function documentSelection(): Promise<DocumentSelectionResult> {
   };
 }
 
+// `_payload` is unused now that `set-layout` is gone - both remaining actions
+// take none - but it stays in the signature because the module contract is
+// `(action, payload, figma?)`.
 export async function tidyDocHandler(
   action: TidyDocAction,
-  payload: unknown,
+  _payload: unknown,
   _figma?: PluginAPI,
 ): Promise<unknown> {
   switch (action) {
     case "get-context":
       return await getContext();
-    case "set-layout":
-      return await setLayout(payload);
     case "document-selection":
       return await documentSelection();
     default:
