@@ -22,6 +22,7 @@ import type {
   ExposedInstanceSnapshot,
   NodeSnapshot,
   PaintSnapshot,
+  TextSegmentSnapshot,
   VariantSnapshot,
 } from "./snapshot";
 
@@ -59,6 +60,8 @@ function styleId(value: string | typeof figma.mixed): string {
   return value === figma.mixed ? "MIXED" : value;
 }
 
+const BOLD_WEIGHT = 700;
+
 /**
  * Font size and boldness for #16's dual AA threshold.
  *
@@ -71,7 +74,6 @@ function snapshotTextMetrics(node: TextNode): {
   fontSize?: number;
   bold: boolean;
 } {
-  const BOLD_WEIGHT = 700;
   if (node.fontSize !== figma.mixed && node.fontWeight !== figma.mixed) {
     return { fontSize: node.fontSize, bold: node.fontWeight >= BOLD_WEIGHT };
   }
@@ -81,6 +83,42 @@ function snapshotTextMetrics(node: TextNode): {
     fontSize: Math.min(...segments.map((s) => s.fontSize)),
     bold: segments.every((s) => s.fontWeight >= BOLD_WEIGHT),
   };
+}
+
+/**
+ * The styled runs of a text layer whose fills are mixed (#124).
+ *
+ * Only for that case: a layer painted in one colour already has one answer, and
+ * mixed *size* alone is still resolved to the strictest threshold above. The
+ * colour is the thing a single layer-level value genuinely cannot express -
+ * without the runs, a paragraph with one coloured link is not measured at all.
+ *
+ * Figma splits a run wherever any requested field changes, so asking for size
+ * and weight alongside the fills gives each run its own real threshold rather
+ * than the layer's smallest size.
+ */
+function snapshotTextSegments(
+  node: TextNode,
+): TextSegmentSnapshot[] | undefined {
+  const segments = node.getStyledTextSegments([
+    "fills",
+    "fillStyleId",
+    "fontSize",
+    "fontWeight",
+  ]);
+  if (segments.length === 0) return undefined;
+  return segments.map((segment) => {
+    const snap: TextSegmentSnapshot = {
+      fontSize: segment.fontSize,
+      fillStyleId: segment.fillStyleId,
+    };
+    // A run's fills are never `figma.mixed` - the run is the span over which
+    // they do not change - so this always yields an array.
+    const fills = snapshotPaints(segment.fills);
+    if (fills) snap.fills = fills;
+    if (segment.fontWeight >= BOLD_WEIGHT) snap.bold = true;
+    return snap;
+  });
 }
 
 /**
@@ -207,8 +245,8 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     const fills = snapshotPaints(node.fills);
     if (fills) snap.fills = fills;
     // Recorded explicitly rather than left as an absent `fills`: #16 has to
-    // tell "mixed per character range, decline to measure" apart from "this
-    // node paints nothing".
+    // tell "mixed per character range, measure the runs instead" apart from
+    // "this node paints nothing".
     else if (node.fills === figma.mixed) snap.fillsMixed = true;
     snap.fillStyleId = styleId(node.fillStyleId);
   }
@@ -221,6 +259,10 @@ function snapshotNode(node: SceneNode): NodeSnapshot {
     const metrics = snapshotTextMetrics(node);
     if (metrics.fontSize !== undefined) snap.fontSize = metrics.fontSize;
     if (metrics.bold) snap.bold = true;
+    if (snap.fillsMixed) {
+      const segments = snapshotTextSegments(node);
+      if (segments) snap.textSegments = segments;
+    }
   }
   if ("effects" in node) {
     snap.effectCount = node.effects.length;

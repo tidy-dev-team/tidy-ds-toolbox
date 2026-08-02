@@ -4,6 +4,7 @@ import type {
   ComponentSetSnapshot,
   NodeSnapshot,
   PaintSnapshot,
+  TextSegmentSnapshot,
   ThemeSnapshot,
 } from "../snapshot";
 
@@ -33,6 +34,32 @@ function text(overrides: Partial<NodeSnapshot> = {}): NodeSnapshot {
     type: "TEXT",
     fontSize: 16,
     bold: false,
+    ...overrides,
+  });
+}
+
+/** One styled run of a mixed-colour text layer (#124). */
+function run(
+  hex: string,
+  overrides: Partial<TextSegmentSnapshot> = {},
+): TextSegmentSnapshot {
+  return { fills: [solid(hex)], fontSize: 16, bold: false, ...overrides };
+}
+
+/**
+ * A text layer whose fills change mid-sentence. Figma leaves `fills` mixed and
+ * `fillStyleId` "MIXED" on such a layer, so the runs are the only description
+ * of its colour - the fixture says so rather than leaving it implied.
+ */
+function mixedText(
+  segments: TextSegmentSnapshot[],
+  overrides: Partial<NodeSnapshot> = {},
+): NodeSnapshot {
+  return text({
+    fills: undefined,
+    fillStyleId: "MIXED",
+    fillsMixed: true,
+    textSegments: segments,
     ...overrides,
   });
 }
@@ -654,5 +681,251 @@ describe("checkHighContrast with theme modes", () => {
     );
     expect(result.status).toBe("fail");
     expect(result.findings[0].message).toContain('"Surface/Default"');
+  });
+
+  it("resolves a styled run's bound variable per mode, like any other fill", () => {
+    // The link run is the same token that fails in DNA and passes in Core; the
+    // surrounding body copy is fine in both. A run resolves through exactly the
+    // rules a whole layer does, so only DNA is reported - and by token name.
+    const result = checkHighContrast(
+      fixture(
+        [
+          node({
+            name: "surface",
+            fills: [solid("#FFFFFF", { boundVariableId: "v-surface" })],
+            children: [
+              mixedText([
+                run("#111111"),
+                run("#595959", {
+                  fills: [solid("#595959", { boundVariableId: "v-text" })],
+                }),
+              ]),
+            ],
+          }),
+        ],
+        { theme },
+      ),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].message).toContain('in mode "DNA"');
+    expect(result.findings[0].message).toContain('"Text/Muted"');
+    expect(result.findings[0].message).toContain('"Surface/Default"');
+  });
+});
+
+/**
+ * Text whose colour changes mid-sentence (issue #124): a coloured link inside a
+ * paragraph, or a highlighted word. Before this, the whole layer was skipped -
+ * the one shape of text that most often carries a low-contrast link was the one
+ * shape the check could not see.
+ */
+describe("checkHighContrast on mixed-colour text", () => {
+  it("measures a failing run that the layer as a whole would have hidden", () => {
+    const result = checkHighContrast(
+      fixture([
+        surface("#FFFFFF", mixedText([run("#111111"), run("#999999")])),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(messages(result)).toEqual([
+      "Text #999999 on #FFFFFF is 2.8:1, below the WCAG AA minimum for normal text.",
+    ]);
+  });
+
+  it("leaves a layer alone when every run clears AA", () => {
+    const result = checkHighContrast(
+      fixture([
+        surface("#FFFFFF", mixedText([run("#111111"), run("#595959")])),
+      ]),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("counts a layer once however many of its runs share a pair", () => {
+    // Four grey runs in one paragraph are one defect and one token pair to fix.
+    // Counting runs would report "4 occurrences" of a mistake made once.
+    const result = checkHighContrast(
+      fixture([
+        surface(
+          "#FFFFFF",
+          mixedText([
+            run("#999999"),
+            run("#111111"),
+            run("#999999"),
+            run("#999999"),
+            run("#999999"),
+          ]),
+        ),
+      ]),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].count).toBe(1);
+  });
+
+  it("still counts one per layer when several layers share the pair", () => {
+    const paragraph = () =>
+      surface("#FFFFFF", mixedText([run("#999999"), run("#999999")]));
+    const result = checkHighContrast(
+      fixture([paragraph(), paragraph(), paragraph()]),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].count).toBe(3);
+  });
+
+  it("reports runs that fail on genuinely different pairs separately", () => {
+    // Two colours are two fixes, so merging them would hide one behind the
+    // other - the same reason distinct pairs are never merged across layers.
+    const result = checkHighContrast(
+      fixture([
+        surface("#FFFFFF", mixedText([run("#999999"), run("#AAAAAA")])),
+      ]),
+    );
+    expect(result.findings).toHaveLength(2);
+    expect(messages(result).join(" ")).toContain("#999999");
+    expect(messages(result).join(" ")).toContain("#AAAAAA");
+    expect(result.findings.every((f) => f.count === 1)).toBe(true);
+  });
+
+  it("judges each run at its own size, not at the layer's smallest", () => {
+    // #949494 is ~3.1:1 - over AA large, under AA normal. The 24px run is
+    // compliant; judging it at the layer's smallest size would invent a
+    // failure on text that is perfectly readable.
+    const result = checkHighContrast(
+      fixture([
+        surface(
+          "#FFFFFF",
+          mixedText([run("#949494", { fontSize: 24 }), run("#333333")], {
+            fontSize: 16,
+          }),
+        ),
+      ]),
+    );
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("describes a pair failing at two sizes by its strictest threshold", () => {
+    // #999999 is under both thresholds, so both runs fail - at 3:1 for the
+    // heading and 4.5:1 for the caption. One pair is one row, described by the
+    // stricter of the two, exactly as it is when two layers share a pair.
+    const result = checkHighContrast(
+      fixture([
+        surface(
+          "#FFFFFF",
+          mixedText([run("#999999", { fontSize: 24 }), run("#999999")]),
+        ),
+      ]),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].expected).toContain("4.5:1");
+    expect(result.findings[0].expected).toContain("normal text");
+    expect(result.findings[0].count).toBe(1);
+  });
+
+  it("applies the large-text threshold to a bold run on its own merit", () => {
+    const result = checkHighContrast(
+      fixture([
+        surface(
+          "#FFFFFF",
+          mixedText([
+            run("#949494", { fontSize: 18.66, bold: true }),
+            run("#333333"),
+          ]),
+        ),
+      ]),
+    );
+    expect(result.status).toBe("pass");
+  });
+
+  it("resolves a run through the paint style it carries, and names it", () => {
+    // The layer's own `fillStyleId` is "MIXED" and says nothing; the run's does.
+    const result = checkHighContrast(
+      fixture(
+        [
+          node({
+            name: "surface",
+            fillStyleId: "S:bg",
+            fills: [solid("#FFFFFF")],
+            children: [
+              mixedText([
+                run("#111111"),
+                run("#999999", { fillStyleId: "S:link" }),
+              ]),
+            ],
+          }),
+        ],
+        {
+          colorStyles: {
+            "S:bg": { name: "Surface/Card", paints: [solid("#FFFFFF")] },
+            "S:link": { name: "Text/Link", paints: [solid("#999999")] },
+          },
+        },
+      ),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings[0].message).toContain('"Text/Link"');
+    expect(result.findings[0].message).toContain('"Surface/Card"');
+  });
+
+  it("measures the runs it can when one of them has no single colour", () => {
+    // A gradient run has no colour to measure, but that is no reason to stop
+    // measuring the run beside it. The layer still lands in the skipped tally,
+    // so the unmeasured part is never quietly green.
+    const result = checkHighContrast(
+      fixture([
+        surface(
+          "#FFFFFF",
+          mixedText([
+            run("#999999"),
+            run("#000000", {
+              fills: [{ type: "GRADIENT_LINEAR", visible: true, opacity: 1 }],
+            }),
+          ]),
+        ),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(messages(result)).toEqual([
+      "Text #999999 on #FFFFFF is 2.8:1, below the WCAG AA minimum for normal text.",
+      "1 text layer was not evaluated for contrast: 1 has a gradient or image in its colour chain.",
+    ]);
+  });
+
+  it("fades every run of a translucent layer alike", () => {
+    // 50% black over white renders #808080 - 3.9:1, a fail for normal text.
+    // The layer's opacity is a property of the layer, not of any one run.
+    const result = checkHighContrast(
+      fixture([
+        surface(
+          "#FFFFFF",
+          mixedText([run("#000000"), run("#000000")], { opacity: 0.5 }),
+        ),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].count).toBe(1);
+    expect(result.findings[0].actual).toBe("3.9:1");
+  });
+
+  it("still declines a layer that claims mixed fills but carries no runs", () => {
+    // Nothing to measure and nothing to guess from: the honest answer is that
+    // the layer was not evaluated, which is what it was before #124 too.
+    const result = checkHighContrast(
+      fixture([surface("#FFFFFF", mixedText([]))]),
+    );
+    expect(result.status).toBe("warn");
+    expect(messages(result)).toEqual([
+      "1 text layer was not evaluated for contrast: 1 uses per-character fills.",
+    ]);
+  });
+
+  it("says in the note that runs are measured and counted per layer", () => {
+    const result = checkHighContrast(
+      fixture([surface("#FFFFFF", mixedText([run("#111111")]))]),
+    );
+    expect(result.note).toContain("per styled run");
   });
 });

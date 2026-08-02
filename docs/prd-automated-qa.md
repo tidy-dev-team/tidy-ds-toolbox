@@ -383,7 +383,12 @@ While a **Human-in-the-Loop** model will always exist for nuanced creative choic
 > Alpha is composited rather than skipped (both paint opacity and node opacity), because the Kido DS deliberately uses opacity in place of absolute hex; only a chain that never reaches opacity is skipped.
 >
 > Colours resolve through literal hex, bound variable, paint style, and a paint style whose paint is variable-bound - the `tokens` check accepts either a variable or a style, so resolving variables alone would leave most rows unevaluated for an implementation-detail reason.
-> Granularity is the layer, not the character range: mixed fills are not evaluated, and a mixed font size is judged at its smallest.
+> **Text whose colour changes mid-sentence is measured per styled run** (issue #124) - a coloured link inside a paragraph, a highlighted word.
+> Each run is measured against the same background, at its own size and weight, so a 24px word beside a 12px one is held to the threshold that actually applies to it.
+> The layer used to be skipped whole, which made the one shape of text that most often carries a low-contrast link the one shape the check could not see.
+> A run is not an occurrence: findings still count *layers*, so a paragraph with four grey runs is one occurrence of that pair rather than four, and runs sharing a pair at different sizes are described by the stricter threshold.
+> Runs that fail on genuinely different pairs report separately, because those are different fixes.
+> A mixed font size alone is still judged at its smallest - size does not change what colour is on screen, so one verdict still describes the layer.
 > Thresholds are AA's dual pair, 4.5:1 and 3:1 for large text (>= 24px, or >= 18.66px bold), with no warn tier - AA is the standard and a warn band for AAA is noise.
 > Invisible text needs no special case: it arrives as the ratio-1.0 extreme, which is why #17 leaves it here.
 >
