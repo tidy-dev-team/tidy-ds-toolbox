@@ -41,10 +41,8 @@ function snapshotExposedInstance(
   };
 }
 
-function snapshotPaints(
-  paints: readonly Paint[] | typeof figma.mixed,
-): PaintSnapshot[] | undefined {
-  if (paints === figma.mixed) return undefined;
+/** Paints that are known not to be mixed. Pure - no `figma` reference. */
+function mapPaints(paints: readonly Paint[]): PaintSnapshot[] {
   return paints.map((paint) => ({
     type: paint.type,
     visible: paint.visible !== false,
@@ -54,6 +52,13 @@ function snapshotPaints(
       ? { boundVariableId: paint.boundVariables.color.id }
       : {}),
   }));
+}
+
+function snapshotPaints(
+  paints: readonly Paint[] | typeof figma.mixed,
+): PaintSnapshot[] | undefined {
+  if (paints === figma.mixed) return undefined;
+  return mapPaints(paints);
 }
 
 function styleId(value: string | typeof figma.mixed): string {
@@ -85,6 +90,38 @@ function snapshotTextMetrics(node: TextNode): {
   };
 }
 
+/** The fields #124 asks `getStyledTextSegments` for, and nothing else. */
+export type StyledFillRun = Pick<
+  StyledTextSegment,
+  "fills" | "fillStyleId" | "fontSize" | "fontWeight"
+>;
+
+/**
+ * Styled runs as the snapshot carries them (#124). The pure half of
+ * `snapshotTextSegments`, split out so the mapping is fixture-tested rather
+ * than trusted: it is the one piece of #124 that decides what the check will
+ * see, and it is the reason a coloured link is measurable at all.
+ *
+ * Figma's own types settle the two facts this relies on: a run's `fills` is
+ * `Paint[]`, never `figma.mixed` - a run is by definition the span over which
+ * they do not change - and its `fillStyleId` is a plain `string`, never the
+ * `"MIXED"` sentinel a whole layer can carry.
+ */
+export function textSegmentSnapshots(
+  runs: readonly StyledFillRun[],
+): TextSegmentSnapshot[] | undefined {
+  if (runs.length === 0) return undefined;
+  return runs.map((segment) => {
+    const snap: TextSegmentSnapshot = {
+      fontSize: segment.fontSize,
+      fillStyleId: segment.fillStyleId,
+      fills: mapPaints(segment.fills),
+    };
+    if (segment.fontWeight >= BOLD_WEIGHT) snap.bold = true;
+    return snap;
+  });
+}
+
 /**
  * The styled runs of a text layer whose fills are mixed (#124).
  *
@@ -100,25 +137,14 @@ function snapshotTextMetrics(node: TextNode): {
 function snapshotTextSegments(
   node: TextNode,
 ): TextSegmentSnapshot[] | undefined {
-  const segments = node.getStyledTextSegments([
-    "fills",
-    "fillStyleId",
-    "fontSize",
-    "fontWeight",
-  ]);
-  if (segments.length === 0) return undefined;
-  return segments.map((segment) => {
-    const snap: TextSegmentSnapshot = {
-      fontSize: segment.fontSize,
-      fillStyleId: segment.fillStyleId,
-    };
-    // A run's fills are never `figma.mixed` - the run is the span over which
-    // they do not change - so this always yields an array.
-    const fills = snapshotPaints(segment.fills);
-    if (fills) snap.fills = fills;
-    if (segment.fontWeight >= BOLD_WEIGHT) snap.bold = true;
-    return snap;
-  });
+  return textSegmentSnapshots(
+    node.getStyledTextSegments([
+      "fills",
+      "fillStyleId",
+      "fontSize",
+      "fontWeight",
+    ]),
+  );
 }
 
 /**

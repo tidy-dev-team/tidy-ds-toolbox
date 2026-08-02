@@ -42,11 +42,16 @@ export interface PaintSnapshot {
  */
 export interface TextSegmentSnapshot {
   /**
-   * The run's own paints. Never mixed - a styled run is by definition the
-   * span over which they do not change. Absent means the run paints nothing.
+   * The run's own paints. Never mixed - a styled run is by definition the span
+   * over which they do not change, which is why Figma types a run's `fills` as
+   * `Paint[]` while a layer's can be `figma.mixed`. Empty means the run paints
+   * nothing, and #16 reports it as unevaluated rather than assuming a colour.
    */
   fills?: PaintSnapshot[];
-  /** Paint style backing the run, "" when unstyled. Never "MIXED". */
+  /**
+   * Paint style backing the run, "" when unstyled. Never the "MIXED" sentinel
+   * a whole layer can carry: Figma types a run's `fillStyleId` as `string`.
+   */
   fillStyleId?: string;
   /** The run's own size in px, not the layer's smallest. */
   fontSize?: number;
