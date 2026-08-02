@@ -21,6 +21,40 @@ export interface PaintSnapshot {
 }
 
 /**
+ * One styled run inside a TEXT layer whose fills vary across character ranges
+ * (#16, issue #124) - a coloured link inside a paragraph, or one highlighted
+ * word.
+ *
+ * Collected **only** when the layer's fills are mixed, which is the one case a
+ * single layer-level answer cannot describe. A layer painted in one colour is
+ * already fully described by `fills` / `fillStyleId` / `fontSize` / `bold`, and
+ * splitting it into runs would add a second way to say the same thing.
+ *
+ * Each run carries its own size and weight rather than inheriting the layer's,
+ * so the AA threshold is the one that actually applies to those glyphs: the
+ * layer-level `fontSize` is the smallest size anywhere in the run, which is the
+ * right conservative answer for one verdict but the wrong one for a 24px word
+ * sitting beside a 12px one.
+ *
+ * The characters themselves are deliberately not carried. They would make each
+ * run's finding unique, and #118 dedupes findings by their message, so a defect
+ * shared by four variants would stop collapsing into one row.
+ */
+export interface TextSegmentSnapshot {
+  /**
+   * The run's own paints. Never mixed - a styled run is by definition the
+   * span over which they do not change. Absent means the run paints nothing.
+   */
+  fills?: PaintSnapshot[];
+  /** Paint style backing the run, "" when unstyled. Never "MIXED". */
+  fillStyleId?: string;
+  /** The run's own size in px, not the layer's smallest. */
+  fontSize?: number;
+  /** Whether this run is bold, i.e. font weight >= 700. */
+  bold?: boolean;
+}
+
+/**
  * One instance exposed anywhere beneath an INSTANCE node (#14 nesting depth).
  * `InstanceNode.exposedInstances` is already flattened by Figma — it lists
  * every exposed descendant at any depth, not just direct children — and
@@ -133,15 +167,26 @@ export interface NodeSnapshot {
   /**
    * TEXT nodes: the fills differ per character range (#16). `fills` is absent
    * in that case, and absent-because-mixed has to be told apart from
-   * absent-because-this-node-has-no-fills: picking "the first fill" of a
-   * mixed run would be a confidently wrong contrast answer, so #16 declines to
-   * evaluate the layer and counts it in the skipped tally instead.
+   * absent-because-this-node-has-no-fills: picking "the first fill" of a mixed
+   * run would be a confidently wrong contrast answer.
+   *
+   * `textSegments` carries the runs themselves, so #16 measures each one
+   * against its own background rather than declining to measure the layer.
+   * The flag stays because the two facts are not the same: a snapshot taken by
+   * an older plugin build has `fillsMixed` with no segments, and that layer is
+   * still honestly unevaluated rather than silently green.
    */
   fillsMixed?: boolean;
   /**
+   * TEXT nodes with mixed fills: the styled runs, in document order (#124).
+   * Absent on every other layer - see `TextSegmentSnapshot`.
+   */
+  textSegments?: TextSegmentSnapshot[];
+  /**
    * TEXT nodes: font size in px (#16 threshold). When ranges differ this is
    * the **smallest** size used - the strictest applicable threshold, so a
-   * mixed run is judged on its worst case rather than on its heading.
+   * mixed run is judged on its worst case rather than on its heading. Layers
+   * carrying `textSegments` are judged per run instead, and never through this.
    */
   fontSize?: number;
   /**

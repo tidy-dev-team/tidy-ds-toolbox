@@ -33,10 +33,25 @@
  * implementation-detail reason - and an unevaluated contrast check is worse
  * than none, because the row still looks checked.
  *
- * Granularity is the layer, not the character range: mixed fills are not
- * evaluated (picking "the first fill" would be confidently wrong), and a mixed
- * font size is judged at its smallest, so the strictest applicable threshold
- * wins.
+ * **Mixed-colour text is measured per run** (issue #124). A layer painted in one
+ * colour is one measurement; a layer whose fills change mid-sentence - a
+ * coloured link inside a paragraph, a highlighted word - is measured once per
+ * styled run, each against the same background and at its own size and weight.
+ * Treating that layer as one unit was never possible ("the first fill" would be
+ * confidently wrong), and skipping it entirely made the one text that most often
+ * carries a low-contrast link invisible to the check.
+ *
+ * **A run is not an occurrence.** Findings still count *layers*, so a paragraph
+ * with four grey runs on white is one occurrence of that pair, not four - the
+ * defect is one token pair, and inflating the count by how many times a designer
+ * happened to split the run would make the number mean nothing. Runs that fail on
+ * genuinely different pairs do report separately, because those are different
+ * fixes. Where runs share a pair but not a threshold, the strictest one is
+ * reported, the same rule already used across layers.
+ *
+ * A mixed *font size* alone is still judged at its smallest, so the strictest
+ * applicable threshold wins: size does not change what colour is on screen, so
+ * one verdict still describes the layer.
  *
  * **AA, dual threshold, no warn tier**: 4.5:1 normally, 3:1 for large text
  * (>= 24px, or >= 18.66px bold). AA is the standard, and a warn band for AAA
@@ -64,6 +79,7 @@ import type {
   ComponentSetSnapshot,
   NodeSnapshot,
   PaintSnapshot,
+  TextSegmentSnapshot,
   ThemeSnapshot,
 } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
@@ -87,6 +103,9 @@ type SkipReason =
   | "no-background";
 
 const SKIP_PHRASES: Record<SkipReason, { one: string; many: string }> = {
+  // Reached only when the per-run fills could not be read at all (#124 measures
+  // them when they can). A layer that says "my fills are mixed" and offers no
+  // runs describes nothing measurable, and saying so is better than assuming.
   "mixed-fill": {
     one: "uses per-character fills",
     many: "use per-character fills",
@@ -127,6 +146,20 @@ interface Candidate {
   node: NodeSnapshot;
   /** Ancestors nearest-first, up to the variant root. */
   ancestors: NodeSnapshot[];
+}
+
+/**
+ * One measurable unit of text: a whole layer, or one styled run inside a layer
+ * whose fills change mid-sentence (#124). Everything downstream of the colour
+ * lookup is identical for both, which is why they share a shape - the run and
+ * the layer sit at the same place in the same ancestor chain, so only the
+ * foreground colour and the AA threshold differ.
+ */
+interface Piece {
+  paints: PaintSnapshot[] | undefined;
+  style?: ColorStyleSnapshot;
+  fontSize?: number;
+  bold: boolean;
 }
 
 /**
@@ -203,82 +236,93 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
 
   for (const candidate of candidates) {
     const { node } = candidate;
-    // Mixed fills are mode-independent, so this is settled before any mode is
+    // A layer that declares mixed fills and carries no runs describes nothing
+    // measurable. Mode-independent, so it is settled before any mode is
     // considered - and settled once, not once per mode.
-    if (node.fillsMixed) {
+    const pieces = textPieces(node, snapshot);
+    if (pieces === undefined) {
       skip(node, "mixed-fill");
       continue;
     }
 
-    for (const mode of modes) {
-      const own = resolveColor(node, mode, snapshot);
-      if (own === undefined) {
-        skip(node, "no-fill");
-        break;
-      }
-      if (own === "non-solid" || own === "unresolved") {
-        skip(node, own === "non-solid" ? "non-solid" : "unresolved-colour");
-        continue;
-      }
+    // Which failure keys this *layer* has already been counted against, so a
+    // paragraph whose runs share a colour pair counts once. The count means
+    // "how many layers hit this pair", and a run is not a layer.
+    const counted = new Set<string>();
 
-      // The text layer's own opacity, applied here for the same reason
-      // `resolveColor` leaves it out: it is a group property, and the text is
-      // its own (leaf) group.
-      const selfOpacity = node.opacity ?? 1;
-      const start: Rgba =
-        selfOpacity === 1
-          ? own.rgba
-          : { hex: own.rgba.hex, alpha: own.rgba.alpha * selfOpacity };
-
-      const rendered = render(candidate, start, mode, snapshot);
-      if (rendered === "non-solid" || rendered === "unresolved") {
-        skip(
-          node,
-          rendered === "non-solid" ? "non-solid" : "unresolved-colour",
-        );
-        continue;
-      }
-      if (rendered === undefined) {
-        skip(node, "no-background");
-        continue;
-      }
-
-      const ratio = contrastRatio(rendered.text.hex, rendered.background.hex);
-      const required = requiredRatio(node.fontSize, node.bold ?? false);
-      if (ratio >= required) continue;
-
-      // Keyed on the **rendered** colours, not on the token names: two layers
-      // can quote the same token pair and still render differently (a 50%
-      // opacity on one of them), and merging those would report one ratio for
-      // two different pairs. Names are kept for display only.
-      const key = JSON.stringify([
-        mode.modeId,
-        rendered.text.hex,
-        rendered.background.hex,
-      ]);
-      const existing = failures.get(key);
-      if (existing) {
-        existing.count += 1;
-        // One rendered pair is one row, so a group holding both normal and
-        // large text is described by its strictest member - the count covers
-        // the rest. Splitting on the threshold instead would put the same
-        // colour pair on two rows, which the ticket rules out.
-        if (required > existing.required) {
-          existing.required = required;
-          existing.large = false;
+    for (const piece of pieces) {
+      for (const mode of modes) {
+        const own = resolvePaints(piece.paints, piece.style, mode, snapshot);
+        if (own === undefined) {
+          skip(node, "no-fill");
+          break;
         }
-      } else {
-        failures.set(key, {
-          modeName: mode.name,
-          foreground: own.label,
-          background: rendered.label,
-          ratio,
-          required,
-          large: required < AA_NORMAL,
-          nodeId: node.id,
-          nodeName: node.name,
-          count: 1,
-        });
+        if (own === "non-solid" || own === "unresolved") {
+          skip(node, own === "non-solid" ? "non-solid" : "unresolved-colour");
+          continue;
+        }
+
+        // The text layer's own opacity, applied here for the same reason
+        // `resolveColor` leaves it out: it is a group property, and the text is
+        // its own (leaf) group. It fades every run alike.
+        const selfOpacity = node.opacity ?? 1;
+        const start: Rgba =
+          selfOpacity === 1
+            ? own.rgba
+            : { hex: own.rgba.hex, alpha: own.rgba.alpha * selfOpacity };
+
+        const rendered = render(candidate, start, mode, snapshot);
+        if (rendered === "non-solid" || rendered === "unresolved") {
+          skip(
+            node,
+            rendered === "non-solid" ? "non-solid" : "unresolved-colour",
+          );
+          continue;
+        }
+        if (rendered === undefined) {
+          skip(node, "no-background");
+          continue;
+        }
+
+        const ratio = contrastRatio(rendered.text.hex, rendered.background.hex);
+        const required = requiredRatio(piece.fontSize, piece.bold);
+        if (ratio >= required) continue;
+
+        // Keyed on the **rendered** colours, not on the token names: two layers
+        // can quote the same token pair and still render differently (a 50%
+        // opacity on one of them), and merging those would report one ratio for
+        // two different pairs. Names are kept for display only.
+        const key = JSON.stringify([
+          mode.modeId,
+          rendered.text.hex,
+          rendered.background.hex,
+        ]);
+        const existing = failures.get(key);
+        if (existing) {
+          if (!counted.has(key)) existing.count += 1;
+          // One rendered pair is one row, so a group holding both normal and
+          // large text is described by its strictest member - the count covers
+          // the rest. Splitting on the threshold instead would put the same
+          // colour pair on two rows, which the ticket rules out. The same rule
+          // settles two runs of one layer that share a pair at different sizes.
+          if (required > existing.required) {
+            existing.required = required;
+            existing.large = false;
+          }
+        } else {
+          failures.set(key, {
+            modeName: mode.name,
+            foreground: own.label,
+            background: rendered.label,
+            ratio,
+            required,
+            large: required < AA_NORMAL,
+            nodeId: node.id,
+            nodeName: node.name,
+            count: 1,
+          });
+        }
+        counted.add(key);
       }
     }
   }
@@ -340,20 +384,60 @@ function evaluatedModes(theme: ThemeSnapshot | undefined): Mode[] {
   return [{ modeId: "", name: "" }];
 }
 
-/** The paints backing a node, and the style name when they came from a style. */
+/**
+ * The paints to measure, and the style name when they came from a style.
+ *
+ * A style the collector could not resolve falls back to the fills held on the
+ * node or run itself, which Figma keeps in sync with the style: the name is
+ * lost, the colour is not.
+ */
 function paintSource(
-  node: NodeSnapshot,
+  fills: PaintSnapshot[] | undefined,
+  fillStyleId: string | undefined,
   snapshot: ComponentSetSnapshot,
 ): { paints: PaintSnapshot[] | undefined; style?: ColorStyleSnapshot } {
-  const styleId = node.fillStyleId;
-  if (styleId && styleId !== "MIXED") {
-    const style = snapshot.colorStyles?.[styleId];
-    // A style the collector could not resolve falls back to the node's own
-    // fills, which Figma keeps in sync with the style: the name is lost, the
-    // colour is not.
+  if (fillStyleId && fillStyleId !== "MIXED") {
+    const style = snapshot.colorStyles?.[fillStyleId];
     if (style) return { paints: style.paints, style };
   }
-  return { paints: node.fills };
+  return { paints: fills };
+}
+
+/**
+ * The units to measure a text layer in: one per styled run when its fills change
+ * mid-sentence (#124), otherwise the single unit that is the whole layer.
+ *
+ * `undefined` means the layer says its fills are mixed but carries no runs -
+ * nothing measurable, and the caller reports it as unevaluated rather than
+ * picking a colour out of a layer that does not have one.
+ */
+function textPieces(
+  node: NodeSnapshot,
+  snapshot: ComponentSetSnapshot,
+): Piece[] | undefined {
+  const segments = node.textSegments;
+  if (segments && segments.length > 0) {
+    return segments.map((segment) => segmentPiece(segment, snapshot));
+  }
+  if (node.fillsMixed) return undefined;
+  return [
+    {
+      ...paintSource(node.fills, node.fillStyleId, snapshot),
+      fontSize: node.fontSize,
+      bold: node.bold ?? false,
+    },
+  ];
+}
+
+function segmentPiece(
+  segment: TextSegmentSnapshot,
+  snapshot: ComponentSetSnapshot,
+): Piece {
+  return {
+    ...paintSource(segment.fills, segment.fillStyleId, snapshot),
+    fontSize: segment.fontSize,
+    bold: segment.bold ?? false,
+  };
 }
 
 /**
@@ -374,7 +458,22 @@ function resolveColor(
   mode: Mode,
   snapshot: ComponentSetSnapshot,
 ): Resolved {
-  const { paints, style } = paintSource(node, snapshot);
+  const { paints, style } = paintSource(node.fills, node.fillStyleId, snapshot);
+  return resolvePaints(paints, style, mode, snapshot);
+}
+
+/**
+ * The colour of one already-chosen paint list - the body of `resolveColor`,
+ * split out so a styled run resolves through exactly the same rules as a node
+ * (#124). Variables, styles, paint opacity and multi-paint compositing must not
+ * behave one way for a layer and another way for a run inside it.
+ */
+function resolvePaints(
+  paints: PaintSnapshot[] | undefined,
+  style: ColorStyleSnapshot | undefined,
+  mode: Mode,
+  snapshot: ComponentSetSnapshot,
+): Resolved {
   if (!paints || paints.length === 0) return undefined;
 
   let accumulated: Rgba | undefined;
@@ -634,7 +733,7 @@ function buildNote(
   disabledCount: number,
 ): string {
   const scope =
-    "Contrast is measured against the nearest ancestor with a solid fill, so sibling geometry and images behind a layer are not considered, and text is judged per layer rather than per character range.";
+    "Contrast is measured against the nearest ancestor with a solid fill, so sibling geometry and images behind a layer are not considered. Text whose colour changes mid-sentence is measured per styled run, and a layer counts once per colour pair however many of its runs share it.";
   const disabled =
     disabledCount > 0
       ? ` ${disabledCount} disabled ${disabledCount === 1 ? "variant was" : "variants were"} not evaluated, since WCAG exempts inactive controls; that is recognised from a "Disabled" variant property, so a set naming it differently would still be measured.`
