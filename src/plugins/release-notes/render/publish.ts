@@ -16,6 +16,8 @@ import {
 } from "../utils/constants";
 import {
   isOwnedCard,
+  isReplaceableCard,
+  isStampedCard,
   parseCardStamp,
   type CardNode,
   type CardStamp,
@@ -109,7 +111,7 @@ function resolveCardTarget(
  */
 function pageContent(page: PageNode): { x: number; y: number }[] {
   return page.children
-    .filter((child) => !isOwnedCard(describe(child)))
+    .filter((child) => !isStampedCard(describe(child)))
     .map((child) => ({ x: child.x, y: child.y }));
 }
 
@@ -158,18 +160,28 @@ export async function publishNotes(
 
   let cardsBuilt = 0;
 
-  // Sweep every card this module owns, everywhere, before drawing any of them.
+  const subjects = allSubjectsInOrder(sprints);
+
+  // Sweep this publish's own output, everywhere, before drawing any of it.
   //
-  // Removing only the cards about to be redrawn leaves the ones that should no
-  // longer exist: delete the last note about a Subject and it drops out of the
-  // notes, so nothing rebuilds its card and nothing removed it either. Same for
-  // a Subject whose node has since been deleted, which no longer resolves to a
-  // page. Both would sit there for ever, and after this change both would also
-  // be in the previous appearance.
+  // Whole-file rather than per-Subject: removing only the cards about to be
+  // redrawn leaves the ones that should no longer exist. Delete the last note
+  // about a Subject and it drops out of the notes, so nothing rebuilds its card
+  // and nothing removes it either; same for a Subject whose node was deleted.
+  // Both would sit there for ever, in the previous appearance.
   //
-  // A publish is a whole-file redraw, so the honest rule is the one Clear Canvas
-  // already uses: own everything, then draw what should be there now.
-  removeOwnedCards(figma);
+  // But by stamp, and by the pre-stamp names of Subjects that still have notes -
+  // never by the bare `-release-notes` suffix. That wider rule belongs to Clear
+  // Canvas, which somebody presses on purpose. Reached automatically it would
+  // delete a designer's own `client-release-notes` frame on every publish.
+  const subjectNames = subjects.map((subject) => subject.name);
+  for (const page of figma.root.children) {
+    if (page.type !== "PAGE") continue;
+
+    for (const card of [...page.children]) {
+      if (isReplaceableCard(describe(card), subjectNames)) card.remove();
+    }
+  }
 
   // Aggregate changelog: one card holding every sprint.
   const aggregatePage = getOrCreateReleaseNotesPage(figma);
@@ -190,7 +202,7 @@ export async function publishNotes(
     slot: number;
   }> = [];
 
-  for (const subject of allSubjectsInOrder(sprints)) {
+  for (const subject of subjects) {
     const target = resolveCardTarget(figma, subject);
     if (!target) continue;
 
@@ -228,12 +240,11 @@ export async function publishNotes(
  * stamp existed are matched by their old frame names - both of them, the Subject
  * card's and the aggregate's - otherwise they would be unremovable.
  *
- * Two callers, deliberately one rule: Clear Canvas, and the start of a publish.
- * A publish that swept less than Clear Canvas would leave behind exactly the
- * cards nothing else can reach, the ones whose Subject no longer appears in any
- * note or no longer exists in the file.
+ * Sweeps wider than a publish does, by the bare `-release-notes` suffix as well.
+ * That is how a pre-stamp card whose Subject was since renamed or deleted
+ * becomes removable at all, and it is only safe because a designer asked for it.
  */
-function removeOwnedCards(figma: PluginAPI): number {
+export function clearPublishedCards(figma: PluginAPI): number {
   let removed = 0;
 
   for (const page of figma.root.children) {
@@ -247,8 +258,4 @@ function removeOwnedCards(figma: PluginAPI): number {
   }
 
   return removed;
-}
-
-export function clearPublishedCards(figma: PluginAPI): number {
-  return removeOwnedCards(figma);
 }

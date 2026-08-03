@@ -37,28 +37,26 @@ export function setCardAppearance(
 }
 
 /**
- * The appearance, plus what the panel needs to show it honestly: the families
- * this machine can offer, and whether the file's own choice is one of them.
+ * What the panel needs on open: the file's appearance, and the families this
+ * machine can offer.
  *
- * `fontMissingHere` is why the list is worth sending. The file may name a font
- * a colleague installed and this designer has not, and finding that out when a
- * card comes back in Inter is finding out too late.
+ * Read once. Enumerating fonts is the slow part, and doing it again on every
+ * save let two saves answer out of order, landing the older value in a panel
+ * whose file already held the newer one. The list cannot change while the panel
+ * is up, so there is nothing to re-read.
  */
 export async function getCardAppearancePayload(
   figma: PluginAPI,
 ): Promise<CardAppearancePayload> {
-  const appearance = getCardAppearance(figma);
   const available = await figma.listAvailableFontsAsync();
-  const availableFonts = usableFamilies(
-    available.map((font) => ({
-      family: font.fontName.family,
-      style: font.fontName.style,
-    })),
-  );
 
   return {
-    appearance,
-    availableFonts,
-    fontMissingHere: !availableFonts.includes(appearance.fontFamily),
+    appearance: getCardAppearance(figma),
+    availableFonts: usableFamilies(
+      available.map((font) => ({
+        family: font.fontName.family,
+        style: font.fontName.style,
+      })),
+    ),
   };
 }

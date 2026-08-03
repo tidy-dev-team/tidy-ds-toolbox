@@ -31,12 +31,16 @@ export interface CardAppearance {
   background: string;
 }
 
+/**
+ * Answer to `load-appearance`: what the file stores, and what this machine can
+ * draw with. Whether the file's font is missing here is not reported, because
+ * it follows from the two and the panel would only have to re-ask after every
+ * change to keep it true.
+ */
 export interface CardAppearancePayload {
   appearance: CardAppearance;
   /** Families carrying every style a card draws with, for the picker. */
   availableFonts: string[];
-  /** True when this file's font is not installed on this machine. */
-  fontMissingHere: boolean;
 }
 
 /** A page offered by the Foundation section. */

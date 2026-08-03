@@ -215,7 +215,6 @@ export function ReleaseNotesUI() {
     DEFAULT_CARD_APPEARANCE,
   );
   const [availableFonts, setAvailableFonts] = useState<string[]>([]);
-  const [fontMissingHere, setFontMissingHere] = useState(false);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null,
   );
@@ -357,14 +356,13 @@ export function ReleaseNotesUI() {
   );
 
   /**
-   * The plugin thread is the authority on Card Appearance: it normalises what
-   * the file stores and re-checks the font list, so the panel always shows what
-   * would actually be drawn rather than what was typed.
+   * The file's stored appearance and this machine's font list, read once on
+   * open. The list cannot change while the panel is up, so a save never needs
+   * to fetch it again.
    */
   const applyAppearance = useCallback((payload: CardAppearancePayload) => {
     setAppearance(payload.appearance);
     setAvailableFonts(payload.availableFonts);
-    setFontMissingHere(payload.fontMissingHere);
   }, []);
 
   // ===================
@@ -462,15 +460,25 @@ export function ReleaseNotesUI() {
   // ===================
   // Card Appearance Handlers
   // ===================
+  /**
+   * The panel holds the value; the save is fire and report-on-failure.
+   *
+   * Deliberately not applied from the response. Two saves in quick succession
+   * can return in either order, and applying them would let the older one land
+   * last: the field would read the previous background while the file, and so
+   * the next publish, held the newer one. Nothing in the response is news
+   * anyway. `set-appearance` only echoes what was just sent, and the plugin
+   * normalises it exactly as the panel already has, since the panel only ever
+   * sends a family from `availableFonts` or a six-digit hex.
+   */
   const saveAppearance = useCallback(
     (next: CardAppearance) => {
       setAppearance(next);
       sendRequest("set-appearance", next, {
-        onSuccess: (result) => applyAppearance(result as CardAppearancePayload),
         onError: (error) => setErrorMessage(error),
       });
     },
-    [applyAppearance, sendRequest],
+    [sendRequest],
   );
 
   /**
@@ -497,6 +505,15 @@ export function ReleaseNotesUI() {
 
   /** Leaving the field on a name that is not a usable family abandons it. */
   const handleFontBlur = useCallback(() => setFontDraft(null), []);
+
+  /**
+   * Derived, not reported by the plugin. Asking the plugin again after every
+   * save is what made two saves able to answer out of order; the font list is a
+   * property of this machine and the answer follows from it.
+   */
+  const fontMissingHere =
+    availableFonts.length > 0 &&
+    !availableFonts.includes(appearance.fontFamily);
 
   /** As above: a half-typed hex shows in the field but never in `appearance`. */
   const [backgroundDraft, setBackgroundDraft] = useState<string | null>(null);

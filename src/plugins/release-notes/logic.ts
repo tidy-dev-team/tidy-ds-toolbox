@@ -64,8 +64,10 @@ export async function releaseNotesHandler(
     }
 
     case "set-appearance": {
+      // Nothing echoed back. The panel already holds this value, and two saves
+      // answering out of order would let the older one overwrite the newer.
       setCardAppearance(figma, payload);
-      return getCardAppearancePayload(figma);
+      return { success: true };
     }
 
     case "load-foundation-pages": {
