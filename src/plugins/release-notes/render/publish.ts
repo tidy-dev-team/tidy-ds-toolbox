@@ -21,15 +21,12 @@ import {
   type CardNode,
   type CardStamp,
 } from "../utils/cardIdentity";
-import { distinctSubjects } from "../utils/notes";
-import {
-  componentCardPosition,
-  foundationCardPosition,
-} from "../utils/placement";
+import { allSubjectsInOrder, distinctSubjects } from "../utils/notes";
+import { componentCardPosition, pageEdgeSlot } from "../utils/placement";
 import { resolveCardFonts } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
 import { buildAggregateChangelog } from "./aggregateChangelog";
-import { findParentPage } from "../utils/componentSetHelpers";
+import { findParentPage } from "../utils/componentHelpers";
 
 function stamp(frame: FrameNode, value: Omit<CardStamp, "builtAt">): void {
   frame.setPluginData(
@@ -64,8 +61,8 @@ function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
 
 /**
  * Where a Subject's card goes: the page it lives on, and the node it sits
- * beside. A component set anchors its card; a Foundation page is the canvas
- * itself and has nothing to anchor to, which is what `anchor: null` says.
+ * beside. `anchor: null` means there is nothing to sit beside, and the card
+ * goes to the left edge of the page instead.
  */
 interface CardTarget {
   page: PageNode;
@@ -79,31 +76,51 @@ function resolveCardTarget(
   const node = figma.getNodeById(subject.id);
   if (!node) return null;
 
+  // A Foundation page is the canvas itself, so it has nothing to sit beside.
   if (subject.kind === "foundation-page") {
     return node.type === "PAGE" ? { page: node, anchor: null } : null;
   }
 
-  if (node.type !== "COMPONENT_SET") return null;
-  const page = findParentPage(node);
-  return page ? { page, anchor: node } : null;
+  if (node.type !== "COMPONENT_SET" && node.type !== "COMPONENT") return null;
+
+  // A note can outlive the shape of its subject: a component picked while it
+  // stood alone can later be combined into a set. The set is then the thing
+  // placed on the page, so it is the set that decides where the card goes.
+  const placed = node.parent?.type === "COMPONENT_SET" ? node.parent : node;
+
+  const page = findParentPage(placed);
+  if (!page) return null;
+
+  // Only a component sitting straight on the page can anchor its own card. Read
+  // from inside a documentation frame, `x` and `y` are relative to that frame,
+  // so a page-level card placed at those numbers lands somewhere arbitrary. And
+  // even measured correctly it would sit on top of the frame it describes. Such
+  // a component uses the page edge instead, the same as a Foundation page.
+  const anchor = placed.parent?.type === "PAGE" ? placed : null;
+
+  return { page, anchor };
 }
 
-function placeCard(
-  target: CardTarget,
-  card: FrameNode,
-  subject: Subject,
-): void {
-  // Measure before appending, and never count a card of this Subject: a card
-  // that measured itself would walk further left on every publish.
-  const siblings = target.page.children
-    .filter((child) => !isCardForSubject(describe(child), subject))
+/**
+ * The page's own material: everything except the cards this module drew. A card
+ * must never measure another card, or each publish would place its output
+ * relative to the last publish's output and the whole group would walk left
+ * across the canvas for ever.
+ */
+function pageContent(page: PageNode): { x: number; y: number }[] {
+  return page.children
+    .filter((child) => !isOwnedCard(describe(child)))
     .map((child) => ({ x: child.x, y: child.y }));
+}
 
+function placeCard(target: CardTarget, card: FrameNode, slot: number): void {
+  // Safe to append first: the card is stamped by now, so it is an owned card
+  // and pageContent leaves it out of its own measurement.
   target.page.appendChild(card);
 
   const position = target.anchor
     ? componentCardPosition(target.anchor, card.width, CARD_GAP)
-    : foundationCardPosition(siblings, card.width, CARD_GAP);
+    : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP);
 
   card.x = position.x;
   card.y = position.y;
@@ -139,19 +156,42 @@ export async function publishSprintNotes(
   cardsBuilt += 1;
 
   // One card per Subject the published sprint touched.
-  for (const subject of distinctSubjects(sprint.notes)) {
-    const target = resolveCardTarget(figma, subject);
-    if (!target) continue;
+  const targets = distinctSubjects(sprint.notes)
+    .map((subject) => ({ subject, target: resolveCardTarget(figma, subject) }))
+    .filter(
+      (entry): entry is { subject: Subject; target: CardTarget } =>
+        entry.target !== null,
+    );
 
+  // Which slot each page-edge card takes on its page. Worked out from every
+  // sprint, not just the one being published, so the Subjects of a sprint left
+  // alone still hold their places and this sprint's cards go beside them rather
+  // than on top of them.
+  const slots = new Map<string, number>();
+  const filled = new Map<string, number>();
+  for (const subject of allSubjectsInOrder(sprints)) {
+    const target = resolveCardTarget(figma, subject);
+    if (!target || target.anchor) continue;
+
+    const next = filled.get(target.page.id) ?? 0;
+    slots.set(subject.id, next);
+    filled.set(target.page.id, next + 1);
+  }
+
+  // Replace, rather than add to, what the last publish drew. Placement no
+  // longer depends on this happening first, because a card is never measured.
+  for (const { subject, target } of targets) {
     for (const child of [...target.page.children]) {
       if (isCardForSubject(describe(child), subject)) child.remove();
     }
+  }
 
+  for (const { subject, target } of targets) {
     const card = buildSubjectCard(figma, fonts, subject, sprints);
     if (!card) continue;
 
     stamp(card, { kind: subject.kind, subjectId: subject.id });
-    placeCard(target, card, subject);
+    placeCard(target, card, slots.get(subject.id) ?? 0);
     cardsBuilt += 1;
   }
 

@@ -13,8 +13,8 @@ import {
   IconPalette,
 } from "@tabler/icons-react";
 import type {
-  ComponentSetInfo,
-  ComponentSetsPayload,
+  ComponentInfo,
+  ComponentsPayload,
   CsvExportResult,
   FileContext,
   FoundationPageInfo,
@@ -206,7 +206,7 @@ export function ReleaseNotesUI() {
   // ===================
   // Component Sets State
   // ===================
-  const [componentSets, setComponentSets] = useState<ComponentSetInfo[]>([]);
+  const [components, setComponents] = useState<ComponentInfo[]>([]);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null,
   );
@@ -226,7 +226,7 @@ export function ReleaseNotesUI() {
 
   /**
    * Which section owns the Subject of the next note. A note is about a
-   * component set or a Foundation page, never both, so picking in one section
+   * component or a Foundation page, never both, so picking in one section
    * releases the other.
    */
   const [subjectKind, setSubjectKind] = useState<
@@ -285,8 +285,8 @@ export function ReleaseNotesUI() {
   );
 
   const selectedComponent = useMemo(
-    () => componentSets.find((cs) => cs.id === selectedComponentId),
-    [componentSets, selectedComponentId],
+    () => components.find((component) => component.id === selectedComponentId),
+    [components, selectedComponentId],
   );
 
   const currentSprintNotes = useMemo(() => {
@@ -297,11 +297,11 @@ export function ReleaseNotesUI() {
     );
   }, [selectedSprint]);
 
-  const filteredComponentSets = useMemo(() => {
-    return componentSets
+  const filteredComponents = useMemo(() => {
+    return components
       .filter((cs) => !cs.name.startsWith("."))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [componentSets]);
+  }, [components]);
 
   const selectedFoundationPage = useMemo(
     () => foundationPages.find((page) => page.id === selectedFoundationPageId),
@@ -372,18 +372,19 @@ export function ReleaseNotesUI() {
 
     window.addEventListener("message", handleMessage);
 
-    // Load data on startup
+    // Load data on startup. The component list is scanned rather than restored,
+    // so it can never describe the file as an older build saw it.
     sendRequest(
-      "load-components",
+      "scan-components",
       {},
       {
         onSuccess: (result) => {
-          const payload = result as ComponentSetsPayload;
-          setComponentSets(payload.componentSets);
-          setSelectedComponentId(payload.lastSelectedComponentSetId);
-          if (payload.lastSelectedComponentSetId) {
-            const selected = payload.componentSets.find(
-              (cs) => cs.id === payload.lastSelectedComponentSetId,
+          const payload = result as ComponentsPayload;
+          setComponents(payload.components);
+          setSelectedComponentId(payload.lastSelectedComponentId);
+          if (payload.lastSelectedComponentId) {
+            const selected = payload.components.find(
+              (component) => component.id === payload.lastSelectedComponentId,
             );
             if (selected) {
               setComponentSearchValue(selected.name);
@@ -439,20 +440,18 @@ export function ReleaseNotesUI() {
       {},
       {
         onSuccess: (result) => {
-          const payload = result as ComponentSetsPayload;
-          setComponentSets(payload.componentSets);
-          setSelectedComponentId(payload.lastSelectedComponentSetId);
-          if (payload.lastSelectedComponentSetId) {
-            const selected = payload.componentSets.find(
-              (cs) => cs.id === payload.lastSelectedComponentSetId,
+          const payload = result as ComponentsPayload;
+          setComponents(payload.components);
+          setSelectedComponentId(payload.lastSelectedComponentId);
+          if (payload.lastSelectedComponentId) {
+            const selected = payload.components.find(
+              (component) => component.id === payload.lastSelectedComponentId,
             );
             if (selected) {
               setComponentSearchValue(selected.name);
             }
           }
-          setStatusMessage(
-            `Found ${payload.componentSets.length} component sets`,
-          );
+          setStatusMessage(`Found ${payload.components.length} components`);
         },
         onError: (error) => setErrorMessage(error),
       },
@@ -463,7 +462,7 @@ export function ReleaseNotesUI() {
     (id: string | null) => {
       const nextId = id || null;
       setSelectedComponentId(nextId);
-      const selected = componentSets.find((cs) => cs.id === nextId);
+      const selected = components.find((component) => component.id === nextId);
       if (selected) {
         setComponentSearchValue(selected.name);
       } else if (!nextId) {
@@ -471,7 +470,7 @@ export function ReleaseNotesUI() {
       }
       sendRequest("select-component", nextId);
 
-      // One Subject at a time: picking a component set releases the page.
+      // One Subject at a time: picking a component releases the page.
       if (nextId) {
         setSubjectKind("component-set");
         setSelectedFoundationPageId(null);
@@ -482,7 +481,7 @@ export function ReleaseNotesUI() {
         );
       }
     },
-    [componentSets, sendRequest],
+    [components, sendRequest],
   );
 
   // ===================
@@ -534,14 +533,14 @@ export function ReleaseNotesUI() {
         return;
       }
 
-      const match = filteredComponentSets.find(
-        (cs) => cs.name.toLowerCase() === value.toLowerCase(),
+      const match = filteredComponents.find(
+        (component) => component.name.toLowerCase() === value.toLowerCase(),
       );
       if (match) {
         handleComponentSelect(match.id);
       }
     },
-    [filteredComponentSets, handleComponentSelect],
+    [filteredComponents, handleComponentSelect],
   );
 
   // ===================
@@ -1173,8 +1172,8 @@ export function ReleaseNotesUI() {
         </div>
       </Card>
 
-      {/* Component Sets Section */}
-      <Card title="Component Sets" className="relative-element">
+      {/* Components Section */}
+      <Card title="Components" className="relative-element">
         <IconComponents className="card-icon" />
         <div
           style={{
@@ -1191,22 +1190,22 @@ export function ReleaseNotesUI() {
             <IconRefresh size={16} />
           </button>
 
-          {componentSets.length > 0 && (
+          {components.length > 0 && (
             <>
               <div style={{ fontSize: "12px", opacity: 0.6 }}>
-                Found {componentSets.length} component set(s)
+                Found {components.length} component(s)
               </div>
               <input
                 type="text"
                 value={componentSearchValue}
                 onChange={(e) => handleComponentSearch(e.target.value)}
-                placeholder="Search component set..."
+                placeholder="Search component..."
                 style={inputStyle}
-                list="component-set-options"
+                list="component-options"
               />
-              <datalist id="component-set-options">
-                {filteredComponentSets.map((cs) => (
-                  <option key={cs.id} value={cs.name} />
+              <datalist id="component-options">
+                {filteredComponents.map((component) => (
+                  <option key={component.id} value={component.name} />
                 ))}
               </datalist>
               {selectedComponentId && (
@@ -1218,10 +1217,9 @@ export function ReleaseNotesUI() {
             </>
           )}
 
-          {componentSets.length === 0 && (
+          {components.length === 0 && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
-              No component sets found. Click "Scan for new components" to
-              search.
+              No components found. Click "Scan for new components" to search.
             </div>
           )}
         </div>
@@ -1251,8 +1249,7 @@ export function ReleaseNotesUI() {
 
           {!canAddNote && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
-              Select a sprint, and a Foundation page or component set, to add
-              notes.
+              Select a sprint, and a Foundation page or component, to add notes.
             </div>
           )}
 

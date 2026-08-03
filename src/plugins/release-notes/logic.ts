@@ -20,12 +20,11 @@ import {
 } from "./utils/sprintHelpers";
 
 import {
-  scanComponentSets,
-  loadSavedComponentSets,
-  getComponentSetsPayload,
-  setLastComponentSetId,
+  scanComponents,
+  getComponentsPayload,
+  setLastComponentId,
   findParentPage,
-} from "./utils/componentSetHelpers";
+} from "./utils/componentHelpers";
 
 import {
   getFileContext,
@@ -45,18 +44,13 @@ export async function releaseNotesHandler(
 ): Promise<unknown> {
   switch (action) {
     case "scan-components": {
-      const componentSets = scanComponentSets(figma);
-      return getComponentSetsPayload(figma, componentSets);
-    }
-
-    case "load-components": {
-      const componentSets = loadSavedComponentSets(figma);
-      return getComponentSetsPayload(figma, componentSets);
+      const components = scanComponents(figma);
+      return getComponentsPayload(figma, components);
     }
 
     case "select-component": {
       const id = payload as string | null;
-      setLastComponentSetId(figma, id);
+      setLastComponentId(figma, id);
       return { success: true };
     }
 
@@ -178,7 +172,7 @@ export async function releaseNotesHandler(
     }
 
     case "view-subject": {
-      // A Subject is a component set or a page: jump to whichever it is.
+      // A Subject is a component or a page: jump to whichever it is.
       const subjectId = payload as string;
       const node = figma.getNodeById(subjectId);
       if (!node) return { success: false };

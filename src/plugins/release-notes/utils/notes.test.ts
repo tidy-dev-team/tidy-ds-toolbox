@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  allSubjectsInOrder,
   distinctSubjects,
   groupByTag,
   groupByTagAuthorDay,
@@ -222,5 +223,64 @@ describe("sortSprintsNewestFirst", () => {
     ]);
 
     expect(sorted.map((sprint) => sprint.name)).toEqual(["c", "b", "a"]);
+  });
+});
+
+describe("allSubjectsInOrder", () => {
+  const divider = {
+    kind: "component-set" as const,
+    id: "2:1",
+    name: "Divider",
+  };
+  const button = { kind: "component-set" as const, id: "1:1", name: "Buttons" };
+
+  function sprint(id: string, subjects: (typeof button)[]): Sprint {
+    return {
+      id,
+      name: `Sprint ${id}`,
+      notes: subjects.map((subject, index) =>
+        note({
+          id: `${id}${index}`,
+          subject,
+          createdAt: `2026-07-2${index}T09:00:00.000Z`,
+        }),
+      ),
+    };
+  }
+
+  it("orders by sprint age, so a card's slot does not depend on load order", () => {
+    // loadAllSprints reads plugin-data keys, whose order is not guaranteed.
+    // Both readings must produce the same slots, or publishing one sprint would
+    // move the other sprint's card.
+    const older = sprint("100", [button]);
+    const newer = sprint("200", [divider]);
+
+    const oneWay = allSubjectsInOrder([older, newer]).map((s) => s.id);
+    const otherWay = allSubjectsInOrder([newer, older]).map((s) => s.id);
+
+    expect(oneWay).toEqual(["1:1", "2:1"]);
+    expect(otherWay).toEqual(oneWay);
+  });
+
+  it("appends a newly seen Subject, leaving the earlier slots alone", () => {
+    const before = allSubjectsInOrder([sprint("100", [button])]).map(
+      (s) => s.id,
+    );
+    const after = allSubjectsInOrder([
+      sprint("100", [button]),
+      sprint("200", [divider]),
+    ]).map((s) => s.id);
+
+    expect(before).toEqual(["1:1"]);
+    expect(after).toEqual(["1:1", "2:1"]);
+  });
+
+  it("lists a Subject once, however many sprints mention it", () => {
+    const subjects = allSubjectsInOrder([
+      sprint("100", [button]),
+      sprint("200", [button, divider]),
+    ]);
+
+    expect(subjects.map((s) => s.id)).toEqual(["1:1", "2:1"]);
   });
 });

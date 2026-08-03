@@ -2,14 +2,18 @@
 // Data Types
 // ===================
 
-export interface ComponentSetInfo {
+/**
+ * One entry in the component picker: a component set, or a component that is
+ * not a variant inside one.
+ */
+export interface ComponentInfo {
   id: string;
   name: string;
 }
 
-export interface ComponentSetsPayload {
-  componentSets: ComponentSetInfo[];
-  lastSelectedComponentSetId: string | null;
+export interface ComponentsPayload {
+  components: ComponentInfo[];
+  lastSelectedComponentId: string | null;
 }
 
 /** A page offered by the Foundation section. */
@@ -38,14 +42,17 @@ export type NoteTag =
   | "deprecation"
   | "deleted";
 
-/** Which kind of thing a note is about. */
+/**
+ * Which kind of thing a note is about. `component-set` is the stored value for
+ * any component subject, including a standalone component; it is never shown.
+ */
 export type SubjectKind = "component-set" | "foundation-page";
 
 /**
- * The thing a ReleaseNote is about: exactly one Component Set or one
- * Foundation Page, never both. `id` is the Figma node id (a `COMPONENT_SET`
- * node, or a `PAGE` node) and `name` is a display copy kept so a note still
- * reads correctly after its node is renamed or deleted.
+ * The thing a ReleaseNote is about: exactly one component or one Foundation
+ * Page, never both. `id` is the Figma node id (a `COMPONENT_SET` node, a
+ * standalone `COMPONENT` node, or a `PAGE` node) and `name` is a display copy
+ * kept so a note still reads correctly after its node is renamed or deleted.
  */
 export interface Subject {
   kind: SubjectKind;
@@ -109,7 +116,6 @@ export interface FileContext {
 
 export type ReleaseNotesAction =
   | "scan-components"
-  | "load-components"
   | "select-component"
   | "load-foundation-pages"
   | "select-foundation-page"
