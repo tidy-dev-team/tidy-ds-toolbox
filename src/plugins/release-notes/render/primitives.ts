@@ -47,7 +47,17 @@ export async function resolveCardFonts(figma: PluginAPI): Promise<CardFonts> {
     await loadFamily(figma, CARD_FONT_FAMILY);
     return { family: CARD_FONT_FAMILY, fallback: false };
   } catch {
-    await loadFamily(figma, CARD_FONT_FALLBACK_FAMILY);
+    // Inter ships with Figma, so failing to load it too means the font service
+    // itself is unreachable, not that a font is missing. Nothing is drawn yet,
+    // so name the actual problem: the raw font error says nothing a designer
+    // could act on, and the panel shows whatever message comes out of here.
+    try {
+      await loadFamily(figma, CARD_FONT_FALLBACK_FAMILY);
+    } catch {
+      throw new Error(
+        `Could not load ${CARD_FONT_FAMILY} or ${CARD_FONT_FALLBACK_FAMILY}, so nothing was drawn. Check the connection and try again.`,
+      );
+    }
     return { family: CARD_FONT_FALLBACK_FAMILY, fallback: true };
   }
 }

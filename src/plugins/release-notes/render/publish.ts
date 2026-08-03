@@ -11,10 +11,16 @@ import type { PublishResult, Sprint, Subject } from "../types";
 import {
   CARD_GAP,
   CARD_STAMP_KEY,
-  LEGACY_AGGREGATE_FRAME_NAME,
-  LEGACY_CARD_NAME_SUFFIX,
   RELEASE_NOTES_PAGE_NAME,
 } from "../utils/constants";
+import {
+  isAggregateCard,
+  isCardForSubject,
+  isOwnedCard,
+  parseCardStamp,
+  type CardNode,
+  type CardStamp,
+} from "../utils/cardIdentity";
 import { distinctSubjects } from "../utils/notes";
 import {
   componentCardPosition,
@@ -25,12 +31,6 @@ import { buildSubjectCard } from "./subjectCard";
 import { buildAggregateChangelog } from "./aggregateChangelog";
 import { findParentPage } from "../utils/componentSetHelpers";
 
-interface CardStamp {
-  kind: "aggregate" | "component-set" | "foundation-page";
-  subjectId: string;
-  builtAt: string;
-}
-
 function stamp(frame: FrameNode, value: Omit<CardStamp, "builtAt">): void {
   frame.setPluginData(
     CARD_STAMP_KEY,
@@ -38,29 +38,16 @@ function stamp(frame: FrameNode, value: Omit<CardStamp, "builtAt">): void {
   );
 }
 
-function readStamp(node: BaseNode): CardStamp | null {
-  if (!("getPluginData" in node)) return null;
-  const raw = (node as SceneNode).getPluginData(CARD_STAMP_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as CardStamp;
-    return typeof parsed?.kind === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function isStampedCard(node: BaseNode, subjectId: string): boolean {
-  return readStamp(node)?.subjectId === subjectId;
-}
-
-/** Every card this module owns on a page, by stamp and by the pre-stamp name. */
-function ownedCards(page: PageNode): SceneNode[] {
-  return page.children.filter(
-    (child) =>
-      readStamp(child) !== null ||
-      (child.type === "FRAME" && child.name.endsWith(LEGACY_CARD_NAME_SUFFIX)),
-  );
+/** A node as the ownership rules see it: a frame, a name, and its stamp. */
+function describe(node: SceneNode): CardNode {
+  return {
+    isFrame: node.type === "FRAME",
+    name: node.name,
+    stamp:
+      "getPluginData" in node
+        ? parseCardStamp(node.getPluginData(CARD_STAMP_KEY))
+        : null,
+  };
 }
 
 function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
@@ -109,7 +96,7 @@ function placeCard(
   // Measure before appending, and never count a card of this Subject: a card
   // that measured itself would walk further left on every publish.
   const siblings = target.page.children
-    .filter((child) => !isStampedCard(child, subject.id))
+    .filter((child) => !isCardForSubject(describe(child), subject))
     .map((child) => ({ x: child.x, y: child.y }));
 
   target.page.appendChild(card);
@@ -141,12 +128,7 @@ export async function publishSprintNotes(
   // Aggregate changelog: one card holding every sprint.
   const aggregatePage = getOrCreateReleaseNotesPage(figma);
   for (const child of [...aggregatePage.children]) {
-    if (
-      readStamp(child)?.kind === "aggregate" ||
-      (child.type === "FRAME" && child.name === LEGACY_AGGREGATE_FRAME_NAME)
-    ) {
-      child.remove();
-    }
+    if (isAggregateCard(describe(child))) child.remove();
   }
 
   const aggregate = buildAggregateChangelog(figma, fonts, sprints);
@@ -162,13 +144,7 @@ export async function publishSprintNotes(
     if (!target) continue;
 
     for (const child of [...target.page.children]) {
-      if (
-        isStampedCard(child, subject.id) ||
-        (child.type === "FRAME" &&
-          child.name === `${subject.name}${LEGACY_CARD_NAME_SUFFIX}`)
-      ) {
-        child.remove();
-      }
+      if (isCardForSubject(describe(child), subject)) child.remove();
     }
 
     const card = buildSubjectCard(figma, fonts, subject, sprints);
@@ -191,8 +167,9 @@ export async function publishSprintNotes(
 }
 
 /**
- * Remove every card this module owns. Cards published before the stamp existed
- * are matched by their old frame name, otherwise they would be unremovable.
+ * Remove every card this module owns, on every page. Cards published before the
+ * stamp existed are matched by their old frame names - both of them, the Subject
+ * card's and the aggregate's - otherwise they would be unremovable.
  */
 export function clearPublishedCards(figma: PluginAPI): number {
   let removed = 0;
@@ -200,7 +177,8 @@ export function clearPublishedCards(figma: PluginAPI): number {
   for (const page of figma.root.children) {
     if (page.type !== "PAGE") continue;
 
-    for (const card of ownedCards(page)) {
+    for (const card of [...page.children]) {
+      if (!isOwnedCard(describe(card))) continue;
       card.remove();
       removed += 1;
     }
