@@ -21,11 +21,8 @@ import {
   type CardNode,
   type CardStamp,
 } from "../utils/cardIdentity";
-import { distinctSubjects } from "../utils/notes";
-import {
-  componentCardPosition,
-  pageEdgeCardPosition,
-} from "../utils/placement";
+import { allSubjectsInOrder, distinctSubjects } from "../utils/notes";
+import { componentCardPosition, pageEdgeSlot } from "../utils/placement";
 import { resolveCardFonts } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
 import { buildAggregateChangelog } from "./aggregateChangelog";
@@ -105,23 +102,25 @@ function resolveCardTarget(
 }
 
 /**
- * Every card this run rebuilds must already be off the page before this is
- * called. The page-edge rule measures what is standing there, so a stale card
- * left up would push its replacement further left, and the whole group would
- * walk off across the canvas one publish at a time.
+ * The page's own material: everything except the cards this module drew. A card
+ * must never measure another card, or each publish would place its output
+ * relative to the last publish's output and the whole group would walk left
+ * across the canvas for ever.
  */
-function placeCard(target: CardTarget, card: FrameNode): void {
-  // Measured before appending, so the card never counts itself.
-  const siblings = target.page.children.map((child) => ({
-    x: child.x,
-    y: child.y,
-  }));
+function pageContent(page: PageNode): { x: number; y: number }[] {
+  return page.children
+    .filter((child) => !isOwnedCard(describe(child)))
+    .map((child) => ({ x: child.x, y: child.y }));
+}
 
+function placeCard(target: CardTarget, card: FrameNode, slot: number): void {
+  // Safe to append first: the card is stamped by now, so it is an owned card
+  // and pageContent leaves it out of its own measurement.
   target.page.appendChild(card);
 
   const position = target.anchor
     ? componentCardPosition(target.anchor, card.width, CARD_GAP)
-    : pageEdgeCardPosition(siblings, card.width, CARD_GAP);
+    : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP);
 
   card.x = position.x;
   card.y = position.y;
@@ -164,10 +163,23 @@ export async function publishSprintNotes(
         entry.target !== null,
     );
 
-  // Clear the whole group before placing any of it. Two Subjects can share a
-  // page, and each card placed at the page edge measures what is standing
-  // there: clearing one card at a time would let the group's own leftovers push
-  // the replacements further left on every publish.
+  // Which slot each page-edge card takes on its page. Worked out from every
+  // sprint, not just the one being published, so the Subjects of a sprint left
+  // alone still hold their places and this sprint's cards go beside them rather
+  // than on top of them.
+  const slots = new Map<string, number>();
+  const filled = new Map<string, number>();
+  for (const subject of allSubjectsInOrder(sprints)) {
+    const target = resolveCardTarget(figma, subject);
+    if (!target || target.anchor) continue;
+
+    const next = filled.get(target.page.id) ?? 0;
+    slots.set(subject.id, next);
+    filled.set(target.page.id, next + 1);
+  }
+
+  // Replace, rather than add to, what the last publish drew. Placement no
+  // longer depends on this happening first, because a card is never measured.
   for (const { subject, target } of targets) {
     for (const child of [...target.page.children]) {
       if (isCardForSubject(describe(child), subject)) child.remove();
@@ -179,7 +191,7 @@ export async function publishSprintNotes(
     if (!card) continue;
 
     stamp(card, { kind: subject.kind, subjectId: subject.id });
-    placeCard(target, card);
+    placeCard(target, card, slots.get(subject.id) ?? 0);
     cardsBuilt += 1;
   }
 

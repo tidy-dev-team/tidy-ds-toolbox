@@ -141,6 +141,29 @@ export function distinctSubjects(notes: ReleaseNote[]): Subject[] {
   return Array.from(seen.values());
 }
 
+/**
+ * Every Subject any sprint mentions, in an order taken from the notes rather
+ * than from the canvas or from plugin-data key order.
+ *
+ * This is what gives a page-edge card its slot, so it has to agree with itself
+ * across publishes: publishing sprint A and later publishing sprint B must
+ * place A's card in the same spot both times, or the cards walk left across the
+ * canvas. Oldest first, so a Subject seen for the first time is appended and
+ * the Subjects before it keep their slots.
+ */
+export function allSubjectsInOrder(sprints: Sprint[]): Subject[] {
+  const oldestFirst = [...sprints].sort((a, b) => Number(a.id) - Number(b.id));
+
+  return distinctSubjects(
+    oldestFirst.flatMap((sprint) =>
+      [...sprint.notes].sort(
+        (a, b) =>
+          a.createdAt.localeCompare(b.createdAt) || Number(a.id) - Number(b.id),
+      ),
+    ),
+  );
+}
+
 /** Every note about one Subject, across all sprints, newest sprint first. */
 export function sprintsForSubject(
   sprints: Sprint[],

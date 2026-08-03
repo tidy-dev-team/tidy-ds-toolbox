@@ -13,26 +13,37 @@ export interface Box extends Position {
 }
 
 /**
- * A card clear of the page: to the left of everything already on it, tops
- * aligned with the topmost item. An empty page puts it at the origin.
+ * A slot clear of the page: to the left of everything on it, tops aligned with
+ * the topmost item, and `index` slots further left again. An empty page puts
+ * slot 0 at the origin.
  *
- * This is where a Foundation card always goes, and where a component's card
- * goes when the component sits inside a frame rather than straight on the page.
+ * This is where a Foundation card goes, and where a component's card goes when
+ * the component sits inside a frame rather than straight on the page. Several
+ * Subjects can share a page, so they stack leftward by index.
  *
- * `siblings` must exclude the card's own previous output: a card that measured
- * itself would walk further left on every publish.
+ * `content` is the page's own material and must never contain a card. Nor may
+ * `index` be read off the canvas. Position derived from what is standing there
+ * is position derived from the last publish, and it drifts without limit: a
+ * card pushes the next card left, which pushes the first one further left the
+ * next time round. The index belongs to the Subject and comes from the notes,
+ * so the same Subject lands in the same place whichever sprint is published.
  */
-export function pageEdgeCardPosition(
-  siblings: Position[],
+export function pageEdgeSlot(
+  content: Position[],
+  index: number,
   cardWidth: number,
   gap: number,
 ): Position {
-  if (siblings.length === 0) return { x: 0, y: 0 };
+  const step = cardWidth + gap;
 
-  const left = Math.min(...siblings.map((sibling) => sibling.x));
-  const top = Math.min(...siblings.map((sibling) => sibling.y));
+  // An empty page is measured as if its content started one step right of the
+  // origin, which puts slot 0 at the origin.
+  const left =
+    content.length === 0 ? step : Math.min(...content.map((item) => item.x));
+  const top =
+    content.length === 0 ? 0 : Math.min(...content.map((item) => item.y));
 
-  return { x: left - cardWidth - gap, y: top };
+  return { x: left - step - index * step, y: top };
 }
 
 /**
