@@ -6,13 +6,15 @@
  * undeletable: `<Subject>-release-notes` for a Subject card, and
  * `release-notes-frame` for the aggregate.
  *
- * Pure on purpose, and in one place on purpose. Three sweeps ask this question -
+ * Pure on purpose, and one rule on purpose. There used to be three sweeps -
  * publish replacing the aggregate, publish replacing one Subject's card, and
  * Clear Canvas removing every card - and a legacy name missing from one of them
- * strands a card that another path still replaces. That is a bug no current file
- * can show, because it needs a file old enough to hold a pre-stamp card. So the
- * three rules sit together over a plain description of a node, and are
- * fixture-tested.
+ * stranded a card that another path still replaced. That is a bug no current
+ * file can show, because it needs a file old enough to hold a pre-stamp card.
+ *
+ * A publish is now a whole-file redraw, so it sweeps with the same rule Clear
+ * Canvas does and the narrower two are gone. Three rules that had to agree
+ * became one that cannot disagree with itself.
  */
 
 import {
@@ -49,29 +51,12 @@ function hasLegacyName(node: CardNode, name: string): boolean {
   return node.isFrame && node.name === name;
 }
 
-/** The one whole-file changelog card on the `Release notes` page. */
-export function isAggregateCard(node: CardNode): boolean {
-  return (
-    node.stamp?.kind === "aggregate" ||
-    hasLegacyName(node, LEGACY_AGGREGATE_FRAME_NAME)
-  );
-}
-
-/** The card belonging to one Subject. Matched by stamp, or by its old name. */
-export function isCardForSubject(
-  node: CardNode,
-  subject: { id: string; name: string },
-): boolean {
-  return (
-    node.stamp?.subjectId === subject.id ||
-    hasLegacyName(node, `${subject.name}${LEGACY_CARD_NAME_SUFFIX}`)
-  );
-}
-
 /**
- * Anything this module published: any stamped card, and every pre-stamp name.
- * This is the rule Clear Canvas sweeps with, so it has to be the union of what
- * the two narrower rules above can match.
+ * Anything this module published: any stamped card, and every pre-stamp name,
+ * the aggregate's and a Subject card's alike.
+ *
+ * The only ownership rule there is. Both sweeps that exist use it, so a card
+ * this matches is a card either of them will remove.
  */
 export function isOwnedCard(node: CardNode): boolean {
   return (

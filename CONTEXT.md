@@ -75,7 +75,7 @@ The kind of change a **Release Note** records, drawn from a closed set of five: 
 
 **Card Appearance**:
 How a file's cards are drawn: one font family and one background colour, belonging to the file rather than to the designer who set it, because a card is a shared artifact on a shared canvas.
-The four foreground colours are never stored — they are derived from the background, so no stored Card Appearance can describe a card nobody can read.
+The four foreground colours are never stored: they are derived from the background, so no stored Card Appearance can describe a card nobody can read.
 Called Appearance and not "style" or "theme": a **style** here is a font style name or a Figma paint style, and a **theme** is a component's variable mode.
 See [ADR-0012](docs/adr/0012-card-appearance-is-a-per-file-setting.md).
 

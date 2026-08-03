@@ -473,30 +473,49 @@ export function ReleaseNotesUI() {
     [applyAppearance, sendRequest],
   );
 
+  /**
+   * What the field shows while it is being typed in. Separate from `appearance`
+   * so the panel can never claim a font the file does not hold: a datalist is a
+   * suggestion list on a plain text input, so it accepts anything typed, and
+   * echoing that into `appearance` would show Arial beside cards published in
+   * Inter.
+   */
+  const [fontDraft, setFontDraft] = useState<string | null>(null);
+
   const handleFontChange = useCallback(
     (value: string) => {
-      // Typing into the list is free-form until it matches. Saving only on a
-      // real family keeps a half-typed name out of the file.
-      setAppearance((current) => ({ ...current, fontFamily: value }));
+      setFontDraft(value);
+      // A real family saves immediately, which is what picking from the list
+      // does. Anything else is still being typed.
       if (availableFonts.includes(value)) {
+        setFontDraft(null);
         saveAppearance({ ...appearance, fontFamily: value });
       }
     },
     [appearance, availableFonts, saveAppearance],
   );
 
+  /** Leaving the field on a name that is not a usable family abandons it. */
+  const handleFontBlur = useCallback(() => setFontDraft(null), []);
+
+  /** As above: a half-typed hex shows in the field but never in `appearance`. */
+  const [backgroundDraft, setBackgroundDraft] = useState<string | null>(null);
+
   const handleBackgroundChange = useCallback(
     (value: string) => {
       const hex = value.replace("#", "").slice(0, 6).toUpperCase();
-      setAppearance((current) => ({ ...current, background: hex }));
-      // Six digits is the first point the colour means anything, so a
-      // half-typed hex never reaches the file.
+      // Six digits is the first point the colour means anything.
       if (/^[0-9A-F]{6}$/.test(hex)) {
+        setBackgroundDraft(null);
         saveAppearance({ ...appearance, background: hex });
+        return;
       }
+      setBackgroundDraft(hex);
     },
     [appearance, saveAppearance],
   );
+
+  const handleBackgroundBlur = useCallback(() => setBackgroundDraft(null), []);
 
   // ===================
   // Component Set Handlers
@@ -1357,8 +1376,9 @@ export function ReleaseNotesUI() {
           <FormControl label="Font">
             <input
               type="text"
-              value={appearance.fontFamily}
+              value={fontDraft ?? appearance.fontFamily}
               onChange={(e) => handleFontChange(e.target.value)}
+              onBlur={handleFontBlur}
               placeholder="Search font..."
               style={inputStyle}
               list="card-font-options"
@@ -1370,7 +1390,15 @@ export function ReleaseNotesUI() {
             </datalist>
           </FormControl>
 
-          {fontMissingHere && (
+          {fontDraft !== null && (
+            <div style={{ fontSize: "11px", opacity: 0.7, lineHeight: 1.4 }}>
+              Still set to {appearance.fontFamily}. Only fonts with Regular,
+              Medium and Bold are offered, which is every style a card draws
+              with.
+            </div>
+          )}
+
+          {fontDraft === null && fontMissingHere && (
             <div style={{ fontSize: "11px", opacity: 0.7, lineHeight: 1.4 }}>
               {appearance.fontFamily} is not installed here, so cards you
               publish will be drawn in Inter.
@@ -1394,8 +1422,9 @@ export function ReleaseNotesUI() {
               />
               <input
                 type="text"
-                value={`#${appearance.background}`}
+                value={`#${backgroundDraft ?? appearance.background}`}
                 onChange={(e) => handleBackgroundChange(e.target.value)}
+                onBlur={handleBackgroundBlur}
                 spellCheck={false}
                 style={{ ...inputStyle, flex: 1 }}
               />

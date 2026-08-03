@@ -108,15 +108,36 @@ export function contrastRatio(a: RGB, b: RGB): number {
 /** WCAG AA for body text. */
 const MIN_TEXT_CONTRAST = 4.5;
 
+const BLACK: RGB = { r: 0, g: 0, b: 0 };
+const WHITE: RGB = { r: 1, g: 1, b: 1 };
+
+/**
+ * Whichever of pure black and pure white contrasts better with the background.
+ *
+ * The universal floor. Their worst case, against a background at the luminance
+ * where they tie, is 4.61:1, so this always clears AA whatever a designer picks.
+ */
+function extremeAgainst(background: RGB): RGB {
+  return contrastRatio(WHITE, background) >= contrastRatio(BLACK, background)
+    ? WHITE
+    : BLACK;
+}
+
 /**
  * The four colours a card is drawn with, derived from its background.
  *
- * The muted colour is the one that can fail. Both sets use a grey-blue, and no
- * grey-blue contrasts with a mid grey: on `#808080` the light set's muted
- * reaches only ~1.5:1. Rather than draw text nobody can read, a muted colour
- * that misses AA is dropped for the bold one. The card loses the muted-secondary
- * distinction at those backgrounds, which is a visible compromise and a legible
- * one. Curated backgrounds, near-black and near-white, never hit this path.
+ * Two curated sets do not cover the whole space, and picking between them by
+ * luminance is not enough on its own. The crossover at 0.179 is where pure black
+ * and pure white tie, but the sets use `#EEF3FC` and `#000A19`, neither of which
+ * is pure: the dark set holds AA only up to luminance 0.1596 and the light set
+ * only from 0.1879, leaving a band in between, nine greys wide, where neither
+ * reaches 4.5:1. `#747474` against `#EEF3FC` is 4.20:1.
+ *
+ * So each colour is checked rather than assumed. A bold colour that misses AA
+ * falls back to pure black or white, which always clears it. A muted colour that
+ * misses AA falls back to the bold one, because no grey-blue contrasts with a
+ * mid grey. Both are visible compromises at backgrounds nobody is likely to
+ * choose; text that cannot be read is not a compromise.
  */
 export function paletteFor(backgroundHex: string): CardPalette {
   const bgSurface = hexToRgb(backgroundHex);
@@ -124,7 +145,12 @@ export function paletteFor(backgroundHex: string): CardPalette {
     ? LIGHT_FOREGROUND
     : DARK_FOREGROUND;
 
-  const textBold = hexToRgb(foreground.textBold);
+  const preferredBold = hexToRgb(foreground.textBold);
+  const textBold =
+    contrastRatio(preferredBold, bgSurface) >= MIN_TEXT_CONTRAST
+      ? preferredBold
+      : extremeAgainst(bgSurface);
+
   const preferredMuted = hexToRgb(foreground.textMuted);
   const textMuted =
     contrastRatio(preferredMuted, bgSurface) >= MIN_TEXT_CONTRAST

@@ -81,27 +81,59 @@ describe("paletteFor", () => {
     expect(rgbToHex(palette.timelineLine)).toBe("C3CDDC");
   });
 
-  it("keeps both text colours at WCAG AA against any background", () => {
-    // The whole reason the foreground is derived rather than picked: no
-    // background a designer can choose produces a card that fails to read.
-    for (const background of [
-      "000A19",
-      "FFFFFF",
-      "808080",
-      "1A2B6B",
-      "7B1E3C",
-      "C0C0C0",
-      "4A4A4A",
-    ]) {
-      const palette = paletteFor(background);
+  it("keeps both text colours at WCAG AA against every background", () => {
+    // Swept, not sampled. A hand-picked list of seven backgrounds stepped
+    // straight over the band where neither curated colour reaches AA: the dark
+    // set holds only to luminance 0.1596 and the light set only from 0.1879,
+    // because #EEF3FC and #000A19 are not pure black and white. #747474 came
+    // out at 4.20:1 and no fixture went near it.
+    const failures: string[] = [];
 
-      expect(
-        contrastRatio(palette.textBold, palette.bgSurface),
-      ).toBeGreaterThanOrEqual(4.5);
-      expect(
-        contrastRatio(palette.textMuted, palette.bgSurface),
-      ).toBeGreaterThanOrEqual(4.5);
+    const check = (background: string) => {
+      const palette = paletteFor(background);
+      const bold = contrastRatio(palette.textBold, palette.bgSurface);
+      const muted = contrastRatio(palette.textMuted, palette.bgSurface);
+      if (bold < 4.5 || muted < 4.5) {
+        failures.push(
+          `#${background} bold ${bold.toFixed(2)} muted ${muted.toFixed(2)}`,
+        );
+      }
+    };
+
+    // Every grey, which is where the band lives.
+    for (let value = 0; value <= 255; value++) {
+      check(value.toString(16).padStart(2, "0").repeat(3).toUpperCase());
     }
+
+    // And a coarse sweep of the colour cube, so a hue cannot hide one.
+    for (let r = 0; r <= 255; r += 17) {
+      for (let g = 0; g <= 255; g += 17) {
+        for (let b = 0; b <= 255; b += 17) {
+          check(
+            [r, g, b]
+              .map((c) => c.toString(16).padStart(2, "0"))
+              .join("")
+              .toUpperCase(),
+          );
+        }
+      }
+    }
+
+    expect(failures).toEqual([]);
+  });
+
+  it("falls back to pure black or white in the band the curated sets miss", () => {
+    // #747474 is inside it: the dark set's bold reaches only 4.20:1 there.
+    const banded = paletteFor("747474");
+
+    expect(rgbToHex(banded.textBold)).toBe("FFFFFF");
+    expect(
+      contrastRatio(banded.textBold, banded.bgSurface),
+    ).toBeGreaterThanOrEqual(4.5);
+
+    // Backgrounds outside the band keep their curated colour.
+    expect(rgbToHex(paletteFor("000A19").textBold)).toBe("EEF3FC");
+    expect(rgbToHex(paletteFor("FFFFFF").textBold)).toBe("000A19");
   });
 
   it("drops the muted colour when no grey-blue can contrast with the background", () => {

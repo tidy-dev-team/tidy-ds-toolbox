@@ -1,6 +1,7 @@
 /**
- * Publishing: put a card beside every Subject the sprint touched, and rebuild
- * the aggregate changelog page.
+ * Publishing: sweep every card this module owns, then redraw the whole file -
+ * the aggregate changelog, and one card beside every Subject any sprint
+ * mentions.
  *
  * A card is found again by its plugin-data stamp, never by frame name or
  * position, so renaming a Subject or dragging a card cannot orphan it or make
@@ -14,8 +15,6 @@ import {
   RELEASE_NOTES_PAGE_NAME,
 } from "../utils/constants";
 import {
-  isAggregateCard,
-  isCardForSubject,
   isOwnedCard,
   parseCardStamp,
   type CardNode,
@@ -159,12 +158,21 @@ export async function publishNotes(
 
   let cardsBuilt = 0;
 
+  // Sweep every card this module owns, everywhere, before drawing any of them.
+  //
+  // Removing only the cards about to be redrawn leaves the ones that should no
+  // longer exist: delete the last note about a Subject and it drops out of the
+  // notes, so nothing rebuilds its card and nothing removed it either. Same for
+  // a Subject whose node has since been deleted, which no longer resolves to a
+  // page. Both would sit there for ever, and after this change both would also
+  // be in the previous appearance.
+  //
+  // A publish is a whole-file redraw, so the honest rule is the one Clear Canvas
+  // already uses: own everything, then draw what should be there now.
+  removeOwnedCards(figma);
+
   // Aggregate changelog: one card holding every sprint.
   const aggregatePage = getOrCreateReleaseNotesPage(figma);
-  for (const child of [...aggregatePage.children]) {
-    if (isAggregateCard(describe(child))) child.remove();
-  }
-
   const aggregate = buildAggregateChangelog(figma, appearance, sprints);
   stamp(aggregate, { kind: "aggregate", subjectId: "" });
   aggregatePage.appendChild(aggregate);
@@ -194,14 +202,6 @@ export async function publishNotes(
     targets.push({ subject, target, slot });
   }
 
-  // Replace, rather than add to, what the last publish drew. Placement no
-  // longer depends on this happening first, because a card is never measured.
-  for (const { subject, target } of targets) {
-    for (const child of [...target.page.children]) {
-      if (isCardForSubject(describe(child), subject)) child.remove();
-    }
-  }
-
   for (const { subject, target, slot } of targets) {
     const card = buildSubjectCard(figma, appearance, subject, sprints);
     if (!card) continue;
@@ -227,8 +227,13 @@ export async function publishNotes(
  * Remove every card this module owns, on every page. Cards published before the
  * stamp existed are matched by their old frame names - both of them, the Subject
  * card's and the aggregate's - otherwise they would be unremovable.
+ *
+ * Two callers, deliberately one rule: Clear Canvas, and the start of a publish.
+ * A publish that swept less than Clear Canvas would leave behind exactly the
+ * cards nothing else can reach, the ones whose Subject no longer appears in any
+ * note or no longer exists in the file.
  */
-export function clearPublishedCards(figma: PluginAPI): number {
+function removeOwnedCards(figma: PluginAPI): number {
   let removed = 0;
 
   for (const page of figma.root.children) {
@@ -242,4 +247,8 @@ export function clearPublishedCards(figma: PluginAPI): number {
   }
 
   return removed;
+}
+
+export function clearPublishedCards(figma: PluginAPI): number {
+  return removeOwnedCards(figma);
 }
