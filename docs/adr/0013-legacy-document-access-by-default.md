@@ -19,11 +19,13 @@ Most of those reads are not the problem.
 Enumerating pages, and reading each page's `id` and `name`, stays legal under dynamic page access; `off-boarding`'s page list and `color-finder`'s page picker do exactly that and would keep working untouched.
 What breaks is walking a page's **contents** without loading that page first.
 
-The clear examples are `release-notes/render/publish.ts`, which iterates `page.children` for every page in the file to find and sweep its cards, and `off-boarding`'s pack path, which clones the children of each source page.
-`audit`, `sticker-sheet-builder` and `color-finder` each reach page contents on at least one path as well.
-None of those five modules calls `loadAllPagesAsync` anywhere.
+`color-finder` is the module that already gets this right without using `loadAllPagesAsync`: its scan awaits `page.loadAsync()` for each page before reading `page.children`, which is the per-page equivalent and is dynamic-page safe.
 
-So the split is real, and it is narrower than the raw read counts suggest.
+Four modules reach page contents with no load of any kind.
+The clear examples are `release-notes/render/publish.ts`, which iterates `page.children` for every page in the file to find and sweep its cards, and `off-boarding`'s pack path, which clones the children of each source page.
+`audit` and `sticker-sheet-builder` each do the same on at least one path.
+
+So the split is real, and it is considerably narrower than the raw read counts suggest.
 It is two generations of code under one manifest that happens to support both.
 
 ## Why we are not migrating now
@@ -33,7 +35,7 @@ Two facts, both recorded on 2026-08-03 in `docs/audit-2026-08-review.md`, sectio
 - **Distribution stays private for the foreseeable future.** The plugin is installed by manifest import and distributed through Google Drive. There is no submission to the Figma Community, and Community review is where a document-access requirement would land as a hard gate.
 - **Nothing is broken today.** Legacy access is supported, and the modules that read pages synchronously work.
 
-The migration's cost sits in five modules, three of which have no tests at all (`off-boarding`, `sticker-sheet-builder` and `audit`), and three of which mutate pages.
+The migration's cost sits in four modules, three of which have no tests at all (`off-boarding`, `sticker-sheet-builder` and `audit`), and three of which mutate pages.
 That is the same surface as the module-testing effort in issue #157, so the work should ride with it rather than compete with it.
 
 Considered and rejected: declaring `documentAccess: "dynamic-page"` now and fixing what breaks.
@@ -52,5 +54,6 @@ Until one of them happens, adding `loadAllPagesAsync()` to a module is neither r
 
 - A new module may write for either model. Where it reaches page contents, awaiting `loadAllPagesAsync()` first is cheap under legacy access and makes the module portable, so prefer it. This is a preference, not a rule, and code that does not do it is not a defect today.
 - Existing explicit page loading stays. It is harmless under legacy access, and it is not evidence of a target.
-- The five modules named above are the migration's real cost, and that cost is deliberately deferred rather than paid in pieces.
+- The four modules that reach page contents with no load are the migration's real cost, and that cost is deliberately deferred rather than paid in pieces.
+- `color-finder`'s per-page `loadAsync()` is the pattern to copy where a module scans pages it was given, rather than loading the whole file.
 - This ADR is the only place the position is recorded, so a reader who wonders why the newer code loads pages and the older code does not has one answer to find.
