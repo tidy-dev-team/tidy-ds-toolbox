@@ -73,6 +73,12 @@ A page that sits inside the file's Foundation area, which is delimited by Figma'
 **Tag**:
 The kind of change a **Release Note** records, drawn from a closed set of five: Added, Changed, Fixed, Deprecated, Deleted. One vocabulary is used in the panel, on the card and in the CSV — the stored enum values (`new_component`, `enhancement`, `bug_fix`, `deprecation`, `deleted`) are legacy identifiers and are never shown.
 
+**Card Appearance**:
+How a file's cards are drawn: one font family and one background colour, belonging to the file rather than to the designer who set it, because a card is a shared artifact on a shared canvas.
+The four foreground colours are never stored — they are derived from the background, so no stored Card Appearance can describe a card nobody can read.
+Called Appearance and not "style" or "theme": a **style** here is a font style name or a Figma paint style, and a **theme** is a component's variable mode.
+See [ADR-0012](docs/adr/0012-card-appearance-is-a-per-file-setting.md).
+
 **Release Note Card**:
 The rendered artifact placed on canvas beside a **Subject**, listing that Subject's notes newest sprint first. Tool-owned and replaceable: it identifies itself by a plugin-data stamp carrying its Subject id, never by frame name or position, so renaming the Subject or moving the card cannot orphan or duplicate it. Its sibling is the **Aggregate Changelog** — one card on the `Release notes` page carrying every Subject's notes, drawn in the same visual language.
 

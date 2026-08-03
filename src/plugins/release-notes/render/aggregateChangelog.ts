@@ -7,7 +7,7 @@
  */
 
 import type { Sprint } from "../types";
-import { AGGREGATE_CARD_WIDTH, CARD_PALETTE } from "../utils/constants";
+import { AGGREGATE_CARD_WIDTH } from "../utils/constants";
 import {
   groupByTag,
   sortNotesNewestFirst,
@@ -22,19 +22,24 @@ import {
   createTagBadge,
   createText,
   linkToNode,
-  type CardFonts,
+  type ResolvedAppearance,
 } from "./primitives";
 
 export function buildAggregateChangelog(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   sprints: Sprint[],
 ): FrameNode {
   const populated = sortSprintsNewestFirst(sprints).filter(
     (sprint) => sprint.notes.length > 0,
   );
 
-  const card = createCardShell(figma, "Changelog", AGGREGATE_CARD_WIDTH);
+  const card = createCardShell(
+    figma,
+    appearance,
+    "Changelog",
+    AGGREGATE_CARD_WIDTH,
+  );
 
   const body = createRow(figma, {
     name: "Changelog",
@@ -57,22 +62,22 @@ export function buildAggregateChangelog(
     grow: true,
   });
   titleColumn.appendChild(
-    createText(figma, fonts, {
+    createText(figma, appearance, {
       characters: "Changelog",
       weight: "regular",
       size: 40,
       lineHeight: 56,
-      color: CARD_PALETTE.textBold,
+      color: appearance.palette.textBold,
     }),
   );
   titleColumn.appendChild(
-    createText(figma, fonts, {
+    createText(figma, appearance, {
       characters:
         "All notable changes in this library will be documented in this file.",
       weight: "regular",
       size: 16,
       lineHeight: 24,
-      color: CARD_PALETTE.textMuted,
+      color: appearance.palette.textMuted,
     }),
   );
 
@@ -86,7 +91,7 @@ export function buildAggregateChangelog(
       stretch: true,
     });
 
-    block.appendChild(createSectionTitle(figma, fonts, sprint.name));
+    block.appendChild(createSectionTitle(figma, appearance, sprint.name));
 
     for (const group of groupByTag(sprint.notes)) {
       const { log, main } = createLogRow(figma, { paddingLeft: 24 });
@@ -96,7 +101,7 @@ export function buildAggregateChangelog(
         direction: "HORIZONTAL",
         itemSpacing: 4,
       });
-      badgeRow.appendChild(createTagBadge(figma, fonts, group.tag));
+      badgeRow.appendChild(createTagBadge(figma, appearance, group.tag));
       main.appendChild(badgeRow);
 
       const notes = createRow(figma, {
@@ -112,11 +117,11 @@ export function buildAggregateChangelog(
           itemSpacing: 4,
         });
 
-        line.appendChild(createBodyText(figma, fonts, "•", "bold"));
+        line.appendChild(createBodyText(figma, appearance, "•", "bold"));
 
         const subjectName = createBodyText(
           figma,
-          fonts,
+          appearance,
           `${note.subject.name}:`,
           "bold",
         );
@@ -124,7 +129,7 @@ export function buildAggregateChangelog(
         line.appendChild(subjectName);
 
         line.appendChild(
-          createBodyText(figma, fonts, note.description, "regular"),
+          createBodyText(figma, appearance, note.description, "regular"),
         );
 
         notes.appendChild(line);

@@ -21,9 +21,10 @@ import {
   type CardNode,
   type CardStamp,
 } from "../utils/cardIdentity";
-import { allSubjectsInOrder, distinctSubjects } from "../utils/notes";
+import { allSubjectsInOrder } from "../utils/notes";
+import { getCardAppearance } from "../utils/appearanceHelpers";
 import { componentCardPosition, pageEdgeSlot } from "../utils/placement";
-import { resolveCardFonts } from "./primitives";
+import { resolveCardAppearance } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
 import { buildAggregateChangelog } from "./aggregateChangelog";
 import { findParentPage } from "../utils/componentHelpers";
@@ -126,16 +127,32 @@ function placeCard(target: CardTarget, card: FrameNode, slot: number): void {
   card.y = position.y;
 }
 
-export async function publishSprintNotes(
+/**
+ * Redraw every card in the file: the aggregate, and one per Subject any sprint
+ * mentions.
+ *
+ * Whole-file rather than per-sprint, which the aggregate always was. Two reasons
+ * it has to be. A Subject's card shows its history across every sprint, so
+ * editing or deleting an old note leaves an untouched card wrong until that
+ * Subject happens to appear in a published sprint. And Card Appearance is one
+ * setting for the whole file, so redrawing a subset would leave a canvas holding
+ * two designs at once.
+ *
+ * The cost is that a publish is proportional to the file rather than to the
+ * sprint.
+ */
+export async function publishNotes(
   figma: PluginAPI,
   sprints: Sprint[],
-  sprint: Sprint,
 ): Promise<PublishResult> {
-  const fonts = await resolveCardFonts(figma);
+  const appearance = await resolveCardAppearance(
+    figma,
+    getCardAppearance(figma),
+  );
 
-  if (fonts.fallback) {
+  if (appearance.fallback) {
     figma.notify(
-      "Satoshi is not available here, so the release notes were drawn with Inter.",
+      `${appearance.requested} is not available here, so the release notes were drawn with ${appearance.family}.`,
       { timeout: 6000 },
     );
   }
@@ -148,34 +165,33 @@ export async function publishSprintNotes(
     if (isAggregateCard(describe(child))) child.remove();
   }
 
-  const aggregate = buildAggregateChangelog(figma, fonts, sprints);
+  const aggregate = buildAggregateChangelog(figma, appearance, sprints);
   stamp(aggregate, { kind: "aggregate", subjectId: "" });
   aggregatePage.appendChild(aggregate);
   aggregate.x = 0;
   aggregate.y = 0;
   cardsBuilt += 1;
 
-  // One card per Subject the published sprint touched.
-  const targets = distinctSubjects(sprint.notes)
-    .map((subject) => ({ subject, target: resolveCardTarget(figma, subject) }))
-    .filter(
-      (entry): entry is { subject: Subject; target: CardTarget } =>
-        entry.target !== null,
-    );
-
-  // Which slot each page-edge card takes on its page. Worked out from every
-  // sprint, not just the one being published, so the Subjects of a sprint left
-  // alone still hold their places and this sprint's cards go beside them rather
-  // than on top of them.
-  const slots = new Map<string, number>();
+  // One card per Subject, and its slot on the page, from one ordered walk. The
+  // order is the Subject's, taken from the notes, so a card lands in the same
+  // place on every publish.
   const filled = new Map<string, number>();
+  const targets: Array<{
+    subject: Subject;
+    target: CardTarget;
+    slot: number;
+  }> = [];
+
   for (const subject of allSubjectsInOrder(sprints)) {
     const target = resolveCardTarget(figma, subject);
-    if (!target || target.anchor) continue;
+    if (!target) continue;
 
-    const next = filled.get(target.page.id) ?? 0;
-    slots.set(subject.id, next);
-    filled.set(target.page.id, next + 1);
+    let slot = 0;
+    if (!target.anchor) {
+      slot = filled.get(target.page.id) ?? 0;
+      filled.set(target.page.id, slot + 1);
+    }
+    targets.push({ subject, target, slot });
   }
 
   // Replace, rather than add to, what the last publish drew. Placement no
@@ -186,12 +202,12 @@ export async function publishSprintNotes(
     }
   }
 
-  for (const { subject, target } of targets) {
-    const card = buildSubjectCard(figma, fonts, subject, sprints);
+  for (const { subject, target, slot } of targets) {
+    const card = buildSubjectCard(figma, appearance, subject, sprints);
     if (!card) continue;
 
     stamp(card, { kind: subject.kind, subjectId: subject.id });
-    placeCard(target, card, slots.get(subject.id) ?? 0);
+    placeCard(target, card, slot);
     cardsBuilt += 1;
   }
 
@@ -200,8 +216,9 @@ export async function publishSprintNotes(
 
   return {
     success: true,
-    fontFamily: fonts.family,
-    fontFallback: fonts.fallback,
+    fontFamily: appearance.family,
+    fontRequested: appearance.requested,
+    fontFallback: appearance.fallback,
     cardsBuilt,
   };
 }

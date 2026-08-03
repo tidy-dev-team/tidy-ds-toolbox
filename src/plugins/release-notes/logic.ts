@@ -33,9 +33,14 @@ import {
   setLastFoundationPageId,
 } from "./utils/pageHelpers";
 
+import {
+  getCardAppearancePayload,
+  setCardAppearance,
+} from "./utils/appearanceHelpers";
+
 import { buildSprintCsv, csvFileName } from "./utils/csv";
 import { migrateSprint } from "./utils/notes";
-import { clearPublishedCards, publishSprintNotes } from "./render/publish";
+import { clearPublishedCards, publishNotes } from "./render/publish";
 
 export async function releaseNotesHandler(
   action: ReleaseNotesAction,
@@ -52,6 +57,15 @@ export async function releaseNotesHandler(
       const id = payload as string | null;
       setLastComponentId(figma, id);
       return { success: true };
+    }
+
+    case "load-appearance": {
+      return getCardAppearancePayload(figma);
+    }
+
+    case "set-appearance": {
+      setCardAppearance(figma, payload);
+      return getCardAppearancePayload(figma);
     }
 
     case "load-foundation-pages": {
@@ -201,7 +215,9 @@ export async function releaseNotesHandler(
         return { success: false, message: "This sprint has no notes yet." };
       }
 
-      return publishSprintNotes(figma, sprints, sprint);
+      // The sprint decides only whether there is anything to publish. A publish
+      // then redraws every card in the file, not just this sprint's.
+      return publishNotes(figma, sprints);
     }
 
     case "clear-canvas": {

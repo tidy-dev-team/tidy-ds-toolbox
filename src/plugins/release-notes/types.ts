@@ -16,6 +16,29 @@ export interface ComponentsPayload {
   lastSelectedComponentId: string | null;
 }
 
+/**
+ * How this file's cards are drawn: one font family, one background colour.
+ *
+ * Stored per file rather than per designer, because a card is a shared artifact
+ * on a shared canvas. The four foreground colours are not stored - they follow
+ * from the background, so no stored pair can describe an unreadable card. See
+ * [ADR-0012](../../../docs/adr/0012-card-appearance-is-a-per-file-setting.md).
+ */
+export interface CardAppearance {
+  /** Family name as Figma reports it. Falls back to Inter if unavailable. */
+  fontFamily: string;
+  /** Six hex digits, no `#`, matching how tidy-icon-care stores a colour. */
+  background: string;
+}
+
+export interface CardAppearancePayload {
+  appearance: CardAppearance;
+  /** Families carrying every style a card draws with, for the picker. */
+  availableFonts: string[];
+  /** True when this file's font is not installed on this machine. */
+  fontMissingHere: boolean;
+}
+
 /** A page offered by the Foundation section. */
 export interface FoundationPageInfo {
   id: string;
@@ -98,7 +121,10 @@ export interface CsvExportResult {
 /** What a publish actually did, so the panel can report it. */
 export interface PublishResult {
   success: true;
+  /** The family the cards were drawn with. */
   fontFamily: string;
+  /** The family the file asked for, which differs when `fontFallback`. */
+  fontRequested: string;
   fontFallback: boolean;
   cardsBuilt: number;
 }
@@ -117,6 +143,8 @@ export interface FileContext {
 export type ReleaseNotesAction =
   | "scan-components"
   | "select-component"
+  | "load-appearance"
+  | "set-appearance"
   | "load-foundation-pages"
   | "select-foundation-page"
   | "load-sprints"

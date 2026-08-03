@@ -11,8 +11,11 @@ import {
   IconArrowIteration,
   IconPlus,
   IconPalette,
+  IconBrush,
 } from "@tabler/icons-react";
 import type {
+  CardAppearance,
+  CardAppearancePayload,
   ComponentInfo,
   ComponentsPayload,
   CsvExportResult,
@@ -33,6 +36,7 @@ import type {
   ReleaseNotesExportData,
 } from "./types";
 import { TAG_OPTIONS, TAG_COLORS, TAG_LABELS } from "./utils/constants";
+import { DEFAULT_CARD_APPEARANCE } from "./utils/appearance";
 
 interface PendingRequest {
   onSuccess?: (result: unknown) => void;
@@ -207,6 +211,11 @@ export function ReleaseNotesUI() {
   // Component Sets State
   // ===================
   const [components, setComponents] = useState<ComponentInfo[]>([]);
+  const [appearance, setAppearance] = useState<CardAppearance>(
+    DEFAULT_CARD_APPEARANCE,
+  );
+  const [availableFonts, setAvailableFonts] = useState<string[]>([]);
+  const [fontMissingHere, setFontMissingHere] = useState(false);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null,
   );
@@ -267,7 +276,7 @@ export function ReleaseNotesUI() {
   // ===================
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  /** Shown when a publish had to fall back from Satoshi to Inter. */
+  /** Shown when a publish had to fall back from the file's font to Inter. */
   const [fontNotice, setFontNotice] = useState<string | null>(null);
   const [fileContext, setFileContext] = useState<FileContext | null>(null);
   const [fileUrlInput, setFileUrlInput] = useState<string>("");
@@ -347,6 +356,17 @@ export function ReleaseNotesUI() {
     [],
   );
 
+  /**
+   * The plugin thread is the authority on Card Appearance: it normalises what
+   * the file stores and re-checks the font list, so the panel always shows what
+   * would actually be drawn rather than what was typed.
+   */
+  const applyAppearance = useCallback((payload: CardAppearancePayload) => {
+    setAppearance(payload.appearance);
+    setAvailableFonts(payload.availableFonts);
+    setFontMissingHere(payload.fontMissingHere);
+  }, []);
+
   // ===================
   // Initialization
   // ===================
@@ -396,6 +416,14 @@ export function ReleaseNotesUI() {
     );
 
     sendRequest(
+      "load-appearance",
+      {},
+      {
+        onSuccess: (result) => applyAppearance(result as CardAppearancePayload),
+      },
+    );
+
+    sendRequest(
       "load-foundation-pages",
       {},
       {
@@ -429,7 +457,46 @@ export function ReleaseNotesUI() {
     );
 
     return () => window.removeEventListener("message", handleMessage);
-  }, [sendRequest]);
+  }, [sendRequest, applyAppearance]);
+
+  // ===================
+  // Card Appearance Handlers
+  // ===================
+  const saveAppearance = useCallback(
+    (next: CardAppearance) => {
+      setAppearance(next);
+      sendRequest("set-appearance", next, {
+        onSuccess: (result) => applyAppearance(result as CardAppearancePayload),
+        onError: (error) => setErrorMessage(error),
+      });
+    },
+    [applyAppearance, sendRequest],
+  );
+
+  const handleFontChange = useCallback(
+    (value: string) => {
+      // Typing into the list is free-form until it matches. Saving only on a
+      // real family keeps a half-typed name out of the file.
+      setAppearance((current) => ({ ...current, fontFamily: value }));
+      if (availableFonts.includes(value)) {
+        saveAppearance({ ...appearance, fontFamily: value });
+      }
+    },
+    [appearance, availableFonts, saveAppearance],
+  );
+
+  const handleBackgroundChange = useCallback(
+    (value: string) => {
+      const hex = value.replace("#", "").slice(0, 6).toUpperCase();
+      setAppearance((current) => ({ ...current, background: hex }));
+      // Six digits is the first point the colour means anything, so a
+      // half-typed hex never reaches the file.
+      if (/^[0-9A-F]{6}$/.test(hex)) {
+        saveAppearance({ ...appearance, background: hex });
+      }
+    },
+    [appearance, saveAppearance],
+  );
 
   // ===================
   // Component Set Handlers
@@ -632,7 +699,7 @@ export function ReleaseNotesUI() {
         }
         setFontNotice(
           publish.fontFallback
-            ? "Satoshi is not available here, so the cards were drawn with Inter. Install Satoshi, or publish from the Figma desktop app, for the intended type."
+            ? `${publish.fontRequested} is not available here, so the cards were drawn with ${publish.fontFamily}. Install ${publish.fontRequested}, or publish from the Figma desktop app, for the intended type.`
             : null,
         );
         setStatusMessage(
@@ -1268,6 +1335,72 @@ export function ReleaseNotesUI() {
               onDelete={handleOpenDeleteNoteConfirm}
             />
           ))}
+        </div>
+      </Card>
+
+      {/* Card Appearance: set once per file, so it sits below the daily path of
+          pick a sprint, pick a subject, write a note, publish. */}
+      <Card title="Card Appearance" className="relative-element">
+        <IconBrush className="card-icon" />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--pixel-12, 12px)",
+          }}
+        >
+          <div style={{ fontSize: "11px", opacity: 0.6, lineHeight: 1.4 }}>
+            Applies to every card in this file, for everyone who opens it. Text
+            colours follow the background automatically.
+          </div>
+
+          <FormControl label="Font">
+            <input
+              type="text"
+              value={appearance.fontFamily}
+              onChange={(e) => handleFontChange(e.target.value)}
+              placeholder="Search font..."
+              style={inputStyle}
+              list="card-font-options"
+            />
+            <datalist id="card-font-options">
+              {availableFonts.map((family) => (
+                <option key={family} value={family} />
+              ))}
+            </datalist>
+          </FormControl>
+
+          {fontMissingHere && (
+            <div style={{ fontSize: "11px", opacity: 0.7, lineHeight: 1.4 }}>
+              {appearance.fontFamily} is not installed here, so cards you
+              publish will be drawn in Inter.
+            </div>
+          )}
+
+          <FormControl label="Background">
+            <div style={{ display: "flex", gap: "var(--pixel-8, 8px)" }}>
+              <input
+                type="color"
+                value={`#${appearance.background}`}
+                onChange={(e) => handleBackgroundChange(e.target.value)}
+                style={{
+                  width: "48px",
+                  height: "40px",
+                  flexShrink: 0,
+                  borderRadius: "var(--pixel-8, 8px)",
+                  border: "var(--pixel-1, 1px) solid var(--border-light)",
+                  padding: "0 var(--pixel-4, 4px)",
+                }}
+              />
+              <input
+                type="text"
+                value={`#${appearance.background}`}
+                onChange={(e) => handleBackgroundChange(e.target.value)}
+                spellCheck={false}
+                style={{ ...inputStyle, flex: 1 }}
+              />
+            </div>
+          </FormControl>
         </div>
       </Card>
 

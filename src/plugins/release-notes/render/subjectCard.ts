@@ -4,7 +4,7 @@
  */
 
 import type { ReleaseNote, Sprint, Subject } from "../types";
-import { CARD_PALETTE, SUBJECT_CARD_WIDTH } from "../utils/constants";
+import { SUBJECT_CARD_WIDTH } from "../utils/constants";
 import { formatCardDate } from "../utils/dates";
 import { groupByTagAuthorDay, sprintsForSubject } from "../utils/notes";
 import {
@@ -16,12 +16,12 @@ import {
   createTagBadge,
   createText,
   createTimeline,
-  type CardFonts,
+  type ResolvedAppearance,
 } from "./primitives";
 
 function buildEntry(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   group: ReleaseNote[],
 ): FrameNode[] {
   const head = group[0];
@@ -32,10 +32,10 @@ function buildEntry(
     itemSpacing: 4,
     counterAlign: "CENTER",
   });
-  whoWhen.appendChild(createTagBadge(figma, fonts, head.tag));
+  whoWhen.appendChild(createTagBadge(figma, appearance, head.tag));
 
   const line = (characters: string, weight: "regular" | "bold") =>
-    createBodyText(figma, fonts, characters, weight);
+    createBodyText(figma, appearance, characters, weight);
 
   whoWhen.appendChild(line("By", "regular"));
   whoWhen.appendChild(line(head.authorName, "bold"));
@@ -55,9 +55,9 @@ function buildEntry(
       direction: "HORIZONTAL",
       itemSpacing: 8,
     });
-    bullet.appendChild(createBodyText(figma, fonts, "•", "medium", 20));
+    bullet.appendChild(createBodyText(figma, appearance, "•", "medium", 20));
     bullet.appendChild(
-      createBodyText(figma, fonts, note.description, "medium", 20),
+      createBodyText(figma, appearance, note.description, "medium", 20),
     );
     description.appendChild(bullet);
   }
@@ -71,7 +71,7 @@ function buildEntry(
  */
 export function buildSubjectCard(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   subject: Subject,
   sprints: Sprint[],
 ): FrameNode | null {
@@ -80,6 +80,7 @@ export function buildSubjectCard(
 
   const card = createCardShell(
     figma,
+    appearance,
     `Changelog - ${subject.name}`,
     SUBJECT_CARD_WIDTH,
   );
@@ -90,12 +91,16 @@ export function buildSubjectCard(
     stretch: true,
   });
 
-  body.appendChild(createSectionTitle(figma, fonts, "Changelog"));
+  body.appendChild(createSectionTitle(figma, appearance, "Changelog"));
 
   perSprint.forEach((entry, sprintIndex) => {
     const { log, main } = createLogRow(figma, {
       paddingLeft: 16,
-      rail: createTimeline(figma, sprintIndex === perSprint.length - 1),
+      rail: createTimeline(
+        figma,
+        appearance,
+        sprintIndex === perSprint.length - 1,
+      ),
     });
 
     const version = createRow(figma, {
@@ -103,18 +108,18 @@ export function buildSubjectCard(
       direction: "HORIZONTAL",
     });
     version.appendChild(
-      createText(figma, fonts, {
+      createText(figma, appearance, {
         characters: entry.sprint.name,
         weight: "bold",
         size: 16,
         lineHeight: 24,
-        color: CARD_PALETTE.textMuted,
+        color: appearance.palette.textMuted,
       }),
     );
     main.appendChild(version);
 
     for (const group of groupByTagAuthorDay(entry.notes)) {
-      for (const part of buildEntry(figma, fonts, group)) {
+      for (const part of buildEntry(figma, appearance, group)) {
         main.appendChild(part);
       }
     }

@@ -2,25 +2,30 @@
  * The pieces both cards are drawn from: fonts, text, tag badges and the
  * timeline rail. Everything that touches the Figma API for the release-notes
  * design lives in this folder; the decisions behind it (placement, grouping,
- * tag order) are pure and tested elsewhere.
+ * tag order, which palette a background earns) are pure and tested elsewhere.
  */
 
-import type { NoteTag } from "../types";
+import type { CardAppearance, NoteTag } from "../types";
+import { TAG_BADGE_BG, TAG_EMOJI, TAG_LABELS } from "../utils/constants";
 import {
-  CARD_FONT_FALLBACK_FAMILY,
-  CARD_FONT_FAMILY,
-  CARD_PALETTE,
-  TAG_BADGE_BG,
-  TAG_EMOJI,
-  TAG_LABELS,
-} from "../utils/constants";
+  FALLBACK_FONT_FAMILY,
+  paletteFor,
+  type CardPalette,
+} from "../utils/appearance";
 
 export type Weight = "regular" | "medium" | "bold";
 
-export interface CardFonts {
+/**
+ * A Card Appearance checked against this machine: the family that will actually
+ * draw, and the palette its background earns.
+ */
+export interface ResolvedAppearance {
   family: string;
-  /** True when Satoshi was unavailable and Inter was used instead. */
+  /** The family the file asked for, which `family` may not be. */
+  requested: string;
+  /** True when the file's family was unavailable and Inter was used instead. */
   fallback: boolean;
+  palette: CardPalette;
 }
 
 const STYLE_BY_WEIGHT: Record<Weight, string> = {
@@ -36,29 +41,36 @@ async function loadFamily(figma: PluginAPI, family: string): Promise<void> {
 }
 
 /**
- * Satoshi if it is available, Inter if it is not.
+ * The file's font if this machine has it, Inter if not.
  *
  * Probed up front, before any node exists, so a missing font can never leave a
- * half-built card on the canvas. Satoshi has no Semi Bold, so the reference
- * design's Semi Bold maps to Bold (see the grilling notes).
+ * half-built card on the canvas. The panel only offers families carrying all
+ * three styles, so a fallback here means the font is absent on this machine,
+ * not that the choice was a bad one.
  */
-export async function resolveCardFonts(figma: PluginAPI): Promise<CardFonts> {
+export async function resolveCardAppearance(
+  figma: PluginAPI,
+  appearance: CardAppearance,
+): Promise<ResolvedAppearance> {
+  const palette = paletteFor(appearance.background);
+  const requested = appearance.fontFamily;
+
   try {
-    await loadFamily(figma, CARD_FONT_FAMILY);
-    return { family: CARD_FONT_FAMILY, fallback: false };
+    await loadFamily(figma, requested);
+    return { family: requested, requested, fallback: false, palette };
   } catch {
     // Inter ships with Figma, so failing to load it too means the font service
     // itself is unreachable, not that a font is missing. Nothing is drawn yet,
     // so name the actual problem: the raw font error says nothing a designer
     // could act on, and the panel shows whatever message comes out of here.
     try {
-      await loadFamily(figma, CARD_FONT_FALLBACK_FAMILY);
+      await loadFamily(figma, FALLBACK_FONT_FAMILY);
     } catch {
       throw new Error(
-        `Could not load ${CARD_FONT_FAMILY} or ${CARD_FONT_FALLBACK_FAMILY}, so nothing was drawn. Check the connection and try again.`,
+        `Could not load ${requested} or ${FALLBACK_FONT_FAMILY}, so nothing was drawn. Check the connection and try again.`,
       );
     }
-    return { family: CARD_FONT_FALLBACK_FAMILY, fallback: true };
+    return { family: FALLBACK_FONT_FAMILY, requested, fallback: true, palette };
   }
 }
 
@@ -72,11 +84,14 @@ export interface TextSpec {
 
 export function createText(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   spec: TextSpec,
 ): TextNode {
   const node = figma.createText();
-  node.fontName = { family: fonts.family, style: STYLE_BY_WEIGHT[spec.weight] };
+  node.fontName = {
+    family: appearance.family,
+    style: STYLE_BY_WEIGHT[spec.weight],
+  };
   node.fontSize = spec.size;
   node.lineHeight = { value: spec.lineHeight, unit: "PIXELS" };
   node.characters = spec.characters;
@@ -114,9 +129,10 @@ export function createRow(figma: PluginAPI, spec: AutoLayoutSpec): FrameNode {
   return frame;
 }
 
-/** The card shell: dark surface, 24pt radius, soft drop shadow. */
+/** The card shell: the file's surface colour, 24pt radius, soft drop shadow. */
 export function createCardShell(
   figma: PluginAPI,
+  appearance: ResolvedAppearance,
   name: string,
   width: number,
 ): FrameNode {
@@ -132,7 +148,7 @@ export function createCardShell(
   frame.paddingRight = 0;
   frame.itemSpacing = 0;
   frame.cornerRadius = 24;
-  frame.fills = [{ type: "SOLID", color: CARD_PALETTE.bgSurface }];
+  frame.fills = [{ type: "SOLID", color: appearance.palette.bgSurface }];
   frame.effects = [
     {
       type: "DROP_SHADOW",
@@ -150,7 +166,7 @@ export function createCardShell(
 /** Emoji + label pill, tinted per tag. */
 export function createTagBadge(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   tag: NoteTag,
 ): FrameNode {
   const background = TAG_BADGE_BG[tag];
@@ -177,28 +193,31 @@ export function createTagBadge(
   ];
 
   badge.appendChild(
-    createText(figma, fonts, {
+    createText(figma, appearance, {
       characters: TAG_EMOJI[tag],
       weight: "bold",
       size: 14,
       lineHeight: 20,
-      color: CARD_PALETTE.textBold,
+      color: appearance.palette.textBold,
     }),
   );
   badge.appendChild(
-    createText(figma, fonts, {
+    createText(figma, appearance, {
       characters: TAG_LABELS[tag],
       weight: "bold",
       size: 14,
       lineHeight: 20,
-      color: CARD_PALETTE.textBold,
+      color: appearance.palette.textBold,
     }),
   );
 
   return badge;
 }
 
-function createDiamond(figma: PluginAPI): FrameNode {
+function createDiamond(
+  figma: PluginAPI,
+  appearance: ResolvedAppearance,
+): FrameNode {
   const holder = figma.createFrame();
   holder.name = "diamond";
   holder.layoutMode = "VERTICAL";
@@ -214,14 +233,18 @@ function createDiamond(figma: PluginAPI): FrameNode {
   shape.resize(8, 8);
   shape.rotation = 45;
   shape.cornerRadius = 1;
-  shape.fills = [{ type: "SOLID", color: CARD_PALETTE.textMuted }];
+  shape.fills = [{ type: "SOLID", color: appearance.palette.textMuted }];
 
   holder.appendChild(shape);
   return holder;
 }
 
 /** The rail beside an entry: a diamond, and a line down to the next entry. */
-export function createTimeline(figma: PluginAPI, isLast: boolean): FrameNode {
+export function createTimeline(
+  figma: PluginAPI,
+  appearance: ResolvedAppearance,
+  isLast: boolean,
+): FrameNode {
   const rail = figma.createFrame();
   rail.name = "timeline";
   rail.layoutMode = "VERTICAL";
@@ -237,13 +260,13 @@ export function createTimeline(figma: PluginAPI, isLast: boolean): FrameNode {
   rail.fills = [];
   rail.layoutAlign = "STRETCH";
 
-  rail.appendChild(createDiamond(figma));
+  rail.appendChild(createDiamond(figma, appearance));
 
   if (!isLast) {
     const line = figma.createRectangle();
     line.name = "timeline-line";
     line.resize(1, 10);
-    line.fills = [{ type: "SOLID", color: CARD_PALETTE.timelineLine }];
+    line.fills = [{ type: "SOLID", color: appearance.palette.timelineLine }];
     line.layoutAlign = "CENTER";
     line.layoutGrow = 1;
     rail.appendChild(line);
@@ -259,17 +282,17 @@ export function createTimeline(figma: PluginAPI, isLast: boolean): FrameNode {
  */
 export function createBodyText(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   characters: string,
   weight: Weight,
   lineHeight = 24,
 ): TextNode {
-  return createText(figma, fonts, {
+  return createText(figma, appearance, {
     characters,
     weight,
     size: 14,
     lineHeight,
-    color: CARD_PALETTE.textBold,
+    color: appearance.palette.textBold,
   });
 }
 
@@ -279,7 +302,7 @@ export function createBodyText(
  */
 export function createSectionTitle(
   figma: PluginAPI,
-  fonts: CardFonts,
+  appearance: ResolvedAppearance,
   characters: string,
 ): FrameNode {
   const title = createRow(figma, {
@@ -290,12 +313,12 @@ export function createSectionTitle(
     fixedPrimary: true,
   });
   title.appendChild(
-    createText(figma, fonts, {
+    createText(figma, appearance, {
       characters,
       weight: "medium",
       size: 24,
       lineHeight: 32,
-      color: CARD_PALETTE.textBold,
+      color: appearance.palette.textBold,
     }),
   );
   return title;

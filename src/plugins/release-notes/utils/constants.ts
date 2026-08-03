@@ -12,6 +12,8 @@ export const LAST_SPRINT_ID_KEY = "last_sprint_id";
 export const SPRINT_KEY_PREFIX = "sprint_";
 /** File key pasted by the designer when Figma withholds `figma.fileKey`. */
 export const FILE_KEY_KEY = "file_key";
+/** This file's Card Appearance, as JSON. Absent means the shipped default. */
+export const CARD_APPEARANCE_KEY = "card_appearance";
 
 /**
  * Identity of a published card. A card is found again by this stamp, never by
@@ -75,14 +77,18 @@ export const TAG_OPTIONS: { value: NoteTag; label: string }[] = TAG_ORDER.map(
 // Canvas card design
 // ===================
 
-export const CARD_PALETTE = {
-  bgSurface: { r: 0 / 255, g: 10 / 255, b: 25 / 255 },
-  textBold: { r: 238 / 255, g: 243 / 255, b: 252 / 255 },
-  textMuted: { r: 135 / 255, g: 152 / 255, b: 178 / 255 },
-  timelineLine: { r: 135 / 255, g: 152 / 255, b: 178 / 255 },
-} as const;
+// The card's four colours are not here: they are derived from the file's
+// chosen background in `appearance.ts`, so no stored choice can produce a card
+// that cannot be read.
 
-/** Badge background per tag, at the reference's 20% opacity. */
+/**
+ * Badge background per tag, at the reference's 20% opacity.
+ *
+ * Fixed, not part of Card Appearance. The five hues are semantic - green reads
+ * as added and red as deleted in any client's file - and at 20% they sit
+ * acceptably on a light or a dark surface. Only the badge label follows the
+ * derived text colour.
+ */
 export const TAG_BADGE_BG: Record<
   NoteTag,
   { r: number; g: number; b: number; a: number }
@@ -98,6 +104,3 @@ export const SUBJECT_CARD_WIDTH = 560;
 export const AGGREGATE_CARD_WIDTH = 700;
 /** Gap between a card and the content it sits beside. */
 export const CARD_GAP = 100;
-
-export const CARD_FONT_FAMILY = "Satoshi";
-export const CARD_FONT_FALLBACK_FAMILY = "Inter";
