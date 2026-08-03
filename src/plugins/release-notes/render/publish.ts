@@ -1,0 +1,188 @@
+/**
+ * Publishing: put a card beside every Subject the sprint touched, and rebuild
+ * the aggregate changelog page.
+ *
+ * A card is found again by its plugin-data stamp, never by frame name or
+ * position, so renaming a Subject or dragging a card cannot orphan it or make
+ * a second one appear.
+ */
+
+import type { PublishResult, Sprint, Subject } from "../types";
+import {
+  CARD_GAP,
+  CARD_STAMP_KEY,
+  RELEASE_NOTES_PAGE_NAME,
+} from "../utils/constants";
+import {
+  isAggregateCard,
+  isCardForSubject,
+  isOwnedCard,
+  parseCardStamp,
+  type CardNode,
+  type CardStamp,
+} from "../utils/cardIdentity";
+import { distinctSubjects } from "../utils/notes";
+import {
+  componentCardPosition,
+  foundationCardPosition,
+} from "../utils/placement";
+import { resolveCardFonts } from "./primitives";
+import { buildSubjectCard } from "./subjectCard";
+import { buildAggregateChangelog } from "./aggregateChangelog";
+import { findParentPage } from "../utils/componentSetHelpers";
+
+function stamp(frame: FrameNode, value: Omit<CardStamp, "builtAt">): void {
+  frame.setPluginData(
+    CARD_STAMP_KEY,
+    JSON.stringify({ ...value, builtAt: new Date().toISOString() }),
+  );
+}
+
+/** A node as the ownership rules see it: a frame, a name, and its stamp. */
+function describe(node: SceneNode): CardNode {
+  return {
+    isFrame: node.type === "FRAME",
+    name: node.name,
+    stamp:
+      "getPluginData" in node
+        ? parseCardStamp(node.getPluginData(CARD_STAMP_KEY))
+        : null,
+  };
+}
+
+function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
+  const existing = figma.root.children.find(
+    (child) => child.type === "PAGE" && child.name === RELEASE_NOTES_PAGE_NAME,
+  ) as PageNode | undefined;
+
+  if (existing) return existing;
+
+  const page = figma.createPage();
+  page.name = RELEASE_NOTES_PAGE_NAME;
+  return page;
+}
+
+/**
+ * Where a Subject's card goes: the page it lives on, and the node it sits
+ * beside. A component set anchors its card; a Foundation page is the canvas
+ * itself and has nothing to anchor to, which is what `anchor: null` says.
+ */
+interface CardTarget {
+  page: PageNode;
+  anchor: SceneNode | null;
+}
+
+function resolveCardTarget(
+  figma: PluginAPI,
+  subject: Subject,
+): CardTarget | null {
+  const node = figma.getNodeById(subject.id);
+  if (!node) return null;
+
+  if (subject.kind === "foundation-page") {
+    return node.type === "PAGE" ? { page: node, anchor: null } : null;
+  }
+
+  if (node.type !== "COMPONENT_SET") return null;
+  const page = findParentPage(node);
+  return page ? { page, anchor: node } : null;
+}
+
+function placeCard(
+  target: CardTarget,
+  card: FrameNode,
+  subject: Subject,
+): void {
+  // Measure before appending, and never count a card of this Subject: a card
+  // that measured itself would walk further left on every publish.
+  const siblings = target.page.children
+    .filter((child) => !isCardForSubject(describe(child), subject))
+    .map((child) => ({ x: child.x, y: child.y }));
+
+  target.page.appendChild(card);
+
+  const position = target.anchor
+    ? componentCardPosition(target.anchor, card.width, CARD_GAP)
+    : foundationCardPosition(siblings, card.width, CARD_GAP);
+
+  card.x = position.x;
+  card.y = position.y;
+}
+
+export async function publishSprintNotes(
+  figma: PluginAPI,
+  sprints: Sprint[],
+  sprint: Sprint,
+): Promise<PublishResult> {
+  const fonts = await resolveCardFonts(figma);
+
+  if (fonts.fallback) {
+    figma.notify(
+      "Satoshi is not available here, so the release notes were drawn with Inter.",
+      { timeout: 6000 },
+    );
+  }
+
+  let cardsBuilt = 0;
+
+  // Aggregate changelog: one card holding every sprint.
+  const aggregatePage = getOrCreateReleaseNotesPage(figma);
+  for (const child of [...aggregatePage.children]) {
+    if (isAggregateCard(describe(child))) child.remove();
+  }
+
+  const aggregate = buildAggregateChangelog(figma, fonts, sprints);
+  stamp(aggregate, { kind: "aggregate", subjectId: "" });
+  aggregatePage.appendChild(aggregate);
+  aggregate.x = 0;
+  aggregate.y = 0;
+  cardsBuilt += 1;
+
+  // One card per Subject the published sprint touched.
+  for (const subject of distinctSubjects(sprint.notes)) {
+    const target = resolveCardTarget(figma, subject);
+    if (!target) continue;
+
+    for (const child of [...target.page.children]) {
+      if (isCardForSubject(describe(child), subject)) child.remove();
+    }
+
+    const card = buildSubjectCard(figma, fonts, subject, sprints);
+    if (!card) continue;
+
+    stamp(card, { kind: subject.kind, subjectId: subject.id });
+    placeCard(target, card, subject);
+    cardsBuilt += 1;
+  }
+
+  figma.currentPage = aggregatePage;
+  figma.viewport.scrollAndZoomIntoView([aggregate]);
+
+  return {
+    success: true,
+    fontFamily: fonts.family,
+    fontFallback: fonts.fallback,
+    cardsBuilt,
+  };
+}
+
+/**
+ * Remove every card this module owns, on every page. Cards published before the
+ * stamp existed are matched by their old frame names - both of them, the Subject
+ * card's and the aggregate's - otherwise they would be unremovable.
+ */
+export function clearPublishedCards(figma: PluginAPI): number {
+  let removed = 0;
+
+  for (const page of figma.root.children) {
+    if (page.type !== "PAGE") continue;
+
+    for (const card of [...page.children]) {
+      if (!isOwnedCard(describe(card))) continue;
+      card.remove();
+      removed += 1;
+    }
+  }
+
+  return removed;
+}

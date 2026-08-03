@@ -7,6 +7,7 @@ import type {
   DeleteNotePayload,
   RenameSprintPayload,
   ReleaseNotesExportData,
+  CsvExportResult,
 } from "./types";
 
 import {
@@ -26,7 +27,16 @@ import {
   findParentPage,
 } from "./utils/componentSetHelpers";
 
-import { publishSprintNotes } from "./utils/buildReleaseNotesTable";
+import {
+  getFileContext,
+  getFoundationPagesPayload,
+  setFileKeyFromInput,
+  setLastFoundationPageId,
+} from "./utils/pageHelpers";
+
+import { buildSprintCsv, csvFileName } from "./utils/csv";
+import { migrateSprint } from "./utils/notes";
+import { clearPublishedCards, publishSprintNotes } from "./render/publish";
 
 export async function releaseNotesHandler(
   action: ReleaseNotesAction,
@@ -47,6 +57,16 @@ export async function releaseNotesHandler(
     case "select-component": {
       const id = payload as string | null;
       setLastComponentSetId(figma, id);
+      return { success: true };
+    }
+
+    case "load-foundation-pages": {
+      return getFoundationPagesPayload(figma);
+    }
+
+    case "select-foundation-page": {
+      const id = payload as string | null;
+      setLastFoundationPageId(figma, id);
       return { success: true };
     }
 
@@ -114,8 +134,7 @@ export async function releaseNotesHandler(
           id: Date.now().toString(),
           description: data.description,
           tag: data.tag,
-          componentSetId: data.componentSetId,
-          componentSetName: data.componentSetName,
+          subject: data.subject,
           createdAt: new Date().toISOString(),
           authorId: figma.currentUser?.id ?? "unknown",
           authorName: figma.currentUser?.name ?? "Unknown User",
@@ -158,17 +177,23 @@ export async function releaseNotesHandler(
       return getSprintsPayload(figma);
     }
 
-    case "view-component": {
-      const componentSetId = payload as string;
-      const node = figma.getNodeById(componentSetId);
-      if (node && node.type === "COMPONENT_SET") {
-        // Navigate to the page containing the component set
-        const page = findParentPage(node);
-        if (page && figma.currentPage !== page) {
-          figma.currentPage = page;
-        }
-        // Zoom and scroll viewport to the component set
-        figma.viewport.scrollAndZoomIntoView([node]);
+    case "view-subject": {
+      // A Subject is a component set or a page: jump to whichever it is.
+      const subjectId = payload as string;
+      const node = figma.getNodeById(subjectId);
+      if (!node) return { success: false };
+
+      if (node.type === "PAGE") {
+        figma.currentPage = node;
+        return { success: true };
+      }
+
+      const page = findParentPage(node);
+      if (page && figma.currentPage !== page) {
+        figma.currentPage = page;
+      }
+      if ("visible" in node) {
+        figma.viewport.scrollAndZoomIntoView([node as SceneNode]);
       }
       return { success: true };
     }
@@ -178,50 +203,15 @@ export async function releaseNotesHandler(
       const sprints = loadAllSprints(figma);
       const sprint = sprints.find((s) => s.id === sprintId);
 
-      if (sprint) {
-        await publishSprintNotes(figma, sprints, sprint);
+      if (!sprint || sprint.notes.length === 0) {
+        return { success: false, message: "This sprint has no notes yet." };
       }
 
-      return { success: true };
+      return publishSprintNotes(figma, sprints, sprint);
     }
 
     case "clear-canvas": {
-      let removedCount = 0;
-
-      // Iterate through all pages
-      for (const page of figma.root.children) {
-        if (page.type !== "PAGE") continue;
-
-        // Find and remove component release notes frames (ending with -release-notes)
-        const framesToRemove: FrameNode[] = [];
-        for (const child of page.children) {
-          if (child.type === "FRAME" && child.name.endsWith("-release-notes")) {
-            framesToRemove.push(child);
-          }
-        }
-
-        for (const frame of framesToRemove) {
-          frame.remove();
-          removedCount++;
-        }
-
-        // If this is the Release notes page, clear the release-notes-frame contents
-        if (page.name === "Release notes") {
-          const releaseNotesFrame = page.children.find(
-            (child) =>
-              child.type === "FRAME" && child.name === "release-notes-frame",
-          ) as FrameNode | undefined;
-
-          if (releaseNotesFrame) {
-            while (releaseNotesFrame.children.length > 0) {
-              releaseNotesFrame.children[0].remove();
-              removedCount++;
-            }
-          }
-        }
-      }
-
-      return { success: true, removedCount };
+      return { success: true, removedCount: clearPublishedCards(figma) };
     }
 
     case "export-notes": {
@@ -234,6 +224,38 @@ export async function releaseNotesHandler(
       return exportData;
     }
 
+    case "export-csv": {
+      const sprintId = payload as string;
+      const sprint = loadAllSprints(figma).find((s) => s.id === sprintId);
+      if (!sprint) {
+        throw new Error("Sprint not found");
+      }
+
+      const { fileKey } = getFileContext(figma);
+      const result: CsvExportResult = {
+        fileName: csvFileName(sprint.name),
+        csv: buildSprintCsv(sprint, fileKey),
+        linksMissing: fileKey === null,
+      };
+      return result;
+    }
+
+    case "get-file-context": {
+      return getFileContext(figma);
+    }
+
+    case "set-file-key": {
+      const input = payload as string;
+      const fileKey = setFileKeyFromInput(figma, input);
+      if (!fileKey) {
+        return {
+          success: false,
+          message: "That does not look like a Figma file URL.",
+        };
+      }
+      return { success: true, fileKey };
+    }
+
     case "import-notes": {
       try {
         const data = payload as ReleaseNotesExportData;
@@ -241,9 +263,11 @@ export async function releaseNotesHandler(
           throw new Error("Invalid data format: sprints array is missing");
         }
 
-        const importedSprints = data.sprints.filter(
-          (sprint) => sprint.id && sprint.name && Array.isArray(sprint.notes),
-        );
+        // Imported files may have been exported by an older build, so the
+        // incoming sprints go through the same migration as stored ones.
+        const importedSprints = data.sprints
+          .map(migrateSprint)
+          .filter((sprint): sprint is Sprint => sprint !== null);
 
         const existingSprints = loadAllSprints(figma);
         const mergedMap = new Map<string, Sprint>();

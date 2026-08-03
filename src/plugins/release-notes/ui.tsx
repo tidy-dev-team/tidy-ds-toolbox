@@ -10,14 +10,22 @@ import {
   IconComponents,
   IconArrowIteration,
   IconPlus,
+  IconPalette,
 } from "@tabler/icons-react";
 import type {
   ComponentSetInfo,
   ComponentSetsPayload,
+  CsvExportResult,
+  FileContext,
+  FoundationPageInfo,
+  FoundationPageSource,
+  FoundationPagesPayload,
+  PublishResult,
   Sprint,
   SprintsPayload,
   ReleaseNote,
   NoteTag,
+  Subject,
   AddNotePayload,
   EditNotePayload,
   DeleteNotePayload,
@@ -84,10 +92,14 @@ function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
         {truncateText(note.description, 100)}
       </div>
 
-      {/* Component */}
+      {/* Subject */}
       <div style={{ marginBottom: "4px", fontSize: "12px" }}>
-        <span style={{ opacity: 0.6 }}>Component: </span>
-        <span style={{ color: "#9747FF" }}>{note.componentSetName}</span>
+        <span style={{ opacity: 0.6 }}>
+          {note.subject.kind === "foundation-page"
+            ? "Foundation: "
+            : "Component: "}
+        </span>
+        <span style={{ color: "#9747FF" }}>{note.subject.name}</span>
       </div>
 
       {/* Date & Author */}
@@ -201,6 +213,27 @@ export function ReleaseNotesUI() {
   const [componentSearchValue, setComponentSearchValue] = useState<string>("");
 
   // ===================
+  // Foundation State
+  // ===================
+  const [foundationPages, setFoundationPages] = useState<FoundationPageInfo[]>(
+    [],
+  );
+  const [foundationSource, setFoundationSource] =
+    useState<FoundationPageSource>("foundation-divider");
+  const [selectedFoundationPageId, setSelectedFoundationPageId] = useState<
+    string | null
+  >(null);
+
+  /**
+   * Which section owns the Subject of the next note. A note is about a
+   * component set or a Foundation page, never both, so picking in one section
+   * releases the other.
+   */
+  const [subjectKind, setSubjectKind] = useState<
+    "component-set" | "foundation-page" | null
+  >(null);
+
+  // ===================
   // Sprint State
   // ===================
   const [sprints, setSprints] = useState<Sprint[]>([]);
@@ -226,6 +259,7 @@ export function ReleaseNotesUI() {
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [isClearingCanvas, setIsClearingCanvas] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
   const [isImporting, setIsImporting] = useState<boolean>(false);
 
   // ===================
@@ -233,6 +267,12 @@ export function ReleaseNotesUI() {
   // ===================
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** Shown when a publish had to fall back from Satoshi to Inter. */
+  const [fontNotice, setFontNotice] = useState<string | null>(null);
+  const [fileContext, setFileContext] = useState<FileContext | null>(null);
+  const [fileUrlInput, setFileUrlInput] = useState<string>("");
+  const [isFileUrlPromptOpen, setIsFileUrlPromptOpen] =
+    useState<boolean>(false);
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
 
@@ -263,7 +303,31 @@ export function ReleaseNotesUI() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [componentSets]);
 
-  const canAddNote = selectedSprintId && selectedComponentId;
+  const selectedFoundationPage = useMemo(
+    () => foundationPages.find((page) => page.id === selectedFoundationPageId),
+    [foundationPages, selectedFoundationPageId],
+  );
+
+  /** The Subject the next note will be about, or null if nothing is picked. */
+  const activeSubject = useMemo<Subject | null>(() => {
+    if (subjectKind === "foundation-page" && selectedFoundationPage) {
+      return {
+        kind: "foundation-page",
+        id: selectedFoundationPage.id,
+        name: selectedFoundationPage.name,
+      };
+    }
+    if (subjectKind === "component-set" && selectedComponent) {
+      return {
+        kind: "component-set",
+        id: selectedComponent.id,
+        name: selectedComponent.name,
+      };
+    }
+    return null;
+  }, [subjectKind, selectedFoundationPage, selectedComponent]);
+
+  const canAddNote = Boolean(selectedSprintId && activeSubject);
 
   // ===================
   // Request Helper
@@ -323,8 +387,22 @@ export function ReleaseNotesUI() {
             );
             if (selected) {
               setComponentSearchValue(selected.name);
+              setSubjectKind((current) => current ?? "component-set");
             }
           }
+        },
+      },
+    );
+
+    sendRequest(
+      "load-foundation-pages",
+      {},
+      {
+        onSuccess: (result) => {
+          const payload = result as FoundationPagesPayload;
+          setFoundationPages(payload.pages);
+          setFoundationSource(payload.source);
+          setSelectedFoundationPageId(payload.lastSelectedPageId);
         },
       },
     );
@@ -338,6 +416,14 @@ export function ReleaseNotesUI() {
           setSprints(payload.sprints);
           setSelectedSprintId(payload.lastSelectedSprintId);
         },
+      },
+    );
+
+    sendRequest(
+      "get-file-context",
+      {},
+      {
+        onSuccess: (result) => setFileContext(result as FileContext),
       },
     );
 
@@ -384,8 +470,59 @@ export function ReleaseNotesUI() {
         setComponentSearchValue("");
       }
       sendRequest("select-component", nextId);
+
+      // One Subject at a time: picking a component set releases the page.
+      if (nextId) {
+        setSubjectKind("component-set");
+        setSelectedFoundationPageId(null);
+        sendRequest("select-foundation-page", null);
+      } else {
+        setSubjectKind((current) =>
+          current === "component-set" ? null : current,
+        );
+      }
     },
     [componentSets, sendRequest],
+  );
+
+  // ===================
+  // Foundation Handlers
+  // ===================
+  const handleReloadFoundationPages = useCallback(() => {
+    sendRequest(
+      "load-foundation-pages",
+      {},
+      {
+        onSuccess: (result) => {
+          const payload = result as FoundationPagesPayload;
+          setFoundationPages(payload.pages);
+          setFoundationSource(payload.source);
+          setSelectedFoundationPageId(payload.lastSelectedPageId);
+          setStatusMessage(`Found ${payload.pages.length} page(s)`);
+        },
+        onError: (error) => setErrorMessage(error),
+      },
+    );
+  }, [sendRequest]);
+
+  const handleFoundationSelect = useCallback(
+    (id: string | null) => {
+      const nextId = id || null;
+      setSelectedFoundationPageId(nextId);
+      sendRequest("select-foundation-page", nextId);
+
+      if (nextId) {
+        setSubjectKind("foundation-page");
+        setSelectedComponentId(null);
+        setComponentSearchValue("");
+        sendRequest("select-component", null);
+      } else {
+        setSubjectKind((current) =>
+          current === "foundation-page" ? null : current,
+        );
+      }
+    },
+    [sendRequest],
   );
 
   const handleComponentSearch = useCallback(
@@ -486,8 +623,22 @@ export function ReleaseNotesUI() {
 
     setIsPublishing(true);
     sendRequest("publish-notes", selectedSprintId, {
-      onSuccess: () => {
-        setStatusMessage("Release notes published to canvas");
+      onSuccess: (result) => {
+        const publish = result as
+          | PublishResult
+          | { success: false; message: string };
+        if (!publish.success) {
+          setErrorMessage(publish.message);
+          return;
+        }
+        setFontNotice(
+          publish.fontFallback
+            ? "Satoshi is not available here, so the cards were drawn with Inter. Install Satoshi, or publish from the Figma desktop app, for the intended type."
+            : null,
+        );
+        setStatusMessage(
+          `Published ${publish.cardsBuilt} card(s) in ${publish.fontFamily}`,
+        );
       },
       onError: (error) => setErrorMessage(error),
       onFinally: () => setIsPublishing(false),
@@ -505,30 +656,80 @@ export function ReleaseNotesUI() {
     });
   }, [sendRequest]);
 
+  const downloadFile = useCallback(
+    (contents: string, mimeType: string, fileName: string) => {
+      const blob = new Blob([contents], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
+    [],
+  );
+
+  const handleExportCsv = useCallback(() => {
+    if (!selectedSprintId) return;
+
+    setIsExportingCsv(true);
+    sendRequest("export-csv", selectedSprintId, {
+      onSuccess: (result) => {
+        const data = result as CsvExportResult;
+        // A BOM so Excel opens the emoji and accents in page names correctly.
+        downloadFile("﻿" + data.csv, "text/csv;charset=utf-8", data.fileName);
+        setStatusMessage(
+          data.linksMissing
+            ? `Exported ${data.fileName} without links - no file key yet`
+            : `Exported ${data.fileName}`,
+        );
+        if (data.linksMissing) setIsFileUrlPromptOpen(true);
+      },
+      onError: (error) => setErrorMessage(error),
+      onFinally: () => setIsExportingCsv(false),
+    });
+  }, [downloadFile, selectedSprintId, sendRequest]);
+
+  const handleSaveFileKey = useCallback(() => {
+    const input = fileUrlInput.trim();
+    if (!input) return;
+
+    sendRequest("set-file-key", input, {
+      onSuccess: (result) => {
+        const response = result as
+          | { success: true; fileKey: string }
+          | { success: false; message: string };
+        if (!response.success) {
+          setErrorMessage(response.message);
+          return;
+        }
+        setFileContext({ fileKey: response.fileKey, fromFigma: false });
+        setFileUrlInput("");
+        setIsFileUrlPromptOpen(false);
+        setStatusMessage("File link saved. CSV exports will include links.");
+      },
+      onError: (error) => setErrorMessage(error),
+    });
+  }, [fileUrlInput, sendRequest]);
+
   const handleExportNotes = useCallback(() => {
     setIsExporting(true);
     sendRequest("export-notes", null, {
       onSuccess: (result) => {
         const data = result as ReleaseNotesExportData;
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `release-notes-${new Date()
-          .toISOString()
-          .slice(0, 10)}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        downloadFile(
+          JSON.stringify(data, null, 2),
+          "application/json",
+          `release-notes-${new Date().toISOString().slice(0, 10)}.json`,
+        );
         setStatusMessage("Release notes exported");
       },
       onError: (error) => setErrorMessage(error),
       onFinally: () => setIsExporting(false),
     });
-  }, [sendRequest]);
+  }, [downloadFile, sendRequest]);
 
   const handleImportNotes = useCallback(() => {
     setIsImporting(true);
@@ -602,23 +803,17 @@ export function ReleaseNotesUI() {
     setNoteTag("enhancement");
   }, []);
 
-  const handleViewNoteComponent = useCallback(
+  const handleViewNoteSubject = useCallback(
     (note: ReleaseNote) => {
-      sendRequest("view-component", note.componentSetId);
+      sendRequest("view-subject", note.subject.id);
     },
     [sendRequest],
   );
 
   const handleSaveNote = useCallback(() => {
     const trimmedDescription = noteDescription.trim();
-    if (
-      !trimmedDescription ||
-      !selectedSprintId ||
-      !selectedComponentId ||
-      !selectedComponent
-    ) {
-      return;
-    }
+    if (!trimmedDescription || !selectedSprintId) return;
+    if (!editingNote && !activeSubject) return;
 
     if (editingNote) {
       const payload: EditNotePayload = {
@@ -641,8 +836,7 @@ export function ReleaseNotesUI() {
         sprintId: selectedSprintId,
         description: trimmedDescription,
         tag: noteTag,
-        componentSetId: selectedComponentId,
-        componentSetName: selectedComponent.name,
+        subject: activeSubject as Subject,
       };
       sendRequest("add-note", payload, {
         onSuccess: (result) => {
@@ -658,8 +852,7 @@ export function ReleaseNotesUI() {
     noteDescription,
     noteTag,
     selectedSprintId,
-    selectedComponentId,
-    selectedComponent,
+    activeSubject,
     editingNote,
     handleCloseNoteModal,
     sendRequest,
@@ -801,6 +994,15 @@ export function ReleaseNotesUI() {
                 </button>
               </div>
 
+              <button
+                onClick={handleExportCsv}
+                disabled={isExportingCsv || currentSprintNotes.length === 0}
+                className="secondary"
+                style={{ width: "100%" }}
+              >
+                Export CSV · this sprint
+              </button>
+
               <div style={buttonRowStyle}>
                 <button
                   onClick={handleExportNotes}
@@ -808,7 +1010,7 @@ export function ReleaseNotesUI() {
                   className="secondary"
                   style={{ flex: 1 }}
                 >
-                  Export notes
+                  Export JSON · all
                 </button>
                 <button
                   onClick={handleImportNotes}
@@ -819,6 +1021,45 @@ export function ReleaseNotesUI() {
                   Import notes
                 </button>
               </div>
+
+              {/* Figma withholds the file key on some installs, so CSV links
+                  need a URL pasted once per file. */}
+              {(isFileUrlPromptOpen ||
+                (fileContext !== null && fileContext.fileKey === null)) && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "var(--pixel-6, 6px)",
+                    padding: "var(--pixel-8, 8px)",
+                    border: "1px solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
+                  }}
+                >
+                  <div style={{ fontSize: "11px", opacity: 0.7 }}>
+                    Figma does not expose this file's key here, so CSV links are
+                    empty. Paste the file URL once to fix every later export.
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--pixel-4, 4px)" }}>
+                    <input
+                      type="text"
+                      value={fileUrlInput}
+                      onChange={(e) => setFileUrlInput(e.target.value)}
+                      placeholder="https://www.figma.com/design/…"
+                      style={{ ...inputStyle, flex: 1 }}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleSaveFileKey()
+                      }
+                    />
+                    <button
+                      onClick={handleSaveFileKey}
+                      disabled={!fileUrlInput.trim()}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div style={buttonRowStyle}>
                 <button
@@ -877,6 +1118,56 @@ export function ReleaseNotesUI() {
                   Cancel
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Foundation Section */}
+      <Card title="Foundation" className="relative-element">
+        <IconPalette className="card-icon" />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--pixel-12, 12px)",
+          }}
+        >
+          <button
+            onClick={handleReloadFoundationPages}
+            className="secondary win-button"
+            tool-tip="Rescan pages"
+          >
+            <IconRefresh size={16} />
+          </button>
+
+          {foundationSource === "all-pages" && (
+            <div style={{ fontSize: "11px", opacity: 0.7 }}>
+              No Foundation divider in this file, so every non-divider page is
+              listed. Name a divider page "———— Foundation ————" to narrow it.
+            </div>
+          )}
+
+          {foundationPages.length > 0 ? (
+            <select
+              value={
+                subjectKind === "foundation-page"
+                  ? (selectedFoundationPageId ?? "")
+                  : ""
+              }
+              onChange={(e) => handleFoundationSelect(e.target.value || null)}
+              style={selectStyle}
+            >
+              <option value="">No page selected</option>
+              {foundationPages.map((page) => (
+                <option key={page.id} value={page.id}>
+                  {page.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div style={{ fontSize: "12px", opacity: 0.6 }}>
+              The Foundation area of this file is empty.
             </div>
           )}
         </div>
@@ -960,7 +1251,8 @@ export function ReleaseNotesUI() {
 
           {!canAddNote && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
-              Select a sprint and component to add notes.
+              Select a sprint, and a Foundation page or component set, to add
+              notes.
             </div>
           )}
 
@@ -974,13 +1266,29 @@ export function ReleaseNotesUI() {
             <NoteCard
               key={note.id}
               note={note}
-              onView={handleViewNoteComponent}
+              onView={handleViewNoteSubject}
               onEdit={handleOpenEditNote}
               onDelete={handleOpenDeleteNoteConfirm}
             />
           ))}
         </div>
       </Card>
+
+      {/* Font fallback: stays until the next publish fixes it, unlike the
+          transient status pill. */}
+      {fontNotice && (
+        <div
+          style={{
+            fontSize: "11px",
+            lineHeight: 1.4,
+            padding: "var(--pixel-8, 8px)",
+            border: "1px solid #FFA629",
+            borderRadius: "var(--pixel-6, 6px)",
+          }}
+        >
+          ⚠ {fontNotice}
+        </div>
+      )}
 
       {/* Status Messages */}
       {(statusMessage || errorMessage) && (
@@ -1115,11 +1423,18 @@ export function ReleaseNotesUI() {
             </div>
           </FormControl>
 
-          <FormControl label="Component Set">
+          <FormControl
+            label={
+              (editingNote?.subject.kind ?? activeSubject?.kind) ===
+              "foundation-page"
+                ? "Foundation page"
+                : "Component set"
+            }
+          >
             <div style={{ fontSize: "13px", opacity: 0.6 }}>
               {editingNote
-                ? editingNote.componentSetName
-                : (selectedComponent?.name ?? "None selected")}
+                ? editingNote.subject.name
+                : (activeSubject?.name ?? "None selected")}
             </div>
           </FormControl>
 
