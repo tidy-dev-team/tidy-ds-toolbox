@@ -75,10 +75,20 @@ function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
   return page;
 }
 
-function resolveSubjectPage(
+/**
+ * Where a Subject's card goes: the page it lives on, and the node it sits
+ * beside. A component set anchors its card; a Foundation page is the canvas
+ * itself and has nothing to anchor to, which is what `anchor: null` says.
+ */
+interface CardTarget {
+  page: PageNode;
+  anchor: SceneNode | null;
+}
+
+function resolveCardTarget(
   figma: PluginAPI,
   subject: Subject,
-): { page: PageNode; anchor: SceneNode | null } | null {
+): CardTarget | null {
   const node = figma.getNodeById(subject.id);
   if (!node) return null;
 
@@ -92,21 +102,20 @@ function resolveSubjectPage(
 }
 
 function placeCard(
-  page: PageNode,
+  target: CardTarget,
   card: FrameNode,
   subject: Subject,
-  anchor: SceneNode | null,
 ): void {
   // Measure before appending, and never count a card of this Subject: a card
   // that measured itself would walk further left on every publish.
-  const siblings = page.children
+  const siblings = target.page.children
     .filter((child) => !isStampedCard(child, subject.id))
     .map((child) => ({ x: child.x, y: child.y }));
 
-  page.appendChild(card);
+  target.page.appendChild(card);
 
-  const position = anchor
-    ? componentCardPosition(anchor, card.width, CARD_GAP)
+  const position = target.anchor
+    ? componentCardPosition(target.anchor, card.width, CARD_GAP)
     : foundationCardPosition(siblings, card.width, CARD_GAP);
 
   card.x = position.x;
@@ -149,7 +158,7 @@ export async function publishSprintNotes(
 
   // One card per Subject the published sprint touched.
   for (const subject of distinctSubjects(sprint.notes)) {
-    const target = resolveSubjectPage(figma, subject);
+    const target = resolveCardTarget(figma, subject);
     if (!target) continue;
 
     for (const child of [...target.page.children]) {
@@ -166,7 +175,7 @@ export async function publishSprintNotes(
     if (!card) continue;
 
     stamp(card, { kind: subject.kind, subjectId: subject.id });
-    placeCard(target.page, card, subject, target.anchor);
+    placeCard(target, card, subject);
     cardsBuilt += 1;
   }
 

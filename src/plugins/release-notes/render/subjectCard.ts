@@ -8,8 +8,11 @@ import { CARD_PALETTE, SUBJECT_CARD_WIDTH } from "../utils/constants";
 import { formatCardDate } from "../utils/dates";
 import { groupByTagAuthorDay, sprintsForSubject } from "../utils/notes";
 import {
+  createBodyText,
   createCardShell,
+  createLogRow,
   createRow,
+  createSectionTitle,
   createTagBadge,
   createText,
   createTimeline,
@@ -32,13 +35,7 @@ function buildEntry(
   whoWhen.appendChild(createTagBadge(figma, fonts, head.tag));
 
   const line = (characters: string, weight: "regular" | "bold") =>
-    createText(figma, fonts, {
-      characters,
-      weight,
-      size: 14,
-      lineHeight: 24,
-      color: CARD_PALETTE.textBold,
-    });
+    createBodyText(figma, fonts, characters, weight);
 
   whoWhen.appendChild(line("By", "regular"));
   whoWhen.appendChild(line(head.authorName, "bold"));
@@ -58,23 +55,9 @@ function buildEntry(
       direction: "HORIZONTAL",
       itemSpacing: 8,
     });
+    bullet.appendChild(createBodyText(figma, fonts, "•", "medium", 20));
     bullet.appendChild(
-      createText(figma, fonts, {
-        characters: "•",
-        weight: "medium",
-        size: 14,
-        lineHeight: 20,
-        color: CARD_PALETTE.textBold,
-      }),
-    );
-    bullet.appendChild(
-      createText(figma, fonts, {
-        characters: note.description,
-        weight: "medium",
-        size: 14,
-        lineHeight: 20,
-        color: CARD_PALETTE.textBold,
-      }),
+      createBodyText(figma, fonts, note.description, "medium", 20),
     );
     description.appendChild(bullet);
   }
@@ -107,39 +90,12 @@ export function buildSubjectCard(
     stretch: true,
   });
 
-  const title = createRow(figma, {
-    name: "Title",
-    direction: "HORIZONTAL",
-    padding: { top: 8, bottom: 8, left: 24, right: 24 },
-    stretch: true,
-    fixedPrimary: true,
-  });
-  title.appendChild(
-    createText(figma, fonts, {
-      characters: "Changelog",
-      weight: "medium",
-      size: 24,
-      lineHeight: 32,
-      color: CARD_PALETTE.textBold,
-    }),
-  );
-  body.appendChild(title);
+  body.appendChild(createSectionTitle(figma, fonts, "Changelog"));
 
   perSprint.forEach((entry, sprintIndex) => {
-    const log = createRow(figma, {
-      name: "Log",
-      direction: "HORIZONTAL",
-      padding: { left: 16, right: 24 },
-      stretch: true,
-      fixedPrimary: true,
-    });
-
-    const main = createRow(figma, {
-      name: "main",
-      direction: "VERTICAL",
-      itemSpacing: 8,
-      padding: { top: 4, bottom: 8 },
-      grow: true,
+    const { log, main } = createLogRow(figma, {
+      paddingLeft: 16,
+      rail: createTimeline(figma, sprintIndex === perSprint.length - 1),
     });
 
     const version = createRow(figma, {
@@ -163,10 +119,6 @@ export function buildSubjectCard(
       }
     }
 
-    log.appendChild(
-      createTimeline(figma, sprintIndex === perSprint.length - 1),
-    );
-    log.appendChild(main);
     body.appendChild(log);
   });
 

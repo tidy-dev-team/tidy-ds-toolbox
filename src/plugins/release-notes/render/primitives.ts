@@ -243,6 +243,90 @@ export function createTimeline(figma: PluginAPI, isLast: boolean): FrameNode {
 }
 
 /**
+ * Body copy: 14/24 in the bold text colour, which is what almost every line
+ * inside a card is. Weight and line height are the only things that vary, and
+ * the size and colour live here so the two cards cannot drift apart on them.
+ */
+export function createBodyText(
+  figma: PluginAPI,
+  fonts: CardFonts,
+  characters: string,
+  weight: Weight,
+  lineHeight = 24,
+): TextNode {
+  return createText(figma, fonts, {
+    characters,
+    weight,
+    size: 14,
+    lineHeight,
+    color: CARD_PALETTE.textBold,
+  });
+}
+
+/**
+ * The heading of a section inside a card: "Changelog" on a Subject card, the
+ * sprint name on the aggregate. Same row, same type, different words.
+ */
+export function createSectionTitle(
+  figma: PluginAPI,
+  fonts: CardFonts,
+  characters: string,
+): FrameNode {
+  const title = createRow(figma, {
+    name: "Title",
+    direction: "HORIZONTAL",
+    padding: { top: 8, bottom: 8, left: 24, right: 24 },
+    stretch: true,
+    fixedPrimary: true,
+  });
+  title.appendChild(
+    createText(figma, fonts, {
+      characters,
+      weight: "medium",
+      size: 24,
+      lineHeight: 32,
+      color: CARD_PALETTE.textBold,
+    }),
+  );
+  return title;
+}
+
+/**
+ * One log entry: the `main` column, optionally preceded by a timeline rail.
+ *
+ * Both cards draw an entry this way, and the rail is the only reason their left
+ * padding differs - a Subject card indents by 16 because the 27pt rail sits in
+ * that gutter, the aggregate by 24 because nothing does. Returning the pair
+ * already wired keeps the rail before the column: reversed, the rail draws down
+ * the wrong side of the entry.
+ */
+export function createLogRow(
+  figma: PluginAPI,
+  spec: { paddingLeft: number; rail?: FrameNode },
+): { log: FrameNode; main: FrameNode } {
+  const log = createRow(figma, {
+    name: "Log",
+    direction: "HORIZONTAL",
+    padding: { left: spec.paddingLeft, right: 24 },
+    stretch: true,
+    fixedPrimary: true,
+  });
+
+  const main = createRow(figma, {
+    name: "main",
+    direction: "VERTICAL",
+    itemSpacing: 8,
+    padding: { top: 4, bottom: 8 },
+    grow: true,
+  });
+
+  if (spec.rail) log.appendChild(spec.rail);
+  log.appendChild(main);
+
+  return { log, main };
+}
+
+/**
  * Link the text at `text` to the Subject's node. Pages accept node links the
  * same way component sets do, but a deleted node does not, so a failure here
  * leaves plain text rather than failing the build.

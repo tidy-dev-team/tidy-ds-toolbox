@@ -14,8 +14,11 @@ import {
   sortSprintsNewestFirst,
 } from "../utils/notes";
 import {
+  createBodyText,
   createCardShell,
+  createLogRow,
   createRow,
+  createSectionTitle,
   createTagBadge,
   createText,
   linkToNode,
@@ -83,40 +86,10 @@ export function buildAggregateChangelog(
       stretch: true,
     });
 
-    const title = createRow(figma, {
-      name: "Title",
-      direction: "HORIZONTAL",
-      padding: { top: 8, bottom: 8, left: 24, right: 24 },
-      stretch: true,
-      fixedPrimary: true,
-    });
-    title.appendChild(
-      createText(figma, fonts, {
-        characters: sprint.name,
-        weight: "medium",
-        size: 24,
-        lineHeight: 32,
-        color: CARD_PALETTE.textBold,
-      }),
-    );
-    block.appendChild(title);
+    block.appendChild(createSectionTitle(figma, fonts, sprint.name));
 
     for (const group of groupByTag(sprint.notes)) {
-      const log = createRow(figma, {
-        name: "Log",
-        direction: "HORIZONTAL",
-        padding: { left: 24, right: 24 },
-        stretch: true,
-        fixedPrimary: true,
-      });
-
-      const main = createRow(figma, {
-        name: "main",
-        direction: "VERTICAL",
-        itemSpacing: 8,
-        padding: { top: 4, bottom: 8 },
-        grow: true,
-      });
+      const { log, main } = createLogRow(figma, { paddingLeft: 24 });
 
       const badgeRow = createRow(figma, {
         name: "Sprint version",
@@ -139,41 +112,25 @@ export function buildAggregateChangelog(
           itemSpacing: 4,
         });
 
-        line.appendChild(
-          createText(figma, fonts, {
-            characters: "•",
-            weight: "bold",
-            size: 14,
-            lineHeight: 24,
-            color: CARD_PALETTE.textBold,
-          }),
-        );
+        line.appendChild(createBodyText(figma, fonts, "•", "bold"));
 
-        const subjectName = createText(figma, fonts, {
-          characters: `${note.subject.name}:`,
-          weight: "bold",
-          size: 14,
-          lineHeight: 24,
-          color: CARD_PALETTE.textBold,
-        });
+        const subjectName = createBodyText(
+          figma,
+          fonts,
+          `${note.subject.name}:`,
+          "bold",
+        );
         linkToNode(subjectName, note.subject.name.length, note.subject.id);
         line.appendChild(subjectName);
 
         line.appendChild(
-          createText(figma, fonts, {
-            characters: note.description,
-            weight: "regular",
-            size: 14,
-            lineHeight: 24,
-            color: CARD_PALETTE.textBold,
-          }),
+          createBodyText(figma, fonts, note.description, "regular"),
         );
 
         notes.appendChild(line);
       }
 
       main.appendChild(notes);
-      log.appendChild(main);
       block.appendChild(log);
     }
 
