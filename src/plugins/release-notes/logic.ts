@@ -172,7 +172,7 @@ export async function releaseNotesHandler(
     }
 
     case "view-subject": {
-      // A Subject is a component set or a page: jump to whichever it is.
+      // A Subject is a component or a page: jump to whichever it is.
       const subjectId = payload as string;
       const node = figma.getNodeById(subjectId);
       if (!node) return { success: false };

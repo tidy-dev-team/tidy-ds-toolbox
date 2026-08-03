@@ -37,6 +37,25 @@ describe("pageEdgeCardPosition", () => {
     expect(second).toEqual(first);
   });
 
+  it("stacks two cards on one page, and lands both in the same place twice", () => {
+    // Two nested Subjects can share a page. The second card counts the first,
+    // so they stack leftward instead of overlapping. Publishing again starts
+    // from the same content, because the caller takes every card the run
+    // rebuilds off the page before measuring any of them. Clearing them one at
+    // a time drifted the pair 1320px left on every publish.
+    const content = [{ x: 0, y: 0 }];
+
+    const first = pageEdgeCardPosition(content, 560, 100);
+    const second = pageEdgeCardPosition([...content, first], 560, 100);
+    expect([first, second]).toEqual([
+      { x: -660, y: 0 },
+      { x: -1320, y: 0 },
+    ]);
+
+    const republished = pageEdgeCardPosition(content, 560, 100);
+    expect(republished).toEqual(first);
+  });
+
   it("clears the frame a nested component lives in, not the component", () => {
     // A component inside a documentation frame gets this rule rather than
     // componentCardPosition, so the card clears the frame instead of landing

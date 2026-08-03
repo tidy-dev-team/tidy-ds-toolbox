@@ -104,16 +104,18 @@ function resolveCardTarget(
   return { page, anchor };
 }
 
-function placeCard(
-  target: CardTarget,
-  card: FrameNode,
-  subject: Subject,
-): void {
-  // Measure before appending, and never count a card of this Subject: a card
-  // that measured itself would walk further left on every publish.
-  const siblings = target.page.children
-    .filter((child) => !isCardForSubject(describe(child), subject))
-    .map((child) => ({ x: child.x, y: child.y }));
+/**
+ * Every card this run rebuilds must already be off the page before this is
+ * called. The page-edge rule measures what is standing there, so a stale card
+ * left up would push its replacement further left, and the whole group would
+ * walk off across the canvas one publish at a time.
+ */
+function placeCard(target: CardTarget, card: FrameNode): void {
+  // Measured before appending, so the card never counts itself.
+  const siblings = target.page.children.map((child) => ({
+    x: child.x,
+    y: child.y,
+  }));
 
   target.page.appendChild(card);
 
@@ -155,19 +157,29 @@ export async function publishSprintNotes(
   cardsBuilt += 1;
 
   // One card per Subject the published sprint touched.
-  for (const subject of distinctSubjects(sprint.notes)) {
-    const target = resolveCardTarget(figma, subject);
-    if (!target) continue;
+  const targets = distinctSubjects(sprint.notes)
+    .map((subject) => ({ subject, target: resolveCardTarget(figma, subject) }))
+    .filter(
+      (entry): entry is { subject: Subject; target: CardTarget } =>
+        entry.target !== null,
+    );
 
+  // Clear the whole group before placing any of it. Two Subjects can share a
+  // page, and each card placed at the page edge measures what is standing
+  // there: clearing one card at a time would let the group's own leftovers push
+  // the replacements further left on every publish.
+  for (const { subject, target } of targets) {
     for (const child of [...target.page.children]) {
       if (isCardForSubject(describe(child), subject)) child.remove();
     }
+  }
 
+  for (const { subject, target } of targets) {
     const card = buildSubjectCard(figma, fonts, subject, sprints);
     if (!card) continue;
 
     stamp(card, { kind: subject.kind, subjectId: subject.id });
-    placeCard(target, card, subject);
+    placeCard(target, card);
     cardsBuilt += 1;
   }
 

@@ -226,7 +226,7 @@ export function ReleaseNotesUI() {
 
   /**
    * Which section owns the Subject of the next note. A note is about a
-   * component set or a Foundation page, never both, so picking in one section
+   * component or a Foundation page, never both, so picking in one section
    * releases the other.
    */
   const [subjectKind, setSubjectKind] = useState<
@@ -1249,8 +1249,7 @@ export function ReleaseNotesUI() {
 
           {!canAddNote && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
-              Select a sprint, and a Foundation page or component set, to add
-              notes.
+              Select a sprint, and a Foundation page or component, to add notes.
             </div>
           )}
 
