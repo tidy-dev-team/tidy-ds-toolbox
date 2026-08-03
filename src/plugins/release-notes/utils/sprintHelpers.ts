@@ -4,7 +4,13 @@ import {
   SPRINT_KEY_PREFIX,
   LAST_SPRINT_ID_KEY,
 } from "./constants";
+import { migrateSprint } from "./notes";
 
+/**
+ * Every sprint stored on this file. A file can hold sprints written by an
+ * older build, so each one goes through `migrateSprint` - notes that predate
+ * Subject come back as component-set notes.
+ */
 export function loadAllSprints(figma: PluginAPI): Sprint[] {
   const keys = figma.root.getSharedPluginDataKeys(PLUGIN_NAMESPACE);
   const sprintKeys = keys.filter((key) => key.startsWith(SPRINT_KEY_PREFIX));
@@ -12,13 +18,13 @@ export function loadAllSprints(figma: PluginAPI): Sprint[] {
   const sprints: Sprint[] = [];
   for (const key of sprintKeys) {
     const data = figma.root.getSharedPluginData(PLUGIN_NAMESPACE, key);
-    if (data) {
-      try {
-        const sprint = JSON.parse(data) as Sprint;
-        sprints.push(sprint);
-      } catch (e) {
-        console.error(`Failed to parse sprint data for key ${key}:`, e);
-      }
+    if (!data) continue;
+
+    try {
+      const sprint = migrateSprint(JSON.parse(data));
+      if (sprint) sprints.push(sprint);
+    } catch (e) {
+      console.error(`Failed to parse sprint data for key ${key}:`, e);
     }
   }
 

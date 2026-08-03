@@ -28,6 +28,10 @@ const LONG_RUNNING_ACTIONS = new Set([
   // timeout on large files. Emits progress updates while it runs.
   "color-finder:scan-colors",
   "color-finder:scan-image-palette",
+  // Rebuilds the aggregate changelog plus one card per Subject the sprint
+  // touched, each a few hundred nodes — a busy sprint can exceed the default
+  // timeout.
+  "release-notes:publish-notes",
   // Every MCP-invoked Operation arrives here as target "mcp-bridge", action
   // "dispatch" — the specific operation id is opaque at this layer, so a
   // single blanket exemption is the only way to honor a catalogue entry's
