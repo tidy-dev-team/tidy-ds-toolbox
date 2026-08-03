@@ -113,6 +113,7 @@ Anonymous usage events (module opens + actions) ship to a self-hosted pipeline. 
 - Figma API types come from `@figma/plugin-typings` — no runtime import needed, types are globally available.
 - `figma` and `__html__` are declared as globals in ESLint (`eslint.config.mjs`).
 - The `manifest.json` controls plugin permissions; most features need `activeselection` scope.
+- The plugin runs under legacy whole-document access (`manifest.json` declares no `documentAccess`). Newer modules call `figma.loadAllPagesAsync()` anyway and older ones do not; that split is recorded, and is not a migration in progress, in [ADR-0013](docs/adr/0013-legacy-document-access-by-default.md).
 - To load locally in Figma: Plugins → Development → Import plugin from manifest → select `manifest.json`.
 
 ## Commit Conventions
