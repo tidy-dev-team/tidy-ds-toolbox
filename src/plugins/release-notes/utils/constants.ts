@@ -1,7 +1,6 @@
 import type { NoteTag } from "../types";
 
 export const PLUGIN_NAMESPACE = "tidy_release_notes";
-export const COMPONENT_SETS_KEY = "componentSets";
 export const LAST_COMPONENT_SET_ID_KEY = "last_component_set_id";
 export const LAST_FOUNDATION_PAGE_ID_KEY = "last_foundation_page_id";
 export const LAST_SPRINT_ID_KEY = "last_sprint_id";

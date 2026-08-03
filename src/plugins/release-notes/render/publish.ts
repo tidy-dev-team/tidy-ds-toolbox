@@ -64,8 +64,9 @@ function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
 
 /**
  * Where a Subject's card goes: the page it lives on, and the node it sits
- * beside. A component set anchors its card; a Foundation page is the canvas
- * itself and has nothing to anchor to, which is what `anchor: null` says.
+ * beside. A component set or a standalone component anchors its card; a
+ * Foundation page is the canvas itself and has nothing to anchor to, which is
+ * what `anchor: null` says.
  */
 interface CardTarget {
   page: PageNode;
@@ -83,9 +84,16 @@ function resolveCardTarget(
     return node.type === "PAGE" ? { page: node, anchor: null } : null;
   }
 
-  if (node.type !== "COMPONENT_SET") return null;
-  const page = findParentPage(node);
-  return page ? { page, anchor: node } : null;
+  if (node.type !== "COMPONENT_SET" && node.type !== "COMPONENT") return null;
+
+  // A note can outlive the shape of its subject: a component picked while it
+  // stood alone can later be combined into a set. Its x/y then reads relative
+  // to that set, so the card anchors to the set instead and stays on the page's
+  // coordinates.
+  const anchor = node.parent?.type === "COMPONENT_SET" ? node.parent : node;
+
+  const page = findParentPage(anchor);
+  return page ? { page, anchor } : null;
 }
 
 function placeCard(

@@ -21,7 +21,6 @@ import {
 
 import {
   scanComponentSets,
-  loadSavedComponentSets,
   getComponentSetsPayload,
   setLastComponentSetId,
   findParentPage,
@@ -46,11 +45,6 @@ export async function releaseNotesHandler(
   switch (action) {
     case "scan-components": {
       const componentSets = scanComponentSets(figma);
-      return getComponentSetsPayload(figma, componentSets);
-    }
-
-    case "load-components": {
-      const componentSets = loadSavedComponentSets(figma);
       return getComponentSetsPayload(figma, componentSets);
     }
 

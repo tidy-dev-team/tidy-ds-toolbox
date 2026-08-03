@@ -372,9 +372,10 @@ export function ReleaseNotesUI() {
 
     window.addEventListener("message", handleMessage);
 
-    // Load data on startup
+    // Load data on startup. The component list is scanned rather than restored,
+    // so it can never describe the file as an older build saw it.
     sendRequest(
-      "load-components",
+      "scan-components",
       {},
       {
         onSuccess: (result) => {
@@ -450,9 +451,7 @@ export function ReleaseNotesUI() {
               setComponentSearchValue(selected.name);
             }
           }
-          setStatusMessage(
-            `Found ${payload.componentSets.length} component sets`,
-          );
+          setStatusMessage(`Found ${payload.componentSets.length} components`);
         },
         onError: (error) => setErrorMessage(error),
       },
@@ -471,7 +470,7 @@ export function ReleaseNotesUI() {
       }
       sendRequest("select-component", nextId);
 
-      // One Subject at a time: picking a component set releases the page.
+      // One Subject at a time: picking a component releases the page.
       if (nextId) {
         setSubjectKind("component-set");
         setSelectedFoundationPageId(null);
@@ -1173,8 +1172,8 @@ export function ReleaseNotesUI() {
         </div>
       </Card>
 
-      {/* Component Sets Section */}
-      <Card title="Component Sets" className="relative-element">
+      {/* Components Section */}
+      <Card title="Components" className="relative-element">
         <IconComponents className="card-icon" />
         <div
           style={{
@@ -1194,17 +1193,17 @@ export function ReleaseNotesUI() {
           {componentSets.length > 0 && (
             <>
               <div style={{ fontSize: "12px", opacity: 0.6 }}>
-                Found {componentSets.length} component set(s)
+                Found {componentSets.length} component(s)
               </div>
               <input
                 type="text"
                 value={componentSearchValue}
                 onChange={(e) => handleComponentSearch(e.target.value)}
-                placeholder="Search component set..."
+                placeholder="Search component..."
                 style={inputStyle}
-                list="component-set-options"
+                list="component-options"
               />
-              <datalist id="component-set-options">
+              <datalist id="component-options">
                 {filteredComponentSets.map((cs) => (
                   <option key={cs.id} value={cs.name} />
                 ))}
@@ -1220,8 +1219,7 @@ export function ReleaseNotesUI() {
 
           {componentSets.length === 0 && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
-              No component sets found. Click "Scan for new components" to
-              search.
+              No components found. Click "Scan for new components" to search.
             </div>
           )}
         </div>
