@@ -29,7 +29,7 @@ import {
 import { resolveCardFonts } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
 import { buildAggregateChangelog } from "./aggregateChangelog";
-import { findParentPage } from "../utils/componentSetHelpers";
+import { findParentPage } from "../utils/componentHelpers";
 
 function stamp(frame: FrameNode, value: Omit<CardStamp, "builtAt">): void {
   frame.setPluginData(

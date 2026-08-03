@@ -1,42 +1,38 @@
-import type { ComponentSetInfo, ComponentSetsPayload } from "../types";
-import { PLUGIN_NAMESPACE, LAST_COMPONENT_SET_ID_KEY } from "./constants";
+import type { ComponentInfo, ComponentsPayload } from "../types";
+import { PLUGIN_NAMESPACE, LAST_COMPONENT_ID_KEY } from "./constants";
 
-export function getLastComponentSetId(figma: PluginAPI): string | null {
+export function getLastComponentId(figma: PluginAPI): string | null {
   const id = figma.root.getSharedPluginData(
     PLUGIN_NAMESPACE,
-    LAST_COMPONENT_SET_ID_KEY,
+    LAST_COMPONENT_ID_KEY,
   );
   return id || null;
 }
 
-export function setLastComponentSetId(
-  figma: PluginAPI,
-  id: string | null,
-): void {
+export function setLastComponentId(figma: PluginAPI, id: string | null): void {
   figma.root.setSharedPluginData(
     PLUGIN_NAMESPACE,
-    LAST_COMPONENT_SET_ID_KEY,
+    LAST_COMPONENT_ID_KEY,
     id ?? "",
   );
 }
 
-export function getComponentSetsPayload(
+export function getComponentsPayload(
   figma: PluginAPI,
-  componentSets: ComponentSetInfo[],
-): ComponentSetsPayload {
-  let lastSelectedComponentSetId = getLastComponentSetId(figma);
+  components: ComponentInfo[],
+): ComponentsPayload {
+  let lastSelectedComponentId = getLastComponentId(figma);
 
-  // Validate that last selected component set still exists
+  // Validate that the last selected component still exists
   if (
-    lastSelectedComponentSetId &&
-    !componentSets.find((cs) => cs.id === lastSelectedComponentSetId)
+    lastSelectedComponentId &&
+    !components.find((component) => component.id === lastSelectedComponentId)
   ) {
-    lastSelectedComponentSetId =
-      componentSets.length > 0 ? componentSets[0].id : null;
-    setLastComponentSetId(figma, lastSelectedComponentSetId);
+    lastSelectedComponentId = components.length > 0 ? components[0].id : null;
+    setLastComponentId(figma, lastSelectedComponentId);
   }
 
-  return { componentSets, lastSelectedComponentSetId };
+  return { components, lastSelectedComponentId };
 }
 
 /** A scanned node, described without the Figma API so the rule can be tested. */
@@ -55,7 +51,7 @@ export interface ScannedNode {
  * variant is the opposite case: its set already stands for it, and offering it
  * as well would put "Size=Large, State=Hover" in the list beside "Button".
  */
-export function subjectsFromScan(nodes: ScannedNode[]): ComponentSetInfo[] {
+export function subjectsFromScan(nodes: ScannedNode[]): ComponentInfo[] {
   return nodes
     .filter((node) => node.parentType !== "COMPONENT_SET")
     .map(({ id, name }) => ({ id, name }));
@@ -71,7 +67,7 @@ export function subjectsFromScan(nodes: ScannedNode[]): ComponentSetInfo[] {
  * with no label. A whole-file walk on open costs less than a list that can be
  * silently wrong.
  */
-export function scanComponentSets(figma: PluginAPI): ComponentSetInfo[] {
+export function scanComponents(figma: PluginAPI): ComponentInfo[] {
   const nodes = figma.root.findAllWithCriteria({
     types: ["COMPONENT_SET", "COMPONENT"],
   });

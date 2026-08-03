@@ -1,7 +1,12 @@
 import type { NoteTag } from "../types";
 
 export const PLUGIN_NAMESPACE = "tidy_release_notes";
-export const LAST_COMPONENT_SET_ID_KEY = "last_component_set_id";
+/**
+ * The stored spelling still says "component_set", from when a set was the only
+ * thing a note could be about. Changing it would lose every designer's current
+ * selection, and it is never shown.
+ */
+export const LAST_COMPONENT_ID_KEY = "last_component_set_id";
 export const LAST_FOUNDATION_PAGE_ID_KEY = "last_foundation_page_id";
 export const LAST_SPRINT_ID_KEY = "last_sprint_id";
 export const SPRINT_KEY_PREFIX = "sprint_";

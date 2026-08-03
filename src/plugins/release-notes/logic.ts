@@ -20,11 +20,11 @@ import {
 } from "./utils/sprintHelpers";
 
 import {
-  scanComponentSets,
-  getComponentSetsPayload,
-  setLastComponentSetId,
+  scanComponents,
+  getComponentsPayload,
+  setLastComponentId,
   findParentPage,
-} from "./utils/componentSetHelpers";
+} from "./utils/componentHelpers";
 
 import {
   getFileContext,
@@ -44,13 +44,13 @@ export async function releaseNotesHandler(
 ): Promise<unknown> {
   switch (action) {
     case "scan-components": {
-      const componentSets = scanComponentSets(figma);
-      return getComponentSetsPayload(figma, componentSets);
+      const components = scanComponents(figma);
+      return getComponentsPayload(figma, components);
     }
 
     case "select-component": {
       const id = payload as string | null;
-      setLastComponentSetId(figma, id);
+      setLastComponentId(figma, id);
       return { success: true };
     }
 

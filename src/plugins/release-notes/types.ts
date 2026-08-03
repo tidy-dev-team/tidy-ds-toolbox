@@ -4,16 +4,16 @@
 
 /**
  * One entry in the component picker: a component set, or a component that is
- * not a variant inside one. The name is historical - the list holds both.
+ * not a variant inside one.
  */
-export interface ComponentSetInfo {
+export interface ComponentInfo {
   id: string;
   name: string;
 }
 
-export interface ComponentSetsPayload {
-  componentSets: ComponentSetInfo[];
-  lastSelectedComponentSetId: string | null;
+export interface ComponentsPayload {
+  components: ComponentInfo[];
+  lastSelectedComponentId: string | null;
 }
 
 /** A page offered by the Foundation section. */

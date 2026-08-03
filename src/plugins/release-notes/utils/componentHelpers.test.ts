@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { subjectsFromScan, type ScannedNode } from "./componentSetHelpers";
+import { subjectsFromScan, type ScannedNode } from "./componentHelpers";
 
 function node(
   id: string,

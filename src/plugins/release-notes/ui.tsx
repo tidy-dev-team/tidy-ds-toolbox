@@ -13,8 +13,8 @@ import {
   IconPalette,
 } from "@tabler/icons-react";
 import type {
-  ComponentSetInfo,
-  ComponentSetsPayload,
+  ComponentInfo,
+  ComponentsPayload,
   CsvExportResult,
   FileContext,
   FoundationPageInfo,
@@ -206,7 +206,7 @@ export function ReleaseNotesUI() {
   // ===================
   // Component Sets State
   // ===================
-  const [componentSets, setComponentSets] = useState<ComponentSetInfo[]>([]);
+  const [components, setComponents] = useState<ComponentInfo[]>([]);
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null,
   );
@@ -285,8 +285,8 @@ export function ReleaseNotesUI() {
   );
 
   const selectedComponent = useMemo(
-    () => componentSets.find((cs) => cs.id === selectedComponentId),
-    [componentSets, selectedComponentId],
+    () => components.find((component) => component.id === selectedComponentId),
+    [components, selectedComponentId],
   );
 
   const currentSprintNotes = useMemo(() => {
@@ -297,11 +297,11 @@ export function ReleaseNotesUI() {
     );
   }, [selectedSprint]);
 
-  const filteredComponentSets = useMemo(() => {
-    return componentSets
+  const filteredComponents = useMemo(() => {
+    return components
       .filter((cs) => !cs.name.startsWith("."))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [componentSets]);
+  }, [components]);
 
   const selectedFoundationPage = useMemo(
     () => foundationPages.find((page) => page.id === selectedFoundationPageId),
@@ -379,12 +379,12 @@ export function ReleaseNotesUI() {
       {},
       {
         onSuccess: (result) => {
-          const payload = result as ComponentSetsPayload;
-          setComponentSets(payload.componentSets);
-          setSelectedComponentId(payload.lastSelectedComponentSetId);
-          if (payload.lastSelectedComponentSetId) {
-            const selected = payload.componentSets.find(
-              (cs) => cs.id === payload.lastSelectedComponentSetId,
+          const payload = result as ComponentsPayload;
+          setComponents(payload.components);
+          setSelectedComponentId(payload.lastSelectedComponentId);
+          if (payload.lastSelectedComponentId) {
+            const selected = payload.components.find(
+              (component) => component.id === payload.lastSelectedComponentId,
             );
             if (selected) {
               setComponentSearchValue(selected.name);
@@ -440,18 +440,18 @@ export function ReleaseNotesUI() {
       {},
       {
         onSuccess: (result) => {
-          const payload = result as ComponentSetsPayload;
-          setComponentSets(payload.componentSets);
-          setSelectedComponentId(payload.lastSelectedComponentSetId);
-          if (payload.lastSelectedComponentSetId) {
-            const selected = payload.componentSets.find(
-              (cs) => cs.id === payload.lastSelectedComponentSetId,
+          const payload = result as ComponentsPayload;
+          setComponents(payload.components);
+          setSelectedComponentId(payload.lastSelectedComponentId);
+          if (payload.lastSelectedComponentId) {
+            const selected = payload.components.find(
+              (component) => component.id === payload.lastSelectedComponentId,
             );
             if (selected) {
               setComponentSearchValue(selected.name);
             }
           }
-          setStatusMessage(`Found ${payload.componentSets.length} components`);
+          setStatusMessage(`Found ${payload.components.length} components`);
         },
         onError: (error) => setErrorMessage(error),
       },
@@ -462,7 +462,7 @@ export function ReleaseNotesUI() {
     (id: string | null) => {
       const nextId = id || null;
       setSelectedComponentId(nextId);
-      const selected = componentSets.find((cs) => cs.id === nextId);
+      const selected = components.find((component) => component.id === nextId);
       if (selected) {
         setComponentSearchValue(selected.name);
       } else if (!nextId) {
@@ -481,7 +481,7 @@ export function ReleaseNotesUI() {
         );
       }
     },
-    [componentSets, sendRequest],
+    [components, sendRequest],
   );
 
   // ===================
@@ -533,14 +533,14 @@ export function ReleaseNotesUI() {
         return;
       }
 
-      const match = filteredComponentSets.find(
-        (cs) => cs.name.toLowerCase() === value.toLowerCase(),
+      const match = filteredComponents.find(
+        (component) => component.name.toLowerCase() === value.toLowerCase(),
       );
       if (match) {
         handleComponentSelect(match.id);
       }
     },
-    [filteredComponentSets, handleComponentSelect],
+    [filteredComponents, handleComponentSelect],
   );
 
   // ===================
@@ -1190,10 +1190,10 @@ export function ReleaseNotesUI() {
             <IconRefresh size={16} />
           </button>
 
-          {componentSets.length > 0 && (
+          {components.length > 0 && (
             <>
               <div style={{ fontSize: "12px", opacity: 0.6 }}>
-                Found {componentSets.length} component(s)
+                Found {components.length} component(s)
               </div>
               <input
                 type="text"
@@ -1204,8 +1204,8 @@ export function ReleaseNotesUI() {
                 list="component-options"
               />
               <datalist id="component-options">
-                {filteredComponentSets.map((cs) => (
-                  <option key={cs.id} value={cs.name} />
+                {filteredComponents.map((component) => (
+                  <option key={component.id} value={component.name} />
                 ))}
               </datalist>
               {selectedComponentId && (
@@ -1217,7 +1217,7 @@ export function ReleaseNotesUI() {
             </>
           )}
 
-          {componentSets.length === 0 && (
+          {components.length === 0 && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
               No components found. Click "Scan for new components" to search.
             </div>
