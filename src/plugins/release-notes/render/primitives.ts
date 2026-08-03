@@ -242,17 +242,6 @@ export function createTimeline(figma: PluginAPI, isLast: boolean): FrameNode {
   return rail;
 }
 
-/** "Jul 28, 2026" - the human form, distinct from the CSV's ISO day. */
-export function formatCardDate(isoTimestamp: string): string {
-  const date = new Date(isoTimestamp);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-  });
-}
-
 /**
  * Link the text at `text` to the Subject's node. Pages accept node links the
  * same way component sets do, but a deleted node does not, so a failure here

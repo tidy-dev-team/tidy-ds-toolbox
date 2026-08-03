@@ -5,6 +5,7 @@
 
 import type { ReleaseNote, Sprint, Subject } from "../types";
 import { CARD_PALETTE, SUBJECT_CARD_WIDTH } from "../utils/constants";
+import { formatCardDate } from "../utils/dates";
 import { groupByTagAuthorDay, sprintsForSubject } from "../utils/notes";
 import {
   createCardShell,
@@ -12,7 +13,6 @@ import {
   createTagBadge,
   createText,
   createTimeline,
-  formatCardDate,
   type CardFonts,
 } from "./primitives";
 

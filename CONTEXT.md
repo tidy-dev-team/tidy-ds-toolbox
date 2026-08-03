@@ -68,7 +68,7 @@ One authored statement that something in the design system changed, belonging to
 The thing a **Release Note** is about. Exactly one of two kinds: a **Component Set** (a `COMPONENT_SET` node anywhere in the file) or a **Foundation Page**. A note carries one Subject and never both, so "which thing changed" is a single field everywhere downstream — one dropdown, one CSV column, one card header. Notes saved before Subject existed are read as `component-set`.
 
 **Foundation Page**:
-A page that sits inside the file's Foundation area, which is delimited by Figma's **divider pages** — the run of pages after the divider whose label matches "Foundation", up to the next divider. Membership is derived from page order and divider names, never from a stored list, so adding a Foundation page needs no plugin setup. A file with no Foundation divider has no Foundation area; there every page is offered instead, and the panel says so.
+A page that sits inside the file's Foundation area, which is delimited by Figma's **divider pages** — the run of pages after the divider whose label matches "Foundation", up to the next divider. Membership is derived from page order and divider names, never from a stored list, so adding a Foundation page needs no plugin setup. A file with no Foundation divider has no Foundation area; there every page that is not itself a divider is offered instead, and the panel says so.
 
 **Tag**:
 The kind of change a **Release Note** records, drawn from a closed set of five: Added, Changed, Fixed, Deprecated, Deleted. One vocabulary is used in the panel, on the card and in the CSV — the stored enum values (`new_component`, `enhancement`, `bug_fix`, `deprecation`, `deleted`) are legacy identifiers and are never shown.

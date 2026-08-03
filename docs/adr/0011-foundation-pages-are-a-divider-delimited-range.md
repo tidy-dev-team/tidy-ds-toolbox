@@ -2,10 +2,11 @@
 
 Release Notes can now be filed against a **Foundation Page** as well as a Component Set, so the module has to answer "which pages are Foundation pages?".
 Figma hands a plugin a flat, ordered list of pages with names and nothing else: there is no page group, no folder and no tag in the API, even though the sidebar visibly renders groups.
-The grouping a designer sees is produced entirely by **divider pages** - a page whose name is made of dashes with a label in the middle.
+The grouping a designer sees is produced entirely by **divider pages** - a page whose name is a rule drawn in text with a label in the middle.
 
 We derive the Foundation area from that same convention.
-A page whose name is mostly dashes is treated as a divider; the Foundation area is the run of pages after the first divider whose label matches `/foundation/i`, ending at the next divider or at the end of the list.
+A page is treated as a divider when its name carries a run of three or more rule characters - dashes of any width, underscores or equals signs, since real files use all three to draw the same line.
+The Foundation area is the run of pages after the first divider whose label matches `/foundation/i`, ending at the next divider or at the end of the list.
 Membership is never stored.
 
 ## Considered options
@@ -13,6 +14,7 @@ Membership is never stored.
 - **(i) Divider-delimited range** - chosen.
   Reads the file exactly the way a human reads the sidebar, needs no setup in any file, and a newly added Foundation page appears in the dropdown with no plugin action at all.
   Costs a name-parsing heuristic, and a file whose dividers are spelled differently gets no Foundation area.
+  The character class is deliberately the wide one: a divider missed by a narrow rule silently swallows the pages under it into the previous group, which is the worse failure of the two.
 - **(ii) A name prefix on each page.**
   The target file happens to prefix every Foundation page with `↳`, so this would work today.
   Rejected because the arrow is a visual indent, not a statement of membership: the moment somebody indents a page under Components the rule reports it as Foundation, and a Foundation page that loses its arrow silently vanishes from the dropdown.
@@ -27,7 +29,7 @@ Membership is never stored.
 
 - The heuristic is pure and lives apart from the Figma API: it takes `{ id, name }[]` and returns the Foundation slice, so every case (no divider, two dividers, empty area, divider last in the file) is fixture-tested without a canvas.
 - A file with no matching divider has **no Foundation area**.
-  Rather than showing an empty dropdown, the section falls back to offering every page and labels itself as doing so.
+  Rather than showing an empty dropdown, the section falls back to offering every page that is not itself a divider, and labels itself as doing so.
   The trade-off was accepted deliberately: a note can then be filed against a page that is not Foundation at all, and the label is the only thing preventing it.
 - If more than one divider matches, the first wins and the rest are logged.
   Two Foundation areas in one file is a file problem, not a case worth modelling.

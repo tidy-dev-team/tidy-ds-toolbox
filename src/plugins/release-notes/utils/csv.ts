@@ -8,6 +8,7 @@
 
 import type { ReleaseNote, Sprint } from "../types";
 import { TAG_LABELS } from "./constants";
+import { toIsoDay } from "./dates";
 
 export const CSV_HEADER = [
   "Date",
@@ -16,13 +17,6 @@ export const CSV_HEADER = [
   "Tag",
   "Figma Link",
 ] as const;
-
-/** ISO day, so a spreadsheet sorts and parses it as a date. */
-export function toIsoDay(isoTimestamp: string): string {
-  const date = new Date(isoTimestamp);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
 
 /**
  * A deep link to a node. Figma's modern URL form spells node ids with a dash
@@ -66,7 +60,7 @@ function noteRow(note: ReleaseNote, fileKey: string | null): string[] {
     toIsoDay(note.createdAt),
     note.subject.name,
     note.description,
-    TAG_LABELS[note.tag] ?? note.tag,
+    TAG_LABELS[note.tag],
     figmaNodeUrl(fileKey, note.subject.id),
   ];
 }

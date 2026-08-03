@@ -1143,8 +1143,8 @@ export function ReleaseNotesUI() {
 
           {foundationSource === "all-pages" && (
             <div style={{ fontSize: "11px", opacity: 0.7 }}>
-              No Foundation divider in this file, so every page is listed. Name
-              a divider page "———— Foundation ————" to narrow it.
+              No Foundation divider in this file, so every non-divider page is
+              listed. Name a divider page "———— Foundation ————" to narrow it.
             </div>
           )}
 

@@ -9,6 +9,7 @@
 
 import type { NoteTag, ReleaseNote, Sprint, Subject } from "../types";
 import { TAG_ORDER } from "./constants";
+import { toIsoDay } from "./dates";
 
 const KNOWN_TAGS = new Set<string>(TAG_ORDER);
 
@@ -122,7 +123,7 @@ export function groupByTagAuthorDay(notes: ReleaseNote[]): ReleaseNote[][] {
   const buckets = new Map<string, ReleaseNote[]>();
 
   for (const note of sortNotesNewestFirst(notes)) {
-    const key = `${note.tag}|${note.authorId}|${note.createdAt.slice(0, 10)}`;
+    const key = `${note.tag}|${note.authorId}|${toIsoDay(note.createdAt)}`;
     const bucket = buckets.get(key);
     if (bucket) bucket.push(note);
     else buckets.set(key, [note]);

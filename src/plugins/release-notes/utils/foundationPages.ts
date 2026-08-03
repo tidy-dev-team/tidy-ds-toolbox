@@ -3,7 +3,7 @@
  *
  * Figma hands a plugin a flat, ordered list of pages and nothing else: the
  * groups a designer sees in the sidebar are produced entirely by *divider
- * pages*, whose names are made of dashes with a label in the middle. So the
+ * pages*, whose names draw a rule in text with a label in the middle. So the
  * Foundation area is reconstructed from that same convention - the run of
  * pages after the divider labelled "Foundation", up to the next divider.
  *
@@ -25,22 +25,28 @@ export interface FoundationLookup {
   ignoredDividerLabels: string[];
 }
 
-/** Dash-like characters designers build dividers out of. */
-const DASH_RUN = /[-‐-―─-╿＿－_=]{3,}/;
-const DASH_CHARS = /[-‐-―─-╿＿－_=]+/g;
+/**
+ * The characters designers draw a divider rule out of: dashes of every width,
+ * plus underscores and equals signs, because real files use all three for the
+ * same line. The class is deliberately wide - a divider missed by a narrow rule
+ * swallows the pages under it into the group above, which is worse than reading
+ * one odd page name as a separator.
+ */
+const RULE_RUN = /[-‐-―─-╿＿－_=]{3,}/;
+const RULE_CHARS = /[-‐-―─-╿＿－_=]+/g;
 
 /**
- * A page acts as a divider when its name carries a run of three or more
- * dash-like characters. That is what makes Figma render it as a separator, and
- * what makes a human read the pages under it as a group.
+ * A page acts as a divider when its name carries a run of three or more rule
+ * characters. That is what makes Figma render it as a separator, and what makes
+ * a human read the pages under it as a group.
  */
 export function isDividerName(name: string): boolean {
-  return DASH_RUN.test(name);
+  return RULE_RUN.test(name);
 }
 
 /** The readable part of a divider name: "———— 🛠 Foundation ————" -> "🛠 Foundation". */
 export function dividerLabel(name: string): string {
-  return name.replace(DASH_CHARS, " ").trim();
+  return name.replace(RULE_CHARS, " ").trim();
 }
 
 function isFoundationDivider(name: string): boolean {
@@ -50,9 +56,11 @@ function isFoundationDivider(name: string): boolean {
 /**
  * The Foundation area of a file.
  *
- * With no Foundation divider there is no Foundation area, and every
- * non-divider page is offered instead - reported as `source: "all-pages"` so
- * the panel can say so rather than pretending the list is authoritative.
+ * With no Foundation divider there is no Foundation area, and every page that
+ * is not itself a divider is offered instead - reported as `source:
+ * "all-pages"` so the panel can say so rather than pretending the list is
+ * authoritative. Dividers are dropped from that list because a rule of dashes
+ * is not a thing a release note can be about.
  */
 export function findFoundationPages(pages: PageRef[]): FoundationLookup {
   const foundationDividerIndices = pages

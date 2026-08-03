@@ -6,7 +6,6 @@ import {
   escapeCsvField,
   figmaNodeUrl,
   parseFileKey,
-  toIsoDay,
 } from "./csv";
 import type { ReleaseNote, Sprint, Subject } from "../types";
 
@@ -37,16 +36,6 @@ function note(overrides: Partial<ReleaseNote> = {}): ReleaseNote {
 function sprint(notes: ReleaseNote[]): Sprint {
   return { id: "100", name: "Sprint 2", notes };
 }
-
-describe("toIsoDay", () => {
-  it("keeps the day only", () => {
-    expect(toIsoDay("2026-07-28T09:15:00.000Z")).toBe("2026-07-28");
-  });
-
-  it("is empty for an unparseable date rather than 'Invalid Date'", () => {
-    expect(toIsoDay("not a date")).toBe("");
-  });
-});
 
 describe("figmaNodeUrl", () => {
   it("uses the modern /design/ form with a dashed node id", () => {
