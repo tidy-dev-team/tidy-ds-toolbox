@@ -134,10 +134,38 @@ export interface PublishResult {
   /**
    * Frames named like this module's pre-stamp output that the publish left
    * alone. It cannot prove they are not a designer's own, so it never deletes
-   * them; saying how many there are is what makes Clear Canvas findable when
-   * an old file starts showing a card twice.
+   * them; saying how many there are is what makes Delete from canvas findable
+   * when an old file starts showing a card twice.
    */
   legacyCardsFound: number;
+}
+
+export type ClearCanvasCandidateOwnership =
+  | "verified-stamped"
+  | "unverified-legacy-name";
+
+export interface ClearCanvasCandidate {
+  id: string;
+  name: string;
+  pageName: string;
+  ownership: ClearCanvasCandidateOwnership;
+}
+
+export type ClearCanvasPreviewPayload = Record<string, never>;
+
+export interface ClearCanvasPreviewResult {
+  success: true;
+  candidates: ClearCanvasCandidate[];
+}
+
+export interface ClearCanvasDeletionPayload {
+  nodeIds: string[];
+}
+
+export interface ClearCanvasDeletionResult {
+  success: true;
+  removedCount: number;
+  skippedCount: number;
 }
 
 export interface FileContext {
@@ -168,6 +196,7 @@ export type ReleaseNotesAction =
   | "delete-note"
   | "view-subject"
   | "publish-notes"
+  | "preview-clear-canvas"
   | "clear-canvas"
   | "export-notes"
   | "export-csv"

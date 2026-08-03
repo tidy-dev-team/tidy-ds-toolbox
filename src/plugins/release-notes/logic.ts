@@ -8,6 +8,8 @@ import type {
   RenameSprintPayload,
   ReleaseNotesExportData,
   CsvExportResult,
+  ClearCanvasPreviewPayload,
+  ClearCanvasDeletionPayload,
 } from "./types";
 
 import {
@@ -40,7 +42,11 @@ import {
 
 import { buildSprintCsv, csvFileName } from "./utils/csv";
 import { migrateSprint } from "./utils/notes";
-import { clearPublishedCards, publishNotes } from "./render/publish";
+import {
+  deleteSelectedCards,
+  previewClearCanvas,
+  publishNotes,
+} from "./render/publish";
 
 export async function releaseNotesHandler(
   action: ReleaseNotesAction,
@@ -222,8 +228,13 @@ export async function releaseNotesHandler(
       return publishNotes(figma, sprints);
     }
 
+    case "preview-clear-canvas": {
+      return previewClearCanvas(figma, payload as ClearCanvasPreviewPayload);
+    }
+
     case "clear-canvas": {
-      return { success: true, removedCount: clearPublishedCards(figma) };
+      const deletionPayload = payload as ClearCanvasDeletionPayload;
+      return deleteSelectedCards(figma, deletionPayload);
     }
 
     case "export-notes": {

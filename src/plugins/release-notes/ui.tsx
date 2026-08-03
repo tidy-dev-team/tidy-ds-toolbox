@@ -34,9 +34,19 @@ import type {
   DeleteNotePayload,
   RenameSprintPayload,
   ReleaseNotesExportData,
+  ReleaseNotesAction,
+  ClearCanvasCandidate,
+  ClearCanvasDeletionPayload,
+  ClearCanvasDeletionResult,
+  ClearCanvasPreviewPayload,
+  ClearCanvasPreviewResult,
 } from "./types";
 import { TAG_OPTIONS, TAG_COLORS, TAG_LABELS } from "./utils/constants";
 import { DEFAULT_CARD_APPEARANCE } from "./utils/appearance";
+import {
+  clearCanvasOwnershipLabel,
+  defaultClearCanvasSelection,
+} from "./utils/clearCanvas";
 
 interface PendingRequest {
   onSuccess?: (result: unknown) => void;
@@ -67,9 +77,16 @@ interface NoteCardProps {
   onView: (note: ReleaseNote) => void;
   onEdit: (note: ReleaseNote) => void;
   onDelete: (noteId: string) => void;
+  deleteDisabled?: boolean;
 }
 
-function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
+function NoteCard({
+  note,
+  onView,
+  onEdit,
+  onDelete,
+  deleteDisabled = false,
+}: NoteCardProps) {
   const tagColor = TAG_COLORS[note.tag];
   const tagLabel = TAG_LABELS[note.tag];
 
@@ -157,6 +174,7 @@ function NoteCard({ note, onView, onEdit, onDelete }: NoteCardProps) {
         </button>
         <button
           onClick={() => onDelete(note.id)}
+          disabled={deleteDisabled}
           style={{
             flex: 1,
             padding: "var(--pixel-6, 6px)",
@@ -266,6 +284,14 @@ export function ReleaseNotesUI() {
   );
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [isClearingCanvas, setIsClearingCanvas] = useState<boolean>(false);
+  const [isClearCanvasReviewOpen, setIsClearCanvasReviewOpen] =
+    useState<boolean>(false);
+  const [clearCanvasCandidates, setClearCanvasCandidates] = useState<
+    ClearCanvasCandidate[]
+  >([]);
+  const [selectedClearCanvasIds, setSelectedClearCanvasIds] = useState<
+    string[]
+  >([]);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [isExportingCsv, setIsExportingCsv] = useState<boolean>(false);
   const [isImporting, setIsImporting] = useState<boolean>(false);
@@ -338,12 +364,18 @@ export function ReleaseNotesUI() {
   }, [subjectKind, selectedFoundationPage, selectedComponent]);
 
   const canAddNote = Boolean(selectedSprintId && activeSubject);
+  const isDestructiveActionBusy =
+    isPublishing || isClearingCanvas || isClearCanvasReviewOpen;
 
   // ===================
   // Request Helper
   // ===================
   const sendRequest = useCallback(
-    (action: string, payload: unknown, handlers: PendingRequest = {}) => {
+    (
+      action: ReleaseNotesAction,
+      payload: unknown,
+      handlers: PendingRequest = {},
+    ) => {
       const requestId = `release-notes-${action}-${Date.now()}`;
       pendingRequests.current.set(requestId, handlers);
       postToFigma({
@@ -723,7 +755,8 @@ export function ReleaseNotesUI() {
   }, [selectedSprintId, sendRequest]);
 
   const handlePublishNotes = useCallback(() => {
-    if (!selectedSprintId) return;
+    if (!selectedSprintId || isClearingCanvas || isClearCanvasReviewOpen)
+      return;
 
     setIsPublishing(true);
     sendRequest("publish-notes", selectedSprintId, {
@@ -742,7 +775,7 @@ export function ReleaseNotesUI() {
         );
         setLegacyNotice(
           publish.legacyCardsFound > 0
-            ? `${publish.legacyCardsFound} frame(s) named like cards from an older version were left alone, because a publish cannot tell them from your own frames. If a card now appears twice, Clear Canvas removes them.`
+            ? `${publish.legacyCardsFound} unverified legacy-name match(es) were left on the canvas. Use Delete from canvas to review each candidate. A match may be a designer-owned frame.`
             : null,
         );
         setStatusMessage(
@@ -752,18 +785,105 @@ export function ReleaseNotesUI() {
       onError: (error) => setErrorMessage(error),
       onFinally: () => setIsPublishing(false),
     });
-  }, [selectedSprintId, sendRequest]);
+  }, [
+    selectedSprintId,
+    isClearingCanvas,
+    isClearCanvasReviewOpen,
+    sendRequest,
+  ]);
 
   const handleClearCanvas = useCallback(() => {
+    if (isPublishing || isClearingCanvas || isClearCanvasReviewOpen) return;
+
+    const payload: ClearCanvasPreviewPayload = {};
     setIsClearingCanvas(true);
-    sendRequest("clear-canvas", null, {
-      onSuccess: () => {
-        setStatusMessage("Release notes cleared from canvas");
+    sendRequest("preview-clear-canvas", payload, {
+      onSuccess: (result) => {
+        const preview = result as ClearCanvasPreviewResult;
+        setClearCanvasCandidates(preview.candidates);
+        setSelectedClearCanvasIds(
+          defaultClearCanvasSelection(preview.candidates),
+        );
+
+        if (preview.candidates.length === 0) {
+          setIsClearCanvasReviewOpen(false);
+          setStatusMessage(
+            "No release note card candidates found on the canvas.",
+          );
+          return;
+        }
+
+        setIsClearCanvasReviewOpen(true);
+      },
+      onError: (error) => {
+        setClearCanvasCandidates([]);
+        setSelectedClearCanvasIds([]);
+        setIsClearCanvasReviewOpen(false);
+        setErrorMessage(error);
+      },
+      onFinally: () => setIsClearingCanvas(false),
+    });
+  }, [isPublishing, isClearingCanvas, isClearCanvasReviewOpen, sendRequest]);
+
+  const handleCloseClearCanvasReview = useCallback(() => {
+    if (isClearingCanvas) return;
+    setIsClearCanvasReviewOpen(false);
+    setClearCanvasCandidates([]);
+    setSelectedClearCanvasIds([]);
+  }, [isClearingCanvas]);
+
+  const handleViewClearCanvasCandidate = useCallback(
+    (nodeId: string) => {
+      if (isClearingCanvas) return;
+
+      sendRequest("view-subject", nodeId, {
+        onSuccess: (result) => {
+          const view = result as { success: boolean };
+          if (!view.success) {
+            setErrorMessage("This frame is no longer available.");
+          }
+        },
+        onError: (error) => setErrorMessage(error),
+      });
+    },
+    [isClearingCanvas, sendRequest],
+  );
+
+  const handleToggleClearCanvasCandidate = useCallback(
+    (nodeId: string, checked: boolean) => {
+      setSelectedClearCanvasIds((current) => {
+        if (checked) {
+          return current.includes(nodeId) ? current : [...current, nodeId];
+        }
+        return current.filter((id) => id !== nodeId);
+      });
+    },
+    [],
+  );
+
+  const handleConfirmClearCanvas = useCallback(() => {
+    if (isClearingCanvas || selectedClearCanvasIds.length === 0) return;
+
+    const payload: ClearCanvasDeletionPayload = {
+      nodeIds: [...selectedClearCanvasIds],
+    };
+    setIsClearingCanvas(true);
+    sendRequest("clear-canvas", payload, {
+      onSuccess: (result) => {
+        const deletion = result as ClearCanvasDeletionResult;
+        setIsClearCanvasReviewOpen(false);
+        setClearCanvasCandidates([]);
+        setSelectedClearCanvasIds([]);
+        setStatusMessage(
+          deletion.skippedCount > 0
+            ? `Removed ${deletion.removedCount} frame(s). ${deletion.skippedCount} selected candidate(s) were no longer eligible.`
+            : `Removed ${deletion.removedCount} frame(s) from the canvas.`,
+        );
       },
       onError: (error) => setErrorMessage(error),
       onFinally: () => setIsClearingCanvas(false),
     });
-  }, [sendRequest]);
+  }, [isClearingCanvas, selectedClearCanvasIds, sendRequest]);
 
   const downloadFile = useCallback(
     (contents: string, mimeType: string, fileName: string) => {
@@ -1096,6 +1216,7 @@ export function ReleaseNotesUI() {
                 </button>
                 <button
                   onClick={() => setIsDeleteConfirmOpen(true)}
+                  disabled={isDestructiveActionBusy}
                   className="secondary"
                   style={{ flex: 1 }}
                 >
@@ -1173,7 +1294,9 @@ export function ReleaseNotesUI() {
               <div style={buttonRowStyle}>
                 <button
                   onClick={handlePublishNotes}
-                  disabled={isPublishing || currentSprintNotes.length === 0}
+                  disabled={
+                    isDestructiveActionBusy || currentSprintNotes.length === 0
+                  }
                   className="secondary"
                   style={{ flex: 1 }}
                 >
@@ -1181,7 +1304,7 @@ export function ReleaseNotesUI() {
                 </button>
                 <button
                   onClick={handleClearCanvas}
-                  disabled={isClearingCanvas}
+                  disabled={isDestructiveActionBusy}
                   className="secondary"
                   style={{ flex: 1 }}
                 >
@@ -1376,6 +1499,7 @@ export function ReleaseNotesUI() {
               onView={handleViewNoteSubject}
               onEdit={handleOpenEditNote}
               onDelete={handleOpenDeleteNoteConfirm}
+              deleteDisabled={isDestructiveActionBusy}
             />
           ))}
         </div>
@@ -1505,6 +1629,133 @@ export function ReleaseNotesUI() {
           {statusMessage || errorMessage}
         </div>
       )}
+
+      {/* Clear Canvas Review Modal */}
+      <Modal
+        isOpen={isClearCanvasReviewOpen}
+        title="Review frames before deleting"
+        onClose={handleCloseClearCanvasReview}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--pixel-12, 12px)",
+          }}
+        >
+          <div style={{ fontSize: "13px", lineHeight: 1.4 }}>
+            Review every candidate before deletion.
+          </div>
+          <div style={{ fontSize: "12px", opacity: 0.7, lineHeight: 1.4 }}>
+            Verified stamped output was created by Release Notes and is selected
+            by default. Unverified legacy-name matches only have an old output
+            name. They may be designer-owned frames, so they are not selected.
+            Select each unverified frame only when you want to delete that exact
+            frame.
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--pixel-8, 8px)",
+              maxHeight: "280px",
+              overflowY: "auto",
+            }}
+          >
+            {clearCanvasCandidates.map((candidate) => {
+              const isSelected = selectedClearCanvasIds.includes(candidate.id);
+              const ownershipLabel = clearCanvasOwnershipLabel(
+                candidate.ownership,
+              );
+
+              return (
+                <div
+                  key={candidate.id}
+                  style={{
+                    display: "flex",
+                    gap: "var(--pixel-8, 8px)",
+                    alignItems: "flex-start",
+                    padding: "var(--pixel-8, 8px)",
+                    border: "1px solid var(--border-light)",
+                    borderRadius: "var(--pixel-6, 6px)",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={isClearingCanvas}
+                    aria-label={`Select ${candidate.name} (${candidate.id})`}
+                    onChange={(event) =>
+                      handleToggleClearCanvasCandidate(
+                        candidate.id,
+                        event.target.checked,
+                      )
+                    }
+                  />
+                  <span
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "var(--pixel-4, 4px)",
+                      fontSize: "12px",
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    <strong>{candidate.name}</strong>
+                    <span>Page: {candidate.pageName}</span>
+                    <span>Node ID: {candidate.id}</span>
+                    <span>Ownership: {ownershipLabel}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary"
+                    disabled={isClearingCanvas}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handleViewClearCanvasCandidate(candidate.id);
+                    }}
+                    style={{ flexShrink: 0, alignSelf: "center" }}
+                  >
+                    View on canvas
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ fontSize: "12px", opacity: 0.7 }}>
+            {selectedClearCanvasIds.length} frame(s) selected.
+          </div>
+          <div style={{ display: "flex", gap: "var(--pixel-8, 8px)" }}>
+            <button
+              onClick={handleConfirmClearCanvas}
+              disabled={isClearingCanvas || selectedClearCanvasIds.length === 0}
+              style={{
+                flex: 1,
+                backgroundColor: "#dc2626",
+                color: "white",
+                border: "none",
+              }}
+            >
+              Delete selected
+            </button>
+            <button
+              onClick={handleCloseClearCanvasReview}
+              disabled={isClearingCanvas}
+              style={{
+                flex: 1,
+                backgroundColor: "transparent",
+                border: "1px solid var(--border-light)",
+                color: "var(--figma-color-text, #333)",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Delete Sprint Confirmation Modal */}
       <Modal

@@ -8,20 +8,30 @@
  * by, because it is the only thing that proves this module wrote the frame.
  */
 
-import type { PublishResult, Sprint, Subject } from "../types";
+import type {
+  ClearCanvasCandidate,
+  ClearCanvasDeletionPayload,
+  ClearCanvasDeletionResult,
+  ClearCanvasPreviewPayload,
+  ClearCanvasPreviewResult,
+  PublishResult,
+  Sprint,
+  Subject,
+} from "../types";
 import {
   CARD_GAP,
   CARD_STAMP_KEY,
   RELEASE_NOTES_PAGE_NAME,
 } from "../utils/constants";
 import {
-  isOwnedCard,
+  classifyCardCandidate,
   isLegacyNamedCard,
   isStampedCard,
   parseCardStamp,
   type CardNode,
   type CardStamp,
 } from "../utils/cardIdentity";
+import { planClearCanvasDeletion } from "../utils/clearCanvas";
 import { allSubjectsInOrder } from "../utils/notes";
 import { getCardAppearance } from "../utils/appearanceHelpers";
 import { componentCardPosition, pageEdgeSlot } from "../utils/placement";
@@ -41,12 +51,43 @@ function stamp(frame: FrameNode, value: Omit<CardStamp, "builtAt">): void {
 function describe(node: SceneNode): CardNode {
   return {
     isFrame: node.type === "FRAME",
+    isTopLevel: node.parent?.type === "PAGE",
     name: node.name,
     stamp:
       "getPluginData" in node
         ? parseCardStamp(node.getPluginData(CARD_STAMP_KEY))
         : null,
   };
+}
+
+function clearCanvasCandidate(
+  node: SceneNode,
+  pageName: string,
+): ClearCanvasCandidate | null {
+  const ownership = classifyCardCandidate(describe(node));
+  if (!ownership) return null;
+
+  return {
+    id: node.id,
+    name: node.name,
+    pageName,
+    ownership,
+  };
+}
+
+function getClearCanvasCandidates(figma: PluginAPI): ClearCanvasCandidate[] {
+  const candidates: ClearCanvasCandidate[] = [];
+
+  for (const page of figma.root.children) {
+    if (page.type !== "PAGE") continue;
+
+    for (const node of page.children) {
+      const candidate = clearCanvasCandidate(node, page.name);
+      if (candidate) candidates.push(candidate);
+    }
+  }
+
+  return candidates;
 }
 
 function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
@@ -174,7 +215,7 @@ export async function publishNotes(
   // from a build older than the stamp, or it is a frame a designer made and
   // named, and nothing here can tell. Publishing is routine and nobody confirms
   // it, so it takes the rule that cannot be wrong. Pre-stamp cards are counted
-  // instead and reported, and Clear Canvas is how they go.
+  // instead and reported, and Delete from canvas lets the user review them.
   let legacyCardsFound = 0;
   for (const page of figma.root.children) {
     if (page.type !== "PAGE") continue;
@@ -239,27 +280,75 @@ export async function publishNotes(
   };
 }
 
-/**
- * Remove every card this module owns, on every page. Cards published before the
- * stamp existed are matched by their old frame names - both of them, the Subject
- * card's and the aggregate's - otherwise they would be unremovable.
- *
- * Sweeps wider than a publish does, by the bare `-release-notes` suffix as well.
- * That is how a pre-stamp card whose Subject was since renamed or deleted
- * becomes removable at all, and it is only safe because a designer asked for it.
- */
-export function clearPublishedCards(figma: PluginAPI): number {
-  let removed = 0;
+/** Return the current candidates for the explicit Delete from canvas review. */
+export function previewClearCanvas(
+  figma: PluginAPI,
+  _payload: ClearCanvasPreviewPayload,
+): ClearCanvasPreviewResult {
+  return {
+    success: true,
+    candidates: getClearCanvasCandidates(figma),
+  };
+}
 
-  for (const page of figma.root.children) {
-    if (page.type !== "PAGE") continue;
-
-    for (const card of [...page.children]) {
-      if (!isOwnedCard(describe(card))) continue;
-      card.remove();
-      removed += 1;
-    }
+function parseClearCanvasDeletionPayload(
+  payload: unknown,
+): ClearCanvasDeletionPayload {
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Delete from canvas needs selected node IDs.");
   }
 
-  return removed;
+  const nodeIds = (payload as { nodeIds?: unknown }).nodeIds;
+  if (
+    !Array.isArray(nodeIds) ||
+    !nodeIds.every((id) => typeof id === "string")
+  ) {
+    throw new Error("Delete from canvas needs selected node IDs.");
+  }
+
+  return { nodeIds: [...new Set(nodeIds)] };
+}
+
+function getCurrentSelectedCard(
+  figma: PluginAPI,
+  nodeId: string,
+): SceneNode | null {
+  const node = figma.getNodeById(nodeId);
+  if (!node || node.type !== "FRAME" || node.parent?.type !== "PAGE") {
+    return null;
+  }
+
+  return classifyCardCandidate(describe(node)) ? node : null;
+}
+
+/**
+ * Delete only the IDs selected in the review.
+ *
+ * Candidate discovery runs again before deletion, and each node is checked
+ * again immediately before removal.
+ * This prevents a stale preview, a removed node, a renamed legacy match, or a
+ * normal designer frame from being removed.
+ */
+export function deleteSelectedCards(
+  figma: PluginAPI,
+  payload: unknown,
+): ClearCanvasDeletionResult {
+  const { nodeIds } = parseClearCanvasDeletionPayload(payload);
+  const currentCandidates = getClearCanvasCandidates(figma);
+  const plannedIds = planClearCanvasDeletion(currentCandidates, nodeIds);
+  let removedCount = 0;
+
+  for (const nodeId of plannedIds) {
+    const node = getCurrentSelectedCard(figma, nodeId);
+    if (!node) continue;
+
+    node.remove();
+    removedCount += 1;
+  }
+
+  return {
+    success: true,
+    removedCount,
+    skippedCount: nodeIds.length - removedCount,
+  };
 }

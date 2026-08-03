@@ -10,11 +10,9 @@
  * much damage a wrong answer does.
  *
  * A publish is routine, automatic and unconfirmed, so it deletes only what
- * carries a stamp. Clear Canvas is a button somebody presses with intent, so it
- * may also delete a frame merely named like this module's output. Those names
- * predate the stamp and cannot be distinguished from a designer's own frame,
- * which is the whole reason the split exists: guessing wrong costs a duplicate
- * card on one side and somebody's work on the other.
+ * carries a stamp. Delete from canvas shows both kinds of candidate first.
+ * The user must select any unverified legacy-name match individually because
+ * those names cannot be distinguished from a designer's own frame.
  *
  * The pre-stamp names matter because a file can be old enough to hold cards
  * from before the stamp existed, which no current file can demonstrate. That is
@@ -22,6 +20,7 @@
  * fixture-tested.
  */
 
+import type { ClearCanvasCandidateOwnership } from "../types";
 import {
   LEGACY_AGGREGATE_FRAME_NAME,
   LEGACY_CARD_NAME_SUFFIX,
@@ -37,6 +36,7 @@ export interface CardStamp {
 /** All the rules need to know about a node sitting on a page. */
 export interface CardNode {
   isFrame: boolean;
+  isTopLevel?: boolean;
   name: string;
   stamp: CardStamp | null;
 }
@@ -75,8 +75,8 @@ export function isStampedCard(node: CardNode): boolean {
  * that happens to be called `Buttons-release-notes`. Nothing here can tell
  * those apart, which is exactly why a publish must not delete them: the cost of
  * being wrong is somebody's work, silently, on an action they did not think of
- * as destructive. A publish counts them and says so; Clear Canvas removes them,
- * because a designer asked it to.
+ * as destructive. A publish counts them and says so. Delete from canvas shows
+ * them as unverified candidates and requires an individual selection.
  */
 export function isLegacyNamedCard(node: CardNode): boolean {
   if (isStampedCard(node)) return false;
@@ -88,11 +88,30 @@ export function isLegacyNamedCard(node: CardNode): boolean {
 }
 
 /**
- * Anything this module could have published: stamped, or merely named like it.
+ * Classify a top-level frame that may be shown in the Delete from canvas review.
  *
- * Clear Canvas only. It is the union of the two rules above, so it can never
- * strand what a publish replaces, and it is the only way a pre-stamp card
- * becomes removable at all.
+ * A verified stamp proves this module created the frame.
+ * A legacy name only identifies an unverified match because a designer may have
+ * used the same name.
+ */
+export function classifyCardCandidate(
+  node: CardNode,
+): ClearCanvasCandidateOwnership | null {
+  if (node.isTopLevel !== true || !node.isFrame) return null;
+  if (isStampedCard(node)) return "verified-stamped";
+  if (isLegacyNamedCard(node)) return "unverified-legacy-name";
+  return null;
+}
+
+/** Whether this node belongs in the explicit Delete from canvas review. */
+export function isClearCanvasCandidate(node: CardNode): boolean {
+  return classifyCardCandidate(node) !== null;
+}
+
+/**
+ * Compatibility name for callers that need the union of the two identity rules.
+ *
+ * This does not authorize deletion or make a node a review candidate.
  */
 export function isOwnedCard(node: CardNode): boolean {
   return isStampedCard(node) || isLegacyNamedCard(node);

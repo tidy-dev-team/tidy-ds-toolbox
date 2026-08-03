@@ -4,6 +4,7 @@ import {
   isLegacyNamedCard,
   isStampedCard,
   parseCardStamp,
+  classifyCardCandidate,
   type CardNode,
   type CardStamp,
 } from "./cardIdentity";
@@ -20,6 +21,7 @@ function stamp(overrides: Partial<CardStamp> = {}): CardStamp {
 function node(overrides: Partial<CardNode> = {}): CardNode {
   return {
     isFrame: true,
+    isTopLevel: true,
     name: "Changelog - Buttons",
     stamp: null,
     ...overrides,
@@ -91,8 +93,41 @@ describe("isLegacyNamedCard", () => {
   });
 });
 
+describe("classifyCardCandidate", () => {
+  it("never treats an ordinary designer frame as a candidate", () => {
+    expect(
+      classifyCardCandidate(node({ name: "Buttons", stamp: null })),
+    ).toBeNull();
+    expect(
+      classifyCardCandidate(
+        node({ name: "Buttons-release-notes", isTopLevel: false }),
+      ),
+    ).toBeNull();
+  });
+
+  it.each([
+    "client-release-notes",
+    "Buttons-release-notes",
+    "release-notes-frame",
+  ])("classifies %s as an unverified legacy-name match", (name) => {
+    expect(classifyCardCandidate(node({ name }))).toBe(
+      "unverified-legacy-name",
+    );
+  });
+
+  it("skips a legacy match after it is renamed", () => {
+    expect(classifyCardCandidate(node({ name: "Buttons" }))).toBeNull();
+  });
+
+  it("classifies a stamped frame as verified output", () => {
+    expect(classifyCardCandidate(node({ stamp: stamp() }))).toBe(
+      "verified-stamped",
+    );
+  });
+});
+
 describe("isOwnedCard", () => {
-  it("is the union of the two rules, so Clear Canvas strands nothing", () => {
+  it("is the union of the two rules for the candidate review", () => {
     const everyShape = [
       node({ stamp: stamp() }),
       node({ stamp: stamp({ kind: "aggregate", subjectId: "" }) }),
@@ -116,8 +151,8 @@ describe("isOwnedCard", () => {
       node({ stamp: stamp({ kind: "aggregate", subjectId: "" }) }),
     ],
     ["a pre-stamp Subject card", node({ name: "Buttons-release-notes" })],
-    // The regression: Clear Canvas swept every *-release-notes frame and every
-    // stamp, and left a pre-stamp aggregate on the page for ever.
+    // The old deletion path swept every *-release-notes frame and every stamp,
+    // and left a pre-stamp aggregate on the page for ever.
     ["the pre-stamp aggregate frame", node({ name: "release-notes-frame" })],
   ])("owns %s", (_label, subject) => {
     expect(isOwnedCard(subject)).toBe(true);
@@ -137,9 +172,8 @@ describe("isOwnedCard", () => {
   });
 
   it("reaches the pre-stamp cards a publish deliberately will not", () => {
-    // The reason Clear Canvas exists as its own action. Every pre-stamp name is
-    // indistinguishable from a designer's frame, so removing one is a decision
-    // only a designer may take. This is the sole path that takes it.
+    // Every pre-stamp name is indistinguishable from a designer's frame, so
+    // removing one is a decision only a designer may take after review.
     expect(isOwnedCard(node({ name: "Retired-release-notes" }))).toBe(true);
     expect(isStampedCard(node({ name: "Retired-release-notes" }))).toBe(false);
   });
