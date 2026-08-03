@@ -277,6 +277,8 @@ export function ReleaseNotesUI() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   /** Shown when a publish had to fall back from the file's font to Inter. */
   const [fontNotice, setFontNotice] = useState<string | null>(null);
+  /** Shown when a publish found pre-stamp frames it deliberately left alone. */
+  const [legacyNotice, setLegacyNotice] = useState<string | null>(null);
   const [fileContext, setFileContext] = useState<FileContext | null>(null);
   const [fileUrlInput, setFileUrlInput] = useState<string>("");
   const [isFileUrlPromptOpen, setIsFileUrlPromptOpen] =
@@ -736,6 +738,11 @@ export function ReleaseNotesUI() {
         setFontNotice(
           publish.fontFallback
             ? `${publish.fontRequested} is not available here, so the cards were drawn with ${publish.fontFamily}. Install ${publish.fontRequested}, or publish from the Figma desktop app, for the intended type.`
+            : null,
+        );
+        setLegacyNotice(
+          publish.legacyCardsFound > 0
+            ? `${publish.legacyCardsFound} frame(s) named like cards from an older version were left alone, because a publish cannot tell them from your own frames. If a card now appears twice, Clear Canvas removes them.`
             : null,
         );
         setStatusMessage(
@@ -1463,6 +1470,22 @@ export function ReleaseNotesUI() {
           }}
         >
           ⚠ {fontNotice}
+        </div>
+      )}
+
+      {/* Pre-stamp frames a publish refused to guess about. Persists like the
+          font notice: it needs an action, not an acknowledgement. */}
+      {legacyNotice && (
+        <div
+          style={{
+            fontSize: "11px",
+            lineHeight: 1.4,
+            padding: "var(--pixel-8, 8px)",
+            border: "1px solid #FFA629",
+            borderRadius: "var(--pixel-6, 6px)",
+          }}
+        >
+          ⚠ {legacyNotice}
         </div>
       )}
 

@@ -131,6 +131,13 @@ export interface PublishResult {
   fontRequested: string;
   fontFallback: boolean;
   cardsBuilt: number;
+  /**
+   * Frames named like this module's pre-stamp output that the publish left
+   * alone. It cannot prove they are not a designer's own, so it never deletes
+   * them; saying how many there are is what makes Clear Canvas findable when
+   * an old file starts showing a card twice.
+   */
+  legacyCardsFound: number;
 }
 
 export interface FileContext {

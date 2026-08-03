@@ -1,11 +1,11 @@
 /**
- * Publishing: sweep every card this module owns, then redraw the whole file -
- * the aggregate changelog, and one card beside every Subject any sprint
- * mentions.
+ * Publishing: sweep every stamped card, then redraw the whole file - the
+ * aggregate changelog, and one card beside every Subject any sprint mentions.
  *
  * A card is found again by its plugin-data stamp, never by frame name or
  * position, so renaming a Subject or dragging a card cannot orphan it or make
- * a second one appear.
+ * a second one appear. The stamp is also the only thing a publish will delete
+ * by, because it is the only thing that proves this module wrote the frame.
  */
 
 import type { PublishResult, Sprint, Subject } from "../types";
@@ -16,7 +16,7 @@ import {
 } from "../utils/constants";
 import {
   isOwnedCard,
-  isReplaceableCard,
+  isLegacyNamedCard,
   isStampedCard,
   parseCardStamp,
   type CardNode,
@@ -170,16 +170,19 @@ export async function publishNotes(
   // and nothing removes it either; same for a Subject whose node was deleted.
   // Both would sit there for ever, in the previous appearance.
   //
-  // But by stamp, and by the pre-stamp names of Subjects that still have notes -
-  // never by the bare `-release-notes` suffix. That wider rule belongs to Clear
-  // Canvas, which somebody presses on purpose. Reached automatically it would
-  // delete a designer's own `client-release-notes` frame on every publish.
-  const subjectNames = subjects.map((subject) => subject.name);
+  // Stamped cards only. A name is not proof: `Buttons-release-notes` is a card
+  // from a build older than the stamp, or it is a frame a designer made and
+  // named, and nothing here can tell. Publishing is routine and nobody confirms
+  // it, so it takes the rule that cannot be wrong. Pre-stamp cards are counted
+  // instead and reported, and Clear Canvas is how they go.
+  let legacyCardsFound = 0;
   for (const page of figma.root.children) {
     if (page.type !== "PAGE") continue;
 
     for (const card of [...page.children]) {
-      if (isReplaceableCard(describe(card), subjectNames)) card.remove();
+      const described = describe(card);
+      if (isStampedCard(described)) card.remove();
+      else if (isLegacyNamedCard(described)) legacyCardsFound += 1;
     }
   }
 
@@ -232,6 +235,7 @@ export async function publishNotes(
     fontRequested: appearance.requested,
     fontFallback: appearance.fallback,
     cardsBuilt,
+    legacyCardsFound,
   };
 }
 

@@ -7,18 +7,19 @@
  * `release-notes-frame` for the aggregate.
  *
  * Pure on purpose, and in one place on purpose, because the rules differ by how
- * much damage a wrong answer does. There are two sweeps, and they are allowed to
- * disagree in exactly one direction.
+ * much damage a wrong answer does.
  *
- * A publish is routine and automatic, so it may only remove what it can prove is
- * its own: `isReplaceableCard`. Clear Canvas is a button somebody presses with
- * intent, so it may also remove anything merely named like this module's output:
- * `isOwnedCard`. The second must stay a superset of the first, or Clear Canvas
- * would leave behind a card a publish replaces.
+ * A publish is routine, automatic and unconfirmed, so it deletes only what
+ * carries a stamp. Clear Canvas is a button somebody presses with intent, so it
+ * may also delete a frame merely named like this module's output. Those names
+ * predate the stamp and cannot be distinguished from a designer's own frame,
+ * which is the whole reason the split exists: guessing wrong costs a duplicate
+ * card on one side and somebody's work on the other.
  *
- * The pre-stamp names exist because a file can be old enough to hold cards from
- * before the stamp, which no current file can demonstrate. That is why the rules
- * sit together over a plain description of a node, and are fixture-tested.
+ * The pre-stamp names matter because a file can be old enough to hold cards
+ * from before the stamp existed, which no current file can demonstrate. That is
+ * why the rules sit together over a plain description of a node, and are
+ * fixture-tested.
  */
 
 import {
@@ -55,48 +56,44 @@ function hasLegacyName(node: CardNode, name: string): boolean {
   return node.isFrame && node.name === name;
 }
 
-/** Carries this module's stamp, which is the identity of record. */
+/**
+ * Carries this module's stamp. The identity of record, and the only thing a
+ * publish is allowed to delete.
+ *
+ * A stamp is proof: this module wrote it. A name is not. Publishing is routine
+ * and automatic and nobody confirms it, so it gets the rule that cannot be
+ * wrong, even though that means it can no longer replace a pre-stamp card.
+ */
 export function isStampedCard(node: CardNode): boolean {
   return node.stamp !== null;
 }
 
 /**
- * What a publish removes before redrawing: its own stamped output, and the
- * pre-stamp cards it can name with certainty.
+ * Named like this module's output but carrying no stamp.
  *
- * Certainty is the whole point of `subjectNames`. A publish is routine and
- * automatic, so it may only delete a frame it can prove is its own: a stamp, the
- * one aggregate name, or `<Subject>-release-notes` for a Subject that actually
- * has notes. It must not delete by suffix. A designer frame called
- * `client-release-notes` ends with the legacy suffix and carries no stamp, and
- * sweeping those on every publish would destroy their work without asking.
- * `isOwnedCard` may do that because Clear Canvas is a button somebody presses.
+ * Either a card from a build older than the stamp, or a designer's own frame
+ * that happens to be called `Buttons-release-notes`. Nothing here can tell
+ * those apart, which is exactly why a publish must not delete them: the cost of
+ * being wrong is somebody's work, silently, on an action they did not think of
+ * as destructive. A publish counts them and says so; Clear Canvas removes them,
+ * because a designer asked it to.
  */
-export function isReplaceableCard(
-  node: CardNode,
-  subjectNames: string[],
-): boolean {
-  if (isStampedCard(node)) return true;
-  if (hasLegacyName(node, LEGACY_AGGREGATE_FRAME_NAME)) return true;
+export function isLegacyNamedCard(node: CardNode): boolean {
+  if (isStampedCard(node)) return false;
 
-  return subjectNames.some((name) =>
-    hasLegacyName(node, `${name}${LEGACY_CARD_NAME_SUFFIX}`),
+  return (
+    hasLegacyName(node, LEGACY_AGGREGATE_FRAME_NAME) ||
+    (node.isFrame && node.name.endsWith(LEGACY_CARD_NAME_SUFFIX))
   );
 }
 
 /**
- * Anything this module could have published: any stamped card, plus every
- * pre-stamp name including the bare suffix.
+ * Anything this module could have published: stamped, or merely named like it.
  *
- * Broader than `isReplaceableCard` on purpose, and only ever reached from Clear
- * Canvas. Sweeping by suffix is how a pre-stamp card whose Subject was since
- * renamed becomes removable at all, and it is safe to offer behind an explicit
- * action in a way it is not as a side effect of publishing.
+ * Clear Canvas only. It is the union of the two rules above, so it can never
+ * strand what a publish replaces, and it is the only way a pre-stamp card
+ * becomes removable at all.
  */
 export function isOwnedCard(node: CardNode): boolean {
-  return (
-    isStampedCard(node) ||
-    hasLegacyName(node, LEGACY_AGGREGATE_FRAME_NAME) ||
-    (node.isFrame && node.name.endsWith(LEGACY_CARD_NAME_SUFFIX))
-  );
+  return isStampedCard(node) || isLegacyNamedCard(node);
 }
