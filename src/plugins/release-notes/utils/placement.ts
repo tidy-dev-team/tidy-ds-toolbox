@@ -13,13 +13,16 @@ export interface Box extends Position {
 }
 
 /**
- * A Foundation card sits to the left of everything already on the page, tops
+ * A card clear of the page: to the left of everything already on it, tops
  * aligned with the topmost item. An empty page puts it at the origin.
+ *
+ * This is where a Foundation card always goes, and where a component's card
+ * goes when the component sits inside a frame rather than straight on the page.
  *
  * `siblings` must exclude the card's own previous output: a card that measured
  * itself would walk further left on every publish.
  */
-export function foundationCardPosition(
+export function pageEdgeCardPosition(
   siblings: Position[],
   cardWidth: number,
   gap: number,
@@ -32,11 +35,16 @@ export function foundationCardPosition(
   return { x: left - cardWidth - gap, y: top };
 }
 
-/** A component-set card sits immediately left of its set, tops aligned. */
+/**
+ * A component's card sits immediately left of the component, tops aligned.
+ *
+ * Only usable when the component is a direct child of the page, because `x` and
+ * `y` are read relative to the parent and the card is a child of the page.
+ */
 export function componentCardPosition(
-  componentSet: Position,
+  component: Position,
   cardWidth: number,
   gap: number,
 ): Position {
-  return { x: componentSet.x - cardWidth - gap, y: componentSet.y };
+  return { x: component.x - cardWidth - gap, y: component.y };
 }

@@ -24,7 +24,7 @@ import {
 import { distinctSubjects } from "../utils/notes";
 import {
   componentCardPosition,
-  foundationCardPosition,
+  pageEdgeCardPosition,
 } from "../utils/placement";
 import { resolveCardFonts } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
@@ -64,9 +64,8 @@ function getOrCreateReleaseNotesPage(figma: PluginAPI): PageNode {
 
 /**
  * Where a Subject's card goes: the page it lives on, and the node it sits
- * beside. A component set or a standalone component anchors its card; a
- * Foundation page is the canvas itself and has nothing to anchor to, which is
- * what `anchor: null` says.
+ * beside. `anchor: null` means there is nothing to sit beside, and the card
+ * goes to the left edge of the page instead.
  */
 interface CardTarget {
   page: PageNode;
@@ -80,6 +79,7 @@ function resolveCardTarget(
   const node = figma.getNodeById(subject.id);
   if (!node) return null;
 
+  // A Foundation page is the canvas itself, so it has nothing to sit beside.
   if (subject.kind === "foundation-page") {
     return node.type === "PAGE" ? { page: node, anchor: null } : null;
   }
@@ -87,13 +87,21 @@ function resolveCardTarget(
   if (node.type !== "COMPONENT_SET" && node.type !== "COMPONENT") return null;
 
   // A note can outlive the shape of its subject: a component picked while it
-  // stood alone can later be combined into a set. Its x/y then reads relative
-  // to that set, so the card anchors to the set instead and stays on the page's
-  // coordinates.
-  const anchor = node.parent?.type === "COMPONENT_SET" ? node.parent : node;
+  // stood alone can later be combined into a set. The set is then the thing
+  // placed on the page, so it is the set that decides where the card goes.
+  const placed = node.parent?.type === "COMPONENT_SET" ? node.parent : node;
 
-  const page = findParentPage(anchor);
-  return page ? { page, anchor } : null;
+  const page = findParentPage(placed);
+  if (!page) return null;
+
+  // Only a component sitting straight on the page can anchor its own card. Read
+  // from inside a documentation frame, `x` and `y` are relative to that frame,
+  // so a page-level card placed at those numbers lands somewhere arbitrary. And
+  // even measured correctly it would sit on top of the frame it describes. Such
+  // a component uses the page edge instead, the same as a Foundation page.
+  const anchor = placed.parent?.type === "PAGE" ? placed : null;
+
+  return { page, anchor };
 }
 
 function placeCard(
@@ -111,7 +119,7 @@ function placeCard(
 
   const position = target.anchor
     ? componentCardPosition(target.anchor, card.width, CARD_GAP)
-    : foundationCardPosition(siblings, card.width, CARD_GAP);
+    : pageEdgeCardPosition(siblings, card.width, CARD_GAP);
 
   card.x = position.x;
   card.y = position.y;
