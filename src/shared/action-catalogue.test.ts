@@ -94,22 +94,25 @@ describe("buildOverrunMessage", () => {
 });
 
 describe("catalogue table shape", () => {
-  it("declares exactly the ten expected actions to start", () => {
-    const ids = Object.keys(ACTION_CATALOGUE);
-    expect(ids.sort()).toEqual(
-      [
-        "sticker-sheet-builder:build-all",
-        "sticker-sheet-builder:build-one",
-        "audit:generate-report",
-        "ds-explorer:build-component",
-        "color-finder:scan-colors",
-        "color-finder:scan-image-palette",
-        "release-notes:publish-notes",
-        "mcp-bridge:dispatch",
-        "audit:export-multipage-pdf",
-        "off-boarding:pack-pages",
-      ].sort(),
-    );
+  it("still declares the ten actions #162 started with, unchanged", () => {
+    const originalTen = [
+      "sticker-sheet-builder:build-all",
+      "sticker-sheet-builder:build-one",
+      "audit:generate-report",
+      "ds-explorer:build-component",
+      "color-finder:scan-colors",
+      "color-finder:scan-image-palette",
+      "release-notes:publish-notes",
+      "mcp-bridge:dispatch",
+      "audit:export-multipage-pdf",
+      "off-boarding:pack-pages",
+    ];
+    for (const id of originalTen) {
+      expect(ACTION_CATALOGUE[id], `entry '${id}'`).toBeDefined();
+      expect(ACTION_CATALOGUE[id].budget.kind, `entry '${id}'`).toBe(
+        "long-running",
+      );
+    }
   });
 
   it("gives every long-running entry a non-empty reason", () => {

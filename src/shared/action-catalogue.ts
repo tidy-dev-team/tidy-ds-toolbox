@@ -138,6 +138,202 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     },
     stoppable: true,
   },
+
+  // --- #164: document-writing modules --------------------------------
+  // Off-Boarding (target "off-boarding"). pack-pages declared above (#162).
+  "off-boarding:get-pages": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "off-boarding:unpack-pages": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "off-boarding:find-bound-variables": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "off-boarding:find-hidden-styles": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Sticker Sheet Builder (target "sticker-sheet-builder"). build-all /
+  // build-one declared above (#162).
+  "sticker-sheet-builder:init": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "sticker-sheet-builder:load-context": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "sticker-sheet-builder:update-config": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "sticker-sheet-builder:cancel-build": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Component Labels (target "component-labels").
+  "component-labels:init": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "component-labels:selection-change": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "component-labels:build-labels": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Audit (target "audit"). generate-report and export-multipage-pdf
+  // declared above (#162).
+  "audit:add-note": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:add-quick-win": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:export-pdf": {
+    // findReportFrameForExport() sets layoutMode = "VERTICAL" as a real,
+    // unconditional side effect (see src/plugins/audit/logic.ts, #163) —
+    // a genuine document write, even though the action's purpose is export.
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:export-csv": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:update-from-canvas": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:erase-notes-on-canvas": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:erase-report": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:get-selection-state": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "audit:check-report-exists": {
+    // Pure read as of #163 — findReportFrame() no longer mutates layoutMode.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Release Notes (target "release-notes"). publish-notes declared above
+  // (#162).
+  "release-notes:scan-components": {
+    // Can incidentally self-heal a stale stored component-id pointer via a
+    // plugin-data write, but that depends on file state, not the (absent)
+    // payload — declared as the read it presents as, per handler reading.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:select-component": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:load-appearance": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:set-appearance": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:load-foundation-pages": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:select-foundation-page": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:load-sprints": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:create-sprint": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:rename-sprint": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:delete-sprint": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:select-sprint": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:add-note": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:edit-note": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:delete-note": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:view-subject": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:preview-clear-canvas": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:clear-canvas": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:export-notes": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:export-csv": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:get-file-context": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:set-file-key": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "release-notes:import-notes": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // DS Explorer (target "ds-explorer"). build-component declared above
+  // (#162).
+  "ds-explorer:get-component-properties": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
 };
 
 /** Result of classifying an action id against the catalogue. */
