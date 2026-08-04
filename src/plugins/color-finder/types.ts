@@ -22,7 +22,9 @@ export type TidyColorFinderAction =
   //   render-palette-page:  UI sends the extracted palette back; plugin builds
   //                         the dedicated palette page and navigates to it.
   | "scan-image-palette"
-  | "render-palette-page";
+  | "render-palette-page"
+  // #167: stops an in-flight scan-colors run between pages.
+  | "cancel-scan";
 
 // The four role tables. Gradient/image paints are counted as "other" and
 // excluded from the tables. "icon" is detected by layer name (see
@@ -147,9 +149,15 @@ export interface ColorInventory {
 // full inventory so the UI can offer client-side actions (e.g. copy as
 // markdown) without a round trip.
 export interface ScanColorsResult {
-  pageId: string;
-  pageName: string;
-  inventory: ColorInventory;
+  pageId?: string;
+  pageName?: string;
+  inventory?: ColorInventory;
+  // #167: set when the scan was stopped by the designer before finishing.
+  // Describes what completed rather than leaving the designer to infer it
+  // from the canvas — no inventory page is built for a stopped run.
+  stopped?: boolean;
+  pagesScanned?: number;
+  totalPages?: number;
 }
 
 // Progress messages posted to the UI during a scan.

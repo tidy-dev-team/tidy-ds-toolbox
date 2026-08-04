@@ -38,17 +38,15 @@ export async function auditHandler(
   payload: unknown,
   _figma?: PluginAPI,
 ): Promise<unknown> {
-  // Load fonts for any operation that might need them
-  await loadFonts();
-
   switch (action as AuditAction) {
     case "add-note":
-      return handleAddNote(payload as NotePayload);
+      return await handleAddNote(payload as NotePayload);
 
     case "add-quick-win":
       return handleAddQuickWin();
 
     case "generate-report":
+      await loadFonts();
       return await buildReport();
 
     case "export-pdf":
@@ -122,7 +120,7 @@ function getSelectionState(): SelectionState {
 /**
  * Add a severity note to the selected element
  */
-function handleAddNote(payload: NotePayload): AuditResult {
+async function handleAddNote(payload: NotePayload): Promise<AuditResult> {
   const selection = figma.currentPage.selection;
   const selectionState = getSelectionState();
 
@@ -133,6 +131,10 @@ function handleAddNote(payload: NotePayload): AuditResult {
       message: selectionState.message || "Invalid selection",
     };
   }
+
+  // This action draws text (title/note), so it loads its own fonts rather
+  // than relying on the handler to have loaded them up front (#163).
+  await loadFonts();
 
   const element = selection[0];
   const severity = payload.severity;
@@ -385,7 +387,9 @@ function handleCheckReportExists(): {
 }
 
 /**
- * Find the report frame
+ * Find the report frame. A pure read — makes no change to the document.
+ * The report frame is built vertically from the start (buildLayoutFrames),
+ * so no caller needs to force the layout as a side effect.
  */
 function findReportFrame(): FrameNode | null {
   const reportPage = figma.root.children.find(
@@ -401,7 +405,6 @@ function findReportFrame(): FrameNode | null {
   );
 
   if (reportFrame && reportFrame.type === "FRAME") {
-    reportFrame.layoutMode = "VERTICAL";
     return reportFrame;
   }
 

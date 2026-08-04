@@ -71,7 +71,7 @@ To add a plugin: create the three files, then register the module in `moduleRegi
 
 ### Error Handling
 
-`code.ts` wraps all operations in a timeout (30 seconds default). Long-running operations (batch builds, report generation) must bypass this via the `isLongRunningAction` check. `src/shared/error-handler.ts` provides `isRecoverableError()` to distinguish user-fixable errors from critical ones.
+`code.ts` wraps every plugin-thread action in a timeout (30 seconds default). The timeout decision comes from the **action catalogue** (`src/shared/action-catalogue.ts`), not a hand-typed list: each action id (`module:action`) can be declared there with an `effect` (`reads` | `writes` the document) and a `budget` (a timed duration, or `long-running` with a required `reason`). An action absent from the catalogue keeps the default timeout and the default (bare) overrun message. A declared action that overruns gets a message derived from its `effect` — a write is told its work continues and to check the canvas before retrying; a read gets a plain failure. **Adding a new action means adding a catalogue entry.** `src/shared/action-catalogue-invariants.test.ts` fails the suite otherwise: it discovers every action reachable through `src/moduleHandlers.ts`'s dispatch switches and asserts each one has a catalogue entry, that no catalogue entry names a nonexistent action, that no action is declared twice, and that every `long-running` entry carries a reason. `src/shared/error-handler.ts` provides `isRecoverableError()` to distinguish user-fixable errors from critical ones.
 
 ### Operations / MCP Bridge (agent-facing surface)
 

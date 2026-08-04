@@ -18,6 +18,14 @@ import { collectUsages } from "./utils/scan";
 import { buildColorInventory } from "./utils/inventory";
 import { buildInventoryPage } from "./utils/render";
 import { buildPalettePage } from "./utils/render-palette";
+import {
+  createCancellationToken,
+  yieldToMain,
+} from "../../shared/cancellation";
+
+// #167: the token backing scan-colors' stop control. Recreated at the start
+// of each scan so an earlier cancellation doesn't leak into the next one.
+let scanToken = createCancellationToken();
 
 /**
  * Tidy Color Finder handler — processes messages from the UI.
@@ -46,6 +54,10 @@ export async function tidyColorFinderHandler(
 
     case "render-palette-page":
       return await renderPalettePage(payload as RenderPalettePagePayload);
+
+    case "cancel-scan":
+      scanToken.cancel();
+      return { stopped: true };
 
     default:
       console.warn(`Unknown action: ${action}`);
@@ -111,6 +123,8 @@ async function loadPage(page: PageNode): Promise<void> {
 async function scanColors(
   payload: ScanColorsPayload,
 ): Promise<ScanColorsResult> {
+  scanToken = createCancellationToken();
+
   const { scope, options } = payload;
   const resolved = resolveScope(scope);
   const totalPages = resolved.pages.length;
@@ -121,6 +135,10 @@ async function scanColors(
   let pagesScanned = 0;
 
   for (const page of resolved.pages) {
+    if (scanToken.isCancelled) {
+      return { stopped: true, pagesScanned, totalPages };
+    }
+
     await loadPage(page);
 
     const roots: readonly SceneNode[] = resolved.selection
@@ -147,6 +165,17 @@ async function scanColors(
       type: "progress",
       payload: { pagesScanned, totalPages, nodesScanned: cumulativeNodes },
     });
+
+    // Yield so a "cancel-scan" message sent while this loop is running has
+    // a chance to be processed before the next page starts.
+    await yieldToMain();
+  }
+
+  // A stop requested while the last page's yield was pending arrives here,
+  // after the loop already exited — check again before the inventory page
+  // (a write) gets built, so that request is still honoured (#167).
+  if (scanToken.isCancelled) {
+    return { stopped: true, pagesScanned, totalPages };
   }
 
   const inventory = buildColorInventory(allUsages, {

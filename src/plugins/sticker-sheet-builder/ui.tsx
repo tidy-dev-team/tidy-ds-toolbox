@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
+import { isStoppable } from "@shared/action-catalogue";
 import Loader from "./assets/loader.svg";
 import {
   DEFAULT_STICKER_SHEET_CONTEXT,
@@ -30,6 +31,7 @@ export function StickerSheetBuilderUI() {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isBuilding, setIsBuilding] = useState(false);
+  const [runningAction, setRunningAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [progress, setProgress] = useState<BuildProgress | null>(null);
@@ -105,6 +107,7 @@ export function StickerSheetBuilderUI() {
   const handleBuildOne = useCallback(() => {
     if (isLoading || isBuilding) return;
     setIsBuilding(true);
+    setRunningAction("sticker-sheet-builder:build-one");
     setStatusMessage(null);
     setErrorMessage(null);
     setProgress(null);
@@ -117,7 +120,9 @@ export function StickerSheetBuilderUI() {
           const builtCount = Number(result?.builtCount ?? 0);
           const label = builtCount === 1 ? "sticker" : "stickers";
           if (result?.cancelled) {
-            setStatusMessage(`Cancelled after building ${builtCount} ${label}`);
+            setStatusMessage(
+              `Stopped by you after building ${builtCount} ${label}`,
+            );
           } else {
             setStatusMessage(`Built ${builtCount} ${label}`);
           }
@@ -125,6 +130,7 @@ export function StickerSheetBuilderUI() {
         onError: (error) => setErrorMessage(error),
         onFinally: () => {
           setIsBuilding(false);
+          setRunningAction(null);
           setProgress(null);
         },
       },
@@ -134,6 +140,7 @@ export function StickerSheetBuilderUI() {
   const handleBuildAll = useCallback(() => {
     if (isLoading || isBuilding) return;
     setIsBuilding(true);
+    setRunningAction("sticker-sheet-builder:build-all");
     setStatusMessage(null);
     setErrorMessage(null);
     setProgress(null);
@@ -146,7 +153,9 @@ export function StickerSheetBuilderUI() {
           const builtCount = Number(result?.builtCount ?? 0);
           const label = builtCount === 1 ? "component" : "components";
           if (result?.cancelled) {
-            setStatusMessage(`Cancelled after building ${builtCount} ${label}`);
+            setStatusMessage(
+              `Stopped by you after building ${builtCount} ${label}`,
+            );
           } else {
             setStatusMessage(
               `Sticker sheet updated from ${builtCount} ${label}`,
@@ -156,6 +165,7 @@ export function StickerSheetBuilderUI() {
         onError: (error) => setErrorMessage(error),
         onFinally: () => {
           setIsBuilding(false);
+          setRunningAction(null);
           setProgress(null);
         },
       },
@@ -165,6 +175,9 @@ export function StickerSheetBuilderUI() {
   const handleCancel = useCallback(() => {
     sendRequest("cancel-build");
   }, [sendRequest]);
+
+  const canShowStop =
+    isBuilding && runningAction !== null && isStoppable(runningAction);
 
   // Track last clicked index for shift+click range selection
   const lastClickedIndexRef = useRef<number | null>(null);
@@ -510,13 +523,13 @@ export function StickerSheetBuilderUI() {
             >
               {isBuilding ? "" : "Build one sticker"}
             </button>
-            {isBuilding && (
+            {canShowStop && (
               <button
                 onClick={handleCancel}
                 className="morePadding note"
                 style={cancelButtonStyle}
               >
-                Cancel
+                Stop
               </button>
             )}
             {isBuilding && progress && (

@@ -8,7 +8,9 @@ export type OffBoardingAction =
   | "pack-pages"
   | "unpack-pages"
   | "find-bound-variables"
-  | "find-hidden-styles";
+  | "find-hidden-styles"
+  // #167: stops an in-flight pack-pages run between pages.
+  | "cancel-pack";
 
 export interface PageInfo {
   id: string;
@@ -20,6 +22,11 @@ export interface OffBoardingResult {
   message: string;
   pages?: PageInfo[];
   count?: number;
+  // #167: set when pack-pages was stopped by the designer before finishing.
+  // Names what was packed and what wasn't, rather than leaving the designer
+  // to infer it from the canvas.
+  stopped?: boolean;
+  remainingPageNames?: string[];
 }
 
 export interface PackPagesPayload {
