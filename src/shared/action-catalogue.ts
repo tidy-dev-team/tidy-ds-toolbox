@@ -61,12 +61,16 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     stoppable: true,
   },
   "sticker-sheet-builder:build-one": {
+    // Despite the name, this loops over every selected node (multi-select
+    // is allowed) and checks the same cancellation token as build-all — see
+    // handleBuildSelected in logic.ts. Declared stoppable to match.
     effect: "writes",
     budget: {
       kind: "long-running",
       reason:
-        "Builds a single sticker-sheet frame, but shares the build path with build-all and can still exceed the default timeout on a complex variant.",
+        "Builds a sticker-sheet frame per selected node, sharing the build path with build-all — can exceed the default timeout with a large selection.",
     },
+    stoppable: true,
   },
   "audit:generate-report": {
     effect: "writes",
@@ -128,7 +132,8 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     },
   },
   "audit:export-multipage-pdf": {
-    effect: "writes",
+    // Pure read as of #163 — no layoutMode mutation remains on this path.
+    effect: "reads",
     budget: {
       kind: "long-running",
       reason:
@@ -213,10 +218,9 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
   "audit:export-pdf": {
-    // findReportFrameForExport() sets layoutMode = "VERTICAL" as a real,
-    // unconditional side effect (see src/plugins/audit/logic.ts, #163) —
-    // a genuine document write, even though the action's purpose is export.
-    effect: "writes",
+    // Pure read as of #163 — the report frame is built vertically from
+    // creation (buildLayoutFrames), so export no longer mutates layoutMode.
+    effect: "reads",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
   "audit:export-csv": {
@@ -362,23 +366,25 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
   "utilities:ds-template": {
+    // Bounded by a fixed template (roughly seventy pages), not by file size —
+    // a generous timed budget, not an unbounded one, so a genuine hang still
+    // eventually surfaces as a (write-worded) timeout instead of never
+    // rejecting. This is a real behaviour change from before #164: it had no
+    // catalogue entry and ran on the 30s default, which was too short for
+    // this build. Raised, not removed.
     effect: "writes",
-    budget: {
-      kind: "long-running",
-      reason:
-        "Creates every DS Template page (roughly seventy) and builds a header frame per page — a whole-file structural build that can exceed the default timeout.",
-    },
+    budget: { kind: "timed", ms: 180000 },
   },
 
   // Tidy Mapper (target "tidy-mapper"). Its page-creating action is a
   // write, not a read, despite the module otherwise reading a lot.
   "tidy-mapper:grab-slices": {
+    // Bounded by the slices on one page, not unbounded — a generous timed
+    // budget rather than long-running, so a genuine hang still surfaces.
+    // Previously undeclared and running on the 30s default; raised, not
+    // removed (a real behaviour change, flagged for review in #164/#165).
     effect: "writes",
-    budget: {
-      kind: "long-running",
-      reason:
-        "Rasterizes every slice on the current page, builds trail frames, and creates a page to hold them — can exceed the default timeout on a busy page.",
-    },
+    budget: { kind: "timed", ms: 180000 },
   },
   "tidy-mapper:set-slice-name": {
     effect: "writes",
@@ -446,12 +452,12 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
   "tidy-icon-care:build-icon-grid": {
+    // Bounded by the current selection, not unbounded — a generous timed
+    // budget rather than long-running, so a genuine hang still surfaces.
+    // Previously undeclared and running on the 30s default; raised, not
+    // removed (a real behaviour change, flagged for review in #164/#165).
     effect: "writes",
-    budget: {
-      kind: "long-running",
-      reason:
-        "Builds a labelled icon grid across the whole selection — detaches instances, appends labels and columns, and edits descriptions per icon — can exceed the default timeout on a large selection.",
-    },
+    budget: { kind: "timed", ms: 180000 },
   },
 
   // tidy-doc (target "tidy-doc"). Its Operations surface
@@ -475,6 +481,17 @@ export interface ActionClassification {
   effect: ActionEffect;
   budget: ActionBudget;
   stoppable?: boolean;
+}
+
+/**
+ * Whether an action id is declared stoppable (#167). The single source of
+ * truth for gating a stop control in the UI — an action absent from the
+ * catalogue, or present without `stoppable: true`, is never stoppable.
+ *
+ * Pure — no Figma document needed.
+ */
+export function isStoppable(actionId: string): boolean {
+  return ACTION_CATALOGUE[actionId]?.stoppable === true;
 }
 
 /**

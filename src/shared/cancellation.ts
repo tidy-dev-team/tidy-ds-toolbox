@@ -9,8 +9,8 @@
  *
  * For that check to ever see a cancellation requested while the plugin
  * thread is mid-loop, the loop must also yield to the event loop's macrotask
- * queue between iterations (see `yieldToMain` in each adopter) — otherwise
- * the incoming "stop" message never gets a chance to run before the loop
+ * queue between iterations (see `yieldToMain` below) — otherwise the
+ * incoming "stop" message never gets a chance to run before the loop
  * finishes on its own.
  */
 export interface CancellationToken {
@@ -31,4 +31,15 @@ export function createCancellationToken(): CancellationToken {
       cancelled = true;
     },
   };
+}
+
+/**
+ * Yields to the event loop's macrotask queue. Every cancellation-token
+ * adopter must call this between loop iterations — otherwise an incoming
+ * "cancel" message queued on the same macrotask queue never gets a chance
+ * to run before the loop finishes on its own, and `isCancelled` is never
+ * seen true mid-loop.
+ */
+export function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }

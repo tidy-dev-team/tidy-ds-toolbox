@@ -1,4 +1,7 @@
-import { createCancellationToken } from "../../shared/cancellation";
+import {
+  createCancellationToken,
+  yieldToMain,
+} from "../../shared/cancellation";
 import buildOneSticker from "./utils/buildOneSticker";
 import {
   findAtomPages,
@@ -28,11 +31,6 @@ let listenersRegistered = false;
 // Recreated at the start of each run so an earlier cancellation doesn't
 // leak into the next one.
 let buildToken = createCancellationToken();
-
-// Yield control back to the event loop to keep UI responsive
-function yieldToMain(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 // Load config from plugin data (with migration from legacy format)
 function loadConfig(): StickerSheetConfig {

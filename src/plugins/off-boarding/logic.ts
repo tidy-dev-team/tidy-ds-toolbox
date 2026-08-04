@@ -6,7 +6,10 @@ import {
   PackPagesPayload,
   PageInfo,
 } from "./types";
-import { createCancellationToken } from "../../shared/cancellation";
+import {
+  createCancellationToken,
+  yieldToMain,
+} from "../../shared/cancellation";
 
 const TEMP_PAGE_NAME = "__TCC_TEMP__";
 
@@ -200,13 +203,6 @@ function getPagesList(): PageInfo[] {
 // of each pack so an earlier cancellation doesn't leak into the next one.
 let packToken = createCancellationToken();
 
-// Yield to the event loop's macrotask queue between pages so an incoming
-// "cancel-pack" message actually gets a chance to run before the loop
-// finishes on its own.
-function yieldToMain(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
   packToken = createCancellationToken();
 
@@ -230,27 +226,29 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
 
   const frames: Array<FrameNode> = [];
 
+  const buildStoppedResult = (): OffBoardingResult => {
+    const remainingPageNames = sourcePages
+      .slice(frames.length)
+      .map((p) => p.name);
+
+    if (frames.length > 0) {
+      arrangeFramesInGrid(frames, 200);
+      figma.currentPage.selection = frames;
+      figma.viewport.scrollAndZoomIntoView(frames);
+    }
+
+    return {
+      success: true,
+      message: `Stopped by you after packing ${frames.length} of ${sourcePages.length} page${sourcePages.length === 1 ? "" : "s"}.`,
+      count: frames.length,
+      stopped: true,
+      remainingPageNames,
+    };
+  };
+
   for (const page of sourcePages) {
     if (packToken.isCancelled) {
-      const packedPageNames = frames.map((f) => f.name);
-      const remainingPageNames = sourcePages
-        .slice(frames.length)
-        .map((p) => p.name);
-
-      if (frames.length > 0) {
-        arrangeFramesInGrid(frames, 200);
-        figma.currentPage.selection = frames;
-        figma.viewport.scrollAndZoomIntoView(frames);
-      }
-
-      return {
-        success: true,
-        message: `Stopped by you after packing ${frames.length} of ${sourcePages.length} page${sourcePages.length === 1 ? "" : "s"}.`,
-        count: frames.length,
-        stopped: true,
-        packedPageNames,
-        remainingPageNames,
-      };
+      return buildStoppedResult();
     }
 
     const frame = figma.createFrame();
@@ -265,6 +263,13 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
     // Yield so a "cancel-pack" message sent while this loop is running has
     // a chance to be processed before the next page starts.
     await yieldToMain();
+  }
+
+  // A stop requested while the last page's yield was pending arrives here,
+  // after the loop already exited — check again before treating the run as
+  // a plain success, so that request is still honoured (#167).
+  if (packToken.isCancelled) {
+    return buildStoppedResult();
   }
 
   arrangeFramesInGrid(frames, 200);

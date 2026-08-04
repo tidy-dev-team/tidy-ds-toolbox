@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
+import { isStoppable } from "@shared/action-catalogue";
 import {
   IconRefresh,
   IconExternalLink,
@@ -525,11 +526,16 @@ export function TidyColorFinderUI() {
         {scanning ? "Scanning..." : "Run"}
       </button>
 
-      {scanning && mode === "vector" && (
-        <button onClick={handleStopScan} className="secondary">
-          Stop
-        </button>
-      )}
+      {scanning &&
+        isStoppable(
+          mode === "vector"
+            ? "color-finder:scan-colors"
+            : "color-finder:scan-image-palette",
+        ) && (
+          <button onClick={handleStopScan} className="secondary">
+            Stop
+          </button>
+        )}
 
       {vectorProgress && (
         <div className="status-message">
@@ -543,8 +549,7 @@ export function TidyColorFinderUI() {
         <div className="status-message">
           Stopped by you after scanning {scanResult.pagesScanned} of{" "}
           {scanResult.totalPages} page
-          {scanResult.totalPages === 1 ? "" : "s"}. No inventory page was
-          built.
+          {scanResult.totalPages === 1 ? "" : "s"}. No inventory page was built.
         </div>
       )}
 

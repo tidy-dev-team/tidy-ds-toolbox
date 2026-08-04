@@ -26,7 +26,6 @@ export interface OffBoardingResult {
   // Names what was packed and what wasn't, rather than leaving the designer
   // to infer it from the canvas.
   stopped?: boolean;
-  packedPageNames?: string[];
   remainingPageNames?: string[];
 }
 

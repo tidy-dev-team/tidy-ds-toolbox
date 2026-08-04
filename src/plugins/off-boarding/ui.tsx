@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
+import { isStoppable } from "@shared/action-catalogue";
 import { OffBoardingAction, PageInfo } from "./types";
 import {
   IconPackage,
@@ -122,7 +123,12 @@ export function OffBoardingUI() {
       {
         onSuccess: (result) => {
           if (result?.success) {
-            setStatusMessage(result.message);
+            const remaining = result.remainingPageNames as string[] | undefined;
+            setStatusMessage(
+              remaining && remaining.length > 0
+                ? `${result.message} Not packed: ${remaining.join(", ")}.`
+                : result.message,
+            );
             refreshPages();
           } else {
             setErrorMessage(result?.message ?? "Failed to pack pages");
@@ -378,10 +384,7 @@ export function OffBoardingUI() {
                 : `Pack ${selectedCount > 0 ? `${selectedCount} ` : ""}Page${selectedCount !== 1 ? "s" : ""}`}
             </button>
 
-            {isLoading === "pack" && (
-              // #167: off-boarding:pack-pages is declared stoppable in the
-              // action catalogue — a stop control is only wired up here
-              // because of that.
+            {isLoading === "pack" && isStoppable("off-boarding:pack-pages") && (
               <button onClick={handleStopPack} className="secondary note">
                 Stop
               </button>

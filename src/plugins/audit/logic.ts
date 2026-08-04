@@ -251,7 +251,7 @@ async function handleExportPdf(): Promise<{
   data?: Uint8Array;
   message?: string;
 }> {
-  const reportFrame = findReportFrameForExport();
+  const reportFrame = findReportFrame();
   if (!reportFrame) {
     return {
       success: false,
@@ -285,7 +285,7 @@ async function handleExportMultipagePdf(): Promise<{
   pages?: Uint8Array[];
   message?: string;
 }> {
-  const reportFrame = findReportFrameForExport();
+  const reportFrame = findReportFrame();
   if (!reportFrame) {
     return {
       success: false,
@@ -388,8 +388,8 @@ function handleCheckReportExists(): {
 
 /**
  * Find the report frame. A pure read — makes no change to the document.
- * Callers that depend on the frame being laid out vertically for export
- * (see `findReportFrameForExport`) must ask for that explicitly.
+ * The report frame is built vertically from the start (buildLayoutFrames),
+ * so no caller needs to force the layout as a side effect.
  */
 function findReportFrame(): FrameNode | null {
   const reportPage = figma.root.children.find(
@@ -409,19 +409,4 @@ function findReportFrame(): FrameNode | null {
   }
 
   return null;
-}
-
-/**
- * Find the report frame for export, ensuring it is laid out vertically.
- * The vertical layout is load-bearing for both PDF export paths (#163) —
- * it is the only thing that makes the report a vertical stack rather than
- * a horizontal row. Kept as a side effect here, on the export path only;
- * the plain existence check (`handleCheckReportExists`) must not pay for it.
- */
-function findReportFrameForExport(): FrameNode | null {
-  const reportFrame = findReportFrame();
-  if (reportFrame) {
-    reportFrame.layoutMode = "VERTICAL";
-  }
-  return reportFrame;
 }

@@ -42,7 +42,7 @@ export function buildLayoutFrames(keys: string[]): LayoutFrames {
 
   const reportFrame = buildAutoLayoutFrame(
     "report-frame",
-    "HORIZONTAL",
+    "VERTICAL",
     0,
     0,
     120,

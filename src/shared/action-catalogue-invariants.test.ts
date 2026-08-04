@@ -88,10 +88,7 @@ function extractDispatchedActionIds(source: string): string[] {
 function discoverReachableActionIds(): string[] {
   const ids: string[] = ["mcp-bridge:dispatch"];
   for (const [target, relativePath] of Object.entries(MODULE_LOGIC_FILES)) {
-    const source = readFileSync(
-      path.join(PLUGINS_DIR, relativePath),
-      "utf-8",
-    );
+    const source = readFileSync(path.join(PLUGINS_DIR, relativePath), "utf-8");
     for (const action of extractDispatchedActionIds(source)) {
       ids.push(`${target}:${action}`);
     }
@@ -122,6 +119,26 @@ describe("action catalogue invariants (#166)", () => {
         true,
       );
     }
+  });
+
+  it("has exactly one action-dispatching switch in moduleHandlers.ts (pins the ds-explorer discovery assumption)", () => {
+    // extractDispatchedActionIds only reads the *first* `switch (action`
+    // block in moduleHandlers.ts and attributes every case to ds-explorer.
+    // If a second inline dispatch switch is ever added above dsExplorerHandler,
+    // its cases would be silently misattributed and ds-explorer's real
+    // actions would vanish from discovery. This pins that assumption so a
+    // second switch fails loudly here instead.
+    const moduleHandlersSource = readFileSync(
+      path.join(SHELL_DIR, "..", "moduleHandlers.ts"),
+      "utf-8",
+    );
+    const matches = moduleHandlersSource.match(/switch\s*\(\s*action\b/g) ?? [];
+    expect(
+      matches.length,
+      "moduleHandlers.ts now has more than one `switch (action ...)` block — " +
+        "update extractDispatchedActionIds/discoverReachableActionIds in this " +
+        "file to discover the new one explicitly, the same way ds-explorer is.",
+    ).toBe(1);
   });
 
   it("gives every action reachable through the module handlers a catalogue entry", () => {

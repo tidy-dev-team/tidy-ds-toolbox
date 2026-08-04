@@ -18,19 +18,14 @@ import { collectUsages } from "./utils/scan";
 import { buildColorInventory } from "./utils/inventory";
 import { buildInventoryPage } from "./utils/render";
 import { buildPalettePage } from "./utils/render-palette";
-import { createCancellationToken } from "../../shared/cancellation";
+import {
+  createCancellationToken,
+  yieldToMain,
+} from "../../shared/cancellation";
 
 // #167: the token backing scan-colors' stop control. Recreated at the start
 // of each scan so an earlier cancellation doesn't leak into the next one.
 let scanToken = createCancellationToken();
-
-// Yield to the event loop's macrotask queue between pages so an incoming
-// "cancel-scan" message actually gets a chance to run before the loop
-// finishes on its own (a bare `await` on an already-settled promise only
-// flushes microtasks, not pending UI messages).
-function yieldToMain(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
 
 /**
  * Tidy Color Finder handler — processes messages from the UI.
@@ -174,6 +169,13 @@ async function scanColors(
     // Yield so a "cancel-scan" message sent while this loop is running has
     // a chance to be processed before the next page starts.
     await yieldToMain();
+  }
+
+  // A stop requested while the last page's yield was pending arrives here,
+  // after the loop already exited — check again before the inventory page
+  // (a write) gets built, so that request is still honoured (#167).
+  if (scanToken.isCancelled) {
+    return { stopped: true, pagesScanned, totalPages };
   }
 
   const inventory = buildColorInventory(allUsages, {

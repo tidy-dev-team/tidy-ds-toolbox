@@ -118,7 +118,10 @@ describe("catalogue table shape", () => {
   it("gives every long-running entry a non-empty reason", () => {
     for (const [id, entry] of Object.entries(ACTION_CATALOGUE)) {
       if (entry.budget.kind === "long-running") {
-        expect(entry.budget.reason.trim().length, `entry '${id}'`).toBeGreaterThan(0);
+        expect(
+          entry.budget.reason.trim().length,
+          `entry '${id}'`,
+        ).toBeGreaterThan(0);
       }
     }
   });
