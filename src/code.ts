@@ -6,39 +6,13 @@ import {
   withTimeout,
   formatErrorMessage,
   isRecoverableError,
+  TimeoutError,
 } from "./shared/error-handler";
+import { classifyAction, buildOverrunMessage } from "./shared/action-catalogue";
 import { createLogger } from "./shared/logging";
 import { bindSession } from "./shared/operations/registry";
 import { captureUsage, setUsageRelay } from "./shared/analytics/capture";
 import { dumpUsageEvents } from "./shared/analytics/buffer";
-
-// Configuration
-const DEFAULT_TIMEOUT_MS = 30000; // 30 seconds
-
-// Actions that can take a long time and should not be timed out
-const LONG_RUNNING_ACTIONS = new Set([
-  "sticker-sheet-builder:build-all",
-  "sticker-sheet-builder:build-one",
-  "audit:generate-report",
-  // Builds a clone, prunes variants, then de-links from Kido-DS (detach nested
-  // instances + localize styles) — can exceed the default timeout on large sets.
-  "ds-explorer:build-component",
-  // Walks every node on the chosen scope (optionally all pages) extracting
-  // solid-color usages, then renders an inventory page — can exceed the default
-  // timeout on large files. Emits progress updates while it runs.
-  "color-finder:scan-colors",
-  "color-finder:scan-image-palette",
-  // Rebuilds the aggregate changelog plus one card per Subject the sprint
-  // touched, each a few hundred nodes — a busy sprint can exceed the default
-  // timeout.
-  "release-notes:publish-notes",
-  // Every MCP-invoked Operation arrives here as target "mcp-bridge", action
-  // "dispatch" — the specific operation id is opaque at this layer, so a
-  // single blanket exemption is the only way to honor a catalogue entry's
-  // own timeoutMs (mcp-server/src/catalogue.ts), enforced instead at the
-  // Bridge layer (mcp-server/src/bridge-server.ts).
-  "mcp-bridge:dispatch",
-]);
 
 // Create logger for main thread
 const logger = createLogger("Main");
@@ -194,13 +168,20 @@ figma.ui.onmessage = async (msg: unknown) => {
       throw new Error(`Unknown module: ${target}`);
     }
 
-    // Execute handler - skip timeout for long-running operations
+    // Execute handler - the action catalogue (#162) decides whether this
+    // action is timed or long-running, and (below) how an overrun reads.
     const operationName = `${target}:${action}`;
+    const classification = classifyAction(operationName);
     const handlerPromise = handlers[target](action, payload, figma);
 
-    const result = LONG_RUNNING_ACTIONS.has(operationName)
-      ? await handlerPromise
-      : await withTimeout(handlerPromise, DEFAULT_TIMEOUT_MS, operationName);
+    const result =
+      classification.budget.kind === "long-running"
+        ? await handlerPromise
+        : await withTimeout(
+            handlerPromise,
+            classification.budget.ms,
+            operationName,
+          );
 
     logger.debug(`Success: ${operationName}`, { result });
     sendResponse(requestId, result);
@@ -213,12 +194,20 @@ figma.ui.onmessage = async (msg: unknown) => {
       recoverable,
     });
 
-    // Send error response with recovery information
-    sendResponse(requestId, null, errorMessage);
+    // Send error response with recovery information. A timeout error gets
+    // the catalogue's overrun wording — honest about whether the write is
+    // still in flight — instead of the raw TimeoutError text.
+    const operationName = `${target}:${action}`;
+    const isTimeout = error instanceof TimeoutError;
+    const responseMessage = isTimeout
+      ? buildOverrunMessage(operationName, classifyAction(operationName))
+      : errorMessage;
+
+    sendResponse(requestId, null, responseMessage);
 
     // Notify user if error is not recoverable
     if (!recoverable) {
-      figma.notify(`⚠️ ${errorMessage}`, { error: true });
+      figma.notify(`⚠️ ${responseMessage}`, { error: true });
     }
   }
 };
