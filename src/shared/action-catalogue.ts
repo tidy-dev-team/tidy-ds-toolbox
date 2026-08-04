@@ -94,11 +94,17 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     stoppable: true,
   },
   "color-finder:scan-image-palette": {
-    effect: "writes",
+    // Corrected during #165: reading scanImagePalette's handler body shows
+    // it only exports PNG bytes per image node and reports progress — no
+    // node/page is created or mutated. It is a read, not a write. The
+    // long-running budget is unchanged (#164/#165 rule: no action loses a
+    // budget it had) — it still loops over every image on every page in
+    // scope, which is genuinely slow on a large file.
+    effect: "reads",
     budget: {
       kind: "long-running",
       reason:
-        "Shares the scan path with scan-colors and can exceed the default timeout for the same reason.",
+        "Walks every page in scope exporting each image-bearing node to PNG for palette extraction — can exceed the default timeout on large files.",
     },
   },
   "release-notes:publish-notes": {
@@ -332,6 +338,122 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
   // (#162).
   "ds-explorer:get-component-properties": {
     effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // --- #165: read-mostly modules --------------------------------------
+  // Utilities (target "utilities"). Description-stamping and DS-Template
+  // page creation are writes, not reads, despite the module's name.
+  "utilities:address-note": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "utilities:image-wrapper": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "utilities:misprint": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "utilities:ds-template": {
+    effect: "writes",
+    budget: {
+      kind: "long-running",
+      reason:
+        "Creates every DS Template page (roughly seventy) and builds a header frame per page — a whole-file structural build that can exceed the default timeout.",
+    },
+  },
+
+  // Tidy Mapper (target "tidy-mapper"). Its page-creating action is a
+  // write, not a read, despite the module otherwise reading a lot.
+  "tidy-mapper:grab-slices": {
+    effect: "writes",
+    budget: {
+      kind: "long-running",
+      reason:
+        "Rasterizes every slice on the current page, builds trail frames, and creates a page to hold them — can exceed the default timeout on a busy page.",
+    },
+  },
+  "tidy-mapper:set-slice-name": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-mapper:show-trails": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-mapper:show-chosen": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-mapper:get-trail-names": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-mapper:get-current-name": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Color Finder (target "color-finder"). scan-colors and
+  // scan-image-palette declared above (#162, corrected above in #165).
+  "color-finder:list-pages": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "color-finder:show-page": {
+    // Navigation only (sets figma.currentPage / scrolls into view) — not a
+    // document mutation, per the same convention used elsewhere in this
+    // catalogue for selection/viewport-only side effects.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "color-finder:render-palette-page": {
+    effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Icon Finder (target "iconfinder"). All reads, confirmed by handler.
+  "iconfinder:start": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "iconfinder:stop": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+
+  // Tidy Icon Care (target "tidy-icon-care").
+  "tidy-icon-care:load-params": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-icon-care:save-params": {
+    // Persists to figma.clientStorage (plugin settings), not document
+    // nodes — not a document write by this catalogue's convention.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-icon-care:build-icon-grid": {
+    effect: "writes",
+    budget: {
+      kind: "long-running",
+      reason:
+        "Builds a labelled icon grid across the whole selection — detaches instances, appends labels and columns, and edits descriptions per icon — can exceed the default timeout on a large selection.",
+    },
+  },
+
+  // tidy-doc (target "tidy-doc"). Its Operations surface
+  // (tidy_doc_read_component / tidy_doc_build_page) arrives via the
+  // exempt mcp-bridge:dispatch action, not through this target, so it
+  // has no separate entries here.
+  "tidy-doc:get-context": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "tidy-doc:document-selection": {
+    effect: "writes",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
 };
