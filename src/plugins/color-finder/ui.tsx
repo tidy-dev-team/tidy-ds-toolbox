@@ -306,6 +306,15 @@ export function TidyColorFinderUI() {
     }
   }, [mode, handleVectorScan, handleImageScan]);
 
+  // #167: color-finder:scan-colors is declared stoppable in the action
+  // catalogue — a stop control is only wired up here because of that.
+  const handleStopScan = useCallback(() => {
+    postToFigma({
+      target: "color-finder",
+      action: "cancel-scan",
+    });
+  }, []);
+
   const handleShowPage = useCallback(() => {
     const pageId = scanResult?.pageId || paletteResult?.pageId;
     if (!pageId) return;
@@ -317,7 +326,7 @@ export function TidyColorFinderUI() {
   }, [scanResult, paletteResult]);
 
   const handleCopyMarkdown = useCallback(() => {
-    if (!scanResult) return;
+    if (!scanResult?.inventory) return;
     copyToClipboard(serializeInventoryToMarkdown(scanResult.inventory));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -516,11 +525,26 @@ export function TidyColorFinderUI() {
         {scanning ? "Scanning..." : "Run"}
       </button>
 
+      {scanning && mode === "vector" && (
+        <button onClick={handleStopScan} className="secondary">
+          Stop
+        </button>
+      )}
+
       {vectorProgress && (
         <div className="status-message">
           Scanning {vectorProgress.totalPages} page
           {vectorProgress.totalPages === 1 ? "" : "s"} �·{" "}
           {vectorProgress.nodesScanned.toLocaleString()} nodes
+        </div>
+      )}
+
+      {scanResult?.stopped && (
+        <div className="status-message">
+          Stopped by you after scanning {scanResult.pagesScanned} of{" "}
+          {scanResult.totalPages} page
+          {scanResult.totalPages === 1 ? "" : "s"}. No inventory page was
+          built.
         </div>
       )}
 
@@ -532,7 +556,7 @@ export function TidyColorFinderUI() {
         </div>
       )}
 
-      {scanResult && (
+      {scanResult?.inventory && (
         <div className="status-message success">
           <div style={{ marginBottom: 8 }}>
             {scanResult.inventory.summary.uniqueTotal} unique color

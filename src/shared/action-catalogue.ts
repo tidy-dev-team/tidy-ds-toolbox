@@ -163,6 +163,11 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     effect: "reads",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
+  "off-boarding:cancel-pack": {
+    // #167: flips an in-memory cancellation token only — no document write.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
 
   // Sticker Sheet Builder (target "sticker-sheet-builder"). build-all /
   // build-one declared above (#162).
@@ -411,6 +416,11 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
   },
   "color-finder:render-palette-page": {
     effect: "writes",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "color-finder:cancel-scan": {
+    // #167: flips an in-memory cancellation token only — no document write.
+    effect: "reads",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
 

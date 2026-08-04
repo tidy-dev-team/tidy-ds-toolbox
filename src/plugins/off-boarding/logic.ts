@@ -6,6 +6,7 @@ import {
   PackPagesPayload,
   PageInfo,
 } from "./types";
+import { createCancellationToken } from "../../shared/cancellation";
 
 const TEMP_PAGE_NAME = "__TCC_TEMP__";
 
@@ -195,7 +196,20 @@ function getPagesList(): PageInfo[] {
     .map((page) => ({ id: page.id, name: page.name }));
 }
 
-function packPages(pageIds: string[]): OffBoardingResult {
+// #167: the token backing pack-pages' stop control. Recreated at the start
+// of each pack so an earlier cancellation doesn't leak into the next one.
+let packToken = createCancellationToken();
+
+// Yield to the event loop's macrotask queue between pages so an incoming
+// "cancel-pack" message actually gets a chance to run before the loop
+// finishes on its own.
+function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
+  packToken = createCancellationToken();
+
   const allPages = figma.root.children.filter((page) => !isTempPage(page));
 
   const sourcePages =
@@ -217,6 +231,28 @@ function packPages(pageIds: string[]): OffBoardingResult {
   const frames: Array<FrameNode> = [];
 
   for (const page of sourcePages) {
+    if (packToken.isCancelled) {
+      const packedPageNames = frames.map((f) => f.name);
+      const remainingPageNames = sourcePages
+        .slice(frames.length)
+        .map((p) => p.name);
+
+      if (frames.length > 0) {
+        arrangeFramesInGrid(frames, 200);
+        figma.currentPage.selection = frames;
+        figma.viewport.scrollAndZoomIntoView(frames);
+      }
+
+      return {
+        success: true,
+        message: `Stopped by you after packing ${frames.length} of ${sourcePages.length} page${sourcePages.length === 1 ? "" : "s"}.`,
+        count: frames.length,
+        stopped: true,
+        packedPageNames,
+        remainingPageNames,
+      };
+    }
+
     const frame = figma.createFrame();
     frame.name = page.name;
     frame.setPluginData("tcc:pageName", page.name);
@@ -225,6 +261,10 @@ function packPages(pageIds: string[]): OffBoardingResult {
 
     cloneTopLevelNodesIntoFrame(page, frame);
     frames.push(frame);
+
+    // Yield so a "cancel-pack" message sent while this loop is running has
+    // a chance to be processed before the next page starts.
+    await yieldToMain();
   }
 
   arrangeFramesInGrid(frames, 200);
@@ -435,7 +475,7 @@ export async function offBoardingHandler(
 
     case "pack-pages":
       const packPayload = payload as PackPagesPayload;
-      return packPages(packPayload?.pageIds || []);
+      return await packPages(packPayload?.pageIds || []);
 
     case "unpack-pages":
       return unpackPages();
@@ -445,6 +485,10 @@ export async function offBoardingHandler(
 
     case "find-hidden-styles":
       return findHiddenStyles();
+
+    case "cancel-pack":
+      packToken.cancel();
+      return { success: true, message: "Cancelling…", stopped: true };
 
     default:
       return {

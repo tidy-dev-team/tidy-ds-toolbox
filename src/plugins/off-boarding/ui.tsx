@@ -134,6 +134,13 @@ export function OffBoardingUI() {
     );
   }, [pages, sendRequest, refreshPages]);
 
+  const handleStopPack = useCallback(() => {
+    postToFigma({
+      target: "off-boarding",
+      action: "cancel-pack",
+    });
+  }, []);
+
   const handleUnpackPages = useCallback(() => {
     setIsLoading("unpack");
     setStatusMessage(null);
@@ -370,6 +377,15 @@ export function OffBoardingUI() {
                 ? "Packing..."
                 : `Pack ${selectedCount > 0 ? `${selectedCount} ` : ""}Page${selectedCount !== 1 ? "s" : ""}`}
             </button>
+
+            {isLoading === "pack" && (
+              // #167: off-boarding:pack-pages is declared stoppable in the
+              // action catalogue — a stop control is only wired up here
+              // because of that.
+              <button onClick={handleStopPack} className="secondary note">
+                Stop
+              </button>
+            )}
 
             <button
               onClick={handleUnpackPages}

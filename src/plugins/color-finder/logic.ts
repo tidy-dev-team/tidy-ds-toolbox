@@ -18,6 +18,19 @@ import { collectUsages } from "./utils/scan";
 import { buildColorInventory } from "./utils/inventory";
 import { buildInventoryPage } from "./utils/render";
 import { buildPalettePage } from "./utils/render-palette";
+import { createCancellationToken } from "../../shared/cancellation";
+
+// #167: the token backing scan-colors' stop control. Recreated at the start
+// of each scan so an earlier cancellation doesn't leak into the next one.
+let scanToken = createCancellationToken();
+
+// Yield to the event loop's macrotask queue between pages so an incoming
+// "cancel-scan" message actually gets a chance to run before the loop
+// finishes on its own (a bare `await` on an already-settled promise only
+// flushes microtasks, not pending UI messages).
+function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
 /**
  * Tidy Color Finder handler — processes messages from the UI.
@@ -46,6 +59,10 @@ export async function tidyColorFinderHandler(
 
     case "render-palette-page":
       return await renderPalettePage(payload as RenderPalettePagePayload);
+
+    case "cancel-scan":
+      scanToken.cancel();
+      return { stopped: true };
 
     default:
       console.warn(`Unknown action: ${action}`);
@@ -111,6 +128,8 @@ async function loadPage(page: PageNode): Promise<void> {
 async function scanColors(
   payload: ScanColorsPayload,
 ): Promise<ScanColorsResult> {
+  scanToken = createCancellationToken();
+
   const { scope, options } = payload;
   const resolved = resolveScope(scope);
   const totalPages = resolved.pages.length;
@@ -121,6 +140,10 @@ async function scanColors(
   let pagesScanned = 0;
 
   for (const page of resolved.pages) {
+    if (scanToken.isCancelled) {
+      return { stopped: true, pagesScanned, totalPages };
+    }
+
     await loadPage(page);
 
     const roots: readonly SceneNode[] = resolved.selection
@@ -147,6 +170,10 @@ async function scanColors(
       type: "progress",
       payload: { pagesScanned, totalPages, nodesScanned: cumulativeNodes },
     });
+
+    // Yield so a "cancel-scan" message sent while this loop is running has
+    // a chance to be processed before the next page starts.
+    await yieldToMain();
   }
 
   const inventory = buildColorInventory(allUsages, {

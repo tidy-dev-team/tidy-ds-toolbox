@@ -1,3 +1,4 @@
+import { createCancellationToken } from "../../shared/cancellation";
 import buildOneSticker from "./utils/buildOneSticker";
 import {
   findAtomPages,
@@ -23,7 +24,10 @@ import {
 
 let fontsLoaded = false;
 let listenersRegistered = false;
-let cancelRequested = false;
+// #167: the token backing both build-one and build-all's stop control.
+// Recreated at the start of each run so an earlier cancellation doesn't
+// leak into the next one.
+let buildToken = createCancellationToken();
 
 // Yield control back to the event loop to keep UI responsive
 function yieldToMain(): Promise<void> {
@@ -131,7 +135,7 @@ export async function stickerSheetBuilderHandler(
       return await handleBuildAll();
     }
     case "cancel-build": {
-      cancelRequested = true;
+      buildToken.cancel();
       return { cancelled: true };
     }
     default:
@@ -190,7 +194,7 @@ function isStickerEligible(
 }
 
 async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
-  cancelRequested = false;
+  buildToken = createCancellationToken();
   await ensureFontsLoaded();
 
   const config = loadConfig();
@@ -207,7 +211,7 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
   let builtCount = 0;
 
   for (const node of validNodes) {
-    if (cancelRequested) {
+    if (buildToken.isCancelled) {
       const context = broadcastContext();
       return { builtCount, context, cancelled: true };
     }
@@ -228,7 +232,7 @@ async function handleBuildSelected(): Promise<StickerSheetBuilderResponse> {
 }
 
 async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
-  cancelRequested = false;
+  buildToken = createCancellationToken();
   await ensureFontsLoaded();
 
   const config = loadConfig();
@@ -261,7 +265,7 @@ async function handleBuildAll(): Promise<StickerSheetBuilderResponse> {
   let builtCount = 0;
 
   for (const { component, pageName } of componentsWithPages) {
-    if (cancelRequested) {
+    if (buildToken.isCancelled) {
       const context = broadcastContext();
       return { builtCount, context, cancelled: true };
     }
