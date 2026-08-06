@@ -520,7 +520,12 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     const relocate =
       params.anchorNodeId !== undefined ||
       (origin !== null && origin.id !== result.target.id);
-    const frame = await renderChecklist(result.checklist, anchor, relocate);
+    const frame = await renderChecklist(
+      result.checklist,
+      run.snapshot,
+      anchor,
+      relocate,
+    );
 
     // The per-mode block, beside the checklist (#121 step 1). Costs no tokens and
     // no agent: it just puts every mode on one canvas, which nothing in a Figma

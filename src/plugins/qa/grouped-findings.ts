@@ -22,6 +22,20 @@ export interface GroupedFinding {
   message: string;
   severity: SeverityLevel;
   count: number;
+  /**
+   * The representative offender, carried through from the merge.
+   *
+   * Present so a consumer of the display shape can still reach the node the line
+   * is about - the canvas checklist needs it to find the variant a finding sits
+   * in, so it can show one. Taken from the representative `dedupeFindings`
+   * already elects rather than re-derived: a second merge in the consumer is how
+   * the canvas and the reported JSON start describing one defect two ways, which
+   * has happened here before.
+   *
+   * It is a representative, not the only offender. `count` carries the true
+   * magnitude.
+   */
+  nodeId: string;
 }
 
 /** One entry per defect, highest severity first (see `compareFindingPrecedence`). */
@@ -31,6 +45,7 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
       message: finding.message,
       severity: finding.severity,
       count: finding.count ?? 1,
+      nodeId: finding.nodeId,
     }))
     .sort(compareFindingPrecedence);
 }

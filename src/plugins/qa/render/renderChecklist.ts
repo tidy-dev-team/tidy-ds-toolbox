@@ -14,6 +14,7 @@
  */
 
 import { groupFindings } from "../grouped-findings";
+import type { ComponentSetSnapshot } from "../snapshot";
 import type { ChecklistReport, SeverityLevel } from "../types";
 import { decidePlacement } from "./placement";
 import {
@@ -173,6 +174,20 @@ function appendFindingLine(
  */
 export async function renderChecklist(
   report: ChecklistReport,
+  /**
+   * The snapshot the report was computed from.
+   *
+   * The report is a per-row verdict model and carries no component tree, so
+   * anything the frame wants to say *about the component itself* has to come from
+   * here. Passed rather than re-collected because the caller already holds it,
+   * and re-reading the document to draw a picture of what was just measured could
+   * describe a set that has since changed.
+   *
+   * Underscored because nothing reads it yet: it is threaded ahead of its first
+   * consumer so that the change adding one is about the feature rather than about
+   * a signature.
+   */
+  _snapshot: ComponentSetSnapshot,
   anchor: SceneNode,
   /**
    * True when the caller expressed real placement intent — an explicit

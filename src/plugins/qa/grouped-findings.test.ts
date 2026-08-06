@@ -17,6 +17,39 @@ describe("groupFindings", () => {
     expect(groupFindings([])).toEqual([]);
   });
 
+  it("carries the representative nodeId through to the display shape", () => {
+    const groups = groupFindings([finding({ nodeId: "7:7" })]);
+    expect(groups[0].nodeId).toBe("7:7");
+  });
+
+  // The merge elects a representative; the display shape must expose *that* one
+  // rather than any of the merged-away ids, or a consumer opening the node would
+  // land somewhere the reported JSON never named.
+  it("exposes the elected representative when findings merge", () => {
+    const groups = groupFindings([
+      finding({
+        nodeId: "1:1",
+        nodeName: "Layer A",
+        message: `width (14) on "Layer A" is off the 4px grid.`,
+      }),
+      finding({
+        nodeId: "1:2",
+        nodeName: "Layer B",
+        message: `width (14) on "Layer B" is off the 4px grid.`,
+      }),
+    ]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].nodeId).toBe("1:1");
+  });
+
+  it("keeps a pre-deduped finding's own nodeId", () => {
+    const groups = groupFindings([
+      finding({ nodeId: "4:2", count: 18, message: "eighteen variants" }),
+    ]);
+    expect(groups[0]).toMatchObject({ nodeId: "4:2", count: 18 });
+  });
+
   it("collapses repeated per-node findings into one grouped line with a count", () => {
     const findings = [
       finding({
