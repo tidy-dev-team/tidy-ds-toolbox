@@ -96,6 +96,32 @@ export interface Finding {
   modeName?: string;
 }
 
+/** A variable mode a finding is about: an id to pin, and a name to print. */
+export interface FindingMode {
+  id: string;
+  name: string;
+}
+
+/**
+ * The mode a finding is about, or undefined when it is not about one.
+ *
+ * The single place the "both or neither" rule for `modeId`/`modeName` is decided.
+ * It was briefly written out at each of the three sites that needed it - the check
+ * that produces the pair, the display projection that forwards it, and the planner
+ * that acts on it - and the three predicates disagreed about an empty name, so one
+ * would forward a mode the next would not pin.
+ *
+ * An empty id or name counts as absent. `evaluatedModes` in the contrast check
+ * falls back to a single anonymous mode for a set painted in literal hex, and
+ * pinning "" would be pinning nothing while claiming otherwise.
+ */
+export function findingMode(
+  finding: Pick<Finding, "modeId" | "modeName">,
+): FindingMode | undefined {
+  if (!finding.modeId || !finding.modeName) return undefined;
+  return { id: finding.modeId, name: finding.modeName };
+}
+
 export interface CheckResult {
   checkId: CheckId;
   title: string;

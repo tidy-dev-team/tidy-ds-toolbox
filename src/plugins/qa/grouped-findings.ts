@@ -15,27 +15,22 @@
  */
 
 import { compareFindingPrecedence, dedupeFindings } from "./dedupe-findings";
+import { findingMode } from "./types";
 import type { Finding, SeverityLevel } from "./types";
+
+/** The mode pair to forward, or nothing. Keeps the spread at the call site terse. */
+function modeFields(
+  finding: Finding,
+): { modeId: string; modeName: string } | Record<string, never> {
+  const mode = findingMode(finding);
+  return mode ? { modeId: mode.id, modeName: mode.name } : {};
+}
 
 export interface GroupedFinding {
   /** Message as the merge left it: node-specific only where that is true. */
   message: string;
   severity: SeverityLevel;
   count: number;
-  /**
-   * The representative offender, carried through from the merge.
-   *
-   * Present so a consumer of the display shape can still reach the node the line
-   * is about - the canvas checklist needs it to find the variant a finding sits
-   * in, so it can show one. Taken from the representative `dedupeFindings`
-   * already elects rather than re-derived: a second merge in the consumer is how
-   * the canvas and the reported JSON start describing one defect two ways, which
-   * has happened here before.
-   *
-   * It is a representative, not the only offender. `count` carries the true
-   * magnitude.
-   */
-  nodeId: string;
   /**
    * The variants exhibiting this defect, and how many there are, when the
    * producing check declared them (#171). Absent for every check that does not,
@@ -58,19 +53,16 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
       message: finding.message,
       severity: finding.severity,
       count: finding.count ?? 1,
-      nodeId: finding.nodeId,
       ...(finding.affectedVariantIds
         ? { affectedVariantIds: finding.affectedVariantIds }
         : {}),
       ...(finding.affectedVariantCount !== undefined
         ? { affectedVariantCount: finding.affectedVariantCount }
         : {}),
-      // Both or neither: a mode id with no name would leave a caption unable to
-      // say what it pinned, and a name with no id would claim a pin that never
-      // happened.
-      ...(finding.modeId && finding.modeName !== undefined
-        ? { modeId: finding.modeId, modeName: finding.modeName }
-        : {}),
+      // Both or neither, decided by `findingMode` rather than re-tested here: a
+      // mode id with no name leaves a caption unable to say what it pinned, and a
+      // name with no id claims a pin that never happened.
+      ...modeFields(finding),
     }))
     .sort(compareFindingPrecedence);
 }

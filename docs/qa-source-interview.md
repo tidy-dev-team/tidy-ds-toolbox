@@ -425,7 +425,7 @@ The skip note names its reason so the declined row is visible rather than readin
 
 > "also check if there is a link for story book and recommend to add it"
 
-This closes the item-12 half that § _Partly-manual rows_ below records as "parked by the 2026-07-27 deferral".
+This closes the item-12 half that § [_Partial automation is the norm, not the exception_](#partial-automation-is-the-norm-not-the-exception) above records as "parked by the 2026-07-27 deferral".
 The deferral was right about comparing against Storybook and wrong about this: **link presence** needs no Storybook access, so it is checkable now.
 Implemented as advice, never a gate - `low` severity, and the row cannot reach `fail` on its account, because a component with no Storybook entry yet is a normal state and not a defect in the Figma component.
 Both places a link legitimately lives are searched: the description prose, and Figma's documentation-link field.

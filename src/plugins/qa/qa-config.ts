@@ -57,7 +57,7 @@ export function isOnGrid(value: number): boolean {
 export const ALLOWED_TRIGGER_TYPES: readonly string[] = ["ON_HOVER"];
 
 /**
- * #11 — the variant property value that means "this set has a hover state".
+ * #11 - the variant property value that means "this set has a hover state".
  * Compared case-insensitively against every variant property value, because
  * the property holding it is not fixed: `State=hover` is the common shape here,
  * but the same value appears under other property names in other files.
@@ -71,13 +71,22 @@ export const HOVER_STATE_VALUE = "hover";
 export const ALSO_KNOWN_AS_PREFIX = "Also known as:";
 
 /**
- * #12 — how a Storybook link is recognised, in the description text or in
+ * #12 - how a Storybook link is recognised, in the description text or in
  * Figma's documentation-link field.
  *
- * Matched on the word rather than on a fixed host: Storybook is self-hosted
- * per project, so there is no one domain to name, and every deployment carries
- * the word in its host or its path. It requires a URL, not a mention, so prose
- * that merely says "see Storybook" does not satisfy the recommendation.
+ * Matched on the word rather than on a fixed host, because Storybook is
+ * self-hosted per project and there is no one domain to name. It requires a URL,
+ * not a mention, so prose that merely says "see Storybook" does not satisfy the
+ * recommendation.
+ *
+ * **Known false negative, and the reason this stays advisory.** A Storybook on a
+ * custom domain need not carry the word anywhere -
+ * `https://design.acme.com/?path=/story/button--primary` is a real shape that
+ * this misses, and it is reported as having no link. That is tolerable only
+ * because the finding is a `low` recommendation that cannot fail the row: a
+ * reader who has a link sees advice they can ignore. It would not be tolerable
+ * for a rule that gated anything, and if these turn up in practice the fix is a
+ * configured host rather than a cleverer pattern.
  */
 export const STORYBOOK_URL_PATTERN = /https?:\/\/\S*storybook\S*/i;
 export const STORYBOOK_HINT = /storybook/i;

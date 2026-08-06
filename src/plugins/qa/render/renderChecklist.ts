@@ -249,7 +249,7 @@ async function appendSample(
 
     const stage = figma.createFrame();
     created.push(stage);
-    stage.name = `sample — ${sample.variantId}`;
+    stage.name = `sample - ${sample.variantId}`;
     // Deliberately not auto-layout: an auto-layout frame grows to fit its child,
     // which is the opposite of clipping. A plain frame at a fixed size clips.
     stage.clipsContent = true;

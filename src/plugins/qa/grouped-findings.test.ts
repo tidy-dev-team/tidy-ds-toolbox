@@ -17,37 +17,46 @@ describe("groupFindings", () => {
     expect(groupFindings([])).toEqual([]);
   });
 
-  it("carries the representative nodeId through to the display shape", () => {
-    const groups = groupFindings([finding({ nodeId: "7:7" })]);
-    expect(groups[0].nodeId).toBe("7:7");
-  });
+  describe("the fields a canvas sample needs (#171, #173)", () => {
+    it("forwards affected variants and their true count", () => {
+      const groups = groupFindings([
+        finding({
+          count: 18,
+          affectedVariantIds: ["2:1", "2:2"],
+          affectedVariantCount: 18,
+        }),
+      ]);
+      expect(groups[0]).toMatchObject({
+        affectedVariantIds: ["2:1", "2:2"],
+        affectedVariantCount: 18,
+      });
+    });
 
-  // The merge elects a representative; the display shape must expose *that* one
-  // rather than any of the merged-away ids, or a consumer opening the node would
-  // land somewhere the reported JSON never named.
-  it("exposes the elected representative when findings merge", () => {
-    const groups = groupFindings([
-      finding({
-        nodeId: "1:1",
-        nodeName: "Layer A",
-        message: `width (14) on "Layer A" is off the 4px grid.`,
-      }),
-      finding({
-        nodeId: "1:2",
-        nodeName: "Layer B",
-        message: `width (14) on "Layer B" is off the 4px grid.`,
-      }),
-    ]);
+    it("forwards the mode a finding is about", () => {
+      const groups = groupFindings([
+        finding({ modeId: "m:1", modeName: "DNA" }),
+      ]);
+      expect(groups[0]).toMatchObject({ modeId: "m:1", modeName: "DNA" });
+    });
 
-    expect(groups).toHaveLength(1);
-    expect(groups[0].nodeId).toBe("1:1");
-  });
+    // Both or neither, so a consumer can never pin a mode it cannot name or name
+    // one it did not pin. Decided once, by `findingMode`.
+    it.each([
+      ["id only", { modeId: "m:1" }],
+      ["name only", { modeName: "DNA" }],
+      ["empty id", { modeId: "", modeName: "DNA" }],
+      ["empty name", { modeId: "m:1", modeName: "" }],
+    ])("forwards neither field for %s", (_label, overrides) => {
+      const groups = groupFindings([finding(overrides)]);
+      expect("modeId" in groups[0]).toBe(false);
+      expect("modeName" in groups[0]).toBe(false);
+    });
 
-  it("keeps a pre-deduped finding's own nodeId", () => {
-    const groups = groupFindings([
-      finding({ nodeId: "4:2", count: 18, message: "eighteen variants" }),
-    ]);
-    expect(groups[0]).toMatchObject({ nodeId: "4:2", count: 18 });
+    it("omits the variant fields entirely when the finding has none", () => {
+      const groups = groupFindings([finding()]);
+      expect("affectedVariantIds" in groups[0]).toBe(false);
+      expect("affectedVariantCount" in groups[0]).toBe(false);
+    });
   });
 
   it("collapses repeated per-node findings into one grouped line with a count", () => {

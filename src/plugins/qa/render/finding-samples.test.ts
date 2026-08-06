@@ -47,7 +47,6 @@ function group(overrides: Partial<GroupedFinding> = {}): GroupedFinding {
     message: `"label" has no target in 18 of 108 variants.`,
     severity: "medium",
     count: 18,
-    nodeId: "9:9",
     ...overrides,
   };
 }
@@ -369,25 +368,55 @@ describe("planChecklistSamples", () => {
       expect(plan.droppedNotice).toBeUndefined();
     });
 
-    it("caps a row and says what it dropped", () => {
+    it("draws exactly the checklist budget and says nothing at the boundary", () => {
+      // Two rows of three: exactly six candidates against a six-sample budget.
+      const plan = planChecklistSamples(
+        [
+          row(manyGroups(MAX_SAMPLES_PER_ROW), { n: 3 }),
+          row(manyGroups(MAX_SAMPLES_PER_ROW), { n: 16, status: "fail" }),
+        ],
+        snapshot(manyVariants(MAX_SAMPLES_PER_ROW)),
+      );
+      expect(plan.total).toBe(MAX_SAMPLES_PER_CHECKLIST);
+      expect(plan.droppedNotice).toBeUndefined();
+      expect(plan.rows.every((r) => r.droppedNotice === undefined)).toBe(true);
+    });
+
+    it("caps a row and says how many of how many it is showing", () => {
       const plan = planChecklistSamples(
         [row(manyGroups(MAX_SAMPLES_PER_ROW + 2))],
         snapshot(manyVariants(MAX_SAMPLES_PER_ROW + 2)),
       );
       expect(plan.rows[0].samples).toHaveLength(MAX_SAMPLES_PER_ROW);
-      expect(plan.rows[0].droppedNotice).toContain("2 more variant samples");
+      expect(plan.rows[0].droppedNotice).toBe(
+        "Showing 3 of 5 variant samples for this row.",
+      );
       expect(plan.total).toBe(MAX_SAMPLES_PER_ROW);
     });
 
-    it("singularises the row notice for exactly one dropped", () => {
-      const plan = planChecklistSamples(
-        [row(manyGroups(MAX_SAMPLES_PER_ROW + 1))],
-        snapshot(manyVariants(MAX_SAMPLES_PER_ROW + 1)),
+    /**
+     * Enough critical candidates elsewhere to consume the whole checklist budget,
+     * so the row under test is guaranteed to lose to them.
+     *
+     * Three rows of three, because the per-row bound caps each at three: two rows
+     * would leave exactly the budget and drop nothing.
+     */
+    const budgetEaters = () =>
+      [16, 19, 5].map((n) =>
+        row(manyGroups(MAX_SAMPLES_PER_ROW, "critical"), { n, status: "fail" }),
       );
-      expect(plan.rows[0].droppedNotice).toContain("1 more variant sample ");
+
+    it("singularises the count phrase", () => {
+      const plan = planChecklistSamples(
+        [...budgetEaters(), row(manyGroups(1, "low"), { n: 3 })],
+        snapshot(manyVariants(MAX_SAMPLES_PER_ROW)),
+      );
+      expect(plan.rows.find((r) => r.n === 3)?.droppedNotice).toBe(
+        "Showing 0 of 1 variant sample for this row.",
+      );
     });
 
-    it("caps the whole checklist and says so once, not per row", () => {
+    it("caps the whole checklist and names that cause once, in the header", () => {
       // Four rows of three: twelve candidates against a six-sample budget.
       const rows = [3, 16, 5, 9].map((n) =>
         row(manyGroups(MAX_SAMPLES_PER_ROW), { n, status: "fail" }),
@@ -398,9 +427,31 @@ describe("planChecklistSamples", () => {
       );
 
       expect(plan.total).toBe(MAX_SAMPLES_PER_CHECKLIST);
-      expect(plan.droppedNotice).toContain("6 more variant samples");
-      // No row overflowed on its own, so no row claims a drop of its own.
-      expect(plan.rows.every((r) => r.droppedNotice === undefined)).toBe(true);
+      expect(plan.droppedNotice).toBe(
+        "6 variant samples not shown (at most 6 per checklist).",
+      );
+    });
+
+    // The bug the first version had: the row notice was derived from the per-row
+    // bound alone, so a row of five kept three, said "2 not shown", and then lost
+    // two of those three to the checklist-wide bound - leaving one picture beside
+    // a line understating the omission by two. Counting against what the row
+    // wanted cannot drift, whichever bound did the cutting.
+    it("counts the row notice against what the row wanted, not the row bound", () => {
+      const plan = planChecklistSamples(
+        // Five low-severity candidates on row 3, and enough criticals elsewhere
+        // to take the whole budget.
+        [...budgetEaters(), row(manyGroups(5, "low"), { n: 3 })],
+        snapshot(manyVariants(5)),
+      );
+
+      const row3 = plan.rows.find((r) => r.n === 3);
+      expect(row3?.samples).toEqual([]);
+      // Derived from the row bound alone this would have read "2 more not shown"
+      // - 5 wanted less the 3 the row bound allowed - beside zero pictures.
+      expect(row3?.droppedNotice).toBe(
+        "Showing 0 of 5 variant samples for this row.",
+      );
     });
 
     // The reason the checklist-wide bound ranks before it cuts: rows are drawn in
@@ -457,7 +508,9 @@ describe("planChecklistSamples", () => {
       const row3 = plan.rows.find((r) => r.n === 3);
       expect(row3).toBeDefined();
       expect(row3?.samples).toEqual([]);
-      expect(row3?.droppedNotice).toContain("4 more variant samples");
+      expect(row3?.droppedNotice).toBe(
+        "Showing 0 of 7 variant samples for this row.",
+      );
     });
   });
 });

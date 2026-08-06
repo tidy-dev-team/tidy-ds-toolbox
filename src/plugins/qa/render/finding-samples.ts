@@ -23,6 +23,7 @@ import { showsVisibleDefect } from "../checklist-catalogue";
 import { SEVERITY_RANK } from "../dedupe-findings";
 import type { GroupedFinding } from "../grouped-findings";
 import type { ComponentSetSnapshot, VariantSnapshot } from "../snapshot";
+import { findingMode } from "../types";
 import type { ChecklistItem, SeverityLevel } from "../types";
 
 /** One picture to draw: which variant, and what to say under it. */
@@ -175,18 +176,17 @@ function sampleFor(
   const variant = variants.get(variantId);
   if (variant === undefined) return undefined;
 
-  // Both fields or neither, so the caption can never name a mode the stage did
-  // not pin, nor a pin the caption does not mention.
-  const pinned = group.modeId && group.modeName ? group.modeName : undefined;
-  const mode = pinned ? ` - mode ${pinned}` : "";
+  // One decision, shared with the check and the projection, so the caption can
+  // never name a mode the stage did not pin nor a pin the caption omits.
+  const mode = findingMode(group);
 
   return {
     groupIndex,
     variantId,
-    caption: `${variantLabel(variant)}${mode}${coverage(
+    caption: `${variantLabel(variant)}${mode ? ` - mode ${mode.name}` : ""}${coverage(
       group.affectedVariantCount,
     )}`,
-    ...(pinned ? { pinnedModeId: group.modeId, pinnedModeName: pinned } : {}),
+    ...(mode ? { pinnedModeId: mode.id, pinnedModeName: mode.name } : {}),
   };
 }
 
@@ -197,9 +197,9 @@ interface Candidate {
   severity: SeverityLevel;
 }
 
-/** `2 more` / `1 more`, so both notices read the same way. */
-function plural(n: number): string {
-  return `${n} more variant sample${n === 1 ? "" : "s"}`;
+/** `1 variant sample` / `2 variant samples`. */
+function countPhrase(n: number): string {
+  return `${n} variant sample${n === 1 ? "" : "s"}`;
 }
 
 /**
@@ -223,7 +223,8 @@ export function planChecklistSamples(
 ): ChecklistSamplePlan {
   const variants = variantIndex(snapshot);
   const candidates: Candidate[] = [];
-  const droppedPerRow = new Map<number, number>();
+  /** How many samples each row could have drawn, before either bound. */
+  const wantedPerRow = new Map<number, number>();
 
   for (const row of rows) {
     if (!rowQualifies(row.item)) continue;
@@ -236,14 +237,18 @@ export function planChecklistSamples(
       }
     });
 
+    if (forRow.length === 0) continue;
+    wantedPerRow.set(row.item.n, forRow.length);
     candidates.push(...forRow.slice(0, MAX_SAMPLES_PER_ROW));
-    const droppedHere = forRow.length - MAX_SAMPLES_PER_ROW;
-    if (droppedHere > 0) droppedPerRow.set(row.item.n, droppedHere);
   }
 
   // Ranked by severity only, with ties left in the order they were collected -
   // which is checklist order, then line order within a row. A stable sort is what
   // makes the choice reproducible rather than dependent on how the rows arrived.
+  //
+  // Not `compareFindingPrecedence`, deliberately: that also orders by count and
+  // then message, which would decide *drawing* order too and lose the property
+  // that samples appear beside the lines they belong to, in line order.
   const ranked = [...candidates].sort(
     (a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity],
   );
@@ -256,18 +261,26 @@ export function planChecklistSamples(
   const planned: RowSamples[] = [];
   let total = 0;
   for (const row of rows) {
+    const wanted = wantedPerRow.get(row.item.n);
+    if (wanted === undefined) continue;
+
     const samples = candidates
       .filter((candidate) => candidate.n === row.item.n && kept.has(candidate))
       .map((candidate) => candidate.sample);
-    const droppedHere = droppedPerRow.get(row.item.n);
-    if (samples.length === 0 && droppedHere === undefined) continue;
-    // A row can lose every sample to the checklist-wide bound while still owing
-    // its own notice, so the row survives in the plan for the notice alone.
+
+    // Counted against what the row *wanted*, after both bounds have had their
+    // say - not against the per-row bound alone. A row of five keeps three, and
+    // the checklist-wide bound can then take two of those three: a notice derived
+    // from the row bound would say "2 not shown" beside a single picture, which
+    // understates by two. Stating "showing 1 of 5" cannot drift, whichever bound
+    // did the cutting.
     planned.push({
       n: row.item.n,
       samples,
-      ...(droppedHere !== undefined
-        ? { droppedNotice: `${plural(droppedHere)} not shown for this row.` }
+      ...(samples.length < wanted
+        ? {
+            droppedNotice: `Showing ${samples.length} of ${countPhrase(wanted)} for this row.`,
+          }
         : {}),
     });
     total += samples.length;
@@ -276,9 +289,11 @@ export function planChecklistSamples(
   return {
     rows: planned,
     total,
+    // The checklist-wide bound names its own cause, which no row can: a row knows
+    // it is showing fewer than it wanted, not that the frame ran out of budget.
     ...(droppedOverall > 0
       ? {
-          droppedNotice: `${plural(droppedOverall)} not shown (at most ${MAX_SAMPLES_PER_CHECKLIST} per checklist).`,
+          droppedNotice: `${countPhrase(droppedOverall)} not shown (at most ${MAX_SAMPLES_PER_CHECKLIST} per checklist).`,
         }
       : {}),
   };
