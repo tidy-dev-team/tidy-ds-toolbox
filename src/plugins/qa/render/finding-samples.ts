@@ -20,9 +20,10 @@
  */
 
 import { showsVisibleDefect } from "../checklist-catalogue";
+import { SEVERITY_RANK } from "../dedupe-findings";
 import type { GroupedFinding } from "../grouped-findings";
 import type { ComponentSetSnapshot, VariantSnapshot } from "../snapshot";
-import type { ChecklistItem } from "../types";
+import type { ChecklistItem, SeverityLevel } from "../types";
 
 /** One picture to draw: which variant, and what to say under it. */
 export interface FindingSample {
@@ -42,13 +43,49 @@ export interface RowSamples {
   /** Checklist row number. */
   n: number;
   samples: FindingSample[];
+  /**
+   * What this row's own bound dropped, for a line at the foot of its findings
+   * block, or undefined when it did not bite.
+   *
+   * Never silent: a truncated set of pictures reads as "these are all the visible
+   * defects", which is the failure the grid blocks' mandatory footnote exists to
+   * prevent.
+   */
+  droppedNotice?: string;
 }
 
 export interface ChecklistSamplePlan {
   rows: RowSamples[];
   /** Total pictures the plan asks for - what the operation reports. */
   total: number;
+  /**
+   * What the checklist-wide bound dropped, for the header summary line, or
+   * undefined when it did not bite.
+   *
+   * On the header rather than on a row because by the time this bound bites the
+   * omission belongs to no single row - putting the sentence under whichever row
+   * happened to be last would attribute it arbitrarily.
+   */
+  droppedNotice?: string;
 }
+
+/**
+ * Most samples one row may draw.
+ *
+ * A row can carry up to `MAX_FINDING_GROUPS` finding kinds, and on a large set
+ * with a flagged check most of them can name affected variants. Three is enough
+ * to show that a defect has more than one shape without turning the row into a
+ * wall of pictures nobody reads.
+ */
+export const MAX_SAMPLES_PER_ROW = 3;
+
+/**
+ * Most samples the whole frame may draw.
+ *
+ * Each one is a live instance, and a set with many variants makes them expensive
+ * to build as well as long to scroll. The frame is a reading surface first.
+ */
+export const MAX_SAMPLES_PER_CHECKLIST = 6;
 
 /** A row as the renderer holds it: the item, and the lines it will draw. */
 export interface PlannableRow {
@@ -127,34 +164,96 @@ function sampleFor(
   };
 }
 
+/** A sample that has not yet survived either bound. */
+interface Candidate {
+  sample: FindingSample;
+  n: number;
+  severity: SeverityLevel;
+}
+
+/** `2 more` / `1 more`, so both notices read the same way. */
+function plural(n: number): string {
+  return `${n} more variant sample${n === 1 ? "" : "s"}`;
+}
+
 /**
- * The pictures the whole checklist should draw.
+ * The pictures the whole checklist should draw, within both bounds.
  *
  * Takes the rows as the renderer already holds them - item plus the grouped lines
  * it is about to draw - so the plan's `groupIndex` and the drawn lines cannot
  * disagree about which finding a sample belongs to.
+ *
+ * Both bounds keep the most severe candidates. Within a row that falls out for
+ * free: `groupFindings` has already sorted the lines by severity precedence, so
+ * the first three are the worst three. Across the checklist it does not, because
+ * rows are drawn in checklist order and row 3's warnings would otherwise spend
+ * the budget before row 16's failures were considered - so the whole candidate
+ * set is ranked before the second bound is applied, and only then put back into
+ * drawing order.
  */
 export function planChecklistSamples(
   rows: readonly PlannableRow[],
   snapshot: ComponentSetSnapshot,
 ): ChecklistSamplePlan {
   const variants = variantIndex(snapshot);
-  const planned: RowSamples[] = [];
-  let total = 0;
+  const candidates: Candidate[] = [];
+  const droppedPerRow = new Map<number, number>();
 
   for (const row of rows) {
     if (!rowQualifies(row.item)) continue;
 
-    const samples: FindingSample[] = [];
+    const forRow: Candidate[] = [];
     row.groups.forEach((group, index) => {
       const sample = sampleFor(group, index, variants);
-      if (sample) samples.push(sample);
+      if (sample) {
+        forRow.push({ sample, n: row.item.n, severity: group.severity });
+      }
     });
 
-    if (samples.length === 0) continue;
-    planned.push({ n: row.item.n, samples });
+    candidates.push(...forRow.slice(0, MAX_SAMPLES_PER_ROW));
+    const droppedHere = forRow.length - MAX_SAMPLES_PER_ROW;
+    if (droppedHere > 0) droppedPerRow.set(row.item.n, droppedHere);
+  }
+
+  // Ranked by severity only, with ties left in the order they were collected -
+  // which is checklist order, then line order within a row. A stable sort is what
+  // makes the choice reproducible rather than dependent on how the rows arrived.
+  const ranked = [...candidates].sort(
+    (a, b) => SEVERITY_RANK[b.severity] - SEVERITY_RANK[a.severity],
+  );
+  const kept = new Set(ranked.slice(0, MAX_SAMPLES_PER_CHECKLIST));
+  const droppedOverall = Math.max(
+    0,
+    candidates.length - MAX_SAMPLES_PER_CHECKLIST,
+  );
+
+  const planned: RowSamples[] = [];
+  let total = 0;
+  for (const row of rows) {
+    const samples = candidates
+      .filter((candidate) => candidate.n === row.item.n && kept.has(candidate))
+      .map((candidate) => candidate.sample);
+    const droppedHere = droppedPerRow.get(row.item.n);
+    if (samples.length === 0 && droppedHere === undefined) continue;
+    // A row can lose every sample to the checklist-wide bound while still owing
+    // its own notice, so the row survives in the plan for the notice alone.
+    planned.push({
+      n: row.item.n,
+      samples,
+      ...(droppedHere !== undefined
+        ? { droppedNotice: `${plural(droppedHere)} not shown for this row.` }
+        : {}),
+    });
     total += samples.length;
   }
 
-  return { rows: planned, total };
+  return {
+    rows: planned,
+    total,
+    ...(droppedOverall > 0
+      ? {
+          droppedNotice: `${plural(droppedOverall)} not shown (at most ${MAX_SAMPLES_PER_CHECKLIST} per checklist).`,
+        }
+      : {}),
+  };
 }

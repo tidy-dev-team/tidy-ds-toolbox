@@ -325,9 +325,7 @@ export async function renderChecklist(
     .filter((item) => shownGroups.has(item.n))
     .map((item) => ({ item, groups: shownGroups.get(item.n) ?? [] }));
   const samplePlan = planChecklistSamples(plannable, snapshot);
-  const samplesByRow = new Map(
-    samplePlan.rows.map((row) => [row.n, row.samples]),
-  );
+  const samplesByRow = new Map(samplePlan.rows.map((row) => [row.n, row]));
   let sampleCount = 0;
 
   const header = autoLayout("header", "VERTICAL", 0, 0, 4);
@@ -335,6 +333,13 @@ export async function renderChecklist(
   header.appendChild(text(`QA Checklist`, 18, FONT_BOLD, INK));
   header.appendChild(text(report.target.name, 13, FONT_REGULAR, MUTED));
   header.appendChild(text(summaryLine(report.counts), 12, FONT_REGULAR, MUTED));
+  // What the checklist-wide sample bound dropped (#172). In the header because by
+  // the time this bites the omission belongs to no single row, and on its own line
+  // rather than appended to the tally above: that line's parts must keep summing
+  // to one per checklist row, and a clause about pictures is not a row count.
+  if (samplePlan.droppedNotice) {
+    header.appendChild(text(samplePlan.droppedNotice, 11, FONT_REGULAR, MUTED));
+  }
   root.appendChild(header);
 
   const rows = autoLayout("rows", "VERTICAL", 0, 0, 0);
@@ -442,7 +447,8 @@ export async function renderChecklist(
       );
       findingsBlock.layoutAlign = "STRETCH";
       findingsBlock.paddingLeft = DETAIL_INDENT;
-      const rowSamples = samplesByRow.get(item.n) ?? [];
+      const rowPlan = samplesByRow.get(item.n);
+      const rowSamples = rowPlan?.samples ?? [];
       for (const [index, group] of groups.entries()) {
         appendFindingLine(
           findingsBlock,
@@ -465,6 +471,14 @@ export async function renderChecklist(
             FONT_REGULAR,
             MUTED,
           ),
+        );
+      }
+      // What this row's own sample bound dropped (#172), beside the finding-kind
+      // overflow line and for the same reason: a row showing three pictures out of
+      // seven must not read as a row showing all of them.
+      if (rowPlan?.droppedNotice) {
+        findingsBlock.appendChild(
+          text(rowPlan.droppedNotice, 10, FONT_REGULAR, MUTED),
         );
       }
       itemBlock.appendChild(findingsBlock);
