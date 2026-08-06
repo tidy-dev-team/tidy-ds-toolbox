@@ -35,7 +35,21 @@ describe("checkSetNameCasing", () => {
     expect(result.findings).toEqual([]);
   });
 
-  it("fails a lowercase set name", () => {
+  it("passes a kebab-case set name", () => {
+    const result = checkSetNameCasing(fixture("1:3", "notification-tag"));
+    expect(result.status).toBe("pass");
+    expect(result.findings).toEqual([]);
+  });
+
+  it("passes a kebab-case set name with digits", () => {
+    const result = checkSetNameCasing(fixture("1:4", "button-2"));
+    expect(result.status).toBe("pass");
+  });
+
+  // The case design ruled on explicitly: `button`, the real name of the set she
+  // reviewed, is a bare lowercase word rather than a one-word kebab name, and
+  // she called it an error. Guards the deliberately narrow kebab pattern.
+  it("fails a bare lowercase set name", () => {
     const result = checkSetNameCasing(fixture("2:1", "button"));
     expect(result.status).toBe("fail");
     expect(result.findings).toHaveLength(1);
@@ -54,15 +68,6 @@ describe("checkSetNameCasing", () => {
     });
   });
 
-  it("fails a kebab-case set name", () => {
-    const result = checkSetNameCasing(fixture("2:3", "notification-tag"));
-    expect(result.status).toBe("fail");
-    expect(result.findings[0]).toMatchObject({
-      nodeId: "2:3",
-      nodeName: "notification-tag",
-    });
-  });
-
   it("fails a snake_case set name", () => {
     const result = checkSetNameCasing(fixture("2:4", "notification_tag"));
     expect(result.status).toBe("fail");
@@ -70,5 +75,19 @@ describe("checkSetNameCasing", () => {
       nodeId: "2:4",
       nodeName: "notification_tag",
     });
+  });
+
+  // Neither form: capitalised words joined by a dash. Called out because it is
+  // the reading of design's comment we did *not* take ("pascal case … there are
+  // '-' between words" is self-contradictory), so a future reader can see the
+  // rejection is intended rather than an oversight.
+  it("fails a dash-joined PascalCase set name", () => {
+    const result = checkSetNameCasing(fixture("2:5", "Notification-Tag"));
+    expect(result.status).toBe("fail");
+  });
+
+  it("fails a trailing-dash set name", () => {
+    const result = checkSetNameCasing(fixture("2:6", "notification-"));
+    expect(result.status).toBe("fail");
   });
 });

@@ -3,15 +3,24 @@ import { checkDescription } from "./description";
 import { createMisprintText, scrambleName } from "../../../shared/misprint";
 import type { ComponentSetSnapshot } from "../snapshot";
 
+const STORYBOOK_URL = "https://storybook.kido.dev/?path=/docs/button";
+
 /**
- * Minimal fixture builder — only `id`/`name`/`description` matter to this
- * check, but the type wants a full ComponentSetSnapshot so we fill in empty
- * defaults.
+ * Minimal fixture builder — only `id`/`name`/`description` and
+ * `documentationLinks` matter to this check, but the type wants a full
+ * ComponentSetSnapshot so we fill in empty defaults.
+ *
+ * `documentationLinks` defaults to a Storybook link so the alias/misprint cases
+ * below keep asserting exactly the findings they were written for. The
+ * Storybook recommendation is a separate concern with its own block at the
+ * bottom of the file, and letting it leak into every finding count would make
+ * these tests fail for a reason none of them is about.
  */
 function fixture(
   id: string,
   name: string,
   description: string,
+  documentationLinks: string[] = [STORYBOOK_URL],
 ): ComponentSetSnapshot {
   return {
     id,
@@ -21,6 +30,7 @@ function fixture(
     propertyNames: [],
     properties: [],
     variants: [],
+    documentationLinks,
   };
 }
 
@@ -107,5 +117,77 @@ describe("checkDescription", () => {
     expect(result.findings).toHaveLength(1);
     expect(result.findings[0].message).toMatch(/misprint/i);
     expect(result.findings[0].actual).toBe("zzz");
+  });
+
+  describe("the Storybook link recommendation", () => {
+    const COMPLETE = `Some notes.\n${ALIAS_LINE}\n${MISPRINT_LINE}`;
+
+    it("recommends a link when neither the description nor the links have one", () => {
+      const result = checkDescription(fixture("5:1", "Button", COMPLETE, []));
+      expect(result.status).toBe("warn");
+      expect(result.findings).toHaveLength(1);
+      expect(result.findings[0]).toMatchObject({
+        severity: "low",
+        nodeId: "5:1",
+      });
+      expect(result.findings[0].message).toMatch(/storybook/i);
+    });
+
+    it("accepts a link in the documentation link field", () => {
+      const result = checkDescription(
+        fixture("5:2", "Button", COMPLETE, [STORYBOOK_URL]),
+      );
+      expect(result.status).toBe("pass");
+      expect(result.findings).toEqual([]);
+    });
+
+    it("accepts a link in the description prose", () => {
+      const result = checkDescription(
+        fixture("5:3", "Button", `${COMPLETE}\n${STORYBOOK_URL}`, []),
+      );
+      expect(result.status).toBe("pass");
+    });
+
+    // A mention is not a link, so prose that only names Storybook still gets
+    // the recommendation.
+    it("does not accept a bare mention of Storybook in the prose", () => {
+      const result = checkDescription(
+        fixture("5:4", "Button", `${COMPLETE}\nSee Storybook for states.`, []),
+      );
+      expect(result.status).toBe("warn");
+      expect(result.findings[0].message).toMatch(/storybook/i);
+    });
+
+    it("ignores an unrelated documentation link", () => {
+      const result = checkDescription(
+        fixture("5:5", "Button", COMPLETE, ["https://wiki.kido.dev/button"]),
+      );
+      expect(result.status).toBe("warn");
+      expect(result.findings[0].message).toMatch(/storybook/i);
+    });
+
+    // Never escalates: even alone on an otherwise complete description the
+    // recommendation warns, because design asked for advice, not a gate.
+    it("never turns a complete description into a fail", () => {
+      const result = checkDescription(fixture("5:6", "Button", COMPLETE, []));
+      expect(result.status).not.toBe("fail");
+    });
+
+    // An empty description is already a fail for its own reason; the missing
+    // link is reported alongside rather than swallowed by the early return.
+    it("is reported alongside an empty description", () => {
+      const result = checkDescription(fixture("5:7", "Button", "", []));
+      expect(result.status).toBe("fail");
+      expect(result.findings).toHaveLength(2);
+      expect(result.findings[1].message).toMatch(/storybook/i);
+    });
+
+    it("is not reported for an empty description that has the link", () => {
+      const result = checkDescription(
+        fixture("5:8", "Button", "", [STORYBOOK_URL]),
+      );
+      expect(result.status).toBe("fail");
+      expect(result.findings).toHaveLength(1);
+    });
   });
 });

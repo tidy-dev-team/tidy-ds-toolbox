@@ -197,7 +197,11 @@ const ROWS = [
     tier: 1,
     checkId: "description",
     run: checkDescription,
-    blurb: "Description carries the also-known-as line and misprint marker.",
+    // The Storybook link is named here because the check recommends it, and a
+    // row whose blurb omitted it would leave a reader unable to tell where the
+    // advice came from. It is advice, not a requirement, hence "recommends".
+    blurb:
+      "Description carries the also-known-as line and misprint marker, and recommends a Storybook link.",
   },
   {
     n: 13,
