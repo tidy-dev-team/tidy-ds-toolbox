@@ -433,6 +433,15 @@ interface BuildChecklistResult {
    */
   contactSheetId?: string;
   /**
+   * How many offending variants were drawn as samples inside the checklist (#171).
+   *
+   * Only a count, deliberately: this operation returns a stub and never findings,
+   * and a number is enough to confirm the pictures were drawn without reopening
+   * what the stub exists to withhold. Zero is the ordinary case - it means no row
+   * both failed and came from a check whose defects are visible.
+   */
+  sampleCount: number;
+  /**
    * The checklist frame as a PNG data URL, when `includeImage` asked for it.
    * Lifted into a viewable image block by the bridge (#116), which recognises an
    * image by the payload being a data URL rather than by any field name.
@@ -492,7 +501,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items - automated ones with grouped findings, manual ones on a tinted row with no status chip. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items - automated ones with grouped findings, manual ones on a tinted row with no status chip. A finding from a check whose defects are visible also gets a live instance of one offending variant drawn beneath it, captioned with the variant and how many share the defect. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, sampleCount, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
     paramsExample: {},
   },
   async (params) => {
@@ -520,7 +529,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     const relocate =
       params.anchorNodeId !== undefined ||
       (origin !== null && origin.id !== result.target.id);
-    const frame = await renderChecklist(
+    const { frame, sampleCount } = await renderChecklist(
       result.checklist,
       run.snapshot,
       anchor,
@@ -610,6 +619,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       frameId: frame.id,
       target: result.target,
       counts: result.checklist.counts,
+      sampleCount,
       ...(modeShowcaseId ? { modeShowcaseId } : {}),
       ...(evidence ? { resizeEvidenceId: evidence.id } : {}),
       ...(contactSheet ? { contactSheetId: contactSheet.id } : {}),

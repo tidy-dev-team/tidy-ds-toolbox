@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { MAX_REPORTED_NODES } from "../dedupe-findings";
 import { checkVariantPropertyBindings } from "./variant-property-bindings";
 import type {
   ComponentPropertySnapshot,
@@ -489,6 +490,80 @@ describe("checkVariantPropertyBindings (#3)", () => {
         /long text/,
       );
     }
+  });
+
+  // What lets the canvas checklist show one of the offending variants and say
+  // truthfully how many others share the defect (#171). Every finding here is
+  // already about a set of variants, so this only exposes what was computed.
+  describe("affected variants", () => {
+    it("names the unwired variants on a lost-binding finding", () => {
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [prop("Show Left Icon", SHOW_LEFT)],
+          [
+            variant({ State: "Default" }, [bound("icon-left", SHOW_LEFT)]),
+            variant({ State: "Hover" }, [node("icon-left")]),
+            variant({ State: "Pressed" }, [node("icon-left")]),
+          ],
+        ),
+      );
+      expect(result.findings[0].affectedVariantIds).toEqual([
+        "v-Hover",
+        "v-Pressed",
+      ]);
+      expect(result.findings[0].affectedVariantCount).toBe(2);
+    });
+
+    it("names them on a no-target finding too", () => {
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [prop("Show Left Icon", SHOW_LEFT)],
+          [
+            variant({ State: "Default" }, [bound("icon-left", SHOW_LEFT)]),
+            variant({ State: "Loading" }, [node("spinner")]),
+          ],
+        ),
+      );
+      expect(result.findings[0].message).toContain("has no target");
+      expect(result.findings[0].affectedVariantIds).toEqual(["v-Loading"]);
+      expect(result.findings[0].affectedVariantCount).toBe(1);
+    });
+
+    // The count is the number a caption prints, so it must survive past the id
+    // cap: a set with more offending variants than the cap must still report the
+    // true total, not the cap.
+    it("caps the ids but not the count", () => {
+      const variants = [
+        variant({ State: "Default" }, [bound("icon-left", SHOW_LEFT)]),
+        ...Array.from({ length: MAX_REPORTED_NODES + 5 }, (_, i) =>
+          variant({ State: `Broken${i}` }, [node("icon-left")]),
+        ),
+      ];
+      const result = checkVariantPropertyBindings(
+        fixture([prop("Show Left Icon", SHOW_LEFT)], variants),
+      );
+      expect(result.findings[0].affectedVariantIds).toHaveLength(
+        MAX_REPORTED_NODES,
+      );
+      expect(result.findings[0].affectedVariantCount).toBe(
+        MAX_REPORTED_NODES + 5,
+      );
+    });
+
+    // A property bound nowhere makes no variant look different, so a picture of
+    // one would show a component that appears entirely correct beneath a finding
+    // saying otherwise. Deliberately unillustrated.
+    it("declares none for a property bound to no layer anywhere", () => {
+      const result = checkVariantPropertyBindings(
+        fixture(
+          [prop("Show Left Icon", SHOW_LEFT)],
+          [variant({ State: "Default" }, [node("icon-left")])],
+        ),
+      );
+      expect(result.findings[0].message).toContain("bound to no layer");
+      expect(result.findings[0].affectedVariantIds).toBeUndefined();
+      expect(result.findings[0].affectedVariantCount).toBeUndefined();
+    });
   });
 
   it("reports under the right check id and title", () => {

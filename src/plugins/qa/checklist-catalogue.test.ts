@@ -5,6 +5,7 @@ import {
   CHECK_IDS,
   itemForCheck,
   requiredFacets,
+  showsVisibleDefect,
 } from "./checklist-catalogue";
 
 /**
@@ -102,6 +103,45 @@ describe("CHECKLIST_CATALOGUE", () => {
       expect(item.run).toBeDefined();
       expect(item.needs.length).toBeGreaterThan(0);
       expect(new Set(item.needs).size).toBe(item.needs.length);
+    }
+  });
+
+  // The flag drives a canvas sample keyed to the row's check, so on a manual row
+  // nothing would ever read it - and a flag nothing reads is a flag someone will
+  // eventually believe is doing something.
+  it("declares showsVisibleDefect only on rows backed by a check", () => {
+    for (const item of CHECKLIST_CATALOGUE) {
+      if (item.showsVisibleDefect === undefined) continue;
+      expect(item.showsVisibleDefect).toBe(true);
+      expect(item.checkId).toBeDefined();
+      expect(item.run).toBeDefined();
+    }
+  });
+});
+
+describe("showsVisibleDefect", () => {
+  it("is true for a flagged check", () => {
+    expect(showsVisibleDefect("variant-property-bindings")).toBe(true);
+  });
+
+  it("is false for an unflagged check", () => {
+    expect(showsVisibleDefect("grid-4px")).toBe(false);
+  });
+
+  // A mis-spelled id draws nothing rather than drawing everything: the failure
+  // direction matters, since the flag's whole purpose is to keep pictures off
+  // rows where they would be noise.
+  it("is false for an id no row claims, and for no id at all", () => {
+    expect(showsVisibleDefect("no-such-check")).toBe(false);
+    expect(showsVisibleDefect(undefined)).toBe(false);
+  });
+
+  it("agrees with the catalogue about exactly which rows are flagged", () => {
+    const flagged = CHECKLIST_CATALOGUE.filter(
+      (item) => item.showsVisibleDefect,
+    ).map((item) => item.checkId);
+    for (const id of CHECK_IDS) {
+      expect(showsVisibleDefect(id)).toBe(flagged.includes(id));
     }
   });
 });

@@ -58,6 +58,27 @@ export interface Finding {
    * shares its name, since `nodeName` already carries it. Capped like `nodeIds`.
    */
   nodeNames?: string[];
+  /**
+   * The variants exhibiting this finding, for a check that can show one (#171).
+   *
+   * Separate from `nodeIds` because they answer different questions. `nodeIds`
+   * names offending *layers*, several of which routinely sit in one variant, so
+   * its length is not a count of variants and cannot be shown as one.
+   *
+   * Capped like `nodeIds` (`MAX_REPORTED_NODES`) - a working sample to draw from,
+   * not an inventory - which is exactly why `affectedVariantCount` exists beside
+   * it. In variant order, so picking the first is deterministic.
+   */
+  affectedVariantIds?: string[];
+  /**
+   * How many variants exhibit this finding, uncapped.
+   *
+   * The number a caption may print. `affectedVariantIds.length` would silently
+   * understate any finding covering more variants than the cap, and the one line
+   * asserting how much of the problem a sample represents is the last place to
+   * put a number that shrinks as the defect grows.
+   */
+  affectedVariantCount?: number;
 }
 
 export interface CheckResult {

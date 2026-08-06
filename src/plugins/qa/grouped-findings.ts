@@ -36,6 +36,13 @@ export interface GroupedFinding {
    * magnitude.
    */
   nodeId: string;
+  /**
+   * The variants exhibiting this defect, and how many there are, when the
+   * producing check declared them (#171). Absent for every check that does not,
+   * and absent on a finding that merged - see `dedupeFindings`.
+   */
+  affectedVariantIds?: string[];
+  affectedVariantCount?: number;
 }
 
 /** One entry per defect, highest severity first (see `compareFindingPrecedence`). */
@@ -46,6 +53,12 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
       severity: finding.severity,
       count: finding.count ?? 1,
       nodeId: finding.nodeId,
+      ...(finding.affectedVariantIds
+        ? { affectedVariantIds: finding.affectedVariantIds }
+        : {}),
+      ...(finding.affectedVariantCount !== undefined
+        ? { affectedVariantCount: finding.affectedVariantCount }
+        : {}),
     }))
     .sort(compareFindingPrecedence);
 }
