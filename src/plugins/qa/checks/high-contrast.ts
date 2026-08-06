@@ -83,6 +83,7 @@ import type {
   ThemeSnapshot,
 } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
+import { affectedVariants, modeFields } from "../finding-fields";
 import { AA_NORMAL, contrastRatio, layer, requiredRatio } from "../contrast";
 import type { Rgba } from "../contrast";
 
@@ -146,6 +147,15 @@ interface Candidate {
   node: NodeSnapshot;
   /** Ancestors nearest-first, up to the variant root. */
   ancestors: NodeSnapshot[];
+  /**
+   * The variant this layer lives in (#173).
+   *
+   * Carried explicitly rather than read off the end of `ancestors`: a text layer
+   * that *is* the variant root has an empty chain, so the last ancestor is not
+   * reliably the variant. Findings need it to name the variants a failing colour
+   * pair actually affects, which is what a canvas sample is captioned with.
+   */
+  variantId: string;
 }
 
 /**
@@ -191,6 +201,12 @@ interface Rendered {
 
 /** Colour pair failing in one mode, with every layer that hits it. */
 interface Failure {
+  /**
+   * The mode this pair fails in. The id is what a canvas sample pins so the
+   * picture shows the failure rather than a mode where the pair passes; the name
+   * is what the message and the caption print (#173).
+   */
+  modeId: string;
   modeName: string;
   foreground: string;
   background: string;
@@ -200,6 +216,14 @@ interface Failure {
   nodeId: string;
   nodeName: string;
   count: number;
+  /**
+   * Every variant holding a layer that hits this pair.
+   *
+   * A set, because `count` counts *layers* and several routinely sit in one
+   * variant - so the two numbers genuinely differ and neither substitutes for the
+   * other. This is the one a caption about variants may print.
+   */
+  variantIds: Set<string>;
 }
 
 export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
@@ -208,7 +232,7 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
 
   const candidates: Candidate[] = [];
   for (const variant of active) {
-    collectCandidates(variant.tree, [], candidates);
+    collectCandidates(variant.tree, [], candidates, variant.id);
   }
 
   if (candidates.length === 0) {
@@ -235,7 +259,7 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
   };
 
   for (const candidate of candidates) {
-    const { node } = candidate;
+    const { node, variantId } = candidate;
     // A layer that declares mixed fills and carries no runs describes nothing
     // measurable. Mode-independent, so it is settled before any mode is
     // considered - and settled once, not once per mode.
@@ -300,6 +324,10 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
         const existing = failures.get(key);
         if (existing) {
           if (!counted.has(key)) existing.count += 1;
+          // Outside the `counted` guard, unlike the count: that guard stops one
+          // layer's several runs counting twice as layers, but the variant is a
+          // property of the layer either way and a Set makes the repeat free.
+          existing.variantIds.add(variantId);
           // One rendered pair is one row, so a group holding both normal and
           // large text is described by its strictest member - the count covers
           // the rest. Splitting on the threshold instead would put the same
@@ -311,6 +339,7 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
           }
         } else {
           failures.set(key, {
+            modeId: mode.modeId,
             modeName: mode.name,
             foreground: own.label,
             background: rendered.label,
@@ -320,6 +349,7 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
             nodeId: node.id,
             nodeName: node.name,
             count: 1,
+            variantIds: new Set([variantId]),
           });
         }
         counted.add(key);
@@ -359,15 +389,16 @@ function collectCandidates(
   node: NodeSnapshot,
   ancestors: NodeSnapshot[],
   out: Candidate[],
+  variantId: string,
 ): void {
   if (!node.visible) return;
   if (node.type === "TEXT") {
-    out.push({ node, ancestors });
+    out.push({ node, ancestors, variantId });
     return;
   }
   const chain = [node, ...ancestors];
   for (const child of node.children) {
-    collectCandidates(child, chain, out);
+    collectCandidates(child, chain, out, variantId);
   }
 }
 
@@ -638,6 +669,18 @@ function failureFinding(failure: Failure): Finding {
     suggestedFix:
       "Darken the text token or lighten the surface token for this pair; if the pairing is deliberate, it needs a documented exception.",
     count: failure.count,
+    // For the canvas sample (#173). The mode travels as data rather than only
+    // inside the message above, because a sample drawn without pinning it renders
+    // in whatever the page resolves - which can be a mode where this pair passes,
+    // making the picture contradict a correct finding.
+    //
+    // Only when there is a mode to name. `evaluatedModes` falls back to a single
+    // anonymous mode for a set painted in literal hex, and pinning "" would be
+    // pinning nothing while claiming otherwise - which is why the id and the name
+    // travel together, and why `finding-fields` owns that rule rather than each
+    // producer restating it.
+    ...modeFields(failure),
+    ...affectedVariants(failure.variantIds),
   };
 }
 

@@ -76,6 +76,23 @@ interface CatalogueRowShape {
   run?: CheckFn;
   /** Snapshot facets `run` reads; see `SnapshotFacet`. */
   needs?: readonly SnapshotFacet[];
+  /**
+   * Whether this check's findings describe a defect a reader can *see* in a
+   * picture of the offending variant - and so whether the canvas checklist draws
+   * one beneath them (#171).
+   *
+   * Named for the property of the check rather than for what the renderer does
+   * with it, deliberately. "Draw a sample here" invites being set wherever a
+   * picture seems nice to have, and most of this catalogue is the opposite case:
+   * a correct-looking button beside "itemSpacing is 10" or "the name is not
+   * PascalCase" teaches a reader to skip the images, which costs more than the
+   * missing sample gains. Only two rows qualify today.
+   *
+   * A flagged check must also put `affectedVariantIds` on its findings. The flag
+   * alone draws nothing: the planner has no other way to know which variant a
+   * finding is about, and will not guess.
+   */
+  showsVisibleDefect?: boolean;
   /** One-line plain-language description of what the item checks. */
   blurb: string;
 }
@@ -111,6 +128,11 @@ const ROWS = [
     tier: 1,
     checkId: "variant-property-bindings",
     run: checkVariantPropertyBindings,
+    // The row design asked for this on: a property with no target in a variant
+    // means that variant is missing the content, and "a button with a spinner and
+    // no label" is a thing to look at rather than to parse out of a list of 18
+    // property combinations.
+    showsVisibleDefect: true,
     // The automated core is *wiring*, not appearance: Figma defines a boolean
     // property on the set but binds it per variant, so a toggle can appear in
     // the panel for a variant that has no binding and does nothing. That is
@@ -197,7 +219,11 @@ const ROWS = [
     tier: 1,
     checkId: "description",
     run: checkDescription,
-    blurb: "Description carries the also-known-as line and misprint marker.",
+    // The Storybook link is named here because the check recommends it, and a
+    // row whose blurb omitted it would leave a reader unable to tell where the
+    // advice came from. It is advice, not a requirement, hence "recommends".
+    blurb:
+      "Description carries the also-known-as line and misprint marker, and recommends a Storybook link.",
   },
   {
     n: 13,
@@ -231,6 +257,11 @@ const ROWS = [
     checkId: "high-contrast",
     run: checkHighContrast,
     needs: ["colorStyles", "theme"],
+    // The strongest case for a sample after row 3: low-contrast text is a see-it
+    // defect, and a ratio printed as a number is the hardest kind of finding for
+    // a designer to picture. Its samples pin the failing mode (#173) - without
+    // that the picture could show a mode where the pair passes.
+    showsVisibleDefect: true,
     blurb:
       "Text meets WCAG AA contrast against the surface behind it, in every theme mode.",
   },
@@ -316,6 +347,16 @@ export const CHECK_IDS: readonly CheckId[] = AUTOMATED_ITEMS.map(
 /** The row backing `id`, or undefined when no row claims it. */
 export function itemForCheck(id: string): AutomatedItem | undefined {
   return AUTOMATED_ITEMS.find((item) => item.checkId === id);
+}
+
+/**
+ * Whether findings from `id` may be illustrated with a sample of the offending
+ * variant. False for an unknown id and for every unflagged row, so a caller that
+ * mis-spells a check draws nothing rather than drawing everything.
+ */
+export function showsVisibleDefect(id: string | undefined): boolean {
+  if (id === undefined) return false;
+  return itemForCheck(id)?.showsVisibleDefect === true;
 }
 
 /**

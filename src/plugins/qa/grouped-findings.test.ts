@@ -17,6 +17,48 @@ describe("groupFindings", () => {
     expect(groupFindings([])).toEqual([]);
   });
 
+  describe("the fields a canvas sample needs (#171, #173)", () => {
+    it("forwards affected variants and their true count", () => {
+      const groups = groupFindings([
+        finding({
+          count: 18,
+          affectedVariantIds: ["2:1", "2:2"],
+          affectedVariantCount: 18,
+        }),
+      ]);
+      expect(groups[0]).toMatchObject({
+        affectedVariantIds: ["2:1", "2:2"],
+        affectedVariantCount: 18,
+      });
+    });
+
+    it("forwards the mode a finding is about", () => {
+      const groups = groupFindings([
+        finding({ modeId: "m:1", modeName: "DNA" }),
+      ]);
+      expect(groups[0]).toMatchObject({ modeId: "m:1", modeName: "DNA" });
+    });
+
+    // Both or neither, so a consumer can never pin a mode it cannot name or name
+    // one it did not pin. Decided once, by `findingMode`.
+    it.each([
+      ["id only", { modeId: "m:1" }],
+      ["name only", { modeName: "DNA" }],
+      ["empty id", { modeId: "", modeName: "DNA" }],
+      ["empty name", { modeId: "m:1", modeName: "" }],
+    ])("forwards neither field for %s", (_label, overrides) => {
+      const groups = groupFindings([finding(overrides)]);
+      expect("modeId" in groups[0]).toBe(false);
+      expect("modeName" in groups[0]).toBe(false);
+    });
+
+    it("omits the variant fields entirely when the finding has none", () => {
+      const groups = groupFindings([finding()]);
+      expect("affectedVariantIds" in groups[0]).toBe(false);
+      expect("affectedVariantCount" in groups[0]).toBe(false);
+    });
+  });
+
   it("collapses repeated per-node findings into one grouped line with a count", () => {
     const findings = [
       finding({

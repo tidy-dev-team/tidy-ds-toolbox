@@ -103,6 +103,13 @@ export const MAX_REPORTED_NODES = 10;
 interface Accumulator {
   representative: Finding;
   count: number;
+  /**
+   * How many findings folded in here - not `count`, which sums the occurrences
+   * those findings already stood for. A single pre-deduped finding arrives with
+   * `count: 18` and `absorbed: 1`, and only `absorbed` distinguishes it from
+   * eighteen findings that merged.
+   */
+  absorbed: number;
   nodeIds: string[];
   /** Distinct names seen, in encounter order - only reported when they differ. */
   nodeNames: string[];
@@ -138,6 +145,7 @@ export function dedupeFindings(findings: readonly Finding[]): Finding[] {
       const accumulator: Accumulator = {
         representative: finding,
         count,
+        absorbed: 1,
         nodeIds: [],
         nodeNames: [],
         sharedNodeName: finding.nodeName,
@@ -149,6 +157,7 @@ export function dedupeFindings(findings: readonly Finding[]): Finding[] {
     }
 
     existing.count += count;
+    existing.absorbed += 1;
     if (existing.sharedNodeName !== finding.nodeName) {
       existing.sharedNodeName = undefined;
     }
@@ -177,6 +186,7 @@ function toFinding(group: Accumulator): Finding {
   const {
     representative,
     count,
+    absorbed,
     nodeIds,
     nodeNames,
     sharedNodeName,
@@ -185,13 +195,40 @@ function toFinding(group: Accumulator): Finding {
 
   if (count === 1) return representative;
 
+  // Affected variants are dropped the moment two findings actually merge (#171).
+  // The representative's set speaks for the representative, and the union of the
+  // group's sets is unknowable here: summing the counts double-counts variants two
+  // findings share, while the union of the id lists is capped and would understate
+  // it. A merged finding therefore shows no sample, which is the honest outcome -
+  // no sample costs a reader nothing, a wrong denominator costs them trust.
+  //
+  // Neither producer can reach this today: both emit one finding per property or
+  // per colour pair, each with its own message, so no two share a kind key.
+  //
+  // `modeId`/`modeName` are deliberately *not* dropped alongside them, and the
+  // asymmetry is not an oversight. A merge groups findings by kind, and the kind
+  // key is derived from the message, which for a mode-specific finding names the
+  // mode - so two findings that merge already agree about it, and the
+  // representative's mode speaks for the group. The variant set is the opposite:
+  // nothing in the key constrains it, so each merged finding brought its own.
+  //
+  // Destructured away rather than set to undefined, so the keys are absent
+  // entirely and a merged finding is indistinguishable from one that never
+  // carried them.
+  const {
+    affectedVariantIds: _droppedIds,
+    affectedVariantCount: _droppedCount,
+    ...withoutVariants
+  } = representative;
+  const base = absorbed > 1 ? withoutVariants : representative;
+
   // Keep the layer name when every merged node shares it: on a shared layer it is
   // the most useful word in the finding, naming what to open. Redact only when
   // the name is what differed, where naming one of them would be a lie.
   const nodeNameIsShared = sharedNodeName !== undefined;
 
   return {
-    ...representative,
+    ...base,
     severity,
     nodeName: nodeNameIsShared ? representative.nodeName : REDACTED_NODE_NAME,
     message: nodeNameIsShared

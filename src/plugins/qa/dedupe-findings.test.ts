@@ -212,4 +212,58 @@ describe("dedupeFindings", () => {
     expect(result[0].actual).toBe("4");
     expect(result[0].suggestedFix).toBe("Bind it.");
   });
+
+  describe("affected variants (#171)", () => {
+    // The case the canvas sample depends on: a check that pre-dedupes emits one
+    // finding standing for many variants, and its own declaration must survive
+    // untouched even though `count` is far above 1.
+    it("keeps them on a pre-deduped finding standing for many variants", () => {
+      const result = dedupeFindings([
+        finding({
+          count: 18,
+          affectedVariantIds: ["2:1", "2:2"],
+          affectedVariantCount: 18,
+        }),
+      ]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        count: 18,
+        affectedVariantIds: ["2:1", "2:2"],
+        affectedVariantCount: 18,
+      });
+    });
+
+    // Dropped rather than combined, on purpose. Summing the counts double-counts
+    // any variant two findings share, and the union of the capped id lists
+    // understates it - so a merged finding shows no sample at all, which costs a
+    // reader nothing next to a caption whose denominator is wrong.
+    it("drops them when two findings actually merge", () => {
+      const result = dedupeFindings([
+        finding({
+          nodeId: "1:1",
+          affectedVariantIds: ["2:1"],
+          affectedVariantCount: 3,
+        }),
+        finding({
+          nodeId: "1:2",
+          affectedVariantIds: ["2:2"],
+          affectedVariantCount: 5,
+        }),
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].affectedVariantIds).toBeUndefined();
+      expect(result[0].affectedVariantCount).toBeUndefined();
+      // Absent, not present-and-undefined, so a merged finding is
+      // indistinguishable from one that never declared them.
+      expect("affectedVariantIds" in result[0]).toBe(false);
+      expect("affectedVariantCount" in result[0]).toBe(false);
+    });
+
+    it("leaves an ordinary merge unaffected when neither finding declared any", () => {
+      const result = dedupeFindings(sharedLayerAcrossVariants(3));
+      expect(result[0].count).toBe(3);
+      expect("affectedVariantIds" in result[0]).toBe(false);
+    });
+  });
 });

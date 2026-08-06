@@ -15,6 +15,7 @@
  */
 
 import { compareFindingPrecedence, dedupeFindings } from "./dedupe-findings";
+import { modeFields } from "./finding-fields";
 import type { Finding, SeverityLevel } from "./types";
 
 export interface GroupedFinding {
@@ -22,6 +23,19 @@ export interface GroupedFinding {
   message: string;
   severity: SeverityLevel;
   count: number;
+  /**
+   * The variants exhibiting this defect, and how many there are, when the
+   * producing check declared them (#171). Absent for every check that does not,
+   * and absent on a finding that merged - see `dedupeFindings`.
+   */
+  affectedVariantIds?: string[];
+  affectedVariantCount?: number;
+  /**
+   * The variable mode this defect is about, when the producing check declared one
+   * (#173). A sample of it has to be drawn with this mode pinned.
+   */
+  modeId?: string;
+  modeName?: string;
 }
 
 /** One entry per defect, highest severity first (see `compareFindingPrecedence`). */
@@ -31,6 +45,16 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
       message: finding.message,
       severity: finding.severity,
       count: finding.count ?? 1,
+      ...(finding.affectedVariantIds
+        ? { affectedVariantIds: finding.affectedVariantIds }
+        : {}),
+      ...(finding.affectedVariantCount !== undefined
+        ? { affectedVariantCount: finding.affectedVariantCount }
+        : {}),
+      // Both or neither, decided by `findingMode` rather than re-tested here: a
+      // mode id with no name leaves a caption unable to say what it pinned, and a
+      // name with no id claims a pin that never happened.
+      ...modeFields(finding),
     }))
     .sort(compareFindingPrecedence);
 }

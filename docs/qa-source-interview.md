@@ -117,6 +117,11 @@ Framing: _"שים לב רגע לקטלוג של ה-naming שייצרת"_ - pay a
 The shipped `set-name-casing` check is a proxy for half of this item that happens to be checkable without dev input.
 The prop-name half needs the same Storybook/dev source as item 1 and inherits its phase-1 exclusion.
 
+**Superseded in part.**
+A naming rule _was_ stated later, on 2026-08-04: PascalCase or kebab-case, and a bare lowercase word is an error.
+See [§ Second pass](#second-pass-canvas-comments-2026-08-04).
+The prop-name half is untouched by that comment and stays excluded.
+
 ### 3. Check All the Props
 
 _"זה הכי טכני בעולם"_ - the most mechanical item there is.
@@ -378,8 +383,61 @@ Without that, a run could report "0 manual" while rows 3, 7, 17 and 19 still owe
 The same treatment is owed to at least these, all pre-existing:
 
 - **Item 2** - `set-name-casing` checks casing only; matching dev's **prop names** is untouched.
-- **Item 12** - `description` checks the also-known-as line and misprint marker; the **Storybook link** she described is not verified.
+- **Item 12** - ~~`description` checks the also-known-as line and misprint marker; the **Storybook link** she described is not verified.~~
+  Closed 2026-08-06: `description` now recommends a Storybook link.
+  The 2026-07-27 deferral was right about _comparing_ against Storybook and wrong about this - **link presence** needs no Storybook access, so it never depended on the deferral at all.
 
-Both are Storybook-dependent, so both are parked by the 2026-07-27 deferral.
+Item 2's remaining half is Storybook-dependent, so it stays parked by the 2026-07-27 deferral.
 **Item 17** was the third and has since shipped its remainder: `themes` covers resolution integrity while the ask was visual, "looks good in all modes", so the row now names the modes to review and keeps a tick.
 Its remainder is conditional like item 19's, because a set with no theme axis renders identically in every mode and has nothing to compare.
+
+---
+
+## Second pass: canvas comments, 2026-08-04
+
+Shani left four comments on a rendered `QA Checklist — button` frame in the New test site file (node `7692:364063`, file `y2QUFXDZfSr1Lu9PGEauKE`), each pinned inside a specific row band.
+This is a second primary source, later than the 2026-07-16 call, and where it contradicts the call it wins for the same reason the call wins over the PRD.
+Three of the four are implemented; the fourth is parked on a question back to her.
+
+### Item 2 - naming, now stated as a rule
+
+> "component - pascal case, no spaces, there are '-' between words"
+
+The call gave `Button` with a capital B as an example of matching dev, and § 2 above records that no casing rule was ever requested.
+This comment is the first time the rule itself was stated, so it supersedes that note: **PascalCase or kebab-case, nothing else**.
+
+The comment is self-contradictory as written, since PascalCase and dash separators are mutually exclusive.
+Resolved with Dima as "either form is acceptable", which is what `isLegalSetName` implements.
+A bare lowercase word is deliberately **not** treated as a one-word kebab name and fails, confirmed explicitly: the set she was reviewing is itself named `button`, so the rule flags its own subject, and that is intended rather than an oversight.
+
+### Item 11 - the hover gate
+
+> "dont check it if there is not any hover state at all in the component property"
+
+The check already skipped a set with no prototype reactions, but that is a different question from the one she asked.
+Her gate is whether the **set declares a hover state**; a set can declare `State=hover` and carry no reactions, or carry reactions and declare no hover state.
+`interaction-hover-only` now gates on the declared state, read off the variants' property values because the snapshot carries no list of a property's legal options.
+
+Known consequence, accepted: a disallowed trigger on a set with no hover state is now skipped where it used to fail.
+The skip note names its reason so the declined row is visible rather than reading as a silent pass.
+
+### Item 12 - the Storybook link
+
+> "also check if there is a link for story book and recommend to add it"
+
+This closes the item-12 half that § [_Partial automation is the norm, not the exception_](#partial-automation-is-the-norm-not-the-exception) above records as "parked by the 2026-07-27 deferral".
+The deferral was right about comparing against Storybook and wrong about this: **link presence** needs no Storybook access, so it is checkable now.
+Implemented as advice, never a gate - `low` severity, and the row cannot reach `fail` on its account, because a component with no Storybook entry yet is a normal state and not a defect in the Figma component.
+Both places a link legitimately lives are searched: the description prose, and Figma's documentation-link field.
+
+### Item 7 - text fill and truncation, still open
+
+> "set rules like - text inside element need to be fill, and truncated after 1/2 rows"
+
+Read literally: when a container is FILL horizontally, the text inside it must also be FILL and must truncate.
+**Not implemented**, because the component she was reviewing disproves the literal reading.
+Measured on `button` (`98:899`, 108 variants) over the REST API: every variant root is `HUG`, the `label` text is `HUG` with `maxLines: null` and `textTruncation: null`, and **no node anywhere in the set is `FILL` horizontally**.
+A check gated as she described therefore returns `not_applicable` on the very set that prompted the comment.
+
+The gap is that a button hugs its label by design and only becomes stretchable when an instance is dropped into a FILL container on a page - a context that is not present in the component set QA reads.
+Tracked in [#169](https://github.com/tidy-dev-team/tidy-ds-toolbox/issues/169) with the three candidate designs, pending her answer to a single question: is `button` as it stands a fail she wants reported, or does the rule apply only to components already set to FILL?

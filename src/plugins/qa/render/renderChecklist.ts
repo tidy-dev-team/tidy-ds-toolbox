@@ -13,8 +13,14 @@
  * findExistingDocPages) is deleted before the new one is placed.
  */
 
-import { groupFindings } from "../grouped-findings";
+import { groupFindings, type GroupedFinding } from "../grouped-findings";
+import type { ComponentSetSnapshot } from "../snapshot";
 import type { ChecklistReport, SeverityLevel } from "../types";
+import {
+  planChecklistSamples,
+  type FindingSample,
+  type PlannableRow,
+} from "./finding-samples";
 import { decidePlacement } from "./placement";
 import {
   autoLayout,
@@ -30,6 +36,7 @@ import {
   ROW_BORDER,
   text,
 } from "./primitives";
+import { fallbackStage } from "./stage-surface";
 import { notePrefix, statusStyle } from "./status-style";
 
 const PLUGIN_DATA_KEY = "tidy:qa-checklist";
@@ -140,6 +147,47 @@ const MAX_FINDING_GROUPS = 8;
 /** Indent for the detail lines under a row, aligning them past the item number. */
 const DETAIL_INDENT = 36;
 
+/** The frame's fixed outer width, and the padding inside it. */
+const CHECKLIST_WIDTH = 520;
+const CHECKLIST_PADDING = 24;
+
+/**
+ * The `×count` badge's fixed width, and the gap after it, on a finding line.
+ *
+ * Named because two things depend on them agreeing: the line itself, and the
+ * variant sample beneath it, which has to start where the *message* starts rather
+ * than where the badge does. As literals in two places they drifted - the sample
+ * sat under the badge, a third of the way left of the text it illustrates.
+ */
+const FINDING_BADGE_WIDTH = 28;
+const FINDING_BADGE_GAP = 8;
+
+/**
+ * How far a variant sample is inset past the finding block's own indent, so it
+ * lines up with the message rather than with the badge (#171: "indented to the
+ * finding text column, as design drew it").
+ */
+const SAMPLE_INDENT = FINDING_BADGE_WIDTH + FINDING_BADGE_GAP;
+
+/**
+ * Widest a variant sample may be drawn (#171), derived rather than written down:
+ * the frame's width, less its padding on both sides, less the detail indent the
+ * findings block sits at, less the sample's own indent to the text column. A
+ * sample wider than this is clipped, never resized.
+ */
+const SAMPLE_MAX_WIDTH =
+  CHECKLIST_WIDTH - CHECKLIST_PADDING * 2 - DETAIL_INDENT - SAMPLE_INDENT;
+
+/**
+ * Tallest a variant sample may be drawn. A cap rather than a fit, because the
+ * frame is a reading surface: a 900px-tall component would push every row after
+ * it off the screen, and the sample exists to be glanced at.
+ */
+const SAMPLE_MAX_HEIGHT = 240;
+
+/** Breathing room between the sampled instance and its stage's edge. */
+const SAMPLE_INSET = 12;
+
 /**
  * Build a finding line (`×count  message`) and append it to `parent`. The label
  * wraps instead of overflowing the card: Figma only honours `FILL` once the
@@ -152,10 +200,10 @@ function appendFindingLine(
   count: number,
   severity: SeverityLevel,
 ): void {
-  const line = autoLayout("finding", "HORIZONTAL", 0, 6, 8);
+  const line = autoLayout("finding", "HORIZONTAL", 0, 6, FINDING_BADGE_GAP);
 
   const badge = text(`×${count}`, 11, FONT_BOLD, SEVERITY_COLOR[severity]);
-  badge.resize(28, badge.height);
+  badge.resize(FINDING_BADGE_WIDTH, badge.height);
 
   const label = text(message, 11, FONT_REGULAR, MUTED);
   line.appendChild(badge);
@@ -168,11 +216,137 @@ function appendFindingLine(
 }
 
 /**
+ * Draw one variant sample under the finding line it belongs to (#171): the
+ * offending variant, instanced live, in a clipping stage, with its caption.
+ *
+ * Returns whether anything was drawn. Every failure path is non-fatal and silent
+ * by design - a missing picture costs a reader nothing, since the finding line
+ * says the same thing in words, while aborting the checklist over one instance
+ * would lose the other eighteen rows. So a variant that has been deleted since the
+ * run, an id that turns out not to name a component, or Figma refusing the
+ * instance all end the same way: no stage, no caption, and the row reads exactly
+ * as it did before samples existed.
+ *
+ * Cleans up after itself on the way out. `createInstance` and `createFrame` parent
+ * to the current page the moment they are called, so a throw between creating the
+ * instance and appending the block would leave it loose on the page - the same
+ * litter risk `buildStateGrid` tracks, at a smaller scale.
+ */
+async function appendSample(
+  parent: FrameNode,
+  sample: FindingSample,
+  /**
+   * The collection the run treated as "the theme", from the snapshot. Needed only
+   * to pin a mode-specific sample; absent on a set that binds no theme.
+   */
+  themeCollectionId: string | undefined,
+): Promise<boolean> {
+  const created: SceneNode[] = [];
+  /**
+   * Undo everything this call made, and report that nothing was drawn.
+   *
+   * Used by both the deliberate give-ups and the catch, so no exit can leave a
+   * half-built sample behind. Last created first, so removing a parent cannot
+   * leave the loop deleting a node its parent already took.
+   */
+  const abandon = (): false => {
+    for (const node of created.reverse()) {
+      if (!node.removed) node.remove();
+    }
+    return false;
+  };
+
+  try {
+    const node = await figma.getNodeByIdAsync(sample.variantId);
+    // A variant of a set is itself a COMPONENT, so this is instanced directly -
+    // no property setting, unlike the grid blocks which instance the default
+    // variant and drive it. Anything else here means the set changed under us.
+    if (!node || node.type !== "COMPONENT") return abandon();
+
+    const instance = node.createInstance();
+    created.push(instance);
+
+    const stage = figma.createFrame();
+    created.push(stage);
+    stage.name = `sample - ${sample.variantId}`;
+    // Deliberately not auto-layout: an auto-layout frame grows to fit its child,
+    // which is the opposite of clipping. A plain frame at a fixed size clips.
+    stage.clipsContent = true;
+    stage.fills = [];
+    stage.strokes = [{ type: "SOLID", color: hexToRgb(ROW_BORDER) }];
+    stage.strokeWeight = 1;
+    stage.cornerRadius = 4;
+
+    // A mode-specific finding is drawn with that mode pinned (#173), or not drawn
+    // at all. Unpinned, a contrast pair that fails in one mode renders in whatever
+    // the page resolves and can show a state where nothing looks wrong - a picture
+    // arguing against a correct finding, which is worse than no picture. So a
+    // sample that asked for a pin and cannot get one is abandoned rather than
+    // drawn with a caption naming a mode it is not in.
+    if (sample.pinnedModeId !== undefined) {
+      if (themeCollectionId === undefined) return abandon();
+      const collection =
+        await figma.variables.getVariableCollectionByIdAsync(themeCollectionId);
+      if (!collection) return abandon();
+      stage.setExplicitVariableModeForCollection(
+        collection,
+        sample.pinnedModeId,
+      );
+      // A dark mode judged against the white card misrepresents the component as
+      // badly as the wrong mode would. The rule for when a backdrop helps, and
+      // when adding one invents a surface the component does not have, is
+      // `stage-surface.ts` - shared so this cannot drift from the per-mode block.
+      const backdrop = fallbackStage(sample.pinnedModeName ?? "");
+      if (backdrop) fill(stage, backdrop);
+    }
+
+    stage.appendChild(instance);
+    instance.x = SAMPLE_INSET;
+    instance.y = SAMPLE_INSET;
+    // Hugs the instance up to the cap, so an ordinary button gets a small box
+    // rather than a wide empty one, and only an oversized component is clipped.
+    stage.resize(
+      Math.min(instance.width + SAMPLE_INSET * 2, SAMPLE_MAX_WIDTH),
+      Math.min(instance.height + SAMPLE_INSET * 2, SAMPLE_MAX_HEIGHT),
+    );
+
+    const block = autoLayout("sample", "VERTICAL", 0, 0, 6);
+    created.push(block);
+    // Past the badge, so the picture starts where the message it illustrates
+    // starts. The findings block's own indent already clears the item number.
+    block.paddingLeft = SAMPLE_INDENT;
+    parent.appendChild(block);
+    block.layoutAlign = "STRETCH";
+    block.appendChild(stage);
+
+    const caption = text(sample.caption, 10, FONT_REGULAR, MUTED);
+    block.appendChild(caption);
+    caption.textAutoResize = "HEIGHT";
+    caption.layoutSizingHorizontal = "FILL";
+
+    return true;
+  } catch {
+    return abandon();
+  }
+}
+
+/**
  * Render `report` as a checklist frame placed next to `anchor` (the instance the
- * run started from, or the resolved component set). Returns the created frame.
+ * run started from, or the resolved component set). Returns the created frame and
+ * how many variant samples it drew.
  */
 export async function renderChecklist(
   report: ChecklistReport,
+  /**
+   * The snapshot the report was computed from.
+   *
+   * The report is a per-row verdict model and carries no component tree, so
+   * anything the frame wants to say *about the component itself* has to come from
+   * here. Passed rather than re-collected because the caller already holds it,
+   * and re-reading the document to draw a picture of what was just measured could
+   * describe a set that has since changed.
+   */
+  snapshot: ComponentSetSnapshot,
   anchor: SceneNode,
   /**
    * True when the caller expressed real placement intent — an explicit
@@ -181,25 +355,52 @@ export async function renderChecklist(
    * otherwise it stays where it is. See the placement block below.
    */
   relocate = false,
-): Promise<FrameNode> {
+): Promise<{ frame: FrameNode; sampleCount: number }> {
   await loadRenderFonts();
 
   const root = autoLayout(
     `QA Checklist — ${report.target.name}`,
     "VERTICAL",
-    24,
-    24,
+    CHECKLIST_PADDING,
+    CHECKLIST_PADDING,
     16,
   );
   root.counterAxisSizingMode = "FIXED";
-  root.resize(520, root.height);
+  root.resize(CHECKLIST_WIDTH, root.height);
   card(root);
+
+  // Grouped once, up front, so the sample plan and the drawn lines are indexing
+  // the same list. The slice matters: only the groups that actually get a line
+  // can carry a picture, so the planner is shown exactly those and cannot plan a
+  // sample for a finding kind the row never prints.
+  const shownGroups = new Map<number, GroupedFinding[]>();
+  const totalKinds = new Map<number, number>();
+  for (const item of report.items) {
+    if (item.findings.length === 0) continue;
+    const groups = groupFindings(item.findings);
+    totalKinds.set(item.n, groups.length);
+    shownGroups.set(item.n, groups.slice(0, MAX_FINDING_GROUPS));
+  }
+
+  const plannable: PlannableRow[] = report.items
+    .filter((item) => shownGroups.has(item.n))
+    .map((item) => ({ item, groups: shownGroups.get(item.n) ?? [] }));
+  const samplePlan = planChecklistSamples(plannable, snapshot);
+  const samplesByRow = new Map(samplePlan.rows.map((row) => [row.n, row]));
+  let sampleCount = 0;
 
   const header = autoLayout("header", "VERTICAL", 0, 0, 4);
   header.layoutAlign = "STRETCH";
   header.appendChild(text(`QA Checklist`, 18, FONT_BOLD, INK));
   header.appendChild(text(report.target.name, 13, FONT_REGULAR, MUTED));
   header.appendChild(text(summaryLine(report.counts), 12, FONT_REGULAR, MUTED));
+  // What the checklist-wide sample bound dropped (#172). In the header because by
+  // the time this bites the omission belongs to no single row, and on its own line
+  // rather than appended to the tally above: that line's parts must keep summing
+  // to one per checklist row, and a clause about pictures is not a row count.
+  if (samplePlan.droppedNotice) {
+    header.appendChild(text(samplePlan.droppedNotice, 11, FONT_REGULAR, MUTED));
+  }
   root.appendChild(header);
 
   const rows = autoLayout("rows", "VERTICAL", 0, 0, 0);
@@ -296,8 +497,8 @@ export async function renderChecklist(
       itemBlock.appendChild(noteBlock);
     }
 
-    if (item.findings.length > 0) {
-      const groups = groupFindings(item.findings);
+    const groups = shownGroups.get(item.n);
+    if (groups !== undefined) {
       const findingsBlock = autoLayout(
         `item-${item.n}-findings`,
         "VERTICAL",
@@ -307,15 +508,30 @@ export async function renderChecklist(
       );
       findingsBlock.layoutAlign = "STRETCH";
       findingsBlock.paddingLeft = DETAIL_INDENT;
-      for (const group of groups.slice(0, MAX_FINDING_GROUPS)) {
+      const rowPlan = samplesByRow.get(item.n);
+      const rowSamples = rowPlan?.samples ?? [];
+      for (const [index, group] of groups.entries()) {
         appendFindingLine(
           findingsBlock,
           group.message,
           group.count,
           group.severity,
         );
+        // Drawn immediately after its own line, so the picture sits against the
+        // words it proves rather than at the foot of the row.
+        for (const sample of rowSamples.filter((s) => s.groupIndex === index)) {
+          if (
+            await appendSample(
+              findingsBlock,
+              sample,
+              snapshot.theme?.collectionId,
+            )
+          ) {
+            sampleCount += 1;
+          }
+        }
       }
-      const overflow = groups.length - MAX_FINDING_GROUPS;
+      const overflow = (totalKinds.get(item.n) ?? 0) - MAX_FINDING_GROUPS;
       if (overflow > 0) {
         findingsBlock.appendChild(
           text(
@@ -324,6 +540,14 @@ export async function renderChecklist(
             FONT_REGULAR,
             MUTED,
           ),
+        );
+      }
+      // What this row's own sample bound dropped (#172), beside the finding-kind
+      // overflow line and for the same reason: a row showing three pictures out of
+      // seven must not read as a row showing all of them.
+      if (rowPlan?.coverageNotice) {
+        findingsBlock.appendChild(
+          text(rowPlan.coverageNotice, 10, FONT_REGULAR, MUTED),
         );
       }
       itemBlock.appendChild(findingsBlock);
@@ -441,5 +665,8 @@ export async function renderChecklist(
   );
 
   figma.viewport.scrollAndZoomIntoView([root]);
-  return root;
+  // The count is what was actually drawn, not what the plan asked for: a sample
+  // whose variant had been deleted since the run is planned and then silently
+  // skipped, and the number a caller sees has to be the number on the canvas.
+  return { frame: root, sampleCount };
 }

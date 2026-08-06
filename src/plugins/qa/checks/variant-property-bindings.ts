@@ -53,6 +53,8 @@ import type {
   VariantSnapshot,
 } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
+import { affectedVariants } from "../finding-fields";
+import { variantLabel } from "../variant-label";
 
 const TITLE = "Property bindings across variants";
 
@@ -92,13 +94,6 @@ function flatten(root: NodeSnapshot): NodeSnapshot[] {
   return [root, ...root.children.flatMap(flatten)];
 }
 
-/** `Size=Small, Variant=Ghost`, falling back to the layer name for standalones. */
-function variantLabel(variant: VariantSnapshot): string {
-  const pairs = Object.entries(variant.variantProperties);
-  if (pairs.length === 0) return variant.name;
-  return pairs.map(([prop, value]) => `${prop}=${value}`).join(", ");
-}
-
 function listVariants(labels: string[]): string {
   if (labels.length <= MAX_NAMED_VARIANTS) return labels.join("; ");
   const shown = labels.slice(0, MAX_NAMED_VARIANTS).join("; ");
@@ -109,6 +104,23 @@ interface VariantBinding {
   variant: VariantSnapshot;
   nodes: NodeSnapshot[];
   label: string;
+}
+
+/**
+ * The affected-variant fields for a finding about `entries` (#171).
+ *
+ * Every finding in this check is already about a *set of variants* rather than
+ * about a node, so this only exposes what the check computed anyway. It is what
+ * lets the canvas show one of those variants and say honestly how many others
+ * share the problem.
+ *
+ * The cap-and-count rule itself is `affectedVariants`, shared with the contrast
+ * check. All this adds is the projection from bindings to variant ids - and the
+ * deduplication there matters: the crossed-binding finding flattens several layer
+ * groups and can name one variant twice.
+ */
+function affectedVariantsOf(entries: readonly VariantBinding[]) {
+  return affectedVariants(entries.map((entry) => entry.variant.id));
 }
 
 function bindingsFor(
@@ -226,6 +238,7 @@ function partialWiringFinding(
           `are, there is nothing to fix: Figma keeps the property definition on ` +
           `the set, so the control appears whether or not a variant can use it.`,
         count: unwired.length,
+        ...affectedVariantsOf(unwired),
       },
     };
   }
@@ -256,10 +269,20 @@ function partialWiringFinding(
         `Select the layer in each listed variant and bind it to ` +
         `"${property.name}".`,
       count: unwired.length,
+      ...affectedVariantsOf(unwired),
     },
   };
 }
 
+/**
+ * Deliberately carries no affected variants, so it shows no canvas sample (#171).
+ *
+ * The property is bound to no layer in any variant, which means no variant looks
+ * different because of it. A picture here would be of a component that appears
+ * entirely correct, sitting under a finding saying something is wrong - which
+ * teaches a reader to distrust the samples that do carry evidence. The defect is
+ * real, and it is simply not a visible one.
+ */
 function deadPropertyFinding(
   property: ComponentPropertySnapshot,
   snapshot: ComponentSetSnapshot,
@@ -336,6 +359,7 @@ function oddTargetFinding(
       `Confirm the listed variants bind the layer they mean to. A variant ` +
       `built from different layers may differ legitimately.`,
     count: oddEntries.length,
+    ...affectedVariantsOf(oddEntries),
   };
 }
 
