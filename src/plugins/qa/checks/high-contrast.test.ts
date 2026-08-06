@@ -599,6 +599,81 @@ describe("checkHighContrast with theme modes", () => {
     expect(finding.message).not.toContain("#999999");
   });
 
+  // What lets a canvas sample be drawn in the mode that fails (#173). Without the
+  // mode as data the picture renders in whatever the page resolves, which here
+  // would be Core - where this pair passes - so it would contradict the finding.
+  describe("the failing mode and affected variants (#173)", () => {
+    it("carries the failing mode as data, not only in the message", () => {
+      const [finding] = checkHighContrast(boundFixture()).findings;
+      expect(finding.modeId).toBe("m-dna");
+      expect(finding.modeName).toBe("DNA");
+    });
+
+    it("names the variants holding the failing layers", () => {
+      const [finding] = checkHighContrast(boundFixture()).findings;
+      expect(finding.affectedVariantIds).toEqual(["v:0"]);
+      expect(finding.affectedVariantCount).toBe(1);
+    });
+
+    // The distinction the two fields exist for: `count` counts *layers*, and two
+    // layers in one variant must not read as two affected variants.
+    it("counts variants, not layers, when one variant holds two failing layers", () => {
+      const twoLayers = fixture(
+        [
+          node({
+            name: "surface",
+            fills: [solid("#FFFFFF", { boundVariableId: "v-surface" })],
+            children: [
+              text({
+                name: "label",
+                fills: [solid("#595959", { boundVariableId: "v-text" })],
+              }),
+              text({
+                name: "helper",
+                fills: [solid("#595959", { boundVariableId: "v-text" })],
+              }),
+            ],
+          }),
+        ],
+        { theme },
+      );
+
+      const [finding] = checkHighContrast(twoLayers).findings;
+      expect(finding.count).toBe(2);
+      expect(finding.affectedVariantCount).toBe(1);
+      expect(finding.affectedVariantIds).toEqual(["v:0"]);
+    });
+
+    it("collects every variant when the pair fails across several", () => {
+      const failing = () =>
+        node({
+          name: "surface",
+          fills: [solid("#FFFFFF", { boundVariableId: "v-surface" })],
+          children: [
+            text({ fills: [solid("#595959", { boundVariableId: "v-text" })] }),
+          ],
+        });
+
+      const [finding] = checkHighContrast(
+        fixture([failing(), failing(), failing()], { theme }),
+      ).findings;
+      expect(finding.affectedVariantIds).toEqual(["v:0", "v:1", "v:2"]);
+      expect(finding.affectedVariantCount).toBe(3);
+    });
+
+    // A set painted in literal hex has no theme table, so `evaluatedModes` falls
+    // back to one anonymous mode. Declaring that as a pinnable mode would claim a
+    // pin that means nothing.
+    it("declares no mode for a set with no theme", () => {
+      const [finding] = checkHighContrast(
+        fixture([surface("#FFFFFF", text({ fills: [solid("#999999")] }))]),
+      ).findings;
+      expect(finding.modeId).toBeUndefined();
+      expect(finding.modeName).toBeUndefined();
+      expect(finding.affectedVariantIds).toEqual(["v:0"]);
+    });
+  });
+
   it("states which collection and modes it evaluated", () => {
     const result = checkHighContrast(boundFixture());
     expect(result.note).toContain('"Theme"');

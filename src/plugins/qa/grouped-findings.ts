@@ -43,6 +43,12 @@ export interface GroupedFinding {
    */
   affectedVariantIds?: string[];
   affectedVariantCount?: number;
+  /**
+   * The variable mode this defect is about, when the producing check declared one
+   * (#173). A sample of it has to be drawn with this mode pinned.
+   */
+  modeId?: string;
+  modeName?: string;
 }
 
 /** One entry per defect, highest severity first (see `compareFindingPrecedence`). */
@@ -58,6 +64,12 @@ export function groupFindings(findings: readonly Finding[]): GroupedFinding[] {
         : {}),
       ...(finding.affectedVariantCount !== undefined
         ? { affectedVariantCount: finding.affectedVariantCount }
+        : {}),
+      // Both or neither: a mode id with no name would leave a caption unable to
+      // say what it pinned, and a name with no id would claim a pin that never
+      // happened.
+      ...(finding.modeId && finding.modeName !== undefined
+        ? { modeId: finding.modeId, modeName: finding.modeName }
         : {}),
     }))
     .sort(compareFindingPrecedence);

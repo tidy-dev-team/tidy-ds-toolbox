@@ -79,6 +79,21 @@ export interface Finding {
    * put a number that shrinks as the defect grows.
    */
   affectedVariantCount?: number;
+  /**
+   * The variable mode this finding is about, when it is mode-specific (#173).
+   *
+   * A contrast failure exists *in a mode* - the same colour pair frequently
+   * passes in the others - so a canvas sample of it has to be rendered with that
+   * mode pinned, or the picture can show a state where nothing is wrong and
+   * contradict a correct finding.
+   *
+   * Two named fields rather than a generic bag: `modeId` is what a stage pins and
+   * `modeName` is what a caption prints, and carrying both means the consumer
+   * needs no theme table to derive one from the other. A typed field is also what
+   * lets the sample planner *require* a mode before claiming to have pinned one.
+   */
+  modeId?: string;
+  modeName?: string;
 }
 
 export interface CheckResult {

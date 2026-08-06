@@ -276,6 +276,70 @@ describe("planChecklistSamples", () => {
     expect(plan.rows.map((r) => r.n)).toEqual([3, 16]);
   });
 
+  describe("the pinned mode (#173)", () => {
+    const contrast = (overrides: Partial<GroupedFinding> = {}) =>
+      row(
+        [
+          group({
+            severity: "high",
+            affectedVariantIds: ["2:1"],
+            affectedVariantCount: 6,
+            ...overrides,
+          }),
+        ],
+        { n: 16, checkId: "high-contrast", status: "fail" },
+      );
+
+    it("pins the mode and names it in the caption", () => {
+      const plan = planChecklistSamples(
+        [contrast({ modeId: "m:1", modeName: "DNA" })],
+        snapshot([LOADING]),
+      );
+      const sample = plan.rows[0].samples[0];
+      expect(sample.pinnedModeId).toBe("m:1");
+      expect(sample.pinnedModeName).toBe("DNA");
+      expect(sample.caption).toBe(
+        "size=s, type=outlined, state=loading - mode DNA - 1 of 6 affected variants",
+      );
+    });
+
+    it("pins nothing for a finding that is not about a mode", () => {
+      const plan = planChecklistSamples([contrast()], snapshot([LOADING]));
+      const sample = plan.rows[0].samples[0];
+      expect(sample.pinnedModeId).toBeUndefined();
+      expect(sample.caption).not.toContain("mode");
+    });
+
+    // Both fields or neither. A caption that names a mode the stage did not pin,
+    // or a pin the caption does not mention, is the failure this feature exists to
+    // avoid - the picture and the words have to agree.
+    it("refuses a half-declared mode", () => {
+      const idOnly = planChecklistSamples(
+        [contrast({ modeId: "m:1" })],
+        snapshot([LOADING]),
+      );
+      expect(idOnly.rows[0].samples[0].pinnedModeId).toBeUndefined();
+      expect(idOnly.rows[0].samples[0].caption).not.toContain("mode");
+
+      const nameOnly = planChecklistSamples(
+        [contrast({ modeName: "DNA" })],
+        snapshot([LOADING]),
+      );
+      expect(nameOnly.rows[0].samples[0].pinnedModeId).toBeUndefined();
+      expect(nameOnly.rows[0].samples[0].caption).not.toContain("mode");
+    });
+
+    // `evaluatedModes` falls back to a single anonymous mode for a set painted in
+    // literal hex, and pinning "" would be pinning nothing while saying otherwise.
+    it("treats an empty mode id as no mode", () => {
+      const plan = planChecklistSamples(
+        [contrast({ modeId: "", modeName: "" })],
+        snapshot([LOADING]),
+      );
+      expect(plan.rows[0].samples[0].pinnedModeId).toBeUndefined();
+    });
+  });
+
   describe("the bounds (#172)", () => {
     /** n findings, each naming its own variant, all in one row. */
     function manyGroups(n: number, severity: SeverityLevel = "medium") {

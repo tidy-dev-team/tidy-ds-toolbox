@@ -257,6 +257,11 @@ const ROWS = [
     checkId: "high-contrast",
     run: checkHighContrast,
     needs: ["colorStyles", "theme"],
+    // The strongest case for a sample after row 3: low-contrast text is a see-it
+    // defect, and a ratio printed as a number is the hardest kind of finding for
+    // a designer to picture. Its samples pin the failing mode (#173) - without
+    // that the picture could show a mode where the pair passes.
+    showsVisibleDefect: true,
     blurb:
       "Text meets WCAG AA contrast against the surface behind it, in every theme mode.",
   },

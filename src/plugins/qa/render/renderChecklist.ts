@@ -36,6 +36,7 @@ import {
   ROW_BORDER,
   text,
 } from "./primitives";
+import { fallbackStage } from "./stage-surface";
 import { notePrefix, statusStyle } from "./status-style";
 
 const PLUGIN_DATA_KEY = "tidy:qa-checklist";
@@ -215,14 +216,33 @@ function appendFindingLine(
 async function appendSample(
   parent: FrameNode,
   sample: FindingSample,
+  /**
+   * The collection the run treated as "the theme", from the snapshot. Needed only
+   * to pin a mode-specific sample; absent on a set that binds no theme.
+   */
+  themeCollectionId: string | undefined,
 ): Promise<boolean> {
   const created: SceneNode[] = [];
+  /**
+   * Undo everything this call made, and report that nothing was drawn.
+   *
+   * Used by both the deliberate give-ups and the catch, so no exit can leave a
+   * half-built sample behind. Last created first, so removing a parent cannot
+   * leave the loop deleting a node its parent already took.
+   */
+  const abandon = (): false => {
+    for (const node of created.reverse()) {
+      if (!node.removed) node.remove();
+    }
+    return false;
+  };
+
   try {
     const node = await figma.getNodeByIdAsync(sample.variantId);
     // A variant of a set is itself a COMPONENT, so this is instanced directly -
     // no property setting, unlike the grid blocks which instance the default
     // variant and drive it. Anything else here means the set changed under us.
-    if (!node || node.type !== "COMPONENT") return false;
+    if (!node || node.type !== "COMPONENT") return abandon();
 
     const instance = node.createInstance();
     created.push(instance);
@@ -237,6 +257,30 @@ async function appendSample(
     stage.strokes = [{ type: "SOLID", color: hexToRgb(ROW_BORDER) }];
     stage.strokeWeight = 1;
     stage.cornerRadius = 4;
+
+    // A mode-specific finding is drawn with that mode pinned (#173), or not drawn
+    // at all. Unpinned, a contrast pair that fails in one mode renders in whatever
+    // the page resolves and can show a state where nothing looks wrong - a picture
+    // arguing against a correct finding, which is worse than no picture. So a
+    // sample that asked for a pin and cannot get one is abandoned rather than
+    // drawn with a caption naming a mode it is not in.
+    if (sample.pinnedModeId !== undefined) {
+      if (themeCollectionId === undefined) return abandon();
+      const collection =
+        await figma.variables.getVariableCollectionByIdAsync(themeCollectionId);
+      if (!collection) return abandon();
+      stage.setExplicitVariableModeForCollection(
+        collection,
+        sample.pinnedModeId,
+      );
+      // A dark mode judged against the white card misrepresents the component as
+      // badly as the wrong mode would. The rule for when a backdrop helps, and
+      // when adding one invents a surface the component does not have, is
+      // `stage-surface.ts` - shared so this cannot drift from the per-mode block.
+      const backdrop = fallbackStage(sample.pinnedModeName ?? "");
+      if (backdrop) fill(stage, backdrop);
+    }
+
     stage.appendChild(instance);
     instance.x = SAMPLE_INSET;
     instance.y = SAMPLE_INSET;
@@ -260,12 +304,7 @@ async function appendSample(
 
     return true;
   } catch {
-    // Last created first, so removing a parent cannot leave the loop deleting a
-    // node its parent already took.
-    for (const node of created.reverse()) {
-      if (!node.removed) node.remove();
-    }
-    return false;
+    return abandon();
   }
 }
 
@@ -459,7 +498,15 @@ export async function renderChecklist(
         // Drawn immediately after its own line, so the picture sits against the
         // words it proves rather than at the foot of the row.
         for (const sample of rowSamples.filter((s) => s.groupIndex === index)) {
-          if (await appendSample(findingsBlock, sample)) sampleCount += 1;
+          if (
+            await appendSample(
+              findingsBlock,
+              sample,
+              snapshot.theme?.collectionId,
+            )
+          ) {
+            sampleCount += 1;
+          }
         }
       }
       const overflow = (totalKinds.get(item.n) ?? 0) - MAX_FINDING_GROUPS;

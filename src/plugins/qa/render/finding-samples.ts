@@ -36,6 +36,24 @@ export interface FindingSample {
   variantId: string;
   /** Printed beneath the instance. States what it is and how much it covers. */
   caption: string;
+  /**
+   * The variable mode to pin on this sample's stage, when the finding is about one
+   * (#173).
+   *
+   * Absent means "draw it as the page resolves it", which is right for a defect
+   * that is not mode-specific and wrong for one that is: a contrast pair that
+   * fails only in one mode, drawn unpinned, can show a state where nothing looks
+   * wrong. The planner only sets this when the finding gave it both a mode id and
+   * a name, so a pin is never claimed without something to pin.
+   */
+  pinnedModeId?: string;
+  /**
+   * The pinned mode's name, carried beside the id so the renderer can decide the
+   * stage's backdrop without a theme table. A dark mode drawn against the white
+   * card misrepresents the component as badly as a wrong mode would - see
+   * `stage-surface.ts`, which owns that rule.
+   */
+  pinnedModeName?: string;
 }
 
 /** The samples for one row, in the order their finding lines are drawn. */
@@ -157,10 +175,18 @@ function sampleFor(
   const variant = variants.get(variantId);
   if (variant === undefined) return undefined;
 
+  // Both fields or neither, so the caption can never name a mode the stage did
+  // not pin, nor a pin the caption does not mention.
+  const pinned = group.modeId && group.modeName ? group.modeName : undefined;
+  const mode = pinned ? ` - mode ${pinned}` : "";
+
   return {
     groupIndex,
     variantId,
-    caption: `${variantLabel(variant)}${coverage(group.affectedVariantCount)}`,
+    caption: `${variantLabel(variant)}${mode}${coverage(
+      group.affectedVariantCount,
+    )}`,
+    ...(pinned ? { pinnedModeId: group.modeId, pinnedModeName: pinned } : {}),
   };
 }
 
