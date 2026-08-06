@@ -364,7 +364,7 @@ describe("planChecklistSamples", () => {
         snapshot(manyVariants(MAX_SAMPLES_PER_ROW)),
       );
       expect(plan.total).toBe(MAX_SAMPLES_PER_ROW);
-      expect(plan.rows[0].droppedNotice).toBeUndefined();
+      expect(plan.rows[0].coverageNotice).toBeUndefined();
       expect(plan.droppedNotice).toBeUndefined();
     });
 
@@ -379,7 +379,7 @@ describe("planChecklistSamples", () => {
       );
       expect(plan.total).toBe(MAX_SAMPLES_PER_CHECKLIST);
       expect(plan.droppedNotice).toBeUndefined();
-      expect(plan.rows.every((r) => r.droppedNotice === undefined)).toBe(true);
+      expect(plan.rows.every((r) => r.coverageNotice === undefined)).toBe(true);
     });
 
     it("caps a row and says how many of how many it is showing", () => {
@@ -388,7 +388,7 @@ describe("planChecklistSamples", () => {
         snapshot(manyVariants(MAX_SAMPLES_PER_ROW + 2)),
       );
       expect(plan.rows[0].samples).toHaveLength(MAX_SAMPLES_PER_ROW);
-      expect(plan.rows[0].droppedNotice).toBe(
+      expect(plan.rows[0].coverageNotice).toBe(
         "Showing 3 of 5 variant samples for this row.",
       );
       expect(plan.total).toBe(MAX_SAMPLES_PER_ROW);
@@ -411,7 +411,7 @@ describe("planChecklistSamples", () => {
         [...budgetEaters(), row(manyGroups(1, "low"), { n: 3 })],
         snapshot(manyVariants(MAX_SAMPLES_PER_ROW)),
       );
-      expect(plan.rows.find((r) => r.n === 3)?.droppedNotice).toBe(
+      expect(plan.rows.find((r) => r.n === 3)?.coverageNotice).toBe(
         "Showing 0 of 1 variant sample for this row.",
       );
     });
@@ -449,7 +449,7 @@ describe("planChecklistSamples", () => {
       expect(row3?.samples).toEqual([]);
       // Derived from the row bound alone this would have read "2 more not shown"
       // - 5 wanted less the 3 the row bound allowed - beside zero pictures.
-      expect(row3?.droppedNotice).toBe(
+      expect(row3?.coverageNotice).toBe(
         "Showing 0 of 5 variant samples for this row.",
       );
     });
@@ -508,7 +508,7 @@ describe("planChecklistSamples", () => {
       const row3 = plan.rows.find((r) => r.n === 3);
       expect(row3).toBeDefined();
       expect(row3?.samples).toEqual([]);
-      expect(row3?.droppedNotice).toBe(
+      expect(row3?.coverageNotice).toBe(
         "Showing 0 of 7 variant samples for this row.",
       );
     });

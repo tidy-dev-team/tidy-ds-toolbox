@@ -6,7 +6,7 @@ import type { ComponentSetSnapshot } from "../snapshot";
 const STORYBOOK_URL = "https://storybook.kido.dev/?path=/docs/button";
 
 /**
- * Minimal fixture builder — only `id`/`name`/`description` and
+ * Minimal fixture builder - only `id`/`name`/`description` and
  * `documentationLinks` matter to this check, but the type wants a full
  * ComponentSetSnapshot so we fill in empty defaults.
  *

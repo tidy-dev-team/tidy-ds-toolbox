@@ -53,7 +53,8 @@ import type {
   VariantSnapshot,
 } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
-import { MAX_REPORTED_NODES } from "../dedupe-findings";
+import { affectedVariants } from "../finding-fields";
+import { variantLabel } from "../variant-label";
 
 const TITLE = "Property bindings across variants";
 
@@ -93,13 +94,6 @@ function flatten(root: NodeSnapshot): NodeSnapshot[] {
   return [root, ...root.children.flatMap(flatten)];
 }
 
-/** `Size=Small, Variant=Ghost`, falling back to the layer name for standalones. */
-function variantLabel(variant: VariantSnapshot): string {
-  const pairs = Object.entries(variant.variantProperties);
-  if (pairs.length === 0) return variant.name;
-  return pairs.map(([prop, value]) => `${prop}=${value}`).join(", ");
-}
-
 function listVariants(labels: string[]): string {
   if (labels.length <= MAX_NAMED_VARIANTS) return labels.join("; ");
   const shown = labels.slice(0, MAX_NAMED_VARIANTS).join("; ");
@@ -120,25 +114,13 @@ interface VariantBinding {
  * lets the canvas show one of those variants and say honestly how many others
  * share the problem.
  *
- * Ids are capped like `nodeIds` because they are a sample to draw from; the count
- * is not, because it is the number a caption prints. In variant order, so the
- * first is a deterministic choice rather than whichever the set happened to list.
+ * The cap-and-count rule itself is `affectedVariants`, shared with the contrast
+ * check. All this adds is the projection from bindings to variant ids - and the
+ * deduplication there matters: the crossed-binding finding flattens several layer
+ * groups and can name one variant twice.
  */
-function affectedVariants(entries: readonly VariantBinding[]): {
-  affectedVariantIds: string[];
-  affectedVariantCount: number;
-} {
-  const ids: string[] = [];
-  for (const entry of entries) {
-    if (ids.length >= MAX_REPORTED_NODES) break;
-    if (!ids.includes(entry.variant.id)) ids.push(entry.variant.id);
-  }
-  return {
-    affectedVariantIds: ids,
-    // Distinct variants, not entries: the crossed-binding finding flattens
-    // several layer groups and can name one variant twice.
-    affectedVariantCount: new Set(entries.map((e) => e.variant.id)).size,
-  };
+function affectedVariantsOf(entries: readonly VariantBinding[]) {
+  return affectedVariants(entries.map((entry) => entry.variant.id));
 }
 
 function bindingsFor(
@@ -256,7 +238,7 @@ function partialWiringFinding(
           `are, there is nothing to fix: Figma keeps the property definition on ` +
           `the set, so the control appears whether or not a variant can use it.`,
         count: unwired.length,
-        ...affectedVariants(unwired),
+        ...affectedVariantsOf(unwired),
       },
     };
   }
@@ -287,7 +269,7 @@ function partialWiringFinding(
         `Select the layer in each listed variant and bind it to ` +
         `"${property.name}".`,
       count: unwired.length,
-      ...affectedVariants(unwired),
+      ...affectedVariantsOf(unwired),
     },
   };
 }
@@ -377,7 +359,7 @@ function oddTargetFinding(
       `Confirm the listed variants bind the layer they mean to. A variant ` +
       `built from different layers may differ legitimately.`,
     count: oddEntries.length,
-    ...affectedVariants(oddEntries),
+    ...affectedVariantsOf(oddEntries),
   };
 }
 

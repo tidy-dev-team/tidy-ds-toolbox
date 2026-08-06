@@ -205,6 +205,13 @@ function toFinding(group: Accumulator): Finding {
   // Neither producer can reach this today: both emit one finding per property or
   // per colour pair, each with its own message, so no two share a kind key.
   //
+  // `modeId`/`modeName` are deliberately *not* dropped alongside them, and the
+  // asymmetry is not an oversight. A merge groups findings by kind, and the kind
+  // key is derived from the message, which for a mode-specific finding names the
+  // mode - so two findings that merge already agree about it, and the
+  // representative's mode speaks for the group. The variant set is the opposite:
+  // nothing in the key constrains it, so each merged finding brought its own.
+  //
   // Destructured away rather than set to undefined, so the keys are absent
   // entirely and a merged finding is indistinguishable from one that never
   // carried them.

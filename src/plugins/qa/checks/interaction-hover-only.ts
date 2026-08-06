@@ -11,7 +11,7 @@
  * That gate is wider than the old one, which asked only whether any reaction
  * existed, and it can now swallow a real defect: a click reaction on a set with
  * no hover state used to fail and is now skipped. That is the rule as design
- * stated it, so the skip note names the reason rather than staying silent —
+ * stated it, so the skip note names the reason rather than staying silent -
  * a reader seeing "no hover state, so triggers were not checked" can tell the
  * row was declined, which a bare grey chip would not convey.
  */

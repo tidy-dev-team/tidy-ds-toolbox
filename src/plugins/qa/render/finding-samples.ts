@@ -21,9 +21,10 @@
 
 import { showsVisibleDefect } from "../checklist-catalogue";
 import { SEVERITY_RANK } from "../dedupe-findings";
+import { findingMode } from "../finding-fields";
 import type { GroupedFinding } from "../grouped-findings";
 import type { ComponentSetSnapshot, VariantSnapshot } from "../snapshot";
-import { findingMode } from "../types";
+import { variantLabel } from "../variant-label";
 import type { ChecklistItem, SeverityLevel } from "../types";
 
 /** One picture to draw: which variant, and what to say under it. */
@@ -63,14 +64,26 @@ export interface RowSamples {
   n: number;
   samples: FindingSample[];
   /**
-   * What this row's own bound dropped, for a line at the foot of its findings
-   * block, or undefined when it did not bite.
+   * How much of this row's illustrable defect the pictures cover, for a line at
+   * the foot of its findings block. Undefined when they cover all of it.
    *
-   * Never silent: a truncated set of pictures reads as "these are all the visible
-   * defects", which is the failure the grid blocks' mandatory footnote exists to
-   * prevent.
+   * Never silent when something is missing: a truncated set of pictures reads as
+   * "these are all the visible defects", which is the failure the grid blocks'
+   * mandatory footnote exists to prevent.
+   *
+   * **Deliberately a coverage statement, not a bound-attribution one, and #172's
+   * "neither line appears when its bound did not bite" is not met as written.**
+   * That criterion assumed each line reported its own bound. Trying it that way
+   * produced a line that lied: a row of five kept three under the row bound, said
+   * "2 more not shown", then lost two of the three to the checklist-wide bound and
+   * showed one picture. Attributing an omission to a single cause is what breaks,
+   * because two causes compose. So this line now says what the row is showing out
+   * of what it had, which is true whichever bound cut - and it does appear when
+   * only the checklist-wide bound bit. The header line still names that cause,
+   * which no row can see. The overlap is two true statements about one omission,
+   * not a contradiction.
    */
-  droppedNotice?: string;
+  coverageNotice?: string;
 }
 
 export interface ChecklistSamplePlan {
@@ -130,17 +143,6 @@ function variantIndex(
   snapshot: ComponentSetSnapshot,
 ): Map<string, VariantSnapshot> {
   return new Map(snapshot.variants.map((variant) => [variant.id, variant]));
-}
-
-/**
- * `size=s, type=outlined, state=loading` - the variant's property values, which
- * is how a designer identifies a variant, falling back to the node name for a
- * standalone component that has none.
- */
-function variantLabel(variant: VariantSnapshot): string {
-  const pairs = Object.entries(variant.variantProperties);
-  if (pairs.length === 0) return variant.name;
-  return pairs.map(([property, value]) => `${property}=${value}`).join(", ");
 }
 
 /**
@@ -279,7 +281,7 @@ export function planChecklistSamples(
       samples,
       ...(samples.length < wanted
         ? {
-            droppedNotice: `Showing ${samples.length} of ${countPhrase(wanted)} for this row.`,
+            coverageNotice: `Showing ${samples.length} of ${countPhrase(wanted)} for this row.`,
           }
         : {}),
     });

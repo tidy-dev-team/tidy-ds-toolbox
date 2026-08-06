@@ -152,12 +152,31 @@ const CHECKLIST_WIDTH = 520;
 const CHECKLIST_PADDING = 24;
 
 /**
+ * The `×count` badge's fixed width, and the gap after it, on a finding line.
+ *
+ * Named because two things depend on them agreeing: the line itself, and the
+ * variant sample beneath it, which has to start where the *message* starts rather
+ * than where the badge does. As literals in two places they drifted - the sample
+ * sat under the badge, a third of the way left of the text it illustrates.
+ */
+const FINDING_BADGE_WIDTH = 28;
+const FINDING_BADGE_GAP = 8;
+
+/**
+ * How far a variant sample is inset past the finding block's own indent, so it
+ * lines up with the message rather than with the badge (#171: "indented to the
+ * finding text column, as design drew it").
+ */
+const SAMPLE_INDENT = FINDING_BADGE_WIDTH + FINDING_BADGE_GAP;
+
+/**
  * Widest a variant sample may be drawn (#171), derived rather than written down:
  * the frame's width, less its padding on both sides, less the detail indent the
- * findings block sits at. A sample wider than this is clipped, never resized.
+ * findings block sits at, less the sample's own indent to the text column. A
+ * sample wider than this is clipped, never resized.
  */
 const SAMPLE_MAX_WIDTH =
-  CHECKLIST_WIDTH - CHECKLIST_PADDING * 2 - DETAIL_INDENT;
+  CHECKLIST_WIDTH - CHECKLIST_PADDING * 2 - DETAIL_INDENT - SAMPLE_INDENT;
 
 /**
  * Tallest a variant sample may be drawn. A cap rather than a fit, because the
@@ -181,10 +200,10 @@ function appendFindingLine(
   count: number,
   severity: SeverityLevel,
 ): void {
-  const line = autoLayout("finding", "HORIZONTAL", 0, 6, 8);
+  const line = autoLayout("finding", "HORIZONTAL", 0, 6, FINDING_BADGE_GAP);
 
   const badge = text(`×${count}`, 11, FONT_BOLD, SEVERITY_COLOR[severity]);
-  badge.resize(28, badge.height);
+  badge.resize(FINDING_BADGE_WIDTH, badge.height);
 
   const label = text(message, 11, FONT_REGULAR, MUTED);
   line.appendChild(badge);
@@ -293,6 +312,9 @@ async function appendSample(
 
     const block = autoLayout("sample", "VERTICAL", 0, 0, 6);
     created.push(block);
+    // Past the badge, so the picture starts where the message it illustrates
+    // starts. The findings block's own indent already clears the item number.
+    block.paddingLeft = SAMPLE_INDENT;
     parent.appendChild(block);
     block.layoutAlign = "STRETCH";
     block.appendChild(stage);
@@ -523,9 +545,9 @@ export async function renderChecklist(
       // What this row's own sample bound dropped (#172), beside the finding-kind
       // overflow line and for the same reason: a row showing three pictures out of
       // seven must not read as a row showing all of them.
-      if (rowPlan?.droppedNotice) {
+      if (rowPlan?.coverageNotice) {
         findingsBlock.appendChild(
-          text(rowPlan.droppedNotice, 10, FONT_REGULAR, MUTED),
+          text(rowPlan.coverageNotice, 10, FONT_REGULAR, MUTED),
         );
       }
       itemBlock.appendChild(findingsBlock);

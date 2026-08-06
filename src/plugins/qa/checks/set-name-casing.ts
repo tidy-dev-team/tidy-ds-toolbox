@@ -1,7 +1,7 @@
 /**
- * #2 — component set master name must be PascalCase (`Button`,
+ * #2 - component set master name must be PascalCase (`Button`,
  * `NotificationTag`) or kebab-case (`notification-tag`). Applies to the
- * set/component master name only — never to property names or layer names
+ * set/component master name only - never to property names or layer names
  * inside the tree (see #9 for those).
  *
  * Both forms are legal because design named both (2026-08-04, on the rendered

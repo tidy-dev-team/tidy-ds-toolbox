@@ -32,8 +32,8 @@ import { MISPRINT_MARKER, parseMisprintMarker } from "../../../shared/misprint";
  * The Storybook recommendation, or nothing when a link is already present.
  *
  * Looks in both places a link legitimately lives: the description prose, and
- * Figma's own documentation-link field. Checking only the description — where
- * design's comment was pinned — would report a link recorded in the proper
+ * Figma's own documentation-link field. Checking only the description - where
+ * design's comment was pinned - would report a link recorded in the proper
  * field as missing, which would train reviewers to ignore the row.
  */
 function storybookFinding(

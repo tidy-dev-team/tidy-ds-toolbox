@@ -15,16 +15,8 @@
  */
 
 import { compareFindingPrecedence, dedupeFindings } from "./dedupe-findings";
-import { findingMode } from "./types";
+import { modeFields } from "./finding-fields";
 import type { Finding, SeverityLevel } from "./types";
-
-/** The mode pair to forward, or nothing. Keeps the spread at the call site terse. */
-function modeFields(
-  finding: Finding,
-): { modeId: string; modeName: string } | Record<string, never> {
-  const mode = findingMode(finding);
-  return mode ? { modeId: mode.id, modeName: mode.name } : {};
-}
 
 export interface GroupedFinding {
   /** Message as the merge left it: node-specific only where that is true. */

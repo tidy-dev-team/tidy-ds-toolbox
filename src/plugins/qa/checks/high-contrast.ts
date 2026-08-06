@@ -83,8 +83,7 @@ import type {
   ThemeSnapshot,
 } from "../snapshot";
 import type { CheckResult, CheckStatus, Finding } from "../types";
-import { findingMode } from "../types";
-import { MAX_REPORTED_NODES } from "../dedupe-findings";
+import { affectedVariants, modeFields } from "../finding-fields";
 import { AA_NORMAL, contrastRatio, layer, requiredRatio } from "../contrast";
 import type { Rgba } from "../contrast";
 
@@ -658,7 +657,6 @@ function quoteColour(label: string): string {
 function failureFinding(failure: Failure): Finding {
   const where = failure.modeName ? ` in mode "${failure.modeName}"` : "";
   const size = failure.large ? "large" : "normal";
-  const variantIds = [...failure.variantIds];
   return {
     severity: "high",
     nodeId: failure.nodeId,
@@ -679,14 +677,10 @@ function failureFinding(failure: Failure): Finding {
     // Only when there is a mode to name. `evaluatedModes` falls back to a single
     // anonymous mode for a set painted in literal hex, and pinning "" would be
     // pinning nothing while claiming otherwise - which is why the id and the name
-    // travel together and `findingMode` is the one place that rule lives.
-    ...(findingMode(failure)
-      ? { modeId: failure.modeId, modeName: failure.modeName }
-      : {}),
-    // The ids are capped like `nodeIds` because they are a sample to draw from;
-    // the count is not, because it is the number a caption prints.
-    affectedVariantIds: variantIds.slice(0, MAX_REPORTED_NODES),
-    affectedVariantCount: variantIds.length,
+    // travel together, and why `finding-fields` owns that rule rather than each
+    // producer restating it.
+    ...modeFields(failure),
+    ...affectedVariants(failure.variantIds),
   };
 }
 
