@@ -225,18 +225,51 @@ export function planChecklistSamples(
 ): ChecklistSamplePlan {
   const variants = variantIndex(snapshot);
   const candidates: Candidate[] = [];
-  /** How many samples each row could have drawn, before either bound. */
+  /**
+   * How many distinct pictures each row could have drawn, before either bound.
+   *
+   * Distinct is the operative word: a row whose findings all point at one variant
+   * wants one picture, not one per finding, so its coverage line does not claim to
+   * be hiding repeats it would never have drawn.
+   */
   const wantedPerRow = new Map<number, number>();
 
   for (const row of rows) {
     if (!rowQualifies(row.item)) continue;
 
     const forRow: Candidate[] = [];
+    /**
+     * Pictures already drawn on this row, so no two are the same picture.
+     *
+     * Found on canvas, not in a test. On the real `button`, three findings - a
+     * missing `label`, a missing `icon L`, a missing `icon R` - all have no target
+     * in the same 18 loading variants, so each picked the same first affected
+     * variant and the row drew three identical pictures with three identical
+     * captions. It reads as a rendering bug. Nothing is lost by dropping those
+     * repeats: the picture cannot show *which* property is missing, because all
+     * three are missing in that variant.
+     *
+     * **Keyed on the variant *and* the pinned mode**, which the first version got
+     * wrong. Keyed on the variant alone it silently dropped every Light-mode
+     * contrast finding on `button`, because those pairs fail on the same variants
+     * as their Dark counterparts - so the row showed three pictures all captioned
+     * "mode Dark" while equally real Light failures went unillustrated. One variant
+     * in two modes is two different images, each proving its own finding, and
+     * exactly not a repeat.
+     *
+     * Within a row only. The same variant on row 3 and on row 16 illustrates two
+     * different defects, and each row's picture is the evidence for its own.
+     */
+    const drawn = new Set<string>();
     row.groups.forEach((group, index) => {
       const sample = sampleFor(group, index, variants);
-      if (sample) {
-        forRow.push({ sample, n: row.item.n, severity: group.severity });
-      }
+      if (!sample) return;
+      // NUL-joined so a variant id containing the separator cannot collide with a
+      // mode id; neither Figma id contains one.
+      const key = `${sample.variantId} ${sample.pinnedModeId ?? ""}`;
+      if (drawn.has(key)) return;
+      drawn.add(key);
+      forRow.push({ sample, n: row.item.n, severity: group.severity });
     });
 
     if (forRow.length === 0) continue;

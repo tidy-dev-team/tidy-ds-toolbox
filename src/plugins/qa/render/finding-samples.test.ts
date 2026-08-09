@@ -275,6 +275,149 @@ describe("planChecklistSamples", () => {
     expect(plan.rows.map((r) => r.n)).toEqual([3, 16]);
   });
 
+  // Found by rendering the real `button` and looking at it, having passed every
+  // test above. Three findings - missing `label`, missing `icon L`, missing
+  // `icon R` - all had no target in the same 18 loading variants, so all three
+  // picked the same variant and the row drew three identical pictures with three
+  // identical captions.
+  describe("one picture per variant, per row", () => {
+    it("draws a variant once even when several findings point at it", () => {
+      const plan = planChecklistSamples(
+        [
+          row([
+            group({
+              message: `"label" has no target`,
+              affectedVariantIds: ["2:1"],
+              affectedVariantCount: 18,
+            }),
+            group({
+              message: `"icon L" has no target`,
+              affectedVariantIds: ["2:1"],
+              affectedVariantCount: 18,
+            }),
+            group({
+              message: `"icon R" has no target`,
+              affectedVariantIds: ["2:1"],
+              affectedVariantCount: 18,
+            }),
+          ]),
+        ],
+        snapshot([LOADING]),
+      );
+
+      expect(plan.total).toBe(1);
+      expect(plan.rows[0].samples).toHaveLength(1);
+      expect(plan.rows[0].samples[0].groupIndex).toBe(0);
+    });
+
+    // The repeats were never candidates, so the row is showing everything it had
+    // and must not claim to be hiding anything.
+    it("says nothing about coverage when only repeats were dropped", () => {
+      const plan = planChecklistSamples(
+        [
+          row([
+            group({ message: "a", affectedVariantIds: ["2:1"] }),
+            group({ message: "b", affectedVariantIds: ["2:1"] }),
+          ]),
+        ],
+        snapshot([LOADING]),
+      );
+      expect(plan.rows[0].coverageNotice).toBeUndefined();
+    });
+
+    it("still draws both when two findings point at different variants", () => {
+      const plan = planChecklistSamples(
+        [
+          row([
+            group({ message: "a", affectedVariantIds: ["2:1"] }),
+            group({ message: "b", affectedVariantIds: ["2:2"] }),
+          ]),
+        ],
+        snapshot([LOADING, IDLE]),
+      );
+      expect(plan.rows[0].samples.map((s) => s.variantId)).toEqual([
+        "2:1",
+        "2:2",
+      ]);
+    });
+
+    // The correction to the first version of this dedupe, found on `button`: keyed
+    // on the variant alone it dropped every Light-mode contrast finding, because
+    // those pairs fail on the same variants as their Dark counterparts. One variant
+    // in two modes is two different images, each proving its own finding.
+    it("draws the same variant twice when the modes differ", () => {
+      const plan = planChecklistSamples(
+        [
+          row(
+            [
+              group({
+                message: "pair fails in Dark",
+                affectedVariantIds: ["2:1"],
+                affectedVariantCount: 6,
+                modeId: "m:dark",
+                modeName: "Dark",
+              }),
+              group({
+                message: "pair fails in Light",
+                affectedVariantIds: ["2:1"],
+                affectedVariantCount: 6,
+                modeId: "m:light",
+                modeName: "Light",
+              }),
+            ],
+            { n: 16, checkId: "high-contrast", status: "fail" },
+          ),
+        ],
+        snapshot([LOADING]),
+      );
+
+      expect(plan.rows[0].samples).toHaveLength(2);
+      expect(plan.rows[0].samples.map((s) => s.pinnedModeId)).toEqual([
+        "m:dark",
+        "m:light",
+      ]);
+    });
+
+    it("still collapses the same variant in the same mode", () => {
+      const contrast = (message: string) =>
+        group({
+          message,
+          affectedVariantIds: ["2:1"],
+          affectedVariantCount: 6,
+          modeId: "m:dark",
+          modeName: "Dark",
+        });
+      const plan = planChecklistSamples(
+        [
+          row([contrast("pair A"), contrast("pair B")], {
+            n: 16,
+            checkId: "high-contrast",
+            status: "fail",
+          }),
+        ],
+        snapshot([LOADING]),
+      );
+      expect(plan.rows[0].samples).toHaveLength(1);
+    });
+
+    // Deliberately per row, not per checklist: the same variant on two rows is
+    // illustrating two different defects, and each row owns its own evidence.
+    it("draws the same variant again on a different row", () => {
+      const plan = planChecklistSamples(
+        [
+          row([group({ affectedVariantIds: ["2:1"] })], { n: 3 }),
+          row([group({ affectedVariantIds: ["2:1"] })], {
+            n: 16,
+            status: "fail",
+          }),
+        ],
+        snapshot([LOADING]),
+      );
+      expect(plan.total).toBe(2);
+      expect(plan.rows.map((r) => r.n)).toEqual([3, 16]);
+    });
+  });
+
   describe("the pinned mode (#173)", () => {
     const contrast = (overrides: Partial<GroupedFinding> = {}) =>
       row(
