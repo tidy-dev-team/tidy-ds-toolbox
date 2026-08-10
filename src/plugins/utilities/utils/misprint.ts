@@ -20,16 +20,24 @@ export interface SearchabilityResult {
  *
  * Both formats live in `shared/` next to the QA check that reads them, and
  * both writes are idempotent, so running this twice changes nothing.
+ *
+ * `descriptionMarkdown` is the field, not `description`. They are two views
+ * of the same annotation, and only the markdown one renders formatting: the
+ * plain field shows `**Dropdown**` as those literal characters in the
+ * component's configuration panel. Reading and writing the same view also
+ * keeps the round trip honest - the alias line is read back with its
+ * asterisks, matched, and rewritten, instead of being read stripped and
+ * added a second time.
  */
 export function addSearchabilityToDescription(
   element: ComponentNode | ComponentSetNode,
 ): SearchabilityResult {
   const aliases = lookupComponentAliases(element.name);
 
-  let description = element.description ?? "";
+  let description = element.descriptionMarkdown ?? "";
   description = upsertAlsoKnownAsLine(description, aliases);
   description = upsertMisprintLine(description, element.name);
-  element.description = description;
+  element.descriptionMarkdown = description;
 
   return { aliases };
 }
