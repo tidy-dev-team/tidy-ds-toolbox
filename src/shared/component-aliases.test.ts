@@ -146,6 +146,12 @@ describe("parseAlsoKnownAsLine", () => {
     ).toEqual(["Pagination", "Progress Tracker"]);
   });
 
+  it("reads a hand-written line that has no colon", () => {
+    expect(parseAlsoKnownAsLine("Also known as **Dropdown**")).toEqual([
+      "Dropdown",
+    ]);
+  });
+
   it("reports null for any other line", () => {
     expect(parseAlsoKnownAsLine("misprint: ןמפוא")).toBeNull();
     expect(parseAlsoKnownAsLine("")).toBeNull();
@@ -185,6 +191,29 @@ describe("upsertAlsoKnownAsLine", () => {
   it("matches a name the designer bolded rather than duplicating it", () => {
     expect(upsertAlsoKnownAsLine("Also known as: **dialog**", ["Dialog"])).toBe(
       "Also known as: **dialog**",
+    );
+  });
+
+  it("merges into a hand-written line that has no colon", () => {
+    expect(upsertAlsoKnownAsLine("Also known as **Dropdown**", ["Menu"])).toBe(
+      "Also known as: **Dropdown, Menu**",
+    );
+  });
+
+  it("collapses two alias lines into the first", () => {
+    // The exact state an earlier version of this writer left behind: it did
+    // not recognise the colon-less line, so it added its own below it.
+    const doubled = [
+      "Also known as: **Drop Down, Menu**",
+      "Also known as Dropdown",
+      createMisprintText("Dropdown"),
+    ].join("\n");
+
+    expect(upsertAlsoKnownAsLine(doubled, ["Menu", "Combo Box"])).toBe(
+      [
+        "Also known as: **Drop Down, Menu, Dropdown, Combo Box**",
+        createMisprintText("Dropdown"),
+      ].join("\n"),
     );
   });
 

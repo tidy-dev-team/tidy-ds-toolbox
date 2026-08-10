@@ -24,8 +24,14 @@
 /** #12 / #176 - the required alias line's prefix, written and checked. */
 export const ALSO_KNOWN_AS_PREFIX = "Also known as:";
 
-/** Matches an alias line, tolerant of the label's casing and leading space. */
-const ALIAS_LINE = /^\s*also\s+known\s+as\s*:(.*)$/i;
+/**
+ * Matches an alias line, tolerant of the label's casing, leading space, and
+ * of a missing colon. The colon is optional because a hand-written line often
+ * arrives without it, and treating that line as unrelated prose is worse than
+ * a rare false match: the writer would add a second alias line below the
+ * first and the description would carry the same names twice.
+ */
+const ALIAS_LINE = /^\s*also\s+known\s+as\s*:?\s*(.*)$/i;
 
 export interface AliasEntry {
   /**
@@ -346,6 +352,12 @@ export function parseAlsoKnownAsLine(line: string): string[] | null {
  * A description with no line gets one at the top, where the reference in
  * #176 puts it - above the dashed separator that opens the misprint marker.
  *
+ * Several alias lines collapse into one, at the position of the first. A
+ * description can already carry two of them - an earlier version of this
+ * writer only recognised the label when it was followed by a colon, so it
+ * added its own line below a hand-written one - and leaving both would keep
+ * the reader guessing which is current.
+ *
  * With no aliases to write, the description is returned untouched.
  */
 export function upsertAlsoKnownAsLine(
@@ -355,23 +367,28 @@ export function upsertAlsoKnownAsLine(
   if (aliases.length === 0) return description;
 
   const lines = description.split("\n");
-  const index = lines.findIndex((line) => parseAlsoKnownAsLine(line) !== null);
+  const found = lines
+    .map((line, index) => ({ index, names: parseAlsoKnownAsLine(line) }))
+    .filter((line): line is { index: number; names: string[] } =>
+      Boolean(line.names),
+    );
 
-  if (index === -1) {
+  if (found.length === 0) {
     const line = createAlsoKnownAsText(aliases);
     return description.trim().length === 0 ? line : [line, ...lines].join("\n");
   }
 
-  const existing = parseAlsoKnownAsLine(lines[index]) ?? [];
-  const merged = [...existing];
-  const seen = new Set(existing.map((alias) => alias.toLowerCase()));
+  const merged: string[] = [];
+  const seen = new Set<string>();
 
-  for (const alias of aliases) {
+  for (const alias of [...found.flatMap((line) => line.names), ...aliases]) {
     if (seen.has(alias.toLowerCase())) continue;
     seen.add(alias.toLowerCase());
     merged.push(alias);
   }
 
-  lines[index] = createAlsoKnownAsText(merged);
-  return lines.join("\n");
+  const duplicates = new Set(found.slice(1).map((line) => line.index));
+  lines[found[0].index] = createAlsoKnownAsText(merged);
+
+  return lines.filter((_, index) => !duplicates.has(index)).join("\n");
 }
