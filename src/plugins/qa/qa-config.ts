@@ -67,8 +67,14 @@ export const ALLOWED_TRIGGER_TYPES: readonly string[] = ["ON_HOVER"];
  */
 export const HOVER_STATE_VALUE = "hover";
 
-/** #12 — required alias line in the component description. */
-export const ALSO_KNOWN_AS_PREFIX = "Also known as:";
+/**
+ * #12 - required alias line in the component description.
+ *
+ * Re-exported from `shared/component-aliases`, which owns the line's format
+ * and the alias table the Misprint utility writes from (#176). One literal,
+ * so the checker cannot ask for a line the writer does not produce.
+ */
+export { ALSO_KNOWN_AS_PREFIX } from "../../shared/component-aliases";
 
 /**
  * #12 - how a Storybook link is recognised, in the description text or in

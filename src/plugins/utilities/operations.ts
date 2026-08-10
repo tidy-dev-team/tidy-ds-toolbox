@@ -6,7 +6,7 @@
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
-import { addMisprintToDescription } from "./utils/misprint";
+import { addSearchabilityToDescription } from "./utils/misprint";
 import { buildDsTemplate } from "./utils/dsTemplate";
 import {
   selectComponents,
@@ -110,6 +110,8 @@ interface ApplyMisprintParams {
 interface ApplyMisprintResult {
   updated: number;
   ids: string[];
+  /** Names the alias table has no entry for, so #176's line was not written. */
+  withoutAliases: string[];
 }
 
 registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
@@ -118,7 +120,7 @@ registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
     kind: "execute",
     module: "utilities",
     summary:
-      "Append/replace a Hebrew-scrambled 'misprint' line on each component's description. Idempotent. Atomic-fails if any id is missing or not a component.",
+      "Write both searchability lines on each component's description: an 'Also known as:' line of alternative names, and the Hebrew-scrambled 'misprint' line. Idempotent. Names the alias table does not know are returned in `withoutAliases` and get no alias line. Atomic-fails if any id is missing or not a component.",
     paramsExample: { nodeIds: ["1:2"] },
   },
   async (params) => {
@@ -161,13 +163,16 @@ registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
       );
     }
 
+    const withoutAliases: string[] = [];
     for (const node of resolved) {
-      addMisprintToDescription(node);
+      const { aliases } = addSearchabilityToDescription(node);
+      if (aliases.length === 0) withoutAliases.push(node.name);
     }
 
     return {
       updated: resolved.length,
       ids: resolved.map((n) => n.id),
+      withoutAliases,
     };
   },
 );

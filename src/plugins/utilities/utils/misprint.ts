@@ -1,42 +1,42 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { UtilityResult } from "../types";
+import { upsertMisprintLine } from "../../../shared/misprint";
 import {
-  createMisprintText,
-  parseMisprintMarker,
-} from "../../../shared/misprint";
+  lookupComponentAliases,
+  upsertAlsoKnownAsLine,
+} from "../../../shared/component-aliases";
+
+export interface SearchabilityResult {
+  /** The alternative names written, empty when the table has no entry (#176). */
+  aliases: string[];
+}
 
 /**
- * Adds misprint text to a component or component set description.
- * Exported so the MCP `misprint.apply` Operation can reuse it.
+ * Write both searchability lines onto a component (set) description: the
+ * `Also known as:` line (#176) and the Hebrew-scrambled misprint marker
+ * (#98). Exported so the MCP `tidy_misprint_apply` Operation writes exactly
+ * what the utility writes.
  *
- * Marker format + detection live in `shared/misprint` (issue #98) — reapply
- * finds any existing marker-shaped line (tolerant of prefix/casing) and
- * replaces it, so a stale/renamed misprint is corrected in place.
+ * Both formats live in `shared/` next to the QA check that reads them, and
+ * both writes are idempotent, so running this twice changes nothing.
  */
-export function addMisprintToDescription(
+export function addSearchabilityToDescription(
   element: ComponentNode | ComponentSetNode,
-): void {
-  const misprint = createMisprintText(element.name);
-  const descriptionLines = element.description?.split("\n") ?? [];
+): SearchabilityResult {
+  const aliases = lookupComponentAliases(element.name);
 
-  // Check if a misprint line already exists (any prefix/casing) and update it
-  const misprintIndex = descriptionLines.findIndex(
-    (line) => parseMisprintMarker(line, element.name).present,
-  );
+  let description = element.description ?? "";
+  description = upsertAlsoKnownAsLine(description, aliases);
+  description = upsertMisprintLine(description, element.name);
+  element.description = description;
 
-  if (misprintIndex >= 0) {
-    descriptionLines.splice(misprintIndex, 1, misprint);
-  } else {
-    descriptionLines.push(misprint);
-  }
-
-  element.description = descriptionLines.join("\n");
+  return { aliases };
 }
 
 /**
  * Main handler for the Misprint utility.
- * Adds scrambled Hebrew text to component descriptions for searchability.
+ * Writes the alias line and the scrambled keyword marker for searchability.
  */
 export async function runMisprint(): Promise<UtilityResult> {
   const selection = figma.currentPage.selection;
@@ -62,10 +62,12 @@ export async function runMisprint(): Promise<UtilityResult> {
     };
   }
 
-  // Apply misprint to each valid element
+  // Apply the searchability lines to each valid element
+  const withoutAliases: string[] = [];
   for (const element of validElements) {
     try {
-      addMisprintToDescription(element);
+      const { aliases } = addSearchabilityToDescription(element);
+      if (aliases.length === 0) withoutAliases.push(element.name);
     } catch (error) {
       console.error("Error adding misprint:", error);
     }
@@ -73,7 +75,25 @@ export async function runMisprint(): Promise<UtilityResult> {
 
   return {
     success: true,
-    message: `Added misprint to ${validElements.length} component${validElements.length === 1 ? "" : "s"}.`,
+    message: describeRun(validElements.length, withoutAliases),
     count: validElements.length,
   };
+}
+
+/**
+ * The run's report.
+ *
+ * Components the alias table does not know are named, not counted: the gap is
+ * only closable by someone adding them to the table, and a bare number does
+ * not say which ones.
+ */
+function describeRun(total: number, withoutAliases: string[]): string {
+  const done = `Added misprint to ${total} component${total === 1 ? "" : "s"}.`;
+  if (withoutAliases.length === 0) return done;
+
+  const named = withoutAliases.slice(0, 5).join(", ");
+  const rest =
+    withoutAliases.length > 5 ? ` and ${withoutAliases.length - 5} more` : "";
+
+  return `${done} No alternative names on file for ${named}${rest} - add them to the alias table.`;
 }

@@ -95,6 +95,30 @@ export function createMisprintText(name: string): string {
   return `${MISPRINT_MARKER} ${scrambleName(name)}`;
 }
 
+/**
+ * Write the marker into `description`, and return the new description.
+ *
+ * An existing marker-shaped line is replaced where it stands, so a stale
+ * marker left by a rename is corrected rather than duplicated. A description
+ * without one gets the marker appended, below whatever prose is already there.
+ */
+export function upsertMisprintLine(description: string, name: string): string {
+  const marker = createMisprintText(name);
+  const lines = description.split("\n");
+  const index = lines.findIndex(
+    (line) => parseMisprintMarker(line, name).present,
+  );
+
+  if (index >= 0) {
+    lines[index] = marker;
+    return lines.join("\n");
+  }
+
+  return description.trim().length === 0
+    ? marker
+    : [...lines, marker].join("\n");
+}
+
 export interface MisprintMarkerParse {
   /** A marker-shaped line is present (tolerant of prefix/casing). */
   present: boolean;

@@ -38,7 +38,8 @@ const UTILITIES: UtilityConfig[] = [
   {
     id: "misprint",
     label: "Misprint",
-    description: "Add scrambled Hebrew text to component descriptions",
+    description:
+      "Add alternative names and scrambled Hebrew text to component descriptions",
     icon: IconLetterCase,
   },
   {

@@ -1,5 +1,5 @@
 ---
-description: Apply the searchability "misprint" line to component descriptions. Accepts node ids, names, or globs. With no args, finds first.
+description: Write the searchability lines ("Also known as:" plus "misprint") on component descriptions. Accepts node ids, names, or globs. With no args, finds first.
 allowed-tools:
   - "mcp__tidy-ds-toolbox__tidy_misprint_apply"
   - "mcp__plugin_tidy-ds_tidy-ds-toolbox__tidy_misprint_apply"
@@ -10,6 +10,7 @@ allowed-tools:
 ---
 
 Apply the Tidy DS Toolbox misprint operation to component descriptions.
+It writes two lines: `Also known as:` with the component's alternative names, and the Hebrew-scrambled `misprint:` marker.
 
 User-supplied arguments: $ARGUMENTS
 
@@ -47,6 +48,7 @@ After all tokens are resolved:
 
 ## After the apply call
 
-- On success, report `updated` count and remind the user the operation is idempotent (running again replaces the line in place, no duplicates).
+- On success, report `updated` count and remind the user the operation is idempotent (running again replaces the misprint line in place and merges the alias line, no duplicates).
+- If `withoutAliases` is non-empty, list those names. The alias table (`src/shared/component-aliases.ts`) has no entry for them, so they got no `Also known as:` line and will still fail the QA description row until someone adds them.
 - On `NOT_FOUND` or `WRONG_NODE_TYPE`, surface the typed error and the `details` field (missing or wrongType ids) so the user can fix the input.
 - On `BRIDGE_DISCONNECTED`, tell the user to open the Tidy DS Toolbox plugin in Figma.
