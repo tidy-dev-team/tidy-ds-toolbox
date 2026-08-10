@@ -34,12 +34,6 @@ export interface VariantProperty {
   defaultValue: string | boolean;
 }
 
-// Element rows for positioning
-export interface ElementRows {
-  leftRow: SceneNode[];
-  topRow: SceneNode[];
-}
-
 // Component dropdown props
 export interface DropdownElementProps {
   value: string;
