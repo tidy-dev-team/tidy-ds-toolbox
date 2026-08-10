@@ -155,13 +155,13 @@ describe("parseAlsoKnownAsLine", () => {
 describe("upsertAlsoKnownAsLine", () => {
   it("writes the line into an empty description with no stray blank line", () => {
     expect(upsertAlsoKnownAsLine("", ["Dialog", "Popup"])).toBe(
-      "Also known as: Dialog, Popup",
+      "Also known as: **Dialog, Popup**",
     );
   });
 
   it("puts the line above existing prose", () => {
     expect(upsertAlsoKnownAsLine("Use for blocking tasks.", ["Dialog"])).toBe(
-      "Also known as: Dialog\nUse for blocking tasks.",
+      "Also known as: **Dialog**\nUse for blocking tasks.",
     );
   });
 
@@ -179,12 +179,12 @@ describe("upsertAlsoKnownAsLine", () => {
   it("keeps a name the designer added, and adds what the table knows", () => {
     expect(
       upsertAlsoKnownAsLine("Also known as: Sheet", ["Dialog", "Sheet"]),
-    ).toBe("Also known as: Sheet, Dialog");
+    ).toBe("Also known as: **Sheet, Dialog**");
   });
 
   it("matches a name the designer bolded rather than duplicating it", () => {
     expect(upsertAlsoKnownAsLine("Also known as: **dialog**", ["Dialog"])).toBe(
-      "Also known as: dialog",
+      "Also known as: **dialog**",
     );
   });
 
@@ -192,7 +192,10 @@ describe("upsertAlsoKnownAsLine", () => {
     const withMarker = createMisprintText("Modal");
     const updated = upsertAlsoKnownAsLine(withMarker, ["Dialog"]);
 
-    expect(updated.split("\n")).toEqual(["Also known as: Dialog", withMarker]);
+    expect(updated.split("\n")).toEqual([
+      "Also known as: **Dialog**",
+      withMarker,
+    ]);
   });
 });
 
@@ -203,7 +206,7 @@ describe("both searchability lines together", () => {
     description = upsertMisprintLine(description, "Stepper");
 
     expect(description).toBe(
-      `Also known as: Progress Tracker\n${createMisprintText("Stepper")}`,
+      `Also known as: **Progress Tracker**\n${createMisprintText("Stepper")}`,
     );
   });
 
@@ -225,7 +228,7 @@ describe("both searchability lines together", () => {
     );
 
     expect(written.split("\n")).toEqual([
-      "Also known as: Dialog",
+      "Also known as: **Dialog**",
       "Use for blocking tasks.",
       createMisprintText("Modal"),
     ]);
@@ -239,5 +242,11 @@ describe("createAlsoKnownAsText", () => {
         ALSO_KNOWN_AS_PREFIX,
       ),
     ).toBe(true);
+  });
+
+  it("bolds the names and leaves the label plain", () => {
+    expect(createAlsoKnownAsText(["Dialog", "Popup"])).toBe(
+      "Also known as: **Dialog, Popup**",
+    );
   });
 });

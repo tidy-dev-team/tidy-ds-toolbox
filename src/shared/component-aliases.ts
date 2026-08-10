@@ -309,17 +309,24 @@ export function lookupComponentAliases(name: string): string[] {
   return [];
 }
 
-/** Build the alias line for `aliases`. */
+/**
+ * Build the alias line for `aliases`.
+ *
+ * The names are bolded and the label is not, which is how #176's reference
+ * shows the line. Figma's description panel renders the markdown, so the
+ * names read as the content of the line and `Also known as:` as its label.
+ */
 export function createAlsoKnownAsText(aliases: readonly string[]): string {
-  return `${ALSO_KNOWN_AS_PREFIX} ${aliases.join(", ")}`;
+  return `${ALSO_KNOWN_AS_PREFIX} **${aliases.join(", ")}**`;
 }
 
 /**
  * The alias names already written on an alias line, in their written order.
  *
- * Asterisks are stripped: Figma's description panel writes bold as markdown,
- * and a hand-written line often arrives as `**Pagination, Progress Tracker**`.
- * Reading those as part of the name would duplicate every one of them.
+ * Asterisks are stripped, because bold is markdown in the description panel
+ * and the names are written bold. Reading the asterisks as part of a name
+ * would make every alias look new on the next run, and duplicate all of them.
+ * It also matches a hand-written line whose author bolded a different span.
  */
 export function parseAlsoKnownAsLine(line: string): string[] | null {
   const match = ALIAS_LINE.exec(line);
