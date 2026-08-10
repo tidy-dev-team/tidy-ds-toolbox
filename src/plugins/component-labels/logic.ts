@@ -1,7 +1,8 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { findAllVariantProps } from "./utils/getVariantProps";
-import { getTopAndLeftElements } from "./utils/getTopAndLeftElements";
+import { AxisSlot, chooseSlotValue, collectAxisSlots } from "./utils/axisSlots";
+import { extractVariantValue } from "./utils/variantValue";
 import { splitArrayOfObjects } from "./utils/splitArrayOfObjects";
 import { extractToTheTop } from "./utils/extractToTheTop";
 import {
@@ -206,21 +207,13 @@ async function loadFonts(): Promise<void> {
 }
 
 /**
- * Creates and positions a label for a component node
+ * Creates a label carrying one variant value
  */
 async function createLabel(
-  node: SceneNode,
-  propertyName: string,
+  value: string,
   parent: BaseNode,
   fontSize: number,
-  position: { x: number; y: number },
-): Promise<TextNode | null> {
-  const arr = node.name.split(",");
-  const found = arr.find((item) => item.includes(propertyName));
-  const value = found?.split("=")[1];
-
-  if (!value) return null;
-
+): Promise<TextNode> {
   const label = figma.createText();
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
   label.characters = value;
@@ -228,27 +221,27 @@ async function createLabel(
   label.fontSize = fontSize;
   //@ts-ignore
   parent.appendChild(label);
-  label.x = position.x;
-  label.y = position.y;
 
   return label;
 }
 
 /**
- * Creates labels for a row of nodes
+ * Creates one label per slot of an axis
  */
 interface LabelRowResult {
   labels: TextNode[];
   sources: SceneNode[];
 }
 
-async function createLabelsForRow(
-  rowNodes: SceneNode[],
+async function createLabelsForSlots(
+  slots: readonly AxisSlot<SceneNode>[],
   propertyName: string,
   element: ComponentSetNode,
-  _spacing: number,
   fontSize: number,
-  positionFn: (node: SceneNode, label: TextNode) => { x: number; y: number },
+  positionFn: (
+    slot: AxisSlot<SceneNode>,
+    label: TextNode,
+  ) => { x: number; y: number },
 ): Promise<LabelRowResult> {
   const labels: TextNode[] = [];
   const sources: SceneNode[] = [];
@@ -258,77 +251,59 @@ async function createLabelsForRow(
   const parent = element.parent;
   if (!parent) return { labels, sources };
 
-  for (const node of rowNodes) {
-    const label = await createLabel(
-      node,
-      propertyName,
-      parent,
-      fontSize,
-      { x: 0, y: 0 }, // Temporary position
+  for (const slot of slots) {
+    const chosen = chooseSlotValue(slot, (node) =>
+      extractVariantValue(node.name, propertyName),
     );
+    if (!chosen) continue;
 
-    if (label) {
-      // Calculate the final position
-      const position = positionFn(node, label);
-      label.x = position.x;
-      label.y = position.y;
-      labels.push(label);
-      sources.push(node);
-    }
+    const label = await createLabel(chosen.value, parent, fontSize);
+    const position = positionFn(slot, label);
+    label.x = position.x;
+    label.y = position.y;
+    labels.push(label);
+    sources.push(chosen.node);
   }
 
   return { labels, sources };
 }
 
-function extractVariantValue(node: SceneNode, propertyName: string): string {
-  if (!propertyName) return "";
-  const arr = node.name.split(",");
-  const found = arr.find((item) => item.includes(propertyName));
-  return found?.split("=")[1]?.trim() ?? "";
-}
-
 /**
- * Processes and optimizes groups of labels
+ * Merges the labels of a group into one label centred on the group.
+ *
+ * The axis is passed in rather than guessed from whether the first two
+ * labels share a y: a group of one - which a ragged grid produces often -
+ * has no second label to compare against, and guessing moved it by half its
+ * own size.
  */
 function processLabelGroups(
   labels: TextNode[],
+  axis: "x" | "y",
   extraKey?: (label: TextNode) => string,
 ): void {
   const groupedLabels = splitArrayOfObjects(labels, extraKey);
 
   for (const group of groupedLabels) {
-    const bounds = computeMaximumBounds(group);
-    const isVertical = group[0].y !== group[1]?.y;
+    // Each label already sits centred on its own slot, so the group's
+    // centre is the midpoint of those centres - not of their outer bounds.
+    const centerOf = (node: TextNode) =>
+      axis === "x" ? node.x + node.width / 2 : node.y + node.height / 2;
 
-    if (isVertical) {
-      // Vertical alignment (left labels)
-      const min = bounds[0].y;
-      const max = bounds[1].y;
-      const shift = (max - min) / 2;
+    const centers = group.map(centerOf);
+    const target = (Math.min(...centers) + Math.max(...centers)) / 2;
 
-      group.sort((a, b) => a.y - b.y);
-      group.forEach((node, index) => {
-        if (index === 0) {
-          node.y = node.y + shift - node.height / 2;
-        } else {
-          node.remove();
-        }
-      });
-    } else {
-      // Horizontal alignment (top labels)
-      const min = bounds[0].x;
-      const max = bounds[1].x;
-      const shift = (max - min) / 2;
-
-      group.sort((a, b) => a.x - b.x);
-      group.forEach((node, index) => {
-        if (index === 0) {
-          node.x = node.x + shift;
-        } else {
-          node.remove();
-        }
-      });
-    }
+    group.sort((a, b) => centerOf(a) - centerOf(b));
+    group.forEach((node, index) => {
+      if (index > 0) {
+        node.remove();
+        return;
+      }
+      if (axis === "x") {
+        node.x = target - node.width / 2;
+      } else {
+        node.y = target - node.height / 2;
+      }
+    });
   }
 }
 
@@ -373,31 +348,33 @@ async function buildLabelElements(
   spacing: number,
   fontSize: number,
 ): Promise<void> {
-  const { leftRow, topRow } = getTopAndLeftElements(nodes);
+  // Every column of the grid, and every row - read from all of the
+  // children, so a ragged set still reports the rows that its first column
+  // never reaches (#175).
+  const columns = collectAxisSlots(nodes, "x");
+  const rows = collectAxisSlots(nodes, "y");
 
   // Create first-level labels
-  const topResult = await createLabelsForRow(
-    topRow,
+  const topResult = await createLabelsForSlots(
+    columns,
     labels.top,
     element,
-    spacing,
     fontSize,
-    (node, label) => ({
-      x: element.x + node.x + node.width / 2 - label.width / 2,
+    (slot, label) => ({
+      x: element.x + slot.center - label.width / 2,
       y: element.y - label.height - spacing,
     }),
   );
   const topLabels = topResult.labels;
 
-  const leftResult = await createLabelsForRow(
-    leftRow,
+  const leftResult = await createLabelsForSlots(
+    rows,
     labels.left,
     element,
-    spacing,
     fontSize,
-    (node, label) => ({
+    (slot, label) => ({
       x: element.x - label.width - spacing,
-      y: element.y + node.y + node.height / 2 - label.height / 2,
+      y: element.y + slot.center - label.height / 2,
     }),
   );
   const leftLabels = leftResult.labels;
@@ -407,14 +384,13 @@ async function buildLabelElements(
   const leftWidth = leftLabels.length ? leftBounds[1].x - leftBounds[0].x : 0;
 
   // Create second-level labels
-  const secondTopResult = await createLabelsForRow(
-    topRow,
+  const secondTopResult = await createLabelsForSlots(
+    columns,
     labels.secondTop,
     element,
-    spacing,
     fontSize,
-    (node, label) => ({
-      x: element.x + node.x + node.width / 2 - label.width / 2,
+    (slot, label) => ({
+      x: element.x + slot.center - label.width / 2,
       y: topLabels.length
         ? topLabels[0].y - label.height - spacing
         : element.y - label.height - spacing * 2,
@@ -422,15 +398,14 @@ async function buildLabelElements(
   );
   const secondLevelTopLabels = secondTopResult.labels;
 
-  const secondLeftResult = await createLabelsForRow(
-    leftRow,
+  const secondLeftResult = await createLabelsForSlots(
+    rows,
     labels.secondLeft,
     element,
-    spacing,
     fontSize,
-    (node, label) => ({
+    (slot, label) => ({
       x: element.x - (leftWidth + label.width + spacing * 2),
-      y: element.y + node.y + node.height / 2 - label.height / 2,
+      y: element.y + slot.center - label.height / 2,
     }),
   );
   const secondLevelLeftLabels = secondLeftResult.labels;
@@ -443,18 +418,18 @@ async function buildLabelElements(
     const sourceByLabel = new Map(
       secondLeftResult.labels.map((l, i) => [l, secondLeftResult.sources[i]]),
     );
-    processLabelGroups(secondLevelLeftLabels, (label) => {
+    processLabelGroups(secondLevelLeftLabels, "y", (label) => {
       const src = sourceByLabel.get(label);
-      return src ? extractVariantValue(src, labels.left) : "";
+      return src ? extractVariantValue(src.name, labels.left) : "";
     });
   }
   if (labels.groupSecondTop) {
     const sourceByLabel = new Map(
       secondTopResult.labels.map((l, i) => [l, secondTopResult.sources[i]]),
     );
-    processLabelGroups(secondLevelTopLabels, (label) => {
+    processLabelGroups(secondLevelTopLabels, "x", (label) => {
       const src = sourceByLabel.get(label);
-      return src ? extractVariantValue(src, labels.top) : "";
+      return src ? extractVariantValue(src.name, labels.top) : "";
     });
   }
 }
