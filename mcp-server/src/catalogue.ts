@@ -127,7 +127,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "utilities",
     summary:
-      "Append a Hebrew-scrambled 'misprint' line to each component's description for searchability. Idempotent: replaces an existing misprint line if present. Fails atomically if any nodeId is missing or not a component.",
+      "Write the two searchability lines on each component's description: an 'Also known as:' line listing the component's alternative names, and a Hebrew-scrambled 'misprint' line. Idempotent: an existing alias line is merged with, an existing misprint line replaced. Components whose name is absent from the alias table come back in `withoutAliases` and get no alias line. Fails atomically if any nodeId is missing or not a component.",
     inputSchema: {
       nodeIds: z
         .array(z.string())
