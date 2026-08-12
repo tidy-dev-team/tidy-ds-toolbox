@@ -55,6 +55,18 @@ export interface StateGridPlan {
   /** One line under the heading saying what the block is. */
   subtitle: string;
   /**
+   * How each row lays out its own cells. Absent means `"HORIZONTAL"` - the
+   * contact sheet's columns have to sit side by side, since scanning *down* a
+   * column to compare one state across variants is the whole point and only
+   * works if every row's cells line up.
+   *
+   * The resize evidence block sets `"VERTICAL"`: its cells are driven to
+   * genuinely different widths (a baseline component next to one driven to
+   * 2000px+), and packing those side by side produces a card thousands of
+   * pixels wide rather than one a reader can take in without scrolling.
+   */
+  cellDirection?: "HORIZONTAL" | "VERTICAL";
+  /**
    * The small print: what this block does *not* cover.
    *
    * Never optional, and never allowed to be empty. Both blocks bound their own

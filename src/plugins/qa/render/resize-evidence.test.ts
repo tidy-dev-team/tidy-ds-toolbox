@@ -159,6 +159,10 @@ describe("planResizeEvidence", () => {
     expect(cell.width).toBeUndefined();
   });
 
+  it("stacks its cells vertically, since driven widths vary too much to sit side by side", () => {
+    expect(plan({ anomalies: [anomaly()] }).cellDirection).toBe("VERTICAL");
+  });
+
   it("always states that the block is not the verdict", () => {
     const built = plan({ anomalies: [anomaly()] });
     expect(built.footnote).toContain("status comes from the measurements");

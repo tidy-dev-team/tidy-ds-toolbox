@@ -136,6 +136,17 @@ export function planResizeEvidence(
   return {
     title: "Resize evidence",
     subtitle: `Measured on "${probe.variantName}". The picture is proof of the finding, not the finding.`,
+    // Baseline, narrowed and widened are driven to genuinely different widths
+    // (see `driveWidthThrough`), so side by side the card is as wide as all
+    // three put together. Stacked, it is as wide as the widest one - the
+    // widened cell - and grows downward instead.
+    //
+    // That bounds the card by one cell rather than bounding it outright: a state
+    // driven past 2000px still makes a card that wide. Clipping it would bound
+    // the width, and is deliberately not done - the block exists to show what
+    // the layout did at that width, and cutting the picture could cut the very
+    // defect the row is reporting.
+    cellDirection: "VERTICAL",
     footnote:
       `Row 7's status comes from the measurements, not from this block. ` +
       (dropped > 0
