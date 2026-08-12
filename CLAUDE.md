@@ -119,6 +119,6 @@ Anonymous usage events (module opens + actions) ship to a self-hosted pipeline. 
 ## Commit Conventions
 
 Follow Conventional Commits with these scopes:
-`shell`, `component-labels`, `ds-explorer`, `sticker-sheet`, `icon-care`, `tidy-mapper`, `utilities`, `audit`, `release-notes`, `off-boarding`, `mcp`, `ui`, `build`, `deps`
+`shell`, `component-labels`, `ds-explorer`, `sticker-sheet`, `icon-care`, `tidy-mapper`, `utilities`, `audit`, `release-notes`, `off-boarding`, `iconfinder`, `color-finder`, `tidy-doc`, `qa`, `mcp`, `ui`, `build`, `deps`
 
 Version bumps follow semver: `feat` → minor, `fix`/`perf` → patch, `BREAKING CHANGE` → major.
