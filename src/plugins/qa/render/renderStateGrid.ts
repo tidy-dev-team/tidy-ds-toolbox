@@ -161,10 +161,14 @@ function buildInto(
   }
 
   // Cells are collected per column so their widths can be reconciled afterwards.
+  // "Column" is the multi-row reading: on a single-row block laid out vertically
+  // each of these holds exactly one cell, and the reconciliation below is a no-op
+  // by arithmetic rather than by a special case.
   const columns: SceneNode[][] = [];
+  const cellDirection = plan.cellDirection ?? "HORIZONTAL";
   for (const row of plan.rows) {
     const rowFrame = track(
-      autoLayout(row.label || "row", "HORIZONTAL", 0, 0, COLUMN_GAP),
+      autoLayout(row.label || "row", cellDirection, 0, 0, COLUMN_GAP),
     );
     rowFrame.counterAxisAlignItems = "MIN";
     grid.appendChild(rowFrame);
@@ -195,6 +199,10 @@ function buildInto(
   // two shifts every cell after it and the headings at the top line up with nothing.
   // A contact sheet whose columns do not align is not a contact sheet - the whole
   // point is scanning *down* a column to compare one state across variants.
+  //
+  // This is the horizontal, multi-row block's need. A vertically stacked single
+  // row runs the same loop over one-cell columns, which pins each cell to the
+  // width it already had.
   //
   // Figma has no grid layout to lean on here, so the widest cell in each column sets
   // that column's width and every other cell in it is pinned to the same number.

@@ -86,6 +86,7 @@ import type { CheckResult, CheckStatus, Finding } from "../types";
 import { affectedVariants, modeFields } from "../finding-fields";
 import { AA_NORMAL, contrastRatio, layer, requiredRatio } from "../contrast";
 import type { Rgba } from "../contrast";
+import { unreadableVariants } from "../variant-properties";
 
 const TITLE = "High contrast (WCAG AA)";
 
@@ -372,7 +373,12 @@ export function checkHighContrast(snapshot: ComponentSetSnapshot): CheckResult {
     title: TITLE,
     status,
     findings,
-    note: buildNote(snapshot.theme, modes, disabledCount),
+    note: buildNote(
+      snapshot.theme,
+      modes,
+      disabledCount,
+      unreadableVariants(snapshot).length,
+    ),
   };
 }
 
@@ -748,6 +754,11 @@ function skipTally(
  * boolean property named "Disabled" that is on. A set that spells it some other
  * way will not be caught, and that is stated in the row's caveat rather than
  * left as a silent assumption.
+ *
+ * A variant whose combination Figma refused to report reads as *not* disabled
+ * here, so it is measured. That is the safe direction - measuring an exempt
+ * variant costs a finding a designer can dismiss, where skipping a real one
+ * hides a defect - but it is still a wrong answer, so the row's caveat names it.
  */
 function isDisabledVariant(variant: {
   variantProperties: Record<string, string>;
@@ -774,6 +785,7 @@ function buildNote(
   theme: ThemeSnapshot | undefined,
   modes: Mode[],
   disabledCount: number,
+  unreadableCount: number,
 ): string {
   const scope =
     "Contrast is measured against the nearest ancestor with a solid fill, so sibling geometry and images behind a layer are not considered. Text whose colour changes mid-sentence is measured per styled run, and a layer counts once per colour pair however many of its runs share it.";
@@ -781,9 +793,16 @@ function buildNote(
     disabledCount > 0
       ? ` ${disabledCount} disabled ${disabledCount === 1 ? "variant was" : "variants were"} not evaluated, since WCAG exempts inactive controls; that is recognised from a "Disabled" variant property, so a set naming it differently would still be measured.`
       : "";
+  // Named for the same reason the disabled clause names its own blind spot: an
+  // unreadable combination cannot be recognised as a disabled state, so those
+  // variants were measured whether or not WCAG exempts them.
+  const unreadable =
+    unreadableCount > 0
+      ? ` ${unreadableCount} ${unreadableCount === 1 ? "variant was" : "variants were"} measured without knowing their property combination, which Figma refused to report - so a disabled state among them was not recognised as one. See row 13.`
+      : "";
   if (theme?.collectionName && modes.length > 0 && modes[0].modeId) {
     const list = modes.map((m) => m.name).join(", ");
-    return `Evaluated collection "${theme.collectionName}" across ${modes.length} modes: ${list}. ${scope}${disabled}`;
+    return `Evaluated collection "${theme.collectionName}" across ${modes.length} modes: ${list}. ${scope}${disabled}${unreadable}`;
   }
-  return `No theme modes were available, so contrast was measured once against the colours as they currently resolve. ${scope}${disabled}`;
+  return `No theme modes were available, so contrast was measured once against the colours as they currently resolve. ${scope}${disabled}${unreadable}`;
 }

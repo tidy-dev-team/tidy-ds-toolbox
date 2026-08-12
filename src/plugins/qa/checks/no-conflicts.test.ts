@@ -28,11 +28,13 @@ function variant(
   id: string,
   name: string,
   variantProperties: Record<string, string>,
+  propertiesUnreadable?: string,
 ): VariantSnapshot {
   return {
     id,
     name,
     variantProperties,
+    ...(propertiesUnreadable ? { propertiesUnreadable } : {}),
     tree: {
       id,
       name,
@@ -109,5 +111,77 @@ describe("checkNoConflicts", () => {
     expect(result.status).toBe("not_applicable");
     expect(result.note).toContain("fewer than two variants");
     expect(result.findings).toEqual([]);
+  });
+
+  const REFUSAL =
+    "in get_variantProperties: Component set for node has existing errors";
+
+  it("fails when Figma refused every variant, and says it covers all of them", () => {
+    const result = checkNoConflicts(
+      fixture("4:1", "Button", "COMPONENT_SET", [
+        variant("4:2", "Size=Medium, State=Default", {}, REFUSAL),
+        variant("4:3", "Size=Medium, State=Hover", {}, REFUSAL),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0]).toMatchObject({
+      nodeId: "4:1",
+      nodeName: "Button",
+      severity: "high",
+    });
+    expect(result.findings[0].message).toContain("all 2 variant(s)");
+    expect(result.findings[0].message).toContain(
+      "Component set for node has existing errors",
+    );
+  });
+
+  /**
+   * The reason the refusal is recorded per variant rather than per set. A
+   * set-level flag raised by one throw would make the check decline arithmetic
+   * it can still do, and the duplicate below would go unreported.
+   */
+  it("still reports a readable duplicate when only some variants were refused", () => {
+    const result = checkNoConflicts(
+      fixture("5:1", "Button", "COMPONENT_SET", [
+        variant("5:2", "Size=Medium, State=Default", {
+          Size: "Medium",
+          State: "Default",
+        }),
+        variant("5:3", "Size=Medium, State=Default", {
+          Size: "Medium",
+          State: "Default",
+        }),
+        variant("5:4", "Size=Large, State=Hover", {}, REFUSAL),
+      ]),
+    );
+    expect(result.status).toBe("fail");
+    expect(result.findings.map((f) => f.nodeId).sort()).toEqual([
+      "5:1",
+      "5:2",
+      "5:3",
+    ]);
+    expect(result.findings[0].message).toContain("1 of 3 variant(s)");
+    expect(result.findings[0].message).not.toContain("all ");
+  });
+
+  /**
+   * Two refused variants both carry `{}`, which is the same key. Grouped with
+   * the readable ones they would collide and report a duplicate combination of
+   * "" that a designer cannot find in the Variants panel.
+   */
+  it("does not invent a duplicate out of two refused variants", () => {
+    const result = checkNoConflicts(
+      fixture("6:1", "Button", "COMPONENT_SET", [
+        variant("6:2", "Size=Medium", { Size: "Medium" }),
+        variant("6:3", "Size=Large", {}, REFUSAL),
+        variant("6:4", "Size=Small", {}, REFUSAL),
+      ]),
+    );
+    expect(result.findings).toHaveLength(1);
+    expect(result.findings[0].nodeId).toBe("6:1");
+    expect(result.findings.every((f) => !f.message.includes("Duplicate"))).toBe(
+      true,
+    );
   });
 });

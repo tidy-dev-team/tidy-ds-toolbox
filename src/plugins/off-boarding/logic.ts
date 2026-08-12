@@ -10,6 +10,7 @@ import {
   createCancellationToken,
   yieldToMain,
 } from "../../shared/cancellation";
+import { describeFonts, loadFontsUnder, type FontRef } from "./fonts";
 
 const TEMP_PAGE_NAME = "__TCC_TEMP__";
 
@@ -199,6 +200,26 @@ function getPagesList(): PageInfo[] {
     .map((page) => ({ id: page.id, name: page.name }));
 }
 
+/** A page that could not be packed, kept so the run can name it instead of dying on it. */
+interface SkippedPage {
+  name: string;
+  unloadableFonts: FontRef[];
+  reason: string;
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function describeSkippedPages(skipped: ReadonlyArray<SkippedPage>): string {
+  const parts = skipped.map((skip) =>
+    skip.unloadableFonts.length > 0
+      ? `"${skip.name}" (${describeFonts(skip.unloadableFonts)} not available on this machine)`
+      : `"${skip.name}" (${skip.reason})`,
+  );
+  return `Could not finish ${skipped.length} page${skipped.length === 1 ? "" : "s"}: ${parts.join("; ")}.`;
+}
+
 // #167: the token backing pack-pages' stop control. Recreated at the start
 // of each pack so an earlier cancellation doesn't leak into the next one.
 let packToken = createCancellationToken();
@@ -225,11 +246,12 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
   figma.currentPage = tempPage;
 
   const frames: Array<FrameNode> = [];
+  const skipped: Array<SkippedPage> = [];
+  // Not frames.length: a skipped page is finished with, but produced no frame.
+  let processed = 0;
 
   const buildStoppedResult = (): OffBoardingResult => {
-    const remainingPageNames = sourcePages
-      .slice(frames.length)
-      .map((p) => p.name);
+    const remainingPageNames = sourcePages.slice(processed).map((p) => p.name);
 
     if (frames.length > 0) {
       arrangeFramesInGrid(frames, 200);
@@ -237,9 +259,14 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
       figma.viewport.scrollAndZoomIntoView(frames);
     }
 
+    const stoppedMessage = `Stopped by you after packing ${frames.length} of ${sourcePages.length} page${sourcePages.length === 1 ? "" : "s"}.`;
+
     return {
       success: true,
-      message: `Stopped by you after packing ${frames.length} of ${sourcePages.length} page${sourcePages.length === 1 ? "" : "s"}.`,
+      message:
+        skipped.length > 0
+          ? `${stoppedMessage} ${describeSkippedPages(skipped)}`
+          : stoppedMessage,
       count: frames.length,
       stopped: true,
       remainingPageNames,
@@ -251,14 +278,33 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
       return buildStoppedResult();
     }
 
+    // Cloning a page moves its text nodes under a new parent, and Figma rejects
+    // that for any font it has not loaded - the fault behind the reported
+    // "in appendChild: unloaded font" (see fonts.ts). Loading is best effort:
+    // a font missing from this machine cannot be loaded at all, and the run
+    // reports it by name instead of failing with Figma's blank-font message.
+    const unloadableFonts = await loadFontsUnder([page]);
+
     const frame = figma.createFrame();
     frame.name = page.name;
     frame.setPluginData("tcc:pageName", page.name);
 
     tempPage.appendChild(frame);
 
-    cloneTopLevelNodesIntoFrame(page, frame);
-    frames.push(frame);
+    try {
+      cloneTopLevelNodesIntoFrame(page, frame);
+      frames.push(frame);
+    } catch (error) {
+      // Leave no half-packed frame behind: it would look packed and unpack wrong.
+      frame.remove();
+      skipped.push({
+        name: page.name,
+        unloadableFonts,
+        reason: errorText(error),
+      });
+    }
+
+    processed += 1;
 
     // Yield so a "cancel-pack" message sent while this loop is running has
     // a chance to be processed before the next page starts.
@@ -272,14 +318,27 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
     return buildStoppedResult();
   }
 
+  if (frames.length === 0) {
+    return {
+      success: false,
+      message: `Packed no pages. ${describeSkippedPages(skipped)}`,
+      count: 0,
+    };
+  }
+
   arrangeFramesInGrid(frames, 200);
 
   figma.currentPage.selection = frames;
   figma.viewport.scrollAndZoomIntoView(frames);
 
+  const packedMessage = `Packed ${frames.length} page${frames.length === 1 ? "" : "s"} into ${TEMP_PAGE_NAME}. Copy selection (Cmd/Ctrl+C).`;
+
   return {
     success: true,
-    message: `Packed ${frames.length} page${frames.length === 1 ? "" : "s"} into ${TEMP_PAGE_NAME}. Copy selection (Cmd/Ctrl+C).`,
+    message:
+      skipped.length > 0
+        ? `${packedMessage} ${describeSkippedPages(skipped)}`
+        : packedMessage,
     count: frames.length,
   };
 }
@@ -315,7 +374,7 @@ function restoreSectionsRecursively(
   }
 }
 
-function unpackPages(): OffBoardingResult {
+async function unpackPages(): Promise<OffBoardingResult> {
   let sourcePage: PageNode;
   const tempPage = figma.root.children.find((page) => isTempPage(page));
 
@@ -339,7 +398,14 @@ function unpackPages(): OffBoardingResult {
     };
   }
 
+  // Restoring moves text out of the packed frames onto new pages, which Figma
+  // rejects for unloaded fonts exactly as packing does. A file packed on one
+  // machine is often unpacked on another, so this is the more likely half to
+  // meet a font the machine does not have; those are named, not swallowed.
+  const unloadableFonts = await loadFontsUnder(frames);
+
   let createdPagesCount = 0;
+  const skipped: Array<SkippedPage> = [];
 
   for (const frame of frames) {
     const pageName = frame.getPluginData("tcc:pageName") || frame.name;
@@ -348,20 +414,46 @@ function unpackPages(): OffBoardingResult {
     page.name = pageName;
     figma.root.insertChild(figma.root.children.length, page);
 
-    const children = [...frame.children];
-    for (const child of children) {
-      restoreSectionsRecursively(child, page);
+    try {
+      const children = [...frame.children];
+      for (const child of children) {
+        restoreSectionsRecursively(child, page);
+      }
+    } catch (error) {
+      // Both halves are kept: the new page holds what was already restored, the
+      // packed frame holds the rest. Nothing is copied here, only moved, so
+      // keeping both loses nothing - whereas removing the page would delete the
+      // designer's own content along with it.
+      skipped.push({
+        name: pageName,
+        unloadableFonts,
+        reason: errorText(error),
+      });
+      continue;
     }
 
     frame.remove();
     createdPagesCount += 1;
   }
 
+  if (createdPagesCount === 0) {
+    return {
+      success: false,
+      message: `Unpacked no pages. ${describeSkippedPages(skipped)}`,
+      count: 0,
+    };
+  }
+
   figma.currentPage = figma.root.children[figma.root.children.length - 1];
+
+  const unpackedMessage = `Unpacked ${createdPagesCount} page${createdPagesCount === 1 ? "" : "s"}.`;
 
   return {
     success: true,
-    message: `Unpacked ${createdPagesCount} page${createdPagesCount === 1 ? "" : "s"}.`,
+    message:
+      skipped.length > 0
+        ? `${unpackedMessage} ${describeSkippedPages(skipped)}`
+        : unpackedMessage,
     count: createdPagesCount,
   };
 }
@@ -483,7 +575,7 @@ export async function offBoardingHandler(
       return await packPages(packPayload?.pageIds || []);
 
     case "unpack-pages":
-      return unpackPages();
+      return await unpackPages();
 
     case "find-bound-variables":
       return findBoundVariables();

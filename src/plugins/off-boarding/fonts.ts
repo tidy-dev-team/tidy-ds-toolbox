@@ -1,0 +1,160 @@
+/// <reference types="@figma/plugin-typings" />
+
+/**
+ * Fonts for pack / unpack.
+ *
+ * Packing and unpacking both move text nodes into a different parent, and Figma
+ * refuses `appendChild` if any font in the moved subtree is not loaded. That is
+ * what produced the report this module exists to fix:
+ *
+ *   in appendChild: unloaded font " ". Please call
+ *   figma.loadFontAsync({ family: "", style: "" })
+ *
+ * The empty family and style are the tell. Figma cannot name one font for a text
+ * node whose characters use several, so a node with mixed fonts prints blanks -
+ * and `loadFontAsync(node.fontName)` cannot fix it either, because `fontName` is
+ * `figma.mixed` there. The fonts must come from `getStyledTextSegments`.
+ *
+ * The walk and the dedup are kept here, apart from the figma calls, so they can
+ * be tested. The loader is injected for the same reason.
+ */
+
+/** The identity `loadFontAsync` keys on. */
+export interface FontRef {
+  family: string;
+  style: string;
+}
+
+/** The part of a TextNode this module reads, declared structurally so a fake node satisfies it. */
+export interface TextLike {
+  readonly fontName: unknown;
+  getStyledTextSegments(
+    fields: ["fontName"],
+  ): ReadonlyArray<{ fontName: FontRef }>;
+}
+
+/**
+ * Dedup key for a font.
+ *
+ * Separated by an escaped NUL, which no font name can contain, so a family and
+ * a style can never run together into the same key as a different pair. Written
+ * as an escape rather than as the byte itself: a raw NUL makes git classify the
+ * whole file as binary, and a file with no reviewable diff is a poor trade for
+ * one character.
+ */
+export function fontKey(font: FontRef): string {
+  return `${font.family}\u0000${font.style}`;
+}
+
+function isFontRef(value: unknown): value is FontRef {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate = value as Partial<FontRef>;
+  return (
+    typeof candidate.family === "string" && typeof candidate.style === "string"
+  );
+}
+
+/**
+ * Every font used by `texts`, deduplicated and in first-seen order.
+ *
+ * `mixed` is `figma.mixed`, passed in rather than referenced so this stays
+ * runnable outside the plugin sandbox.
+ *
+ * A font with an empty family is dropped: it cannot be loaded, and including it
+ * would only turn one unloadable font into a second, unnameable one.
+ */
+export function collectFonts(
+  texts: Iterable<TextLike>,
+  mixed: unknown,
+): FontRef[] {
+  const seen = new Set<string>();
+  const fonts: FontRef[] = [];
+
+  const add = (font: unknown): void => {
+    if (!isFontRef(font) || font.family === "") {
+      return;
+    }
+    const key = fontKey(font);
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    fonts.push({ family: font.family, style: font.style });
+  };
+
+  for (const text of texts) {
+    if (text.fontName !== mixed) {
+      add(text.fontName);
+      continue;
+    }
+    for (const segment of text.getStyledTextSegments(["fontName"])) {
+      add(segment.fontName);
+    }
+  }
+
+  return fonts;
+}
+
+/**
+ * Loads every font, and returns the ones that could not be loaded.
+ *
+ * A font missing from the machine rejects, and there is nothing the plugin can
+ * do about that - but knowing *which* font is what turns a later failure into a
+ * message a designer can act on. Loading never throws here for that reason.
+ */
+export async function loadFonts(
+  fonts: ReadonlyArray<FontRef>,
+  load: (font: FontRef) => Promise<unknown>,
+): Promise<FontRef[]> {
+  const results = await Promise.all(
+    fonts.map(async (font): Promise<FontRef | null> => {
+      try {
+        await load(font);
+        return null;
+      } catch {
+        return font;
+      }
+    }),
+  );
+  return results.filter((font): font is FontRef => font !== null);
+}
+
+/** `"Inter Bold", "Roboto Regular" and 2 more` - for a message shown to a designer. */
+export function describeFonts(
+  fonts: ReadonlyArray<FontRef>,
+  limit = 3,
+): string {
+  const named = fonts
+    .slice(0, limit)
+    .map((font) => `"${font.family} ${font.style}"`);
+  const rest = fonts.length - named.length;
+  if (rest > 0) {
+    named.push(`${rest} more`);
+  }
+  if (named.length <= 1) {
+    return named.join("");
+  }
+  return `${named.slice(0, -1).join(", ")} and ${named[named.length - 1]}`;
+}
+
+/**
+ * Loads every font used by text anywhere under `roots`, and returns the
+ * unloadable ones.
+ *
+ * `findAllWithCriteria` rather than a hand-rolled walk: it is the indexed path,
+ * and pack already walks these pages once to clone them.
+ */
+export async function loadFontsUnder(
+  roots: ReadonlyArray<PageNode | (SceneNode & ChildrenMixin)>,
+): Promise<FontRef[]> {
+  const texts: TextNode[] = [];
+  for (const root of roots) {
+    texts.push(...root.findAllWithCriteria({ types: ["TEXT"] }));
+  }
+  return await loadFonts(
+    collectFonts(texts, figma.mixed),
+    (font) => figma.loadFontAsync(font) as Promise<unknown>,
+  );
+}
