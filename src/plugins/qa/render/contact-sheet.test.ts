@@ -125,4 +125,37 @@ describe("planContactSheet", () => {
     expect(built.rows).toHaveLength(2);
     expect(built.rows[0].cells.map((c) => c.label)).toEqual(["all off"]);
   });
+
+  /**
+   * A cell for a variant whose combination Figma refused to report would set no
+   * variant properties, so it would draw the *default* variant under that
+   * variant's row label - a picture that contradicts its own caption.
+   */
+  it("draws no row for a variant whose combination could not be read", () => {
+    const snap = snapshot(["Default", "Hover", "Loading"]);
+    snap.variants[2].variantProperties = {};
+    snap.variants[2].propertiesUnreadable = "existing errors";
+
+    const built = planContactSheet(snap);
+    if (!isPlan(built)) throw new Error(`no plan: ${built.reason}`);
+    expect(built.rows.map((r) => r.label)).toEqual(["Default", "Hover"]);
+    expect(built.footnote).toContain("1 further variant(s) could not be drawn");
+    expect(built.footnote).toContain("row 13");
+  });
+
+  it("does not blame the cap for a variant it could not read", () => {
+    const snap = snapshot(["Default", "Hover"]);
+    snap.variants[1].propertiesUnreadable = "existing errors";
+    const built = planContactSheet(snap);
+    if (!isPlan(built)) throw new Error(`no plan: ${built.reason}`);
+    expect(built.footnote).not.toContain("capped");
+  });
+
+  it("draws nothing at all when no variant could be read", () => {
+    const snap = snapshot(["Default", "Hover"]);
+    for (const v of snap.variants) v.propertiesUnreadable = "existing errors";
+    const result = planContactSheet(snap);
+    expect(isPlan(result)).toBe(false);
+    if (!isPlan(result)) expect(result.reason).toContain("row 13");
+  });
 });

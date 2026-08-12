@@ -25,6 +25,7 @@
  */
 
 import type { ComponentSetSnapshot } from "../snapshot";
+import { readableVariants } from "../variant-properties";
 import type {
   NoStateGrid,
   PanelProperties,
@@ -95,8 +96,22 @@ export function planContactSheet(
     };
   }
 
+  // A variant whose combination Figma refused to report cannot be drawn. Its
+  // cell would set no variant properties, so it would show the *default*
+  // variant under this variant's row label - a picture contradicting its own
+  // caption, which is worse than an absent row.
+  const drawable = readableVariants(snapshot);
+  const unreadableCount = snapshot.variants.length - drawable.length;
+
+  if (drawable.length === 0) {
+    return {
+      reason:
+        "Figma refused to report any variant's property combination, so no cell could be set to a known state - see row 13",
+    };
+  }
+
   const rowBudget = Math.max(1, Math.floor(MAX_CELLS / columns.length));
-  const shownVariants = snapshot.variants.slice(0, rowBudget);
+  const shownVariants = drawable.slice(0, rowBudget);
 
   const rows: StateGridRow[] = shownVariants.map((variant) => ({
     label: variant.name,
@@ -117,7 +132,7 @@ export function planContactSheet(
     ),
   }));
 
-  const droppedVariants = snapshot.variants.length - shownVariants.length;
+  const droppedVariants = drawable.length - shownVariants.length;
   const droppedBooleans = booleans.slice(MAX_BOOLEANS);
   const skipped = [
     droppedVariants > 0 ? `${droppedVariants} further variant(s)` : "",
@@ -137,6 +152,12 @@ export function planContactSheet(
       "still yours." +
       (skipped.length > 0
         ? ` Not drawn: ${skipped.join(" and ")} - this sheet is capped at ${MAX_CELLS} instances.`
+        : "") +
+      // Disclosed separately from the cap, because the cap is a choice this
+      // block made and this is not: the variant could not be drawn at all.
+      // Silence here would let the sheet read as covering the whole set.
+      (unreadableCount > 0
+        ? ` ${unreadableCount} further variant(s) could not be drawn: Figma refused to report their property combination - see row 13.`
         : ""),
     rows,
   };

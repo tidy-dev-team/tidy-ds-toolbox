@@ -311,6 +311,18 @@ export interface VariantSnapshot {
   name: string;
   /** e.g. { Size: "Medium", State: "Default" } — empty for standalone components (#13). */
   variantProperties: Record<string, string>;
+  /**
+   * Figma's own reason for refusing to report this variant's combination, set
+   * only when the read threw - which happens once Figma has decided the set has
+   * a conflicting variant combination.
+   *
+   * Absent is the normal case, and absent is the only state in which
+   * `variantProperties` may be believed: when this is set the combination above
+   * is `{}` because nothing could be read, not because there is nothing to
+   * read. Consumers must go through `variant-properties.ts` rather than test
+   * for `{}`, which a standalone component legitimately carries.
+   */
+  propertiesUnreadable?: string;
   tree: NodeSnapshot;
 }
 

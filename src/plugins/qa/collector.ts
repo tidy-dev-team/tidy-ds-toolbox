@@ -25,6 +25,7 @@ import type {
   TextSegmentSnapshot,
   VariantSnapshot,
 } from "./snapshot";
+import { readVariantProperties } from "./variant-properties";
 
 // Flat, one level deep: `instance.exposedInstances` is already Figma's full
 // flattened descendant list, so recursing into each entry's own
@@ -423,13 +424,29 @@ export function collectSnapshot(
         )
       : [subject];
 
-  const variants: VariantSnapshot[] = variantNodes.map((variant) => ({
-    id: variant.id,
-    name: variant.name,
-    variantProperties:
-      subject.type === "COMPONENT_SET" ? (variant.variantProperties ?? {}) : {},
-    tree: snapshotNode(variant),
-  }));
+  const variants: VariantSnapshot[] = variantNodes.map((variant) => {
+    // A standalone component has no combination to read, and asking for one
+    // would record a refusal where there is simply nothing to refuse.
+    const read =
+      subject.type === "COMPONENT_SET"
+        ? readVariantProperties(variant)
+        : { properties: {} };
+    return {
+      id: variant.id,
+      name: variant.name,
+      variantProperties: "properties" in read ? read.properties : {},
+      // Recorded per variant so a consumer can tell "Figma refused here" from
+      // "Figma refused everywhere" - see `variant-properties.ts`. Swallowing
+      // the throw is what lets a flagged set be collected at all, and a flagged
+      // set is exactly the one carrying the defect #13 exists to report; it is
+      // distinct from the benign "variant children throw" case
+      // `snapshotProperties` swallows, which is a wrong-node-type read.
+      ...("unreadable" in read
+        ? { propertiesUnreadable: read.unreadable }
+        : {}),
+      tree: snapshotNode(variant),
+    };
+  });
 
   const properties = snapshotProperties(subject);
 

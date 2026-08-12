@@ -41,6 +41,10 @@ The scope provides additional context about which part of the codebase is affect
 - **audit**: Audit module
 - **release-notes**: Release Notes module
 - **off-boarding**: Off-Boarding module
+- **iconfinder**: Icon Finder module
+- **color-finder**: Color Finder module
+- **tidy-doc**: Tidy Doc module
+- **qa**: DS Component QA engine, checks and canvas checklist
 - **mcp**: MCP server / Bridge / Operations layer
 - **ui**: UI components or styling
 - **build**: Build configuration
