@@ -158,7 +158,11 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
   },
   "off-boarding:unpack-pages": {
     effect: "writes",
-    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+    budget: {
+      kind: "long-running",
+      reason:
+        "Mirror of pack-pages: loads every font used by the packed frames, then moves each frame's contents onto a new page - same per-page cost, so the same timeout.",
+    },
   },
   "off-boarding:find-bound-variables": {
     effect: "reads",
