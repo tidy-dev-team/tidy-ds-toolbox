@@ -12,9 +12,23 @@ import type {
   BridgeRequest,
   BridgeResponse,
   BridgeErrorPayload,
+  OperationKind,
 } from "../../src/shared/operations/types.ts";
+import { buildTimeoutMessage } from "./timeout-message.ts";
 
 export type BridgeError = BridgeErrorPayload;
+
+/** Per-call knobs the catalogue entry supplies. */
+export interface CallOptions {
+  /**
+   * The Operation's declared kind. Required, not optional: it decides what a
+   * timeout tells the caller, and an Operation that forgot to say whether it
+   * writes would get advice that could double a write.
+   */
+  kind: OperationKind;
+  /** Bridge timeout override; falls back to DEFAULT_CALL_TIMEOUT_MS. */
+  timeoutMs?: number;
+}
 
 interface Pending {
   resolve: (result: unknown) => void;
@@ -77,8 +91,9 @@ export class BridgeServer {
   async call<T = unknown>(
     operation: string,
     params: unknown,
-    timeoutMs?: number,
+    options: CallOptions,
   ): Promise<T> {
+    const { kind, timeoutMs } = options;
     if (!this.client || this.client.readyState !== WebSocket.OPEN) {
       const arrived = await this.waitForClient(WAIT_FOR_CLIENT_MS);
       if (!arrived) {
@@ -99,11 +114,9 @@ export class BridgeServer {
         this.pending.delete(id);
         reject({
           code: "TIMEOUT",
-          message:
-            `Operation '${operation}' did not respond within ${effectiveTimeout}ms. ` +
-            "The plugin may still be working — if the Figma desktop app isn't the " +
-            "focused/foreground window, macOS throttles it and stalls plugin " +
-            "execution. Bring Figma to the front and retry.",
+          // Wording comes from the Operation's declared `kind` (#182), so a
+          // newly declared Operation is worded correctly with no edit here.
+          message: buildTimeoutMessage(operation, kind, effectiveTimeout),
           recoverable: true,
         } satisfies BridgeError);
       }, effectiveTimeout);

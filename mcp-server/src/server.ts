@@ -57,11 +57,10 @@ async function main(): Promise<void> {
       },
       async (input: unknown) => {
         try {
-          const result = await bridge.call(
-            entry.id,
-            input ?? {},
-            entry.timeoutMs,
-          );
+          const result = await bridge.call(entry.id, input ?? {}, {
+            kind: entry.kind,
+            timeoutMs: entry.timeoutMs,
+          });
           // Any image the result carries becomes its own MCP image block, so a
           // model can actually see it instead of receiving base64 as text
           // (#116). Operations that return no image are unaffected: `images` is
