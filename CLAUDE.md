@@ -80,6 +80,11 @@ Separate from the in-plugin module pattern, the codebase exposes typed **Operati
 Layout:
 - `src/shared/operations/types.ts`, `errors.ts` — canonical `OperationSpec`, `OperationHandler`, `OperationError`, error-code enum, bridge envelopes. Shared between plugin and MCP server.
 - `src/shared/operations/registry.ts` — plugin-main-thread `registerOperation` / `dispatch` / `bindSession`.
+  `dispatch` runs **one Operation at a time** (#186): a second envelope arriving while one is open is refused at once with `BUSY`, never queued, and `runningOperation()` is the read-only view of what holds the slot.
+  The guard is global rather than per-target, and that is the whole point - the QA probes' stray-node sweep is page-scoped, so two runs against *different* components collide exactly as readily as two against the same one, and a per-target key would let through the case the guard exists to stop.
+  Refused rather than queued because a queued call would wait behind a run that can last two minutes while its own Bridge budget expires, turning a fast honest refusal into the slow timeout #182 has just finished rewording.
+  The slot is freed in a `finally`, on every path out of a run, because one leak locks the plugin out of Operations for the rest of the session.
+  This guard covers the agent-facing path only. `buildDocPage` keeps its own per-source in-flight set (`src/plugins/tidy-doc/utils/buildDocPage.ts`), because the panel can reach that builder without going through `dispatch` at all.
 - `src/shared/operations/register-all.ts` — side-effect import that pulls in every module's operation registrations. Add a line here when a new module exposes operations.
 - `src/shared/operations/ui-bridge.ts`, `ui-bridge-startup.ts` — UI-iframe WebSocket to `ws://localhost:9876`; relays envelopes to the main thread via the existing `postMessage` channel.
 - `src/plugins/<module>/operations.ts` — per-module `registerOperation(...)` calls. Each id is snake_case and `tidy_`-prefixed (e.g. `tidy_misprint_find_components`).

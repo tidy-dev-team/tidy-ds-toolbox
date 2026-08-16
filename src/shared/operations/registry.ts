@@ -54,6 +54,28 @@ export function endSession(): void {
   if (CURRENT_SESSION) CURRENT_SESSION.active = false;
 }
 
+/**
+ * The Operation currently occupying the plugin, if any.
+ *
+ * The plugin runs one Operation at a time (#186). Two overlapping runs do not
+ * divide the work between them - the plugin is single-threaded - they only
+ * interleave their mutations of one document, and the QA probes' stray-node
+ * sweep is page-scoped, so the second run deletes the first run's live probe.
+ */
+export interface RunningOperation {
+  /** Operation id, e.g. `tidy_qa_run`. */
+  operation: string;
+  /** Bridge request id of the run holding the slot. */
+  requestId: string;
+}
+
+let RUNNING: RunningOperation | null = null;
+
+/** What is running right now, or null. Read-only view of the guard's state. */
+export function runningOperation(): RunningOperation | null {
+  return RUNNING;
+}
+
 export async function dispatch(req: BridgeRequest): Promise<BridgeResponse> {
   const entry = OPERATIONS.get(req.operation);
   if (!entry) {
@@ -78,6 +100,26 @@ export async function dispatch(req: BridgeRequest): Promise<BridgeResponse> {
       },
     };
   }
+  if (RUNNING) {
+    return {
+      id: req.id,
+      ok: false,
+      error: {
+        code: ErrorCode.BUSY,
+        message:
+          `Operation '${RUNNING.operation}' is already running, and the plugin ` +
+          `runs one Operation at a time. Wait for it to finish before starting ` +
+          `'${req.operation}' - starting a second one now would interleave two ` +
+          `sets of edits in the same document.`,
+        recoverable: true,
+        details: {
+          runningOperation: RUNNING.operation,
+          runningRequestId: RUNNING.requestId,
+        },
+      },
+    };
+  }
+  RUNNING = { operation: req.operation, requestId: req.id };
   const ctx: OperationContext = { sessionId: CURRENT_SESSION.sessionId };
   try {
     const result = await entry.handler(req.params, ctx);
@@ -104,5 +146,10 @@ export async function dispatch(req: BridgeRequest): Promise<BridgeResponse> {
         recoverable: false,
       },
     };
+  } finally {
+    // Every path out of a run frees the slot: normal return, a thrown
+    // OperationError, and an unexpected throw. A leak here would lock the
+    // plugin out of Operations for the rest of the session.
+    RUNNING = null;
   }
 }
