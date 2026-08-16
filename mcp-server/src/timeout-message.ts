@@ -25,6 +25,13 @@ const THROTTLE_CAUSE =
  * writes the file twice.
  * Query Operations: a plain failure. A read that stopped being waited on
  * changed nothing, so there is nothing to warn about and nothing to check.
+ * Plan Operations take the same wording, and deliberately rather than by
+ * falling through the `execute` branch: CONTEXT.md defines a Plan as taking
+ * intent and returning an inspectable JSON plan, so it applies nothing to the
+ * file and "nothing was changed" is true of it. None exists yet (ADR-0001
+ * splits plan from execute; today's catalogue is queries and executes only),
+ * so the first one added inherits a correct message rather than a guess.
+ * Only `execute` may claim the file is still being written.
  *
  * Neither wording implies a cancellation, because nothing is cancelled here.
  * Cancellation is tracked separately (#178).

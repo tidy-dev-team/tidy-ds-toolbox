@@ -21,8 +21,21 @@ describe("buildTimeoutMessage", () => {
     expect(msg).not.toMatch(/canvas/i);
   });
 
-  it("never implies anything was stopped, for either kind, because nothing was", () => {
-    for (const kind of ["query", "execute"] as const) {
+  it("gives a Plan Operation the query wording, because a plan applies nothing to the file", () => {
+    const plan = buildTimeoutMessage("some_future_plan_op", "plan", 30_000);
+
+    // Pinned against the execute wording rather than merely asserted to be
+    // "not execute": only an Operation that writes may claim the file is
+    // still being changed, and a Plan returns a document instead.
+    expect(plan).not.toMatch(/still (running|writing)/i);
+    expect(plan).not.toMatch(/canvas/i);
+    expect(plan).toBe(
+      buildTimeoutMessage("some_future_plan_op", "query", 30_000),
+    );
+  });
+
+  it("never implies anything was stopped, for any kind, because nothing was", () => {
+    for (const kind of ["query", "plan", "execute"] as const) {
       const msg = buildTimeoutMessage("tidy_doc_build_page", kind, 30_000);
 
       expect(msg).not.toMatch(/cancel/i);
@@ -32,7 +45,7 @@ describe("buildTimeoutMessage", () => {
   });
 
   it("keeps the unfocused-Figma-window explanation, which causes these timeouts either way", () => {
-    for (const kind of ["query", "execute"] as const) {
+    for (const kind of ["query", "plan", "execute"] as const) {
       const msg = buildTimeoutMessage("tidy_qa_build_checklist", kind, 30_000);
 
       expect(msg).toMatch(/foreground|focused/i);
