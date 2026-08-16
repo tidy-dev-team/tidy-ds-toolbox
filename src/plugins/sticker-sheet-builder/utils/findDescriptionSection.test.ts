@@ -2,9 +2,7 @@ import { describe, it, expect } from "vitest";
 import { findDescriptionSection } from "./findDescriptionSection";
 import { ComponentDescription } from "./parseDescription";
 
-function description(
-  sections: Record<string, string>[],
-): ComponentDescription {
+function description(sections: Record<string, string>[]): ComponentDescription {
   return { misprint: "", tags: [], sections };
 }
 
@@ -21,10 +19,7 @@ describe("findDescriptionSection", () => {
   it("picks the first matching section when several exist", () => {
     const result = findDescriptionSection(
       "🎨",
-      description([
-        { "🎨 First": "one" },
-        { "🎨 Second": "two" },
-      ]),
+      description([{ "🎨 First": "one" }, { "🎨 Second": "two" }]),
       "fallback",
     );
     expect(result).toBe("one");

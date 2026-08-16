@@ -34,7 +34,10 @@ describe("getProps", () => {
     const result = getProps({
       variant: { Kind: variantDef(["Primary", "Secondary"]) },
     });
-    expect(result.typeProps).toEqual(["Kind", variantDef(["Primary", "Secondary"])]);
+    expect(result.typeProps).toEqual([
+      "Kind",
+      variantDef(["Primary", "Secondary"]),
+    ]);
   });
 
   it("buckets a two-option boolean-like property into binaryProps as a nested pair", () => {
@@ -85,7 +88,10 @@ describe("getProps", () => {
     });
     expect(result.sizeProps).toEqual(["Size", variantDef(["Small", "Large"])]);
     expect(result.stateProps).toEqual(["State", variantDef(["Idle", "Hover"])]);
-    expect(result.typeProps).toEqual(["Kind", variantDef(["Primary", "Secondary"])]);
+    expect(result.typeProps).toEqual([
+      "Kind",
+      variantDef(["Primary", "Secondary"]),
+    ]);
     expect(result.binaryProps).toEqual([
       ["Disabled", variantDef(["True", "False"])],
     ]);

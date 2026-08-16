@@ -22,16 +22,16 @@ describe("parseComponentDescription", () => {
   });
 
   it("splits everything else into title/content sections on the first newline", () => {
-    const result = parseComponentDescription("🎨 Usage\nUse for primary actions");
+    const result = parseComponentDescription(
+      "🎨 Usage\nUse for primary actions",
+    );
     expect(result.sections).toEqual([
       { "🎨 Usage": "Use for primary actions" },
     ]);
   });
 
   it("joins multi-line section content back with newlines", () => {
-    const result = parseComponentDescription(
-      "🎨 Usage\nLine one\nLine two",
-    );
+    const result = parseComponentDescription("🎨 Usage\nLine one\nLine two");
     expect(result.sections).toEqual([{ "🎨 Usage": "Line one\nLine two" }]);
   });
 

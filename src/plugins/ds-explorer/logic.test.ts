@@ -7,7 +7,9 @@ import {
 } from "./logic";
 import { BuildData } from "./types";
 
-function build(data: Omit<BuildData, "componentKey"> & { componentKey: string }) {
+function build(
+  data: Omit<BuildData, "componentKey"> & { componentKey: string },
+) {
   return data as BuildData & { requestId?: string };
 }
 
@@ -40,9 +42,7 @@ describe("getComponentPropertyInfo", () => {
       },
     } as unknown as ComponentNode;
 
-    expect(getComponentPropertyInfo(node).map((p) => p.name)).toEqual([
-      "Real",
-    ]);
+    expect(getComponentPropertyInfo(node).map((p) => p.name)).toEqual(["Real"]);
   });
 
   it("returns an empty array when there are no definitions", () => {
@@ -61,7 +61,9 @@ describe("getComponentPropertyInfo", () => {
 
 describe("getComponentDescription", () => {
   it("returns the node's own trimmed description when present", () => {
-    const node = { description: "  Use for primary actions  " } as unknown as ComponentNode;
+    const node = {
+      description: "  Use for primary actions  ",
+    } as unknown as ComponentNode;
     expect(getComponentDescription(node)).toBe("Use for primary actions");
   });
 
@@ -307,10 +309,9 @@ describe("handleBuildComponent", () => {
       figma,
     );
 
-    expect(figma.notify).toHaveBeenCalledWith(
-      expect.stringContaining("Size"),
-      { timeout: 5000 },
-    );
+    expect(figma.notify).toHaveBeenCalledWith(expect.stringContaining("Size"), {
+      timeout: 5000,
+    });
   });
 
   it("places the built clone on the canvas and selects it", async () => {
