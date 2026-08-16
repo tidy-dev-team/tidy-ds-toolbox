@@ -66,7 +66,7 @@ registerOperation<BuildPageParams, BuildPageResult>(
     }
 
     const source = await resolveComponent(params.nodeId);
-    const root = await buildDocPage(source, parsed.data);
+    const root = await buildDocPage(source, parsed.data, "agent");
 
     return { pageFrameId: root.id, sourceComponentId: source.id };
   },

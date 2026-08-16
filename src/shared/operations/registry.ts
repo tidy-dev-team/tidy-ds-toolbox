@@ -61,6 +61,16 @@ export function endSession(): void {
  * divide the work between them - the plugin is single-threaded - they only
  * interleave their mutations of one document, and the QA probes' stray-node
  * sweep is page-scoped, so the second run deletes the first run's live probe.
+ *
+ * This guard answers "is another Operation running", globally, and only for
+ * the agent-facing path. It is not the only guard, and the other one is not
+ * redundant (#187): the Documentation Page builder keeps its own lock in
+ * `src/plugins/tidy-doc/utils/buildLock.ts`, answering "is this page already
+ * being built" for whichever route asked. This one cannot cover that question,
+ * because the panel's Document button reaches that builder through the
+ * module-action path and never passes through `dispatch` at all - so a
+ * designer clicking mid-agent-build is invisible here. Deleting the builder's
+ * lock as duplicated work reopens exactly that door.
  */
 export interface RunningOperation {
   /** Operation id, e.g. `tidy_qa_run`. */

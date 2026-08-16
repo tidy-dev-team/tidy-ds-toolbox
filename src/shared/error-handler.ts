@@ -1,3 +1,5 @@
+import { OperationError } from "./operations/errors";
+
 /**
  * Custom error types for the plugin
  */
@@ -106,6 +108,15 @@ export function formatErrorMessage(error: unknown): string {
  */
 export function isRecoverableError(error: unknown): boolean {
   if (error instanceof PluginError) {
+    return error.recoverable;
+  }
+
+  // An Operation handler's typed error carries the same judgement under a
+  // different class (ADR-0003), and these reach the panel too: buildDocPage
+  // throws BUSY at a designer's click when a build is already running (#187).
+  // Without this it would be reported as a critical failure and shouted at
+  // the designer, when waiting is all it asks for.
+  if (error instanceof OperationError) {
     return error.recoverable;
   }
 

@@ -84,7 +84,10 @@ Layout:
   The guard is global rather than per-target, and that is the whole point - the QA probes' stray-node sweep is page-scoped, so two runs against *different* components collide exactly as readily as two against the same one, and a per-target key would let through the case the guard exists to stop.
   Refused rather than queued because a queued call would wait behind a run that can last two minutes while its own Bridge budget expires, turning a fast honest refusal into the slow timeout #182 has just finished rewording.
   The slot is freed in a `finally`, on every path out of a run, because one leak locks the plugin out of Operations for the rest of the session.
-  This guard covers the agent-facing path only. `buildDocPage` keeps its own per-source in-flight set (`src/plugins/tidy-doc/utils/buildDocPage.ts`), because the panel can reach that builder without going through `dispatch` at all.
+  This guard covers the agent-facing path only, and it is not the only one (#187).
+  The Documentation Page builder keeps its own lock in `src/plugins/tidy-doc/utils/buildLock.ts`, keyed by source component, because the panel's Document button reaches that builder through the module-action path and never passes through `dispatch` at all.
+  The two answer different questions - the registry "is another Operation running", the lock "is this page already being built" - and both may legitimately refuse the same call, so neither is redundant and deleting the lock as duplicated work reopens the designer-versus-agent collision it exists to stop.
+  The lock is keyed by component rather than global because, unlike the QA probe sweep, two Documentation Page builds share no page state; its refusal names the route holding the key (`agent` or `panel`) so a designer who clicked nothing can tell what to wait for.
 - `src/shared/operations/register-all.ts` — side-effect import that pulls in every module's operation registrations. Add a line here when a new module exposes operations.
 - `src/shared/operations/ui-bridge.ts`, `ui-bridge-startup.ts` — UI-iframe WebSocket to `ws://localhost:9876`; relays envelopes to the main thread via the existing `postMessage` channel.
 - `src/plugins/<module>/operations.ts` — per-module `registerOperation(...)` calls. Each id is snake_case and `tidy_`-prefixed (e.g. `tidy_misprint_find_components`).

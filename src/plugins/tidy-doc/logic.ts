@@ -56,7 +56,9 @@ async function documentSelection(): Promise<DocumentSelectionResult> {
     ),
   };
 
-  const root = await buildDocPage(source, spec);
+  // "panel": this is the Document button, not an Operation. The refusal a
+  // designer sees names whoever holds the lock, so the route has to be honest.
+  const root = await buildDocPage(source, spec, "panel");
   return {
     pageFrameId: root.id,
     sourceComponentId: source.id,

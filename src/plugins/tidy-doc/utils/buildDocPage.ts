@@ -5,6 +5,7 @@
 // by manual round-trip in Figma per the plan's verification section.
 
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
+import { withDocPageBuildLock, type BuildOrigin } from "./buildLock";
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { deriveFacts } from "./deriveFacts";
 import { resolveDocSpecReferences } from "./resolveReferences";
@@ -128,11 +129,6 @@ interface DocPageStamp {
   builtAt: number;
 }
 
-// Guards against two concurrent builds for the same source (e.g. a client
-// retrying after a timeout while the first call is still running): without
-// this, both calls see no existing stamped page and each builds its own.
-const buildsInFlight = new Set<string>();
-
 // Scans every page (not just the current one) and every depth (not just
 // top-level children), since re-runs must find a stamped page regardless of
 // which page or frame a designer moved it into between runs (#52 ACR).
@@ -156,24 +152,37 @@ async function findExistingDocPages(
   return matches;
 }
 
+/**
+ * Builds a Documentation Page, holding the builder's lock for `source` while
+ * it runs.
+ *
+ * Two guards stand in front of this builder and they answer different
+ * questions. Neither is redundant, and deleting either reopens a real hole:
+ *
+ * - The Operation registry (`src/shared/operations/registry.ts`, #186) answers
+ *   "is another Operation running", globally, for the agent-facing path only.
+ * - This lock (`buildLock.ts`, #187) answers "is this page already being
+ *   built", for whichever route asked.
+ *
+ * The registry cannot cover this one: the panel's Document button reaches the
+ * builder through the module-action path and never passes through `dispatch`
+ * at all, so a designer clicking mid-agent-build is invisible to it. This lock
+ * cannot cover the registry's question either - it is keyed by component and
+ * says nothing about a QA run tying up the plugin. Both may legitimately
+ * refuse the same call.
+ *
+ * `origin` is what the refusal names, so pass the route the call really came
+ * from: "agent" from operations.ts, "panel" from logic.ts.
+ */
 export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
+  origin: BuildOrigin,
 ): Promise<FrameNode> {
-  if (buildsInFlight.has(source.id)) {
-    throw new OperationError(
-      ErrorCode.BUSY,
-      `A Documentation Page build for ${source.name} is already in progress`,
-      true,
-    );
-  }
-  buildsInFlight.add(source.id);
-
-  try {
-    return await buildDocPageUnguarded(source, spec);
-  } finally {
-    buildsInFlight.delete(source.id);
-  }
+  return await withDocPageBuildLock(
+    { sourceId: source.id, sourceName: source.name, origin },
+    () => buildDocPageUnguarded(source, spec),
+  );
 }
 
 async function buildDocPageUnguarded(
