@@ -36,7 +36,8 @@ interface Pending {
   timer: NodeJS.Timeout;
 }
 
-const DEFAULT_CALL_TIMEOUT_MS = 30_000;
+/** Exported so the UI-side backstop can be held above every budget here. */
+export const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const WAIT_FOR_CLIENT_MS = 15_000;
 
 export class BridgeServer {
@@ -50,6 +51,11 @@ export class BridgeServer {
   constructor(host: string, port: number) {
     this.host = host;
     this.port = port;
+  }
+
+  /** Read-only view of whether a plugin is attached right now. */
+  get connected(): boolean {
+    return this.client !== null && this.client.readyState === WebSocket.OPEN;
   }
 
   private waitForClient(timeoutMs: number): Promise<boolean> {
@@ -126,7 +132,44 @@ export class BridgeServer {
         reject,
         timer,
       });
-      this.client!.send(JSON.stringify(envelope));
+
+      /**
+       * Ends the call now, taking the timer and the map entry with it. The
+       * delete result is the guard against settling twice: a send that reports
+       * a write error after the plugin has already answered finds no entry.
+       */
+      const undeliverable = (detail: string) => {
+        if (!this.pending.delete(id)) return;
+        clearTimeout(timer);
+        reject({
+          code: "BRIDGE_DISCONNECTED",
+          // Safe to retry whatever the Operation's kind: nothing was
+          // delivered, so not even a write can have half-run.
+          message: `${detail} Open the Tidy DS Toolbox plugin in Figma; it will reconnect automatically, then call ${operation} again.`,
+          recoverable: true,
+        } satisfies BridgeError);
+      };
+
+      // Read the socket once. `waitForClient` above only promises that a client
+      // *arrived*, not that it is still here, and a bare `this.client!.send`
+      // answers a disconnect with `INTERNAL: Cannot read properties of null` —
+      // an untyped error the agent cannot act on, leaving the entry to sit
+      // until the timeout it should have pre-empted.
+      const client = this.client;
+      if (!client || client.readyState !== WebSocket.OPEN) {
+        undeliverable("The plugin disconnected before the request was sent.");
+        return;
+      }
+      try {
+        client.send(JSON.stringify(envelope), (err) => {
+          if (err)
+            undeliverable(`The request could not be sent: ${err.message}.`);
+        });
+      } catch (err) {
+        undeliverable(
+          `The request could not be sent: ${(err as Error).message}.`,
+        );
+      }
     });
   }
 
