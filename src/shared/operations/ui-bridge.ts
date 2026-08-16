@@ -19,6 +19,7 @@ import type {
   BridgeCancel,
   BridgeCancelResult,
   BridgeEnvelope,
+  BridgeHello,
   BridgeRequest,
   BridgeResponse,
   BridgeErrorPayload,
@@ -39,6 +40,14 @@ interface BridgeOptions {
   cancel: CancelFn;
   log?: (msg: string) => void;
   onStatusChange?: (status: BridgeStatus) => void;
+  /**
+   * This build's version, announced to the server on connect (#189).
+   *
+   * Injected rather than read from `__APP_VERSION__` here: that global exists
+   * only inside the Vite bundle, and reaching for it would make this class
+   * untestable outside one. `ui-bridge-startup.ts` supplies it.
+   */
+  version?: string;
 }
 
 export class UiBridge {
@@ -47,6 +56,7 @@ export class UiBridge {
   private cancel: CancelFn;
   private log: (msg: string) => void;
   private onStatusChange: (status: BridgeStatus) => void;
+  private version: string | undefined;
   private ws: WebSocket | null = null;
   private backoff = MIN_BACKOFF_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -58,6 +68,7 @@ export class UiBridge {
     this.cancel = opts.cancel;
     this.log = opts.log ?? (() => {});
     this.onStatusChange = opts.onStatusChange ?? (() => {});
+    this.version = opts.version;
   }
 
   start(): void {
@@ -100,6 +111,15 @@ export class UiBridge {
       this.log("connected");
       this.backoff = MIN_BACKOFF_MS;
       this.onStatusChange("open");
+      // First frame on every connection, including a reconnect: the server
+      // logs its own version against this one, so a stale half is a line in
+      // the log instead of an inexplicable timeout later (#189). Sent even
+      // when this build has no version to report - the server treats a hello
+      // without one as "older than me", which is exactly what it means.
+      this.send(
+        { type: "hello", ...(this.version ? { version: this.version } : {}) },
+        "hello",
+      );
     });
 
     ws.addEventListener("message", async (ev) => {
@@ -187,7 +207,10 @@ export class UiBridge {
   }
 
   /** Writes one frame back, or says which one was dropped and why. */
-  private send(frame: BridgeResponse | BridgeCancelResult, what: string): void {
+  private send(
+    frame: BridgeResponse | BridgeCancelResult | BridgeHello,
+    what: string,
+  ): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(frame));
     } else {

@@ -96,6 +96,24 @@ export type CancellationStatus =
   /** The plugin never answered the request at all, so nothing can be claimed. */
   | "unknown";
 
+/**
+ * Plugin -> server, sent once as soon as the socket opens (#189).
+ *
+ * Both halves ship from one repo and one build and the code assumes it, but
+ * their reload paths are not symmetric: the plugin reloads when a designer
+ * reopens it in Figma, while the server is a process spawned at session start
+ * that keeps serving its own binary whatever is rebuilt on disk. This is what
+ * lets a mismatch be a line in the log rather than an inexplicable timeout.
+ *
+ * `version` is optional because a plugin built before this existed sends no
+ * hello at all, and one built around a partial rollout might send an empty
+ * one; both are reported as "older than the server" rather than guessed at.
+ */
+export interface BridgeHello {
+  type: "hello";
+  version?: string;
+}
+
 /** The plugin's answer to a `BridgeCancel`, travelling back over the Bridge. */
 export interface BridgeCancelResult {
   type: "cancel_result";

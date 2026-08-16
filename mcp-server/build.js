@@ -8,17 +8,28 @@
 // artifact the Claude Code plugin ships and designers run.
 
 import * as esbuild from "esbuild";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const outdir = join(here, "dist");
 
+// The same single source the UI's `__APP_VERSION__` and the assembled plugin's
+// manifest take theirs from, so the two halves of the Bridge cannot disagree
+// about what "the current build" means (#189). Stamped at build time because
+// the bundle runs from anywhere and cannot find this file at runtime; a server
+// built without this step reports `source` and declines to compare.
+const version = JSON.parse(
+  readFileSync(join(here, "..", "package.json"), "utf8"),
+).version;
+
 const shared = {
   bundle: true,
   platform: "node",
   target: "node18",
   format: "cjs",
+  define: { __SERVER_VERSION__: JSON.stringify(version) },
   // `ws` lazily requires these native acceleration addons and guards their
   // absence; leaving them external keeps the bundle pure-JS and portable.
   external: ["bufferutil", "utf-8-validate"],

@@ -41,6 +41,11 @@ class FakeWebSocket {
     this.readyState = 3;
   }
 
+  /** Fires the open handshake the way the socket would once connected. */
+  open(): void {
+    for (const fn of this.listeners.get("open") ?? []) fn({});
+  }
+
   /** Delivers a raw frame the way the socket would, and settles its handling. */
   async deliver(raw: string): Promise<void> {
     const results = (this.listeners.get("message") ?? []).map((fn) =>
@@ -66,6 +71,7 @@ function startBridge(
   overrides: {
     dispatch?: (req: BridgeRequest) => Promise<BridgeResponse>;
     cancel?: (env: BridgeCancel) => Promise<BridgeCancelResult>;
+    version?: string;
   } = {},
 ): Harness {
   const dispatched: BridgeRequest[] = [];
@@ -74,6 +80,7 @@ function startBridge(
   const bridge = new UiBridge({
     url: "ws://localhost:9876",
     log: (m) => logs.push(m),
+    version: overrides.version,
     dispatch:
       overrides.dispatch ??
       (async (req) => {
@@ -177,6 +184,45 @@ describe("UiBridge envelope routing", () => {
     expect(logs.join("\n")).toContain("registry exploded");
     expect(socket.frames()).toEqual([
       { type: "cancel_result", id: "req_0004", status: "unknown" },
+    ]);
+  });
+});
+
+describe("UiBridge version handshake (#189)", () => {
+  it("announces its build to the server as the first frame after connecting", () => {
+    const { socket } = startBridge({ version: "1.17.2" });
+
+    socket.open();
+
+    // First, and before any Operation can be dispatched: the whole point is
+    // that a mismatch is known at connect rather than inferred later from an
+    // inexplicable timeout.
+    expect(socket.frames()[0]).toEqual({ type: "hello", version: "1.17.2" });
+  });
+
+  it("still announces itself when the build carries no version, rather than staying silent", () => {
+    const { socket } = startBridge({ version: undefined });
+
+    socket.open();
+
+    // Silence and "I have no version" are different facts, and only one of
+    // them the server can act on. A hello with no version is reported as
+    // older than the server; no hello at all leaves it guessing.
+    expect(socket.frames()[0]).toEqual({ type: "hello" });
+  });
+
+  it("re-announces on a reconnect, so a plugin reloaded mid-session is noticed", () => {
+    const { socket } = startBridge({ version: "1.17.2" });
+
+    socket.open();
+    socket.open();
+
+    // A designer reopening the plugin in Figma is exactly how the halves come
+    // back into step, so the server has to hear about it rather than keeping
+    // the version it was told the first time.
+    expect(socket.frames()).toEqual([
+      { type: "hello", version: "1.17.2" },
+      { type: "hello", version: "1.17.2" },
     ]);
   });
 });

@@ -11,12 +11,14 @@ import { WebSocketServer, WebSocket } from "ws";
 import type {
   BridgeCancel,
   BridgeCancelResult,
+  BridgeHello,
   BridgeRequest,
   BridgeResponse,
   BridgeErrorPayload,
   OperationKind,
 } from "../../src/shared/operations/types.ts";
 import { buildTimeoutMessage } from "./timeout-message.ts";
+import { SERVER_VERSION, describeVersionMatch } from "./version-report.ts";
 
 export type BridgeError = BridgeErrorPayload;
 
@@ -50,10 +52,25 @@ interface Pending {
  * from an answer, which is all it needs to be.
  */
 function isCancelResult(
-  msg: BridgeResponse | BridgeCancelResult,
+  msg: PluginFrame,
 ): msg is BridgeCancelResult {
   return (msg as BridgeCancelResult).type === "cancel_result";
 }
+
+/**
+ * Whether a frame is the plugin announcing its build (#189).
+ *
+ * Told apart on the same principle as a cancel report: this direction has no
+ * discriminator on every member, because a `BridgeResponse` is identified by
+ * `ok` and stamping a `type` on it would rewrite every response construction
+ * in the plugin for no behaviour.
+ */
+function isHello(msg: PluginFrame): msg is BridgeHello {
+  return (msg as BridgeHello).type === "hello";
+}
+
+/** Everything the plugin can send back over the Bridge. */
+type PluginFrame = BridgeResponse | BridgeCancelResult | BridgeHello;
 
 /** Exported so the UI-side backstop can be held above every budget here. */
 export const DEFAULT_CALL_TIMEOUT_MS = 30_000;
@@ -230,7 +247,10 @@ export class BridgeServer {
       ws.close(1008, "another plugin instance is already connected");
       return;
     }
-    this.log("plugin connected");
+    // The version comparison arrives separately, in the plugin's hello (#189).
+    // Saying it is awaited makes its *absence* legible: a plugin old enough not
+    // to send one leaves this line with nothing after it.
+    this.log("plugin connected (awaiting version)");
     this.client = ws;
     ws.on("message", (data) => this.onMessage(data.toString()));
     ws.on("close", () => this.onClientClose(ws));
@@ -240,7 +260,7 @@ export class BridgeServer {
   }
 
   private onMessage(raw: string): void {
-    let msg: BridgeResponse | BridgeCancelResult;
+    let msg: PluginFrame;
     try {
       msg = JSON.parse(raw);
     } catch {
@@ -253,6 +273,13 @@ export class BridgeServer {
     // result nor an error, so it is routed out first, on its own kind.
     if (isCancelResult(msg)) {
       this.onCancelResult(msg);
+      return;
+    }
+    // Routed out before the pending lookup for the same reason as a cancel
+    // report: a hello carries no id, so matching it against the map would log
+    // it as a response for an unknown id and say nothing useful.
+    if (isHello(msg)) {
+      this.log(describeVersionMatch(SERVER_VERSION, msg.version));
       return;
     }
     const pending = this.pending.get(msg.id);

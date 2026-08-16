@@ -71,7 +71,32 @@ npm run dogfood:plugin
 This is the loop to use while developing.
 It assembles `dist-plugin/`, **deletes the versioned cache directory** so the install cannot be a no-op, refreshes the marketplace, installs, and then diffs the installed tree against `claude-plugin/`.
 No version bump required.
-Restart Claude Code (or start a new session) afterwards to pick up the new command text.
+Restart Claude Code (or start a new session) afterwards — see below, because it is not only the command text that is frozen until you do.
+
+### Rebuilding the server is not enough
+
+The two halves of the Bridge do not reload the same way, and the harder one is the less visible one.
+
+The **Figma plugin** reloads when a designer reopens it in Figma. One obvious action, and the loop above already tells you to do it.
+
+The **MCP server** is a process Claude Code spawns when the session starts. Rebuilding it on disk changes nothing about the running process: it keeps serving its own binary until the session restarts. `/reload-plugins` does not restart it either.
+
+So the natural sequence — change code, rebuild, reload the Figma plugin, test — leaves you running new plugin code against an old server, with your plugin-side change working and nothing saying the other half is stale.
+
+That is not hypothetical either.
+A session ran three tickets' worth of server changes against a binary from before any of them, and it was only caught because one of those tickets had changed a user-visible string that somebody recognised as the old wording.
+See [#189](https://github.com/tidy-dev-team/tidy-ds-toolbox/issues/189).
+
+**How to tell.** Since #189 the plugin announces its build when it connects, and the server logs both versions:
+
+```
+[bridge] plugin connected (awaiting version)
+[bridge] plugin and server both on 1.17.2
+```
+
+A mismatch says so explicitly and names both. A line reading `server is running from raw source` means the raw-TS dev server (`npm run mcp:server`), which has no version to compare. If the `awaiting version` line is followed by nothing at all, the Figma plugin predates #189 and needs rebuilding.
+
+Note that `npm run verify:plugin` does **not** catch this. It checks that `mcp/server.cjs` is present in the installed tree, but it cannot diff it, because the bundled server is injected by the assemble step rather than living in `claude-plugin/`. A stale `server.cjs` in the cache passes verification.
 
 To check the installed copy at any time without reinstalling:
 

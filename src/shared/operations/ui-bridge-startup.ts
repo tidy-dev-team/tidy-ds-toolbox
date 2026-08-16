@@ -41,6 +41,10 @@ export function startBridge(url?: string): void {
   window.addEventListener("message", handleMainResponse);
   bridge = new UiBridge({
     url,
+    // The one place `__APP_VERSION__` is read on this path: it exists only
+    // inside the Vite bundle, so UiBridge takes it as an option rather than
+    // reaching for the global and becoming untestable outside one (#189).
+    version: __APP_VERSION__,
     dispatch: (req) => dispatcher.dispatch(req),
     cancel: (env) => dispatcher.cancel(env),
     log: (m) => console.debug(`[mcp-bridge] ${m}`),

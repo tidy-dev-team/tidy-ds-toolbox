@@ -49,6 +49,7 @@ afterEach(() => {
  */
 async function connectHalves(
   main: (message: MainRequestMessage, dispatcher: MainDispatcher) => void,
+  pluginVersion?: string,
 ): Promise<BridgeServer> {
   const port = await freePort();
   const server = new BridgeServer("127.0.0.1", port);
@@ -61,6 +62,7 @@ async function connectHalves(
     url: `ws://127.0.0.1:${port}`,
     dispatch: (req) => dispatcher.dispatch(req),
     cancel: (env) => dispatcher.cancel(env),
+    version: pluginVersion,
   });
   running.push(ui);
   await new Promise<void>((resolve) => {
@@ -242,5 +244,62 @@ describe("a Bridge timeout reaching the Operation it timed out on", () => {
     expect(log).not.toContain("and stopped");
 
     release();
+  });
+});
+
+describe("Bridge version handshake (#189)", () => {
+  /**
+   * What the two halves actually exchange, over a real socket.
+   *
+   * Only the *arrival* is provable here: `SERVER_VERSION` is `source` under
+   * vitest, because nothing stamps a version into a raw-source run, so the
+   * server can never report a mismatch in this harness. What a mismatch reads
+   * like is `version-report.test.ts`'s job; what this proves is that the
+   * plugin's version crosses the wire and reaches the log at all, which is the
+   * half no pure test can establish.
+   */
+  it("carries the plugin's version across the socket into the server's log", async () => {
+    const logged: string[] = [];
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation((chunk: string | Uint8Array) => {
+        logged.push(String(chunk));
+        return true;
+      });
+
+    try {
+      await connectHalves(() => {}, "1.17.2");
+      // The hello is sent on open, which the connect poll has already awaited.
+      await yieldToMain();
+    } finally {
+      stderr.mockRestore();
+    }
+
+    const log = logged.join("");
+    expect(log).toContain("plugin connected");
+    // The version the plugin announced, named in the server's own log.
+    expect(log).toContain("1.17.2");
+  });
+
+  it("says a plugin that announces no version is older than the server", async () => {
+    const logged: string[] = [];
+    const stderr = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation((chunk: string | Uint8Array) => {
+        logged.push(String(chunk));
+        return true;
+      });
+
+    try {
+      await connectHalves(() => {}, undefined);
+      await yieldToMain();
+    } finally {
+      stderr.mockRestore();
+    }
+
+    // A hello with no version still arrives, and still says something: silence
+    // and "I have no version" are different facts, and this is the one the
+    // server can act on.
+    expect(logged.join("")).toMatch(/no version|did not report/i);
   });
 });
