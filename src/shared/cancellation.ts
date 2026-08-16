@@ -43,3 +43,43 @@ export function createCancellationToken(): CancellationToken {
 export function yieldToMain(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+/** What a cancellable run got through before it stopped or ran out of work. */
+export interface CancellableRunResult<T> {
+  /** One entry per item that finished. A stopped run leaves these behind. */
+  completed: T[];
+  /** Whether the run stopped early. False means it covered every item. */
+  cancelled: boolean;
+}
+
+/**
+ * Runs `runOne` over `items` until they run out or the token is cancelled.
+ *
+ * The point of this existing at all is the pairing in the file header: a loop
+ * must check the token *and* yield between iterations, and the yield is the
+ * half that is easy to forget. Forgetting it is silent - the loop is the thing
+ * preventing the cancellation message from ever running, so the token is never
+ * seen cancelled and the run finishes as if nobody asked. Adopters take this
+ * instead of writing the loop, so there is one place that pairing can be wrong.
+ *
+ * An item is never half-done: the token is read between whole items, so
+ * whatever `runOne` builds is either finished or never started.
+ */
+export async function runUntilCancelled<I, T>(
+  items: readonly I[],
+  runOne: (item: I, index: number) => Promise<T>,
+  token: CancellationToken,
+): Promise<CancellableRunResult<T>> {
+  const completed: T[] = [];
+  for (let i = 0; i < items.length; i++) {
+    // Checked before the work, not after, so a cancellation that arrives
+    // before the first item leaves nothing behind at all.
+    if (token.isCancelled) return { completed, cancelled: true };
+    completed.push(await runOne(items[i], i));
+    // Awaiting `runOne` is not enough: its promises are microtasks, and the
+    // queue has to drain before a queued cancellation gets a turn. This gives
+    // it one. Skipped after the last item, where there is nothing left to stop.
+    if (i < items.length - 1) await yieldToMain();
+  }
+  return { completed, cancelled: false };
+}

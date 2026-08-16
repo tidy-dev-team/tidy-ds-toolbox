@@ -1,6 +1,11 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { UtilityResult } from "../types";
+import {
+  createCancellationToken,
+  runUntilCancelled,
+  type CancellationToken,
+} from "../../../shared/cancellation";
 
 /**
  * DS Template - Build a template for an empty Design System file
@@ -185,70 +190,63 @@ function createPageFrames(page: PageNode): FrameNode[] {
 }
 
 /**
- * Build pages from name list
+ * Stamp one page in full: create it, furnish it with frames, and put a header
+ * on each frame.
+ *
+ * A whole page is the unit of work, and that is what makes the run stoppable
+ * (#184). The build used to run in two phases - every page created empty, then
+ * every page furnished - which meant a run that stopped part way left a tail of
+ * pages with nothing on them. Stamping one page completely before starting the
+ * next means a stopped run leaves finished pages and no empty ones.
+ *
+ * The header component is created once, on the first page, and reused; it is
+ * passed in and handed back rather than held in module state so the sharing is
+ * visible at the call site.
  */
-function buildPages(pageNames: string[]): PageNode[] {
-  const pages: PageNode[] = [];
+async function stampPage(
+  name: string,
+  sharedHeader: ComponentNode | null,
+): Promise<{ page: PageNode; header: ComponentNode }> {
+  const page = figma.createPage();
+  page.name = name;
 
-  for (const name of pageNames) {
-    if (!isSeparator(name)) {
-      const page = figma.createPage();
-      page.name = name;
-      pages.push(page);
-    }
+  const frames = createPageFrames(page);
+  for (const frame of frames) {
+    page.appendChild(frame);
   }
 
-  return pages;
-}
-
-/**
- * Build frames and headers for all pages
- */
-async function buildFramesForPages(pages: PageNode[]): Promise<void> {
-  // We'll create the header component on the first real page
-  let headerComponent: ComponentNode | null = null;
-
-  for (const page of pages) {
-    const frames = createPageFrames(page);
-
-    // Append frames to page
-    for (const frame of frames) {
-      page.appendChild(frame);
-    }
-
-    // Create or use header
-    if (!headerComponent) {
-      const { component } = await createHeader(page.name);
-      headerComponent = component;
-      page.appendChild(headerComponent);
-    }
-
-    // Add header instances to frames
-    const mainFrame = frames[0];
-    if (mainFrame) {
-      const headerInstance = headerComponent.createInstance();
-      headerInstance.children.forEach((child) => {
-        if (child.type === "TEXT") {
-          (child as TextNode).characters = cleanPageName(page.name);
-        }
-      });
-      mainFrame.appendChild(headerInstance);
-      headerInstance.constraints = { horizontal: "STRETCH", vertical: "MIN" };
-    }
-
-    // Add headers to other frames
-    for (let i = 1; i < frames.length; i++) {
-      const frame = frames[i];
-      const headerInstance = headerComponent.createInstance();
-      headerInstance.children.forEach((child) => {
-        if (child.type === "TEXT") {
-          (child as TextNode).characters = frame.name;
-        }
-      });
-      frame.appendChild(headerInstance);
-      headerInstance.constraints = { horizontal: "STRETCH", vertical: "MIN" };
-    }
+  let header = sharedHeader;
+  if (!header) {
+    const created = await createHeader(name);
+    header = created.component;
+    page.appendChild(header);
   }
+
+  const mainFrame = frames[0];
+  if (mainFrame) {
+    const headerInstance = header.createInstance();
+    headerInstance.children.forEach((child) => {
+      if (child.type === "TEXT") {
+        (child as TextNode).characters = cleanPageName(name);
+      }
+    });
+    mainFrame.appendChild(headerInstance);
+    headerInstance.constraints = { horizontal: "STRETCH", vertical: "MIN" };
+  }
+
+  for (let i = 1; i < frames.length; i++) {
+    const frame = frames[i];
+    const headerInstance = header.createInstance();
+    headerInstance.children.forEach((child) => {
+      if (child.type === "TEXT") {
+        (child as TextNode).characters = frame.name;
+      }
+    });
+    frame.appendChild(headerInstance);
+    headerInstance.constraints = { horizontal: "STRETCH", vertical: "MIN" };
+  }
+
+  return { page, header };
 }
 
 /**
@@ -262,15 +260,71 @@ async function loadFonts(): Promise<void> {
 }
 
 /**
- * Build the DS Template (fonts → pages → frames + headers) and return the
- * pages that were created. Shared between the designer UI entrypoint
- * (`runDsTemplate`) and the MCP `ds-template.run` Operation.
+ * What a run that stopped short should tell the designer, or null if it did
+ * not stop short.
+ *
+ * The audience is the file's owner rather than the agent (#184). By the time a
+ * run is asked to stop, the Bridge has already answered the caller that the
+ * call timed out, so this sentence is the only account of what happened that
+ * reaches anybody - and the pages are already on their canvas.
+ *
+ * It answers the three questions in order: how far did it get, what is in my
+ * file now, and what happens if I run it again. The third matters most and is
+ * the least obvious: this Operation is not idempotent, so the instinctive
+ * re-run adds a second full template beside the partial one rather than
+ * completing it.
  */
-export async function buildDsTemplate(): Promise<PageNode[]> {
+export function describeStoppedRun(
+  stamped: number,
+  total: number,
+): string | null {
+  if (stamped >= total) return null;
+  return (
+    `DS Template stopped after ${stamped} of ${total} pages. ` +
+    `Those ${stamped} pages are still in the file and were not undone. ` +
+    `Running it again stamps a whole new template beside them rather than ` +
+    `filling in the missing ${total - stamped} - delete these ${stamped} first ` +
+    `if you want one clean set.`
+  );
+}
+
+/** The outcome of a template run, whether it finished or was stopped. */
+export interface DsTemplateBuild {
+  /** The pages actually stamped, each one complete. */
+  pages: PageNode[];
+  /** How many pages a full run stamps - the separators are not pages. */
+  totalPages: number;
+  /** Whether the run stopped before covering every page. */
+  cancelled: boolean;
+}
+
+/**
+ * Build the DS Template (fonts → pages, one complete page at a time) and
+ * report what was stamped. Shared between the designer UI entrypoint
+ * (`runDsTemplate`) and the MCP `tidy_ds_template_run` Operation.
+ *
+ * The token is optional and defaults to one nothing can cancel, so the
+ * designer path - which has no Bridge and nobody to ask it to stop - behaves
+ * exactly as it did. `runUntilCancelled` owns the check-and-yield pairing.
+ */
+export async function buildDsTemplate(
+  token: CancellationToken = createCancellationToken(),
+): Promise<DsTemplateBuild> {
   await loadFonts();
-  const pages = buildPages(DS_PAGES);
-  await buildFramesForPages(pages);
-  return pages;
+  const pageNames = DS_PAGES.filter((name) => !isSeparator(name));
+
+  let header: ComponentNode | null = null;
+  const { completed, cancelled } = await runUntilCancelled(
+    pageNames,
+    async (name) => {
+      const stamped = await stampPage(name, header);
+      header = stamped.header;
+      return stamped.page;
+    },
+    token,
+  );
+
+  return { pages: completed, totalPages: pageNames.length, cancelled };
 }
 
 /**
@@ -278,7 +332,9 @@ export async function buildDsTemplate(): Promise<PageNode[]> {
  */
 export async function runDsTemplate(): Promise<UtilityResult> {
   try {
-    const pages = await buildDsTemplate();
+    // No token: the panel button has no Bridge behind it and nobody to ask it
+    // to stop, so this path is the uncancelled one by construction.
+    const { pages } = await buildDsTemplate();
     if (pages.length === 0) {
       return { success: false, message: "No pages were created" };
     }

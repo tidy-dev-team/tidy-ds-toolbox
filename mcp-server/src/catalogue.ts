@@ -143,7 +143,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     kind: "execute",
     module: "utilities",
     summary:
-      "Stamp the standard DS Template pages into the file. NOT idempotent — running twice creates duplicate pages (designer-acknowledged trade-off).",
+      "Stamp the standard DS Template pages into the file. NOT idempotent — running twice creates duplicate pages (designer-acknowledged trade-off). If this call times out, the run is asked to stop and stops after the page it is on, leaving the pages already stamped; the file then holds a partial template, so check the canvas before calling again rather than re-running, which would stamp a second full template beside the partial one.",
     inputSchema: {},
     timeoutMs: 120_000,
   },

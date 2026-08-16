@@ -7,7 +7,7 @@
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
 import { addSearchabilityToDescription } from "./utils/misprint";
-import { buildDsTemplate } from "./utils/dsTemplate";
+import { buildDsTemplate, describeStoppedRun } from "./utils/dsTemplate";
 import {
   selectComponents,
   type SelectComponentsResult,
@@ -180,6 +180,12 @@ registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
 interface DsTemplateRunResult {
   pagesCreated: number;
   pageIds: string[];
+  /** How many of the template's pages were never stamped. 0 on a full run. */
+  pagesRemaining: number;
+  /** Whether the run was asked to stop and did, before covering every page. */
+  cancelled: boolean;
+  /** Present only on a stopped run: what is in the file, in a designer's terms. */
+  message?: string;
 }
 
 registerOperation<Record<string, never>, DsTemplateRunResult>(
@@ -190,12 +196,32 @@ registerOperation<Record<string, never>, DsTemplateRunResult>(
     summary:
       "Stamp the standard DS Template pages into the file. NOT idempotent — running twice creates duplicate pages.",
     paramsExample: {},
+    // The first adopter of the cancellation token (#184). Declaring this is
+    // what lets the registry report a stop honestly instead of answering
+    // `not_cancellable`; `buildDsTemplate` checks the token and yields
+    // between whole pages, which is the pairing the flag is claiming.
+    cancellable: true,
   },
-  async () => {
-    const pages = await buildDsTemplate();
+  async (_params, ctx) => {
+    const { pages, totalPages, cancelled } = await buildDsTemplate(
+      ctx.cancellation,
+    );
+    const stopped = cancelled
+      ? describeStoppedRun(pages.length, totalPages)
+      : null;
+
+    // The agent that called this was answered by the Bridge when it timed out,
+    // so nothing below reaches it. The designer is who is left, and the pages
+    // are already on their canvas - hence the toast rather than only a return
+    // value that lands in a log as a response for an unknown id.
+    if (stopped) figma.notify(stopped, { timeout: 10_000 });
+
     return {
       pagesCreated: pages.length,
       pageIds: pages.map((p) => p.id),
+      pagesRemaining: totalPages - pages.length,
+      cancelled,
+      ...(stopped ? { message: stopped } : {}),
     };
   },
 );
