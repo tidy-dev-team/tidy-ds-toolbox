@@ -42,6 +42,7 @@ export function startBridge(url?: string): void {
   bridge = new UiBridge({
     url,
     dispatch: (req) => dispatcher.dispatch(req),
+    cancel: (env) => dispatcher.cancel(env),
     log: (m) => console.debug(`[mcp-bridge] ${m}`),
     onStatusChange: setStatus,
   });

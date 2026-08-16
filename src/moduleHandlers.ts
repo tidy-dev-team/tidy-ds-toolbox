@@ -8,8 +8,11 @@ import type { TidyColorFinderAction } from "./plugins/color-finder/types";
 import type { TidyDocAction } from "./plugins/tidy-doc/types";
 import type { BuildData } from "./plugins/ds-explorer/types";
 
-import { dispatch as dispatchOperation } from "./shared/operations/registry";
-import type { BridgeRequest } from "./shared/operations/types";
+import {
+  dispatch as dispatchOperation,
+  requestCancellation,
+} from "./shared/operations/registry";
+import type { BridgeCancel, BridgeRequest } from "./shared/operations/types";
 import "./shared/operations/register-all";
 
 import {
@@ -150,11 +153,19 @@ const tidyDocModuleHandler = async (
 // relays each incoming BridgeRequest envelope here as { action: "dispatch",
 // payload: envelope }. We dispatch through the Operation registry and return
 // the BridgeResponse; the UI then sends it back over the socket.
+// A cancellation (#183) arrives as { action: "cancel", payload: BridgeCancel }
+// and is routed apart from a dispatch on the same discriminator the socket
+// used, never inferred from the payload's shape. It answers with a
+// BridgeCancelResult saying what asking actually achieved - which, for every
+// Operation that does not check its token, is "still running".
 const mcpBridgeHandler = async (action: string, payload: unknown) => {
-  if (action !== "dispatch") {
-    throw new Error(`Unknown mcp-bridge action: ${action}`);
+  if (action === "dispatch") {
+    return await dispatchOperation(payload as BridgeRequest);
   }
-  return await dispatchOperation(payload as BridgeRequest);
+  if (action === "cancel") {
+    return await requestCancellation((payload as BridgeCancel).id);
+  }
+  throw new Error(`Unknown mcp-bridge action: ${action}`);
 };
 
 export const moduleHandlers: Record<

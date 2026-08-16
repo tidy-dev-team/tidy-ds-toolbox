@@ -10,7 +10,8 @@ import { createServer } from "node:net";
 import { WebSocket } from "ws";
 import { BridgeServer, type BridgeError } from "./bridge-server.ts";
 import type {
-  BridgeRequest,
+  BridgeCancelResult,
+  BridgeEnvelope,
   BridgeResponse,
 } from "../../src/shared/operations/types.ts";
 
@@ -28,13 +29,13 @@ const sockets: WebSocket[] = [];
 /** Stands in for the plugin: connects, and answers with `reply`. */
 async function connectPlugin(
   port: number,
-  reply: (req: BridgeRequest) => BridgeResponse | undefined,
+  reply: (env: BridgeEnvelope) => BridgeResponse | BridgeCancelResult | undefined,
 ): Promise<WebSocket> {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   sockets.push(ws);
   await new Promise<void>((resolve) => ws.once("open", () => resolve()));
   ws.on("message", (raw) => {
-    const res = reply(JSON.parse(raw.toString()) as BridgeRequest);
+    const res = reply(JSON.parse(raw.toString()) as BridgeEnvelope);
     if (res) ws.send(JSON.stringify(res));
   });
   return ws;
@@ -80,5 +81,62 @@ describe("BridgeServer.call", () => {
       recoverable: true,
     });
     expect(err).not.toBeInstanceOf(Error);
+  });
+});
+
+/** Polls until `done` or gives up, so a socket hop is not raced on a bare tick. */
+async function until(done: () => boolean): Promise<void> {
+  for (let i = 0; i < 200 && !done(); i++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+describe("BridgeServer cancellation (#183)", () => {
+  it("asks the plugin to stop the call it has just stopped waiting for", async () => {
+    const port = await freePort();
+    const server = new BridgeServer("127.0.0.1", port);
+    await server.listen();
+    const received: BridgeEnvelope[] = [];
+    await connectPlugin(port, (env) => {
+      received.push(env);
+      return undefined; // never answer - drive the call to its budget
+    });
+
+    const err = await server
+      .call("tidy_qa_run", {}, { kind: "query", timeoutMs: 50 })
+      .then(() => null)
+      .catch((e: BridgeError) => e);
+    expect(err).toMatchObject({ code: "TIMEOUT" });
+
+    await until(() => received.length >= 2);
+
+    // Sent at the moment the Bridge stopped listening, and naming the call it
+    // abandoned. Without it the plugin keeps working for a caller that has
+    // already been told the call failed.
+    expect(received[1]).toMatchObject({
+      type: "cancel",
+      id: (received[0] as { id: string }).id,
+    });
+    expect((received[1] as { reason: string }).reason).toBeTruthy();
+  });
+
+  it("does not mistake a cancellation report for the answer to a call", async () => {
+    const port = await freePort();
+    const server = new BridgeServer("127.0.0.1", port);
+    await server.listen();
+    await connectPlugin(port, (env) => {
+      if (env.type !== "dispatch") return undefined;
+      // A late report for an earlier run can land while a newer call is open,
+      // and it carries that run's id. Answered as if it were a BridgeResponse
+      // it would settle the wrong promise with neither a result nor an error.
+      return { type: "cancel_result", id: env.id, status: "still_running" };
+    });
+
+    const err = await server
+      .call("tidy_qa_run", {}, { kind: "query", timeoutMs: 100 })
+      .then(() => null)
+      .catch((e: BridgeError) => e);
+
+    expect(err).toMatchObject({ code: "TIMEOUT" });
   });
 });

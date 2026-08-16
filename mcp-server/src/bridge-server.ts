@@ -9,6 +9,8 @@
 
 import { WebSocketServer, WebSocket } from "ws";
 import type {
+  BridgeCancel,
+  BridgeCancelResult,
   BridgeRequest,
   BridgeResponse,
   BridgeErrorPayload,
@@ -34,6 +36,23 @@ interface Pending {
   resolve: (result: unknown) => void;
   reject: (err: BridgeError) => void;
   timer: NodeJS.Timeout;
+}
+
+/**
+ * Whether a frame from the plugin is a cancellation report rather than an
+ * answer to a call.
+ *
+ * A predicate rather than a bare `msg.type ===` because only one side of this
+ * direction carries a discriminator: a `BridgeResponse` is identified by `ok`,
+ * and stamping a `type` on it to make a tidy union would rewrite every
+ * response construction in the plugin for no behaviour. The request direction
+ * is a real discriminated union (#183); this direction is a report told apart
+ * from an answer, which is all it needs to be.
+ */
+function isCancelResult(
+  msg: BridgeResponse | BridgeCancelResult,
+): msg is BridgeCancelResult {
+  return (msg as BridgeCancelResult).type === "cancel_result";
 }
 
 /** Exported so the UI-side backstop can be held above every budget here. */
@@ -112,7 +131,7 @@ export class BridgeServer {
       }
     }
     const id = "req_" + (++this.nextId).toString().padStart(4, "0");
-    const envelope: BridgeRequest = { id, operation, params };
+    const envelope: BridgeRequest = { type: "dispatch", id, operation, params };
     const effectiveTimeout = timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
 
     return new Promise<T>((resolve, reject) => {
@@ -125,6 +144,14 @@ export class BridgeServer {
           message: buildTimeoutMessage(operation, kind, effectiveTimeout),
           recoverable: true,
         } satisfies BridgeError);
+        // Giving up listening is not the same as the work stopping (#183).
+        // Told nothing, the plugin keeps running - on a write, that is a run
+        // nobody is watching, still changing the file. Asking is all this end
+        // can do; whether it achieves anything comes back as a cancel report.
+        this.requestCancel(
+          id,
+          `the Bridge stopped waiting for ${operation} after ${effectiveTimeout}ms`,
+        );
       }, effectiveTimeout);
 
       this.pending.set(id, {
@@ -173,6 +200,30 @@ export class BridgeServer {
     });
   }
 
+  /**
+   * Asks the plugin to stop the run under `id`. Fire and forget, by design.
+   *
+   * Nothing here may throw or reject. The caller has already been answered by
+   * the time this runs, so there is nobody left to report a failure to - and a
+   * stop request that broke the call it followed would be worse than the
+   * silence it replaces. Every failure ends as a log line.
+   */
+  private requestCancel(id: string, reason: string): void {
+    try {
+      const client = this.client;
+      if (!client || client.readyState !== WebSocket.OPEN) {
+        this.log(`cannot ask ${id} to stop: plugin not connected`);
+        return;
+      }
+      const envelope: BridgeCancel = { type: "cancel", id, reason };
+      client.send(JSON.stringify(envelope), (err) => {
+        if (err) this.log(`cancel for ${id} could not be sent: ${err.message}`);
+      });
+    } catch (err) {
+      this.log(`cancel for ${id} failed: ${(err as Error).message}`);
+    }
+  }
+
   private onConnection(ws: WebSocket): void {
     if (this.client && this.client.readyState === WebSocket.OPEN) {
       this.log("rejecting second plugin connection — one Session at a time");
@@ -189,11 +240,19 @@ export class BridgeServer {
   }
 
   private onMessage(raw: string): void {
-    let msg: BridgeResponse;
+    let msg: BridgeResponse | BridgeCancelResult;
     try {
       msg = JSON.parse(raw);
     } catch {
       this.log(`dropping malformed message: ${raw.slice(0, 80)}`);
+      return;
+    }
+    // A cancel report carries the id of the call it names, and that call is
+    // routinely still pending - the reply and the timeout can cross. Matched
+    // against the pending map it would settle a live call with neither a
+    // result nor an error, so it is routed out first, on its own kind.
+    if (isCancelResult(msg)) {
+      this.onCancelResult(msg);
       return;
     }
     const pending = this.pending.get(msg.id);
@@ -205,6 +264,36 @@ export class BridgeServer {
     clearTimeout(pending.timer);
     if (msg.ok) pending.resolve(msg.result);
     else pending.reject(msg.error);
+  }
+
+  /**
+   * Records what asking a run to stop achieved.
+   *
+   * A log line and nothing more: the call this names was answered when the
+   * Bridge stopped waiting, so there is no caller left to return it to. The
+   * value is to the person watching, who otherwise cannot tell a run that
+   * obeyed from one still writing to the file.
+   */
+  private onCancelResult(msg: BridgeCancelResult): void {
+    const what = msg.operation ? `${msg.operation} (${msg.id})` : msg.id;
+    switch (msg.status) {
+      case "stopped":
+        this.log(`${what} was asked to stop, and stopped`);
+        return;
+      case "not_running":
+        this.log(`${what} had already finished when the stop request arrived`);
+        return;
+      case "not_cancellable":
+        this.log(
+          `${what} cannot be stopped - it does not check for cancellation - and is still running`,
+        );
+        return;
+      case "still_running":
+        this.log(`${what} was asked to stop and had not stopped yet`);
+        return;
+      default:
+        this.log(`${what} was asked to stop; the plugin did not say what happened`);
+    }
   }
 
   private onClientClose(ws: WebSocket): void {

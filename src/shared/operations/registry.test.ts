@@ -9,8 +9,10 @@ import {
   dispatch,
   bindSession,
   runningOperation,
+  requestCancellation,
 } from "./registry";
 import type { BridgeResponse, OperationSpec } from "./types";
+import { yieldToMain } from "../cancellation";
 
 function spec(id: string): OperationSpec {
   return {
@@ -56,11 +58,13 @@ describe("one Operation at a time", () => {
     registerOperation(spec("test_other_run"), async () => "other");
 
     const running = dispatch({
+      type: "dispatch",
       id: "req_0001",
       operation: "test_slow_run",
       params: {},
     });
     const refused = await dispatch({
+      type: "dispatch",
       id: "req_0002",
       operation: "test_other_run",
       params: {},
@@ -78,11 +82,13 @@ describe("one Operation at a time", () => {
     registerOperation(spec("tidy_qa_build_checklist_sim"), async () => "built");
 
     const running = dispatch({
+      type: "dispatch",
       id: "req_0010",
       operation: "tidy_qa_run_sim",
       params: {},
     });
     const refused = await dispatch({
+      type: "dispatch",
       id: "req_0011",
       operation: "tidy_qa_build_checklist_sim",
       params: {},
@@ -107,6 +113,7 @@ describe("one Operation at a time", () => {
     registerOperation(spec("test_after_throw"), async () => "ran anyway");
 
     const failed = await dispatch({
+      type: "dispatch",
       id: "req_0020",
       operation: "test_throws",
       params: {},
@@ -114,6 +121,7 @@ describe("one Operation at a time", () => {
     expect(errorOf(failed).code).toBe("INTERNAL");
 
     const next = await dispatch({
+      type: "dispatch",
       id: "req_0021",
       operation: "test_after_throw",
       params: {},
@@ -127,11 +135,13 @@ describe("one Operation at a time", () => {
     registerOperation(spec("tidy_qa_run_targets"), first.handler);
 
     const running = dispatch({
+      type: "dispatch",
       id: "req_0030",
       operation: "tidy_qa_run_targets",
       params: { nodeId: "1:100" },
     });
     const refused = await dispatch({
+      type: "dispatch",
       id: "req_0031",
       operation: "tidy_qa_run_targets",
       params: { nodeId: "9:900" },
@@ -153,6 +163,7 @@ describe("one Operation at a time", () => {
 
     let firstSettled = false;
     const running = dispatch({
+      type: "dispatch",
       id: "req_0040",
       operation: "test_immediate",
       params: {},
@@ -162,6 +173,7 @@ describe("one Operation at a time", () => {
     });
 
     const refused = await dispatch({
+      type: "dispatch",
       id: "req_0041",
       operation: "test_immediate",
       params: {},
@@ -182,5 +194,140 @@ describe("one Operation at a time", () => {
     await running;
 
     expect(runningOperation()).toBeNull();
+  });
+});
+
+describe("asking a running Operation to stop", () => {
+  it("treats a cancellation naming an Operation that already finished as a no-op", async () => {
+    registerOperation(spec("test_quick_run"), async () => "done");
+
+    await dispatch({
+      type: "dispatch",
+      id: "req_0100",
+      operation: "test_quick_run",
+      params: {},
+    });
+
+    // The reply and the Bridge's timeout can cross, so this arrives routinely
+    // and is not an error: by the time it lands, the run it names has already
+    // answered and there is nothing left to stop.
+    await expect(requestCancellation("req_0100")).resolves.toEqual({
+      type: "cancel_result",
+      id: "req_0100",
+      status: "not_running",
+    });
+  });
+
+  it("treats a cancellation naming a different run than the open one as a no-op", async () => {
+    const first = blockingHandler();
+    registerOperation(spec("test_other_id"), first.handler);
+
+    const running = dispatch({
+      type: "dispatch",
+      id: "req_0110",
+      operation: "test_other_id",
+      params: {},
+    });
+
+    // A late cancel for a call that finished two runs ago must not stop the
+    // run that happens to hold the slot now.
+    await expect(requestCancellation("req_0109")).resolves.toEqual({
+      type: "cancel_result",
+      id: "req_0109",
+      status: "not_running",
+    });
+    expect(runningOperation()).toMatchObject({ requestId: "req_0110" });
+
+    first.finish();
+    await running;
+  });
+
+  it("reports an Operation that does not check a token as not stopped, and leaves it running", async () => {
+    const first = blockingHandler();
+    registerOperation(spec("test_uninterruptible"), first.handler);
+
+    const running = dispatch({
+      type: "dispatch",
+      id: "req_0120",
+      operation: "test_uninterruptible",
+      params: {},
+    });
+
+    // The truthful answer for every Operation in the plugin today. Cancellation
+    // here is cooperative and always will be, so a loop that never asks whether
+    // it should stop cannot be stopped - and saying otherwise would be a worse
+    // lie than the silence #178 exists to fix.
+    await expect(requestCancellation("req_0120")).resolves.toEqual({
+      type: "cancel_result",
+      id: "req_0120",
+      status: "not_cancellable",
+      operation: "test_uninterruptible",
+    });
+    expect(runningOperation()).toMatchObject({ requestId: "req_0120" });
+
+    first.finish();
+    await running;
+  });
+
+  it("cancels a declaring Operation's token and reports the stop once the run ends", async () => {
+    let sawCancellation = false;
+    registerOperation(
+      { ...spec("test_cancellable"), cancellable: true },
+      async (_params, ctx) => {
+        // The shape every adopter takes: check between units of work, and
+        // yield, so the cancellation message gets a turn on the queue at all.
+        while (!ctx.cancellation.isCancelled) await yieldToMain();
+        sawCancellation = true;
+        return "stopped early";
+      },
+    );
+
+    const running = dispatch({
+      type: "dispatch",
+      id: "req_0130",
+      operation: "test_cancellable",
+      params: {},
+    });
+
+    await expect(requestCancellation("req_0130")).resolves.toEqual({
+      type: "cancel_result",
+      id: "req_0130",
+      status: "stopped",
+      operation: "test_cancellable",
+    });
+
+    // "stopped" is a claim about the loop, not about the clock: it is only
+    // said when the run actually left dispatch after being asked.
+    expect(sawCancellation).toBe(true);
+    await running;
+    expect(runningOperation()).toBeNull();
+  });
+
+  it("reports a declaring Operation that has not reached its checkpoint as still running", async () => {
+    const first = blockingHandler();
+    registerOperation(
+      { ...spec("test_slow_checkpoint"), cancellable: true },
+      first.handler,
+    );
+
+    const running = dispatch({
+      type: "dispatch",
+      id: "req_0140",
+      operation: "test_slow_checkpoint",
+      params: {},
+    });
+
+    // Declaring a checkpoint is not reaching one. This is the honest half of
+    // the grace: asked, has somewhere to stop, has not stopped yet.
+    await expect(requestCancellation("req_0140", 10)).resolves.toEqual({
+      type: "cancel_result",
+      id: "req_0140",
+      status: "still_running",
+      operation: "test_slow_checkpoint",
+    });
+    expect(runningOperation()).toMatchObject({ requestId: "req_0140" });
+
+    first.finish();
+    await running;
   });
 });

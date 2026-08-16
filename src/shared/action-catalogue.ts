@@ -131,6 +131,19 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
         "Every MCP-invoked Operation arrives here as a single opaque dispatch action. The plugin thread cannot know the real per-Operation budget, so it is exempt by design; the MCP server enforces its own limit at the Bridge instead.",
     },
   },
+  "mcp-bridge:cancel": {
+    // Asks the run holding the registry slot to stop and reports what that
+    // achieved. Reads: it sets a flag and watches, and mutates nothing itself
+    // - whatever the cancelled Operation writes is that Operation's effect,
+    // wrapped in that Operation's own dispatch.
+    //
+    // Timed, unlike its sibling above, and deliberately so. A cancellation is
+    // bounded by the registry's own grace before it answers, so one that has
+    // not returned inside the default budget is a wedged plugin thread rather
+    // than slow work, and that is worth surfacing rather than waiting out.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
   "audit:export-multipage-pdf": {
     // Pure read as of #163 — no layoutMode mutation remains on this path.
     effect: "reads",

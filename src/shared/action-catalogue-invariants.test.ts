@@ -81,12 +81,12 @@ function extractDispatchedActionIds(source: string): string[] {
 
 /**
  * Every action id reachable through src/moduleHandlers.ts, as
- * `target:action`. Includes "mcp-bridge:dispatch" — mcp-bridge's handler
- * isn't a switch (it's a single `if (action !== "dispatch")` guard), so it
- * is added explicitly rather than discovered by the switch-parser above.
+ * `target:action`. Includes mcp-bridge's two — its handler isn't a switch
+ * (it's a pair of `if (action === ...)` guards), so they are added explicitly
+ * rather than discovered by the switch-parser above.
  */
 function discoverReachableActionIds(): string[] {
-  const ids: string[] = ["mcp-bridge:dispatch"];
+  const ids: string[] = ["mcp-bridge:dispatch", "mcp-bridge:cancel"];
   for (const [target, relativePath] of Object.entries(MODULE_LOGIC_FILES)) {
     const source = readFileSync(path.join(PLUGINS_DIR, relativePath), "utf-8");
     for (const action of extractDispatchedActionIds(source)) {
