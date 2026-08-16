@@ -14,6 +14,7 @@
  */
 
 import { groupFindings, type GroupedFinding } from "../grouped-findings";
+import type { PriorArtifactIndex } from "./prior-artifacts";
 import type { ComponentSetSnapshot } from "../snapshot";
 import type { ChecklistReport, SeverityLevel } from "../types";
 import {
@@ -39,7 +40,13 @@ import {
 import { fallbackStage } from "./stage-surface";
 import { notePrefix, statusStyle } from "./status-style";
 
-const PLUGIN_DATA_KEY = "tidy:qa-checklist";
+/**
+ * Exported so the one document pass (#179) knows to collect it. The value is
+ * a JSON stamp rather than a bare target id, which is why this key is read
+ * through the index's `raw` rather than its `matching`.
+ */
+export const CHECKLIST_DATA_KEY = "tidy:qa-checklist";
+const PLUGIN_DATA_KEY = CHECKLIST_DATA_KEY;
 
 interface ChecklistStamp {
   version: number;
@@ -59,18 +66,22 @@ interface PriorPlacement {
   anchorId?: string;
 }
 
-// Scans every page and every depth, since a rebuild must find a stamped
-// checklist regardless of which page or frame a designer moved it into.
-async function findExistingChecklists(
+/**
+ * The stamped checklists for this target, read out of the run's single document
+ * pass (#179) rather than by walking the file again.
+ *
+ * The index covers every page at every depth, as the walk this replaced did: a
+ * rebuild must find a stamped checklist regardless of which page or frame a
+ * designer moved it into.
+ */
+function findExistingChecklists(
+  index: PriorArtifactIndex<FrameNode>,
   targetId: string,
-): Promise<Array<{ frame: FrameNode; stamp: ChecklistStamp }>> {
-  await figma.loadAllPagesAsync();
+): Array<{ frame: FrameNode; stamp: ChecklistStamp }> {
   const matches: Array<{ frame: FrameNode; stamp: ChecklistStamp }> = [];
-  for (const frame of figma.root.findAllWithCriteria({ types: ["FRAME"] })) {
-    const raw = frame.getPluginData(PLUGIN_DATA_KEY);
-    if (!raw) continue;
+  for (const { frame, value } of index.raw(PLUGIN_DATA_KEY)) {
     try {
-      const stamp = JSON.parse(raw) as ChecklistStamp;
+      const stamp = JSON.parse(value) as ChecklistStamp;
       if (stamp.targetId === targetId) {
         matches.push({ frame, stamp });
       }
@@ -349,6 +360,12 @@ export async function renderChecklist(
   snapshot: ComponentSetSnapshot,
   anchor: SceneNode,
   /**
+   * The run's single document pass (#179). Passed in rather than taken here so
+   * the four blocks a rebuild replaces are found once between them, not once
+   * each.
+   */
+  priorArtifacts: PriorArtifactIndex<FrameNode>,
+  /**
    * True when the caller expressed real placement intent — an explicit
    * `anchorNodeId`, or a target that is a *placed* node rather than the
    * component set itself. Only then does a rebuild move an existing checklist;
@@ -563,7 +580,7 @@ export async function renderChecklist(
   // frame off the instance's page and parks it beside the set, so a rebuild
   // reuses where the frame already lives (and what it was anchored to) unless
   // the caller explicitly asked for a different anchor.
-  const existing = await findExistingChecklists(report.target.id);
+  const existing = findExistingChecklists(priorArtifacts, report.target.id);
   let prior: PriorPlacement | null = null;
   if (existing.length > 0) {
     if (existing.length > 1) {

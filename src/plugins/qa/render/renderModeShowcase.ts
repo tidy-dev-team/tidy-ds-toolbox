@@ -8,6 +8,7 @@
  */
 
 import { markProbe, unmarkProbe } from "../theme-probe";
+import { removeIfPresent, type PriorArtifactIndex } from "./prior-artifacts";
 import type { ModeShowcasePlan } from "./mode-showcase";
 import {
   isDarkModeName,
@@ -28,7 +29,8 @@ import {
 } from "./primitives";
 
 /** Stamp so a rebuild replaces its own prior block instead of stacking copies. */
-const SHOWCASE_DATA_KEY = "tidy:qa-mode-showcase";
+/** Exported so the one document pass (#179) knows to collect it. */
+export const SHOWCASE_DATA_KEY = "tidy:qa-mode-showcase";
 
 const GAP_FROM_ANCHOR = 32;
 
@@ -269,14 +271,11 @@ function buildInto(
  * block instead of leaving it beside a freshly rebuilt checklist as stale
  * evidence.
  */
-export async function removePriorShowcase(targetId: string): Promise<void> {
-  await figma.loadAllPagesAsync();
-  for (const page of figma.root.children) {
-    for (const node of page.findAll(
-      (candidate) => candidate.getPluginData(SHOWCASE_DATA_KEY) === targetId,
-    )) {
-      node.remove();
-    }
+export function removePriorShowcase(
+  index: PriorArtifactIndex<FrameNode>,
+): void {
+  for (const frame of index.matching(SHOWCASE_DATA_KEY)) {
+    removeIfPresent(frame);
   }
 }
 

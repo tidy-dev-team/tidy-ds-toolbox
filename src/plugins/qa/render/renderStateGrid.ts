@@ -17,6 +17,7 @@
  */
 
 import { markProbe, unmarkProbe } from "../theme-probe";
+import { removeIfPresent, type PriorArtifactIndex } from "./prior-artifacts";
 import { driveWidthThrough } from "../resize-probe";
 import type { DrivePath } from "../resize/plan";
 import type { StateGridPlan, StatePanel } from "./state-grid";
@@ -282,17 +283,12 @@ export async function buildStateGrid(
  * to show - the component was fixed - clears the last run's block instead of leaving
  * it beside a freshly rebuilt checklist, where it reads as current.
  */
-export async function removePriorStateGrid(
+export function removePriorStateGrid(
+  index: PriorArtifactIndex<FrameNode>,
   dataKey: string,
-  targetId: string,
-): Promise<void> {
-  await figma.loadAllPagesAsync();
-  for (const page of figma.root.children) {
-    for (const node of page.findAll(
-      (candidate) => candidate.getPluginData(dataKey) === targetId,
-    )) {
-      node.remove();
-    }
+): void {
+  for (const frame of index.matching(dataKey)) {
+    removeIfPresent(frame);
   }
 }
 

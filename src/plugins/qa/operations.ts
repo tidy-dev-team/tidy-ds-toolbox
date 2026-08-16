@@ -15,7 +15,11 @@ import { registerOperation } from "../../shared/operations/registry";
 import { prepareSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
-import { renderChecklist } from "./render/renderChecklist";
+import { CHECKLIST_DATA_KEY, renderChecklist } from "./render/renderChecklist";
+import {
+  collectPriorArtifacts,
+  type PriorArtifactIndex,
+} from "./render/prior-artifacts";
 import type { ComponentSetSnapshot, ThemeSnapshot } from "./snapshot";
 import { planResizeProbe } from "./resize/plan";
 import { chooseVariant } from "./resize-probe";
@@ -31,6 +35,7 @@ import {
 import type { CheckId, QaRunResult } from "./types";
 import { planModeShowcase } from "./render/mode-showcase";
 import {
+  SHOWCASE_DATA_KEY,
   buildModeShowcase,
   placeModeShowcase,
   removePriorShowcase,
@@ -394,8 +399,10 @@ async function drawGridBlock(
   anchor: SceneNode,
   targetId: string,
   offsetY: number,
+  /** The run's single document pass (#179), shared by every block. */
+  priorArtifacts: PriorArtifactIndex<FrameNode>,
 ): Promise<FrameNode | undefined> {
-  await removePriorStateGrid(dataKey, targetId);
+  removePriorStateGrid(priorArtifacts, dataKey);
   if (!isPlan(plan) || !subject) return undefined;
 
   const block = await buildStateGrid(plan, subject);
@@ -529,10 +536,23 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     const relocate =
       params.anchorNodeId !== undefined ||
       (origin !== null && origin.id !== result.target.id);
+    // One traversal for every block this rebuild may replace (#179). Collected
+    // before anything is drawn, so it describes the file as the run found it,
+    // and shared by the checklist lookup and all three removals below - which
+    // used to be four separate walks of the whole document, three of them
+    // unindexed, all before any useful work began.
+    const priorArtifacts = await collectPriorArtifacts(result.target.id, [
+      CHECKLIST_DATA_KEY,
+      SHOWCASE_DATA_KEY,
+      EVIDENCE_DATA_KEY,
+      CONTACT_SHEET_DATA_KEY,
+    ]);
+
     const { frame, sampleCount } = await renderChecklist(
       result.checklist,
       run.snapshot,
       anchor,
+      priorArtifacts,
       relocate,
     );
 
@@ -545,7 +565,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     // filtered `checks` run that resolves no theme, a collection that lost a mode
     // - must not leave the last run's block sitting beside a freshly rebuilt
     // checklist, where it reads as current evidence.
-    await removePriorShowcase(result.target.id);
+    removePriorShowcase(priorArtifacts);
 
     // Unlike the theme probe's frame this one deliberately survives: canvas
     // evidence is the whole point. That is why it is labelled and stamped, and
@@ -586,6 +606,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       frame,
       result.target.id,
       nextY,
+      priorArtifacts,
     );
     if (evidence) nextY += evidence.height + BLOCK_GAP;
 
@@ -600,6 +621,7 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       frame,
       result.target.id,
       nextY,
+      priorArtifacts,
     );
 
     // Exported after everything is placed, so the picture is of the finished
