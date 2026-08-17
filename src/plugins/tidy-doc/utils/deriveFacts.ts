@@ -21,6 +21,14 @@ import { findRelatedCandidates } from "./findRelatedCandidates";
 import { deriveMatrixModel } from "./matrixModel";
 import type { DerivedFacts } from "./facts";
 import type { ModeCollectionFact } from "./modes";
+import { conflictingVariantsMessage } from "./conflictingVariantsMessage";
+// Reused rather than reimplemented (#188): the QA engine already turns
+// Figma's throw-on-read into a value, and CLAUDE.md's rule for a
+// cross-module reach like this one is that a second implementation is a
+// liability the first was never asked to carry - it can only drift from
+// this one, not stay in sync with it.
+import { readVariantProperties } from "../../qa/variant-properties";
+import { ErrorCode, OperationError } from "../../../shared/operations/errors";
 
 function collectVariableAliasIds(value: unknown, ids: Set<string>): void {
   if (value === null || typeof value !== "object") return;
@@ -218,9 +226,36 @@ function deriveConstraintWidths(
   return dedupeConstraintFacts(candidates, familyName);
 }
 
+// Every read of a child's `variantProperties` below (defaults, deriveHeights,
+// deriveConstraintWidths) is unguarded, because Figma throws once - on a set
+// it has flagged - rather than per offending child, so checking every child
+// up front and failing once, before any of them run, replaces three places
+// that could each throw a raw, designer-unreadable Error with one that
+// throws a message a designer can act on. #187 taught isRecoverableError to
+// read OperationError.recoverable, so throwing this instead of a raw Error
+// also stops the critical toast without touching code.ts or error-handler.ts
+// - both shared by every module, and not this ticket's problem to solve.
+function assertVariantsReadable(node: ComponentSetNode): void {
+  for (const child of node.children) {
+    if (child.type !== "COMPONENT") continue;
+    const read = readVariantProperties(child);
+    if ("unreadable" in read) {
+      throw new OperationError(
+        ErrorCode.INVALID_PARAMS,
+        conflictingVariantsMessage(node.name, read.unreadable),
+        true,
+      );
+    }
+  }
+}
+
 export async function deriveFacts(
   node: ComponentNode | ComponentSetNode,
 ): Promise<DerivedFacts> {
+  if (node.type === "COMPONENT_SET") {
+    assertVariantsReadable(node);
+  }
+
   const descriptors: AxisDescriptor[] = [];
   const propertyDescriptors: PropertyDescriptor[] = [];
   let defaults: Record<string, string> = {};
