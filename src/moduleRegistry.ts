@@ -206,15 +206,6 @@ export const moduleRegistry: ModuleRegistry = {
       },
     ],
   },
-  // "tags-spacings": {
-  //   id: "tags-spacings",
-  //   label: "Tags & Spacings",
-  //   state: "alpha",
-  //   icon: IconRulerMeasure,
-  //   ui: TagsSpacingsUI,
-  //   handler: tagsSpacingsHandler,
-  //   permissionRequirements: ["activeselection"],
-  // },
   "release-notes": {
     id: "release-notes",
     label: "Release Notes",

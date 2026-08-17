@@ -19,20 +19,3 @@ export function openExternalLink(url: string): void {
     "*",
   );
 }
-
-// Type-safe wrappers for specific modules
-export function createShapeRectangles(count: number): void {
-  postToFigma({
-    target: "shape-shifter",
-    action: "create-rects",
-    payload: { count },
-  });
-}
-
-export function insertText(text: string, style?: any): void {
-  postToFigma({
-    target: "text-master",
-    action: "insert-text",
-    payload: { text, style },
-  });
-}

@@ -1,5 +1,11 @@
 /// <reference types="@figma/plugin-typings" />
 
+// This directory is not a plugin module. "Tags & Spacings" was retired (its
+// moduleRegistry.ts entry is gone), and most of its code went with it. What
+// remains here are the measurement-marker builders that tidy-doc's Component
+// Breakdown section still imports - the one part of the old plugin that
+// turned out to be load-bearing. Do not go looking for a UI; there isn't one.
+
 /**
  * Type definitions for Tags & Spacings plugin
  */
