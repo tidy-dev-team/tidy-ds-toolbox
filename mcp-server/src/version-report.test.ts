@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   RAW_SOURCE_VERSION,
   describeVersionMatch,
+  versionSkewNote,
 } from "./version-report.ts";
 
 describe("describeVersionMatch", () => {
@@ -59,5 +60,37 @@ describe("describeVersionMatch", () => {
 
     expect(line).not.toMatch(/mismatch/i);
     expect(line).toMatch(/source/i);
+  });
+});
+
+describe("versionSkewNote", () => {
+  it("explains the skew, and where to fix it, when the two halves differ", () => {
+    const note = versionSkewNote("1.16.0", "1.17.2");
+
+    expect(note).not.toBeNull();
+    expect(note).toContain("1.16.0");
+    expect(note).toContain("1.17.2");
+    // The actionable half. A rebuilt server keeps serving until the session
+    // restarts, and that is not obvious - it is what cost a whole session.
+    expect(note).toMatch(/session/i);
+  });
+
+  it("says nothing when the halves agree, so an ordinary timeout stays clean", () => {
+    // A note on every timeout would be noise, and noise is how the stderr
+    // version line ended up unread in the first place.
+    expect(versionSkewNote("1.17.2", "1.17.2")).toBeNull();
+  });
+
+  it("says nothing when the server cannot state a version", () => {
+    // A raw-source server has nothing to compare, so claiming skew would warn
+    // on every timeout of the dev inner loop.
+    expect(versionSkewNote(RAW_SOURCE_VERSION, "1.17.2")).toBeNull();
+  });
+
+  it("says nothing when the plugin never reported one", () => {
+    // Silence is not proof of skew. #189's connect log already covers the
+    // plugin that predates the handshake; guessing here would attach a claim
+    // to every timeout from an older build.
+    expect(versionSkewNote("1.17.2", undefined)).toBeNull();
   });
 });

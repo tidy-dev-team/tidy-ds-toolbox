@@ -18,7 +18,11 @@ import type {
   OperationKind,
 } from "../../src/shared/operations/types.ts";
 import { buildTimeoutMessage } from "./timeout-message.ts";
-import { SERVER_VERSION, describeVersionMatch } from "./version-report.ts";
+import {
+  SERVER_VERSION,
+  describeVersionMatch,
+  versionSkewNote,
+} from "./version-report.ts";
 
 export type BridgeError = BridgeErrorPayload;
 
@@ -83,6 +87,13 @@ export class BridgeServer {
   private host: string;
   private port: number;
   private clientWaiters: Array<() => void> = [];
+  /**
+   * What the attached plugin said it was, from its hello (#189). Held so a
+   * failing call can name the skew, because the connect-time log that already
+   * reports it never reaches the session: Claude Code captures this process's
+   * stderr only until the MCP transport comes up.
+   */
+  private pluginVersion: string | undefined;
 
   constructor(host: string, port: number) {
     this.host = host;
@@ -158,7 +169,17 @@ export class BridgeServer {
           code: "TIMEOUT",
           // Wording comes from the Operation's declared `kind` (#182), so a
           // newly declared Operation is worded correctly with no edit here.
-          message: buildTimeoutMessage(operation, kind, effectiveTimeout),
+          // A stale server fails by not understanding a newer request: #183's
+          // routing drops an envelope of an unrecognised kind, so nothing
+          // answers and the call runs out its budget. That is identical to
+          // slow work from here, which is why the skew is named at the
+          // timeout rather than left in a log nobody can read (#189).
+          message: [
+            buildTimeoutMessage(operation, kind, effectiveTimeout),
+            versionSkewNote(SERVER_VERSION, this.pluginVersion),
+          ]
+            .filter(Boolean)
+            .join(" "),
           recoverable: true,
         } satisfies BridgeError);
         // Giving up listening is not the same as the work stopping (#183).
@@ -279,6 +300,7 @@ export class BridgeServer {
     // report: a hello carries no id, so matching it against the map would log
     // it as a response for an unknown id and say nothing useful.
     if (isHello(msg)) {
+      this.pluginVersion = msg.version;
       this.log(describeVersionMatch(SERVER_VERSION, msg.version));
       return;
     }
@@ -327,6 +349,9 @@ export class BridgeServer {
     if (this.client !== ws) return; // a rejected secondary connection
     this.log("plugin disconnected");
     this.client = null;
+    // Forgotten with the socket: the next plugin to attach may be a different
+    // build, and a remembered version would outlive the thing it described.
+    this.pluginVersion = undefined;
     for (const [, pending] of this.pending) {
       clearTimeout(pending.timer);
       pending.reject({

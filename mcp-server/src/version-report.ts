@@ -86,3 +86,40 @@ export function describeVersionMatch(
     `the plugin picks up a new build when it is reopened in Figma.`
   );
 }
+
+/**
+ * The sentence to attach to a failing call when the two halves are different
+ * builds, or `null` when there is nothing to say (#189).
+ *
+ * The connect-time log this file already produces turned out to be unreadable
+ * where it matters most: Claude Code captures the bundled server's stderr only
+ * until the MCP transport comes up, so no `[bridge]` line ever reaches the
+ * session log. A whole session ran three tickets' worth of server changes
+ * against a binary that predated all of them, and the only reason anyone
+ * noticed was that one of those tickets had changed a user-visible string.
+ *
+ * So the mismatch is put where the symptom is instead. A timeout is exactly
+ * the moment someone needs to know their server is older than their plugin,
+ * because a stale server fails by not understanding a newer request, which
+ * looks identical to slow work.
+ *
+ * Silent in every other case, deliberately. A note on every timeout would be
+ * noise, and unread noise is how the log line failed.
+ */
+export function versionSkewNote(
+  serverVersion: string,
+  pluginVersion: string | undefined,
+): string | null {
+  // Nothing to compare: a raw-source server has no stamped version, and a
+  // plugin that reported none predates the handshake. Silence is not proof of
+  // skew, and attaching a guess to every timeout would earn it the same fate
+  // as the log line.
+  if (serverVersion === RAW_SOURCE_VERSION || !pluginVersion) return null;
+  if (serverVersion === pluginVersion) return null;
+
+  return (
+    `Note: the plugin is on ${pluginVersion} and this server is on ${serverVersion}, ` +
+    `so they are different builds and that may be the real cause. ` +
+    `A rebuilt server keeps serving its old binary until the Claude Code session restarts.`
+  );
+}
