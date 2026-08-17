@@ -12,7 +12,7 @@ npm run build:main     # Build plugin code only
 
 # Quality
 npm run typecheck      # TypeScript type checking (no emit) - src *and* mcp-server
-npm run lint           # ESLint on src/**/*.{ts,tsx}
+npm run lint           # ESLint on src/**/*.{ts,tsx}, capped at 161 warnings
 npm run test           # Vitest (run mode) — unit tests for *.test.ts
 npm run format         # Prettier format
 npm run format:check   # Check formatting without changes
@@ -22,6 +22,12 @@ npm run release:patch  # Bump patch version + commit + tag
 npm run release:minor  # Bump minor version + commit + tag
 npm run release:push   # Push commits and tags to remote
 ```
+
+**The lint warning ceiling is a ratchet, and it only goes down.**
+Every ESLint rule here is `warn` rather than `error`, including `no-explicit-any` and `no-non-null-assertion`, so before the cap the count could climb forever without failing anything - it had reached 179, and a `no-non-null-assertion` warning sitting in that pile was pointing straight at a real defect (#180) that nobody could see for the noise.
+The number in the script is the count on the day it was set, not a target: lower it whenever a change removes warnings, and never raise it to make a commit pass.
+A change that genuinely needs a higher ceiling is a change worth discussing, which is the point.
+`scripts/` is not linted at all, though it now holds code (`scripts/lib/`) - a gap, not a decision.
 
 Node version: `.nvmrc` is the single source of truth (`package.json` `engines` records the supported floor).
 Single-version CI jobs read `.nvmrc`; the unit tests and the bundled MCP smoketest run a matrix that CI derives from `.nvmrc` and `engines` at run time, so no Node version is written into the workflow.
