@@ -42,6 +42,14 @@ The secondary detail is that the cache is **keyed on the version string**.
 An install at an unchanged version finds the directory already there and leaves it alone, a silent no-op.
 So `dist-plugin/` can be perfectly correct, the marketplace can point straight at it, `/reload-plugins` can report success, and the agent still gets a copy that is days old.
 
+There is a second way an install does nothing, and it needs the opposite fix.
+When the version *has* changed, `claude plugin install` sees the plugin already registered and reports `already installed`, refusing outright.
+Clearing the cache cannot help, because the directory it would clear belongs to the new version and does not exist yet.
+`claude plugin update` is the verb for that case.
+
+The two are easy to confuse and the remedies are opposites: an unchanged version needs the cache directory deleted, a changed one needs a different subcommand.
+`npm run dogfood:plugin` now picks between them and says which it chose and why (#190).
+
 That is not hypothetical.
 A `1.17.0` cache sat five days stale while every `claude-plugin/` change landed correctly in the repo, and the installed `/tidy-qa` served pre-#118 guidance that told the agent to re-group findings the engine had already grouped.
 See [#130](https://github.com/tidy-dev-team/tidy-ds-toolbox/issues/130).
