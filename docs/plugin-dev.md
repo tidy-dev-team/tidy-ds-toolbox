@@ -104,7 +104,7 @@ See [#189](https://github.com/tidy-dev-team/tidy-ds-toolbox/issues/189).
 
 A mismatch says so explicitly and names both. A line reading `server is running from raw source` means the raw-TS dev server (`npm run mcp:server`), which has no version to compare. If the `awaiting version` line is followed by nothing at all, the Figma plugin predates #189 and needs rebuilding.
 
-Note that `npm run verify:plugin` does **not** catch this. It checks that `mcp/server.cjs` is present in the installed tree, but it cannot diff it, because the bundled server is injected by the assemble step rather than living in `claude-plugin/`. A stale `server.cjs` in the cache passes verification.
+`npm run verify:plugin` catches this too (#191): it diffs the installed `mcp/server.cjs` against the last `dist-plugin/tidy-ds/mcp/server.cjs` build, so a stale server at an unchanged version fails verification instead of passing silently. That comparison is only as fresh as the last `npm run build:plugin` - `npm run dogfood:plugin` always assembles immediately beforehand, so on that path it is checked against a build made seconds earlier.
 
 To check the installed copy at any time without reinstalling:
 

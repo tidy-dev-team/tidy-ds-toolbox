@@ -19,6 +19,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
 import { homedir } from "node:os";
+import { checkBundledServer } from "./lib/server-drift.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 const pluginSrc = join(repoRoot, "claude-plugin");
@@ -124,11 +125,24 @@ for (const abs of sourceFiles) {
 }
 
 // 4. The bundled server is injected at assemble time, not copied from source,
-//    so it is checked for presence only. Its content is the build's business.
+//    so the per-file diff above has nothing to run it against. It is compared
+//    instead against dist-plugin/, the last assembled build - see the
+//    reasoning in lib/server-drift.mjs for why that target was chosen over a
+//    rebuild here, and why a missing reference fails loudly rather than
+//    skipping the check.
 const bundledServer = join("mcp", "server.cjs");
-if (!existsSync(join(installed.installPath, bundledServer))) {
-  problems.push("missing from the installed tree: mcp/server.cjs (the bundled MCP server)");
-}
+const installedServerPath = join(installed.installPath, bundledServer);
+const referenceServerPath = join(repoRoot, "dist-plugin", "tidy-ds", bundledServer);
+const installedServerExists = existsSync(installedServerPath);
+const referenceServerExists = existsSync(referenceServerPath);
+problems.push(
+  ...checkBundledServer({
+    installedExists: installedServerExists,
+    referenceExists: referenceServerExists,
+    installedBytes: installedServerExists ? readFileSync(installedServerPath) : null,
+    referenceBytes: referenceServerExists ? readFileSync(referenceServerPath) : null,
+  }),
+);
 
 // 5. The other direction. A command deleted or renamed in claude-plugin/ stays
 //    in the cache and keeps being served, and a source-only walk would call
