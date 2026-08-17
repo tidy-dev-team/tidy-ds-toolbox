@@ -22,10 +22,19 @@
  * whitespace or key-order normalisation is needed here the way plugin.json
  * needs its version field stripped.
  *
+ * Byte drift is only reported when the versions already agree. A version bump
+ * changes the bundle by itself, because `build.js` stamps `__SERVER_VERSION__`
+ * into it (#189), so a mismatched version would otherwise raise two problems
+ * for one cause - and the drift wording would contradict the version line
+ * printed directly above it. The per-file diff solves the same problem the
+ * same way, stripping `version` from `plugin.json` before comparing so a
+ * version difference is reported once.
+ *
  * Pure: takes bytes, returns problem strings. Reading files and choosing
  * which path to read stays in the calling script.
  */
 export function checkBundledServer({
+  versionMatches,
   installedExists,
   referenceExists,
   installedBytes,
@@ -39,6 +48,10 @@ export function checkBundledServer({
       "cannot verify mcp/server.cjs: no dist-plugin/tidy-ds/mcp/server.cjs to compare " +
         "against. Run `npm run build:plugin` first, then re-run verify:plugin.",
     ];
+  }
+  // Absence is worth reporting whatever the version says; drift is not.
+  if (!versionMatches) {
+    return [];
   }
   if (!installedBytes.equals(referenceBytes)) {
     return [

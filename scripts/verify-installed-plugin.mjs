@@ -137,6 +137,7 @@ const installedServerExists = existsSync(installedServerPath);
 const referenceServerExists = existsSync(referenceServerPath);
 problems.push(
   ...checkBundledServer({
+    versionMatches: installed.version === rootVersion,
     installedExists: installedServerExists,
     referenceExists: referenceServerExists,
     installedBytes: installedServerExists ? readFileSync(installedServerPath) : null,

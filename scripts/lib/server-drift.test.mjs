@@ -7,6 +7,9 @@ describe("checkBundledServer", () => {
     // copied in is a different problem from a stale one, and needs its own
     // wording so the two are not confused when read off a terminal.
     const problems = checkBundledServer({
+      // Deliberately false: a server missing from the installed tree is worth
+      // saying whatever the version does, unlike byte drift.
+      versionMatches: false,
       installedExists: false,
       referenceExists: true,
       installedBytes: null,
@@ -39,6 +42,7 @@ describe("checkBundledServer", () => {
     // esbuild output is deterministic for the same source and options, so any
     // byte difference at an unchanged version is real staleness, not noise.
     const problems = checkBundledServer({
+      versionMatches: true,
       installedExists: true,
       referenceExists: true,
       installedBytes: Buffer.from("old build"),
@@ -53,10 +57,29 @@ describe("checkBundledServer", () => {
 
   it("reports nothing when the installed server matches the fresh build byte-for-byte", () => {
     const problems = checkBundledServer({
+      versionMatches: true,
       installedExists: true,
       referenceExists: true,
       installedBytes: Buffer.from("same build"),
       referenceBytes: Buffer.from("same build"),
+    });
+
+    expect(problems).toEqual([]);
+  });
+
+  it("stays quiet about byte drift when the versions already differ", () => {
+    // A version bump changes the bundle's bytes by itself: build.js stamps
+    // __SERVER_VERSION__ into it (#189). The version difference is already
+    // reported by the caller, so reporting drift too is two problems for one
+    // cause - and the drift wording would flatly contradict the version line
+    // sitting directly above it. Same reasoning the plugin.json diff uses when
+    // it strips `version` before comparing.
+    const problems = checkBundledServer({
+      versionMatches: false,
+      installedExists: true,
+      referenceExists: true,
+      installedBytes: Buffer.from("old build"),
+      referenceBytes: Buffer.from("new build"),
     });
 
     expect(problems).toEqual([]);
