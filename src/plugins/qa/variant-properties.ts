@@ -39,11 +39,33 @@ export type VariantPropertiesRead =
   | { readonly unreadable: string };
 
 /**
+ * Figma prefixes the message with the getter that threw, so the raw text reads
+ * `in get_variantProperties: Component set for node has existing errors`.
+ *
+ * That prefix is stripped here, at the single point where the throw becomes a
+ * value, rather than by each consumer (#188). `get_variantProperties` is a
+ * Figma API internal: it appears nowhere in this plugin's vocabulary, a
+ * designer cannot act on it, and it was reaching them - printed into a
+ * critical toast and into tidy-doc's build log, and embedded in row 13's own
+ * finding by the check below.
+ *
+ * Only Figma's exact `in <identifier>: ` shape is removed. Anything else is
+ * the reason itself, and guessing at more would risk eating the sentence a
+ * designer actually needs.
+ */
+function withoutFigmaInternal(message: string): string {
+  return message.replace(/^in [A-Za-z0-9_$]+:\s*/, "");
+}
+
+/**
  * Read one variant's property combination, turning Figma's throw into a value.
  *
  * Never rethrows. A single flagged set would otherwise abort the whole
  * snapshot, and the set that cannot be collected is precisely the set carrying
  * the defect row 13 exists to report.
+ *
+ * The reason it reports is fit to print: never blank, and never carrying a
+ * Figma API internal. Consumers may use it verbatim, and both of them do.
  */
 export function readVariantProperties(
   source: VariantPropertiesSource,
@@ -54,7 +76,9 @@ export function readVariantProperties(
     const message = error instanceof Error ? error.message : String(error);
     // Never blank: this string is printed in a finding, and "Figma refused
     // ()" tells a designer nothing about what to open.
-    return { unreadable: message || "Figma gave no reason." };
+    return {
+      unreadable: withoutFigmaInternal(message) || "Figma gave no reason.",
+    };
   }
 }
 

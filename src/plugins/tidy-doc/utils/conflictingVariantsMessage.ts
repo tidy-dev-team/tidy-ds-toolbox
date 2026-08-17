@@ -7,6 +7,11 @@
 //
 // Pure: a string in, a string out. No Figma, no OperationError - the caller
 // decides how to throw it.
+//
+// `reason` is expected to be fit to print already. `readVariantProperties`
+// strips Figma's `in <fn>: ` prefix where the throw becomes a value, so this
+// does not strip it again: one sanitisation point cannot disagree with itself,
+// two can.
 export function conflictingVariantsMessage(
   componentSetName: string,
   reason: string,

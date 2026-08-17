@@ -70,11 +70,35 @@ describe("readVariantProperties", () => {
   });
 
   it("returns Figma's reason instead of throwing", () => {
+    expect(readVariantProperties(throwingSource("existing errors"))).toEqual({
+      unreadable: "existing errors",
+    });
+  });
+
+  it("strips Figma's internal function name off the reason it reports", () => {
+    // The exact message Figma raises, observed from a flagged set on a real
+    // file: the reason is prefixed with the getter that threw. That prefix
+    // reaches designers - it was printed into a toast and into tidy-doc's
+    // build log - and `get_variantProperties` is a Figma API internal that
+    // appears nowhere in this plugin's vocabulary (#188).
     expect(
       readVariantProperties(
-        throwingSource("in get_variantProperties: existing errors"),
+        throwingSource(
+          "in get_variantProperties: Component set for node has existing errors",
+        ),
       ),
-    ).toEqual({ unreadable: "in get_variantProperties: existing errors" });
+    ).toEqual({ unreadable: "Component set for node has existing errors" });
+  });
+
+  it("keeps a reason that carries no such prefix exactly as Figma gave it", () => {
+    // Only Figma's own `in <fn>: ` shape is removed. Anything else is the
+    // reason itself and is reported verbatim - guessing at more would risk
+    // eating the sentence a designer needs.
+    expect(
+      readVariantProperties(
+        throwingSource("Something else went wrong entirely"),
+      ),
+    ).toEqual({ unreadable: "Something else went wrong entirely" });
   });
 
   it("never yields a blank reason, since the reason is printed in a finding", () => {
