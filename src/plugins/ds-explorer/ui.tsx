@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
-import { componentRegistry, componentGroups } from "./utils/componentData";
+import { componentRegistry, visibleGroups } from "./utils/componentData";
 import { PropertyInfo, PropertyStates, ComponentData } from "./types";
 import { IconSearch } from "@tabler/icons-react";
 
@@ -24,14 +24,8 @@ export function DSExplorerUI() {
 
   // ...existing code...
 
-  // Filter groups based on search
-  const filteredGroups = componentGroups
-    .map((group) =>
-      group.filter(([name]) =>
-        name.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
-    )
-    .filter((group) => group.length > 0);
+  // Filter groups based on search. The name travels with the items (#205).
+  const filteredGroups = visibleGroups(searchTerm);
 
   // Handle component selection
   const handleComponentSelect = useCallback((name: string) => {
@@ -370,42 +364,9 @@ export function DSExplorerUI() {
         <div
           style={{ flex: 1, overflowY: "auto", padding: "var(--pixel-8, 8px)" }}
         >
-          {filteredGroups.map((group, groupIndex) => {
-            // Get group names for headers
-            const groupNames = [
-              "Avatar",
-              "Badge",
-              "Navigation & Buttons",
-              "Form Controls",
-              "Inputs",
-              "Radio & Other Controls",
-              "Link",
-              "Slider",
-              "Search",
-              "Tabs",
-              "Tooltip",
-              "Toggle",
-              "Molecules",
-              "Banner",
-              "Dropdown",
-              "List",
-              "Pagination",
-              "Progress Bar",
-              "Snackbar",
-              "Toast",
-              "Organisms",
-              "Cards",
-              "Date picker",
-              "Modal",
-              "Progress Indicator",
-              "Table",
-            ];
-            // ...existing code...
-            const groupName =
-              groupNames[groupIndex] || `Group ${groupIndex + 1}`;
-
+          {filteredGroups.map((group) => {
             return (
-              <div key={groupIndex}>
+              <div key={group.name}>
                 {/* Group Header */}
                 <div
                   style={{
@@ -420,11 +381,11 @@ export function DSExplorerUI() {
                     marginBottom: "var(--pixel-4, 4px)",
                   }}
                 >
-                  {groupName}
+                  {group.name}
                 </div>
 
                 {/* Group Items */}
-                {group.map(([name]) => (
+                {group.items.map(([name]) => (
                   <div
                     key={name}
                     onClick={() => handleComponentSelect(name)}
