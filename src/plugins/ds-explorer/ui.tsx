@@ -22,8 +22,6 @@ export function DSExplorerUI() {
   const [propertyStates, setPropertyStates] = useState<PropertyStates>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // ...existing code...
-
   // Filter groups based on search. The name travels with the items (#205).
   const filteredGroups = visibleGroups(searchTerm);
 

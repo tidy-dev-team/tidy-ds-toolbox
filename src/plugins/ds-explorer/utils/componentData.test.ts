@@ -99,4 +99,10 @@ describe("visibleGroups", () => {
   it("returns nothing when no item matches", () => {
     expect(visibleGroups("no such component")).toEqual([]);
   });
+
+  it("ignores space around the term, so a stray space does not empty the list", () => {
+    expect(visibleGroups("  snackbar ").map((group) => group.name)).toEqual([
+      "Snackbar",
+    ]);
+  });
 });
