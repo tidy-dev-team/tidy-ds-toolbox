@@ -60,7 +60,14 @@ export interface ModuleManifest {
   state: ModuleState;
   icon: React.ComponentType<any> | string;
   ui: React.ComponentType<any>;
-  handler: (action: string, payload: any, figma: any) => Promise<any>;
+  // No `handler` here. A module's backend handler is reached by the *main*
+  // thread through `moduleHandlers.ts`, keyed by the same id; the manifest is
+  // read only by the UI, which talks to that handler over postMessage and
+  // never calls it. Naming it here made `moduleRegistry.ts` import
+  // `moduleHandlers.ts`, and with it every module's `logic.ts`, every
+  // `operations.ts`, and the whole QA engine - all of it bundled into the UI
+  // iframe, which cannot call any of it. The only reader was `moduleLoader.ts`,
+  // which nothing imported.
   permissionRequirements: string[];
   settingsSchema?: any;
   keywords?: string[]; // Keywords for search
