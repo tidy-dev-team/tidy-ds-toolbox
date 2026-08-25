@@ -176,6 +176,83 @@ export async function requestCancellation(
   };
 }
 
+/** What a caller must say about the run it wants the slot for. */
+export interface SlotClaim {
+  /** Operation id, or the id of the Operation a panel route is really doing. */
+  operation: string;
+  /** Identifies this run. A Bridge request id, or a panel-minted one. */
+  requestId: string;
+  /** Whether the run checks `ctx.cancellation`. Declared, never inferred. */
+  cancellable?: boolean;
+}
+
+/**
+ * Runs `run` while holding the one-Operation-at-a-time slot, refusing with
+ * `BUSY` if anything already holds it.
+ *
+ * This is the *only* writer of `RUNNING`, and that is the point of it existing
+ * separately from `dispatch` (#186). The guard used to live inside `dispatch`,
+ * which meant it answered "is another Operation running" only for calls that
+ * arrived over the Bridge. The panel's Document button reaches the very same
+ * builder through the module-action path and never passes through `dispatch`,
+ * so a designer clicking mid-agent-run was invisible to the guard and the two
+ * interleaved their edits to one document - exactly the thing #186 exists to
+ * stop, silently not stopped.
+ *
+ * A second writer would have been the obvious fix and the wrong one: two places
+ * setting one slot eventually disagree about whether it is held. So `dispatch`
+ * is now a caller of this like any other route, and a route that wants the
+ * guarantee asks for it here.
+ *
+ * Throws `OperationError` rather than returning a result shape, because the
+ * non-Bridge callers are ordinary plugin code with no envelope to fill in.
+ * `dispatch` catches it and turns it back into a `BridgeResponse`, which is the
+ * path every other `OperationError` already takes, so the wire output for a
+ * refused Bridge call is unchanged.
+ */
+export async function withOperationSlot<T>(
+  claim: SlotClaim,
+  run: (cancellation: CancellationToken) => Promise<T>,
+): Promise<T> {
+  if (RUNNING) {
+    throw new OperationError(
+      ErrorCode.BUSY,
+      `Operation '${RUNNING.operation}' is already running, and the plugin ` +
+        `runs one Operation at a time. Wait for it to finish before starting ` +
+        `'${claim.operation}' - starting a second one now would interleave two ` +
+        `sets of edits in the same document.`,
+      true,
+      {
+        runningOperation: RUNNING.operation,
+        runningRequestId: RUNNING.requestId,
+      },
+    );
+  }
+  let markSettled!: () => void;
+  const settled = new Promise<void>((resolve) => {
+    markSettled = resolve;
+  });
+  const token = createCancellationToken();
+  RUNNING = {
+    operation: claim.operation,
+    requestId: claim.requestId,
+    cancellable: claim.cancellable === true,
+    token,
+    settled,
+  };
+  try {
+    return await run(token);
+  } finally {
+    // Every path out of a run frees the slot: normal return, a thrown
+    // OperationError, and an unexpected throw. A leak here would lock the
+    // plugin out of Operations for the rest of the session.
+    RUNNING = null;
+    // Releases anyone watching for this run to stop. Must follow the line
+    // above: a cancellation resumed here reads `runningOperation()` next.
+    markSettled();
+  }
+}
+
 export async function dispatch(req: BridgeRequest): Promise<BridgeResponse> {
   const entry = OPERATIONS.get(req.operation);
   if (!entry) {
@@ -200,45 +277,26 @@ export async function dispatch(req: BridgeRequest): Promise<BridgeResponse> {
       },
     };
   }
-  if (RUNNING) {
-    return {
-      id: req.id,
-      ok: false,
-      error: {
-        code: ErrorCode.BUSY,
-        message:
-          `Operation '${RUNNING.operation}' is already running, and the plugin ` +
-          `runs one Operation at a time. Wait for it to finish before starting ` +
-          `'${req.operation}' - starting a second one now would interleave two ` +
-          `sets of edits in the same document.`,
-        recoverable: true,
-        details: {
-          runningOperation: RUNNING.operation,
-          runningRequestId: RUNNING.requestId,
-        },
-      },
-    };
-  }
-  let markSettled!: () => void;
-  const settled = new Promise<void>((resolve) => {
-    markSettled = resolve;
-  });
-  RUNNING = {
-    operation: req.operation,
-    requestId: req.id,
-    cancellable: entry.spec.cancellable === true,
-    token: createCancellationToken(),
-    settled,
-  };
-  const ctx: OperationContext = {
-    sessionId: CURRENT_SESSION.sessionId,
-    // Every handler gets a token, whether or not it declared it checks one.
-    // Handing it out unconditionally keeps adopting cancellation a one-line
-    // change in the loop plus one flag on the spec, with nothing to thread.
-    cancellation: RUNNING.token,
-  };
+  const sessionId = CURRENT_SESSION.sessionId;
   try {
-    const result = await entry.handler(req.params, ctx);
+    const result = await withOperationSlot(
+      {
+        operation: req.operation,
+        requestId: req.id,
+        cancellable: entry.spec.cancellable === true,
+      },
+      (cancellation) => {
+        const ctx: OperationContext = {
+          sessionId,
+          // Every handler gets a token, whether or not it declared it checks
+          // one. Handing it out unconditionally keeps adopting cancellation a
+          // one-line change in the loop plus one flag on the spec, with
+          // nothing to thread.
+          cancellation,
+        };
+        return entry.handler(req.params, ctx);
+      },
+    );
     return { id: req.id, ok: true, result };
   } catch (err) {
     if (err instanceof OperationError) {
@@ -262,13 +320,11 @@ export async function dispatch(req: BridgeRequest): Promise<BridgeResponse> {
         recoverable: false,
       },
     };
-  } finally {
-    // Every path out of a run frees the slot: normal return, a thrown
-    // OperationError, and an unexpected throw. A leak here would lock the
-    // plugin out of Operations for the rest of the session.
-    RUNNING = null;
-    // Releases anyone watching for this run to stop. Must follow the line
-    // above: a cancellation resumed here reads `runningOperation()` next.
-    markSettled();
   }
+  // No `finally` freeing the slot here. `withOperationSlot` owns it and frees
+  // it on every path out of the run it started. Clearing it here as well would
+  // be actively wrong on the refusal path: a call rejected with BUSY never held
+  // the slot, so this would release the slot belonging to the run that is still
+  // going - handing the plugin to the second caller precisely when the guard
+  // had just done its job.
 }

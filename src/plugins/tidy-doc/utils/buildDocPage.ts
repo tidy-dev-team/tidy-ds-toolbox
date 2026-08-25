@@ -6,6 +6,7 @@
 
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
 import { withDocPageBuildLock, type BuildOrigin } from "./buildLock";
+import { withOperationSlot } from "../../../shared/operations/registry";
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { deriveFacts } from "./deriveFacts";
 import { resolveDocSpecReferences } from "./resolveReferences";
@@ -159,29 +160,60 @@ async function findExistingDocPages(
  * Two guards stand in front of this builder and they answer different
  * questions. Neither is redundant, and deleting either reopens a real hole:
  *
- * - The Operation registry (`src/shared/operations/registry.ts`, #186) answers
- *   "is another Operation running", globally, for the agent-facing path only.
+ * - The Operation slot (`src/shared/operations/registry.ts`, #186) answers
+ *   "is another Operation running", globally.
  * - This lock (`buildLock.ts`, #187) answers "is this page already being
- *   built", for whichever route asked.
+ *   built", keyed by source component.
  *
- * The registry cannot cover this one: the panel's Document button reaches the
- * builder through the module-action path and never passes through `dispatch`
- * at all, so a designer clicking mid-agent-build is invisible to it. This lock
- * cannot cover the registry's question either - it is keyed by component and
- * says nothing about a QA run tying up the plugin. Both may legitimately
+ * The slot used to answer its question for the agent-facing path only, because
+ * `dispatch` was the only thing that claimed it and the panel's Document button
+ * never passes through `dispatch`. That is no longer true: a panel build claims
+ * the slot below, so "another Operation is running" now means the same thing
+ * whoever is asking.
+ *
+ * The lock still cannot answer the slot's question - it is keyed by component
+ * and says nothing about a QA run tying up the plugin - and the slot still
+ * cannot answer the lock's, since it has no idea which component a run is
+ * touching. Two designers asking for the same page get the lock's refusal; a
+ * designer asking while an agent runs QA gets the slot's. Both may legitimately
  * refuse the same call.
  *
- * `origin` is what the refusal names, so pass the route the call really came
- * from: "agent" from operations.ts, "panel" from logic.ts.
+ * `origin` is what the lock's refusal names, and it is also how this function
+ * knows whether the slot is already held, so pass the route the call really
+ * came from: "agent" from operations.ts, "panel" from logic.ts.
  */
 export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
   origin: BuildOrigin,
 ): Promise<FrameNode> {
-  return await withDocPageBuildLock(
-    { sourceId: source.id, sourceName: source.name, origin },
-    () => buildDocPageUnguarded(source, spec),
+  const locked = () =>
+    withDocPageBuildLock(
+      { sourceId: source.id, sourceName: source.name, origin },
+      () => buildDocPageUnguarded(source, spec),
+    );
+
+  // An agent build already holds the Operation slot: `dispatch` claimed it
+  // before it ever called the handler, so claiming it again here would refuse
+  // the very run that is holding it. A panel build has no such claim, and that
+  // was the hole - it wrote to the document while the registry believed
+  // nothing was running, so an agent Operation arriving mid-build was admitted
+  // and the two interleaved their edits.
+  //
+  // Claimed here rather than in `logic.ts` so the route cannot forget: the
+  // panel button is one call site today, but "remember to take the slot first"
+  // is the kind of instruction that survives exactly as long as the person who
+  // wrote it. The lock below is nested inside deliberately - the slot answers
+  // the broader question ("is anything running at all"), so it is the one worth
+  // failing on first.
+  if (origin === "agent") return await locked();
+
+  return await withOperationSlot(
+    {
+      operation: "tidy_doc_build_page",
+      requestId: `panel_${Date.now().toString(36)}`,
+    },
+    locked,
   );
 }
 

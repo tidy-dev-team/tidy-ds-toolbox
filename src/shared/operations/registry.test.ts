@@ -10,6 +10,7 @@ import {
   bindSession,
   runningOperation,
   requestCancellation,
+  withOperationSlot,
 } from "./registry";
 import type { BridgeResponse, OperationSpec } from "./types";
 import { yieldToMain } from "../cancellation";
@@ -329,5 +330,124 @@ describe("asking a running Operation to stop", () => {
 
     first.finish();
     await running;
+  });
+});
+
+// The slot is claimable from routes that never touch `dispatch` (#186).
+//
+// The panel's Document button reaches `buildDocPage` through the module-action
+// path. Before this, that build wrote to the document while the registry
+// believed nothing was running, so an agent Operation arriving mid-build was
+// admitted and the two interleaved their edits to one file. These cover the
+// claim from the other side: a non-Bridge caller can hold the slot, and a
+// Bridge call is refused for as long as it does.
+//
+// Every test that parks a run in the slot releases it in a `finally`. A failed
+// assertion would otherwise leave the slot held for the rest of the file and
+// turn one red test into every red test after it.
+describe("withOperationSlot", () => {
+  /** Holds the slot for the body, and always gives it back. */
+  async function whileHolding(
+    requestId: string,
+    body: () => Promise<void>,
+  ): Promise<void> {
+    const panel = blockingHandler();
+    const held = withOperationSlot(
+      { operation: "tidy_doc_build_page", requestId },
+      panel.handler,
+    );
+    try {
+      await body();
+    } finally {
+      panel.finish();
+      await held;
+    }
+  }
+
+  it("makes a non-Bridge run visible to the guard", async () => {
+    expect(runningOperation()).toBeNull();
+
+    await whileHolding("panel_test_1", async () => {
+      expect(runningOperation()).toEqual({
+        operation: "tidy_doc_build_page",
+        requestId: "panel_test_1",
+      });
+    });
+
+    expect(runningOperation()).toBeNull();
+  });
+
+  it("refuses a Bridge Operation while a panel run holds the slot", async () => {
+    registerOperation(spec("test_agent_during_panel"), async () => "ran");
+
+    await whileHolding("panel_test_2", async () => {
+      const refused = await dispatch({
+        type: "dispatch",
+        id: "req_during_panel",
+        operation: "test_agent_during_panel",
+        params: {},
+      });
+
+      expect(errorOf(refused).code).toBe("BUSY");
+      expect(errorOf(refused).details).toMatchObject({
+        runningOperation: "tidy_doc_build_page",
+        runningRequestId: "panel_test_2",
+      });
+    });
+  });
+
+  // The refusal path must not free a slot it never took. `dispatch` used to
+  // clear RUNNING in a `finally` that also ran when it was refused, which would
+  // hand the plugin to the second caller at the exact moment the guard worked.
+  it("leaves the slot held when it refuses a second caller", async () => {
+    registerOperation(spec("test_refusal_keeps_slot"), async () => "ran");
+
+    await whileHolding("panel_test_3", async () => {
+      await dispatch({
+        type: "dispatch",
+        id: "req_refused",
+        operation: "test_refusal_keeps_slot",
+        params: {},
+      });
+
+      // Still the panel run's, not cleared by the refusal it just caused.
+      expect(runningOperation()).toEqual({
+        operation: "tidy_doc_build_page",
+        requestId: "panel_test_3",
+      });
+    });
+  });
+
+  it("frees the slot when the run throws", async () => {
+    await expect(
+      withOperationSlot(
+        { operation: "tidy_doc_build_page", requestId: "panel_test_4" },
+        async () => {
+          throw new Error("section builder blew up");
+        },
+      ),
+    ).rejects.toThrow("section builder blew up");
+
+    expect(runningOperation()).toBeNull();
+  });
+
+  it("refuses a second non-Bridge run too", async () => {
+    await whileHolding("panel_test_5", async () => {
+      await expect(
+        withOperationSlot(
+          { operation: "tidy_doc_build_page", requestId: "panel_test_6" },
+          async () => "second",
+        ),
+      ).rejects.toMatchObject({ code: "BUSY" });
+    });
+  });
+
+  // A panel run does not declare a cancellation checkpoint, so asking it to
+  // stop must say so rather than claim a stop it cannot make.
+  it("reports a panel run as not cancellable", async () => {
+    await whileHolding("panel_test_7", async () => {
+      const result = await requestCancellation("panel_test_7");
+      expect(result.status).toBe("not_cancellable");
+    });
   });
 });

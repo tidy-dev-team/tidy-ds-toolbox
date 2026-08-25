@@ -90,10 +90,18 @@ Layout:
   The guard is global rather than per-target, and that is the whole point - the QA probes' stray-node sweep is page-scoped, so two runs against *different* components collide exactly as readily as two against the same one, and a per-target key would let through the case the guard exists to stop.
   Refused rather than queued because a queued call would wait behind a run that can last two minutes while its own Bridge budget expires, turning a fast honest refusal into the slow timeout #182 has just finished rewording.
   The slot is freed in a `finally`, on every path out of a run, because one leak locks the plugin out of Operations for the rest of the session.
-  This guard covers the agent-facing path only, and it is not the only one (#187).
-  The Documentation Page builder keeps its own lock in `src/plugins/tidy-doc/utils/buildLock.ts`, keyed by source component, because the panel's Document button reaches that builder through the module-action path and never passes through `dispatch` at all.
-  The two answer different questions - the registry "is another Operation running", the lock "is this page already being built" - and both may legitimately refuse the same call, so neither is redundant and deleting the lock as duplicated work reopens the designer-versus-agent collision it exists to stop.
-  The lock is keyed by component rather than global because, unlike the QA probe sweep, two Documentation Page builds share no page state; its refusal names the route holding the key (`agent` or `panel`) so a designer who clicked nothing can tell what to wait for.
+  The slot is claimed through `withOperationSlot`, which is its only writer; `dispatch` is a caller of it like any other route rather than a second place that sets it.
+  That matters because the guard used to cover the agent-facing path only, and silently did not deliver what #186 promised.
+  The panel's Document button reaches the Documentation Page builder through the module-action path and never passes through `dispatch`, so a panel build wrote to the document while the registry believed nothing was running, and an agent Operation arriving mid-build was admitted to interleave its edits with it.
+  `buildDocPage` now claims the slot itself when `origin` is `"panel"`, and skips claiming when it is `"agent"` because `dispatch` already holds it.
+  It is claimed inside the builder rather than at the panel's call site so the route cannot forget to.
+  It is still not the only guard (#187).
+  The builder keeps its own lock in `src/plugins/tidy-doc/utils/buildLock.ts`, keyed by source component.
+  The two answer different questions - the registry "is another Operation running", the lock "is this page already being built" - and the lock is keyed by component rather than global because, unlike the QA probe sweep, two Documentation Page builds share no page state.
+  **The lock is, as of the slot-parity change above, unreachable, and it is the next thing to remove rather than something to build on.**
+  Both routes into `buildDocPage` now hold the global slot before the lock is consulted, so no second build can get far enough to be refused by it and the slot's refusal always lands first.
+  It is left in place only because removing it is a separate change from closing the hole, not because it still earns its keep; the one thing genuinely lost with it is its refusal wording, which names the component and the holding route (`agent` or `panel`) where the slot's names the Operation id.
+  Move that wording onto the slot's refusal before deleting the lock, or a designer who clicked nothing loses the only message that tells them what to wait for.
   The Bridge can ask a run to stop, and gets a truthful answer about whether asking achieved anything (#183).
   `requestCancellation(requestId)` lives on the same `RUNNING` record as the guard above, not in a second in-flight map, because two structures tracking one run would eventually disagree about whether there is anything left to stop.
   It answers one of four things, and only one of them is a successful stop: `not_running` (the reply and the timeout crossed, which is normal and not an error), `not_cancellable`, `stopped`, or `still_running`.
