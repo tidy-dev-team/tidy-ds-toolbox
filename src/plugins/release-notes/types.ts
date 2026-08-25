@@ -17,6 +17,15 @@ export interface ComponentsPayload {
 }
 
 /**
+ * What the panel needs about the stored component on open: enough to label the
+ * picker, and nothing that costs a document walk to find out. `null` means
+ * there is no usable pointer, which reads the same as never having chosen one.
+ */
+export interface SelectedComponentPayload {
+  component: ComponentInfo | null;
+}
+
+/**
  * How this file's cards are drawn: one font family, one background colour.
  *
  * Stored per file rather than per designer, because a card is a shared artifact
@@ -181,6 +190,7 @@ export interface FileContext {
 
 export type ReleaseNotesAction =
   | "scan-components"
+  | "load-selected-component"
   | "select-component"
   | "load-appearance"
   | "set-appearance"

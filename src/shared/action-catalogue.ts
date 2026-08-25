@@ -275,6 +275,14 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     effect: "reads",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
+  "release-notes:load-selected-component": {
+    // A stored id and one node lookup. This is the action the panel opens with,
+    // and it is cheap on purpose - see getSelectedComponentPayload. A dangling
+    // pointer is reported, never rewritten, so it stays a read in fact as well
+    // as in name.
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
   "release-notes:select-component": {
     effect: "writes",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },

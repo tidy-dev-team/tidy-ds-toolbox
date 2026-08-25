@@ -23,6 +23,7 @@ import type {
   FoundationPageInfo,
   FoundationPageSource,
   FoundationPagesPayload,
+  SelectedComponentPayload,
   PublishResult,
   Sprint,
   SprintsPayload,
@@ -237,6 +238,18 @@ export function ReleaseNotesUI() {
     null,
   );
   const [componentSearchValue, setComponentSearchValue] = useState<string>("");
+  // The picker's list is scanned on first use, not on open. `null` is "not
+  // asked for yet", which is what lets the input say so instead of claiming the
+  // file has no components in it.
+  const [componentsScan, setComponentsScan] = useState<
+    "idle" | "scanning" | "done"
+  >("idle");
+  // The component this file was last working on, resolved on open without a
+  // scan. Held apart from `components` because that list is empty until the
+  // picker is first used, and the selection has to survive that gap: it is what
+  // "Add note" needs to know there is a subject.
+  const [restoredComponent, setRestoredComponent] =
+    useState<ComponentInfo | null>(null);
 
   // ===================
   // Foundation State
@@ -320,10 +333,19 @@ export function ReleaseNotesUI() {
     [sprints, selectedSprintId],
   );
 
-  const selectedComponent = useMemo(
-    () => components.find((component) => component.id === selectedComponentId),
-    [components, selectedComponentId],
-  );
+  // The scanned list is authoritative once it exists, because it carries the
+  // current name. Before it does, the pointer resolved on open stands in, so
+  // the panel opens with a usable subject instead of one that appears only
+  // after the user touches the picker.
+  const selectedComponent = useMemo(() => {
+    const fromScan = components.find(
+      (component) => component.id === selectedComponentId,
+    );
+    if (fromScan) return fromScan;
+    return restoredComponent?.id === selectedComponentId
+      ? restoredComponent
+      : undefined;
+  }, [components, selectedComponentId, restoredComponent]);
 
   const currentSprintNotes = useMemo(() => {
     if (!selectedSprint) return [];
@@ -424,25 +446,31 @@ export function ReleaseNotesUI() {
 
     window.addEventListener("message", handleMessage);
 
-    // Load data on startup. The component list is scanned rather than restored,
-    // so it can never describe the file as an older build saw it.
+    // Load data on startup. Note what this does NOT do: scan the file.
+    //
+    // It used to open with "scan-components", a whole-document walk on the
+    // plugin thread, and that walk is what made opening the panel freeze Figma
+    // for seconds on a large file - the thread that runs it is the one that
+    // draws the UI and answers the Bridge, so nothing else moved until it
+    // finished. The list it fetched was not needed yet either: it fills a
+    // picker the user has not opened.
+    //
+    // So the open path asks only for the stored component, which is one node
+    // lookup, and the walk moves to the first use of the picker
+    // (`ensureComponentsScanned`). The list is still scanned rather than
+    // cached, so it can never describe the file as an older build saw it -
+    // that rule is unchanged, only its timing is.
     sendRequest(
-      "scan-components",
+      "load-selected-component",
       {},
       {
         onSuccess: (result) => {
-          const payload = result as ComponentsPayload;
-          setComponents(payload.components);
-          setSelectedComponentId(payload.lastSelectedComponentId);
-          if (payload.lastSelectedComponentId) {
-            const selected = payload.components.find(
-              (component) => component.id === payload.lastSelectedComponentId,
-            );
-            if (selected) {
-              setComponentSearchValue(selected.name);
-              setSubjectKind((current) => current ?? "component-set");
-            }
-          }
+          const { component } = result as SelectedComponentPayload;
+          if (!component) return;
+          setRestoredComponent(component);
+          setSelectedComponentId(component.id);
+          setComponentSearchValue(component.name);
+          setSubjectKind((current) => current ?? "component-set");
         },
       },
     );
@@ -571,29 +599,64 @@ export function ReleaseNotesUI() {
   // ===================
   // Component Set Handlers
   // ===================
-  const handleScanComponents = useCallback(() => {
-    sendRequest(
-      "scan-components",
-      {},
-      {
-        onSuccess: (result) => {
-          const payload = result as ComponentsPayload;
-          setComponents(payload.components);
-          setSelectedComponentId(payload.lastSelectedComponentId);
-          if (payload.lastSelectedComponentId) {
-            const selected = payload.components.find(
-              (component) => component.id === payload.lastSelectedComponentId,
-            );
-            if (selected) {
-              setComponentSearchValue(selected.name);
+  /**
+   * Scan the file for the picker's list.
+   *
+   * This is the expensive call in this panel - a whole-document walk on the
+   * plugin thread, which freezes Figma for its duration on a large file. It is
+   * kept out of the open path and run when the list is actually wanted, so the
+   * cost lands on someone who has asked for it and is looking at a spinner.
+   *
+   * `announce` separates the two callers: the refresh button reports what it
+   * found, the picker opening itself does not, because a status line nobody
+   * asked for reads as an error when it says "Found 0".
+   */
+  const runComponentScan = useCallback(
+    ({ announce }: { announce: boolean }) => {
+      setComponentsScan("scanning");
+      sendRequest(
+        "scan-components",
+        {},
+        {
+          onSuccess: (result) => {
+            const payload = result as ComponentsPayload;
+            setComponents(payload.components);
+            setSelectedComponentId(payload.lastSelectedComponentId);
+            if (payload.lastSelectedComponentId) {
+              const selected = payload.components.find(
+                (component) => component.id === payload.lastSelectedComponentId,
+              );
+              if (selected) {
+                setComponentSearchValue(selected.name);
+              }
             }
-          }
-          setStatusMessage(`Found ${payload.components.length} components`);
+            if (announce) {
+              setStatusMessage(`Found ${payload.components.length} components`);
+            }
+          },
+          onError: (error) => setErrorMessage(error),
+          onFinally: () => setComponentsScan("done"),
         },
-        onError: (error) => setErrorMessage(error),
-      },
-    );
-  }, [sendRequest]);
+      );
+    },
+    [sendRequest],
+  );
+
+  /** The refresh button: always rescans, and says what it found. */
+  const handleScanComponents = useCallback(
+    () => runComponentScan({ announce: true }),
+    [runComponentScan],
+  );
+
+  /**
+   * The picker's first use. Idempotent, so focusing the input repeatedly does
+   * not queue a second walk behind the first - and a rescan after that is the
+   * refresh button's job, which is the one the user can see.
+   */
+  const ensureComponentsScanned = useCallback(() => {
+    if (componentsScan !== "idle") return;
+    runComponentScan({ announce: false });
+  }, [componentsScan, runComponentScan]);
 
   const handleComponentSelect = useCallback(
     (id: string | null) => {
@@ -1423,37 +1486,53 @@ export function ReleaseNotesUI() {
             <IconRefresh size={16} />
           </button>
 
-          {components.length > 0 && (
-            <>
-              <div style={{ fontSize: "12px", opacity: 0.6 }}>
-                Found {components.length} component(s)
-              </div>
-              <input
-                type="text"
-                value={componentSearchValue}
-                onChange={(e) => handleComponentSearch(e.target.value)}
-                placeholder="Search component..."
-                style={inputStyle}
-                list="component-options"
-              />
-              <datalist id="component-options">
-                {filteredComponents.map((component) => (
-                  <option key={component.id} value={component.name} />
-                ))}
-              </datalist>
-              {selectedComponentId && (
-                <button
-                  onClick={() => handleComponentSelect(null)}
-                  className="secondary win-button"
-                ></button>
-              )}
-            </>
+          {/* The input is always here, because it is what triggers the scan.
+              Hiding it until a list existed was only possible while the panel
+              scanned on open; now the user has to be able to reach it first. */}
+          <input
+            type="text"
+            value={componentSearchValue}
+            onChange={(e) => handleComponentSearch(e.target.value)}
+            onFocus={ensureComponentsScanned}
+            placeholder={
+              componentsScan === "scanning"
+                ? "Scanning file..."
+                : "Search component..."
+            }
+            style={inputStyle}
+            list="component-options"
+          />
+          <datalist id="component-options">
+            {filteredComponents.map((component) => (
+              <option key={component.id} value={component.name} />
+            ))}
+          </datalist>
+
+          {componentsScan === "idle" && (
+            <div style={{ fontSize: "12px", opacity: 0.6 }}>
+              Click the box to search this file&rsquo;s components.
+            </div>
+          )}
+          {componentsScan === "scanning" && (
+            <div style={{ fontSize: "12px", opacity: 0.6 }}>
+              Scanning this file&rsquo;s components&hellip;
+            </div>
+          )}
+          {/* Only ever said once the scan has actually looked. Before that,
+              an empty list means "not asked yet", not "none here". */}
+          {componentsScan === "done" && (
+            <div style={{ fontSize: "12px", opacity: 0.6 }}>
+              {components.length > 0
+                ? `Found ${components.length} component(s)`
+                : "No components found in this file."}
+            </div>
           )}
 
-          {components.length === 0 && (
-            <div style={{ fontSize: "12px", opacity: 0.6 }}>
-              No components found. Click "Scan for new components" to search.
-            </div>
+          {selectedComponentId && (
+            <button
+              onClick={() => handleComponentSelect(null)}
+              className="secondary win-button"
+            ></button>
           )}
         </div>
       </Card>
