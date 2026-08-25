@@ -29,7 +29,9 @@ const sockets: WebSocket[] = [];
 /** Stands in for the plugin: connects, and answers with `reply`. */
 async function connectPlugin(
   port: number,
-  reply: (env: BridgeEnvelope) => BridgeResponse | BridgeCancelResult | undefined,
+  reply: (
+    env: BridgeEnvelope,
+  ) => BridgeResponse | BridgeCancelResult | undefined,
 ): Promise<WebSocket> {
   const ws = new WebSocket(`ws://127.0.0.1:${port}`);
   sockets.push(ws);
@@ -138,5 +140,45 @@ describe("BridgeServer cancellation (#183)", () => {
       .catch((e: BridgeError) => e);
 
     expect(err).toMatchObject({ code: "TIMEOUT" });
+  });
+});
+
+describe("BridgeServer handshake", () => {
+  // The tab route ADR-0005 believed was closed. `Origin` is a forbidden
+  // header, so a browser cannot omit or fake this one; refusing it at the
+  // handshake is what stops a page taking the single client slot.
+  it("refuses a handshake from a web page origin", async () => {
+    const port = await freePort();
+    const server = new BridgeServer("127.0.0.1", port);
+    await server.listen();
+
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+      origin: "https://example.com",
+    });
+    sockets.push(ws);
+    const outcome = await new Promise<string>((resolve) => {
+      ws.once("open", () => resolve("open"));
+      ws.once("error", (err) => resolve(err.message));
+    });
+
+    expect(outcome).not.toBe("open");
+    expect(server.connected).toBe(false);
+  });
+
+  it("accepts the plugin, which presents a figma origin", async () => {
+    const port = await freePort();
+    const server = new BridgeServer("127.0.0.1", port);
+    await server.listen();
+
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`, {
+      origin: "https://www.figma.com",
+    });
+    sockets.push(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once("open", () => resolve());
+      ws.once("error", reject);
+    });
+
+    expect(server.connected).toBe(true);
   });
 });
