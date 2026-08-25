@@ -4,14 +4,19 @@ import { SearchDropdown } from "./components/SearchDropdown";
 import { SearchableFeature } from "./shared/searchIndex";
 import { moduleRegistry } from "./moduleRegistry";
 import { ModuleManifest } from "@shared/types";
+import { openExternalLink } from "@shared/bridge";
 import "./App.css";
 import {
   IconArrowsMaximize,
+  IconHelpCircle,
   IconLayoutSidebar,
   IconLayoutSidebarFilled,
-  IconMessageCircle,
   IconRobot,
 } from "@tabler/icons-react";
+
+// The published documentation site. Opened through the main thread's
+// figma.openExternal, since anchors cannot navigate out of Figma's iframe.
+const DOCS_URL = "https://tidy-ds-toolbox-documentation.vercel.app/";
 
 function Navigation() {
   const { state, dispatch } = useShell();
@@ -145,16 +150,8 @@ function AppContent() {
     [dispatch],
   );
 
-  const handleFeedbackClick = () => {
-    parent.postMessage(
-      {
-        pluginMessage: {
-          type: "open-external-link",
-          url: "mailto:adir@wearekido.com?subject=Tidy DS Toolbox Feedback",
-        },
-      },
-      "*",
-    );
+  const handleDocsClick = () => {
+    openExternalLink(DOCS_URL);
   };
 
   // Scroll to focused feature when it changes
@@ -232,14 +229,15 @@ function AppContent() {
           <Navigation />
           <div className="spacer"></div>
           <button
-            className="nav-item"
-            aria-label="Feedback"
-            onClick={handleFeedbackClick}
+            className="nav-item docs-link"
+            aria-label="Documentation"
+            title={DOCS_URL}
+            onClick={handleDocsClick}
           >
             <span className="icon">
-              <IconMessageCircle size={20} stroke={1.5} />
+              <IconHelpCircle size={16} stroke={1.5} />
             </span>
-            <span className="label">Feedback</span>
+            <span className="label">Documentation</span>
           </button>
         </aside>
         <main className="viewport">

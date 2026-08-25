@@ -1,4 +1,8 @@
-import type { ComponentInfo, ComponentsPayload } from "../types";
+import type {
+  ComponentInfo,
+  ComponentsPayload,
+  SelectedComponentPayload,
+} from "../types";
 import { PLUGIN_NAMESPACE, LAST_COMPONENT_ID_KEY } from "./constants";
 
 export function getLastComponentId(figma: PluginAPI): string | null {
@@ -90,4 +94,32 @@ export function findParentPage(node: BaseNode): PageNode | null {
     current = current.parent;
   }
   return null;
+}
+
+/**
+ * The stored component pointer, resolved without scanning the file.
+ *
+ * The panel needs one thing on open: the name to show in the picker for the
+ * component this file was last working on. `scanComponents` can answer that,
+ * but it pays a whole-document walk to do it, and on a large file that walk is
+ * seconds of frozen plugin thread before anything is drawn (ADR-0013 names this
+ * as the cost legacy whole-document access defers to the first traversal).
+ * A stored id resolves in one lookup, so the open costs one.
+ *
+ * A pointer to a node that is gone, or to something that is no longer a
+ * component, answers `null` and is deliberately left in place rather than
+ * rewritten: `getComponentsPayload` heals it against the real list when the
+ * picker is opened, and healing it here - against no list - could only guess.
+ */
+export function getSelectedComponentPayload(
+  figma: PluginAPI,
+): SelectedComponentPayload {
+  const id = getLastComponentId(figma);
+  if (!id) return { component: null };
+
+  const node = figma.getNodeById(id);
+  if (!node || (node.type !== "COMPONENT_SET" && node.type !== "COMPONENT")) {
+    return { component: null };
+  }
+  return { component: { id: node.id, name: node.name } };
 }

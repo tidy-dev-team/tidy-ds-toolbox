@@ -24,6 +24,7 @@ import {
 import {
   scanComponents,
   getComponentsPayload,
+  getSelectedComponentPayload,
   setLastComponentId,
   findParentPage,
 } from "./utils/componentHelpers";
@@ -57,6 +58,14 @@ export async function releaseNotesHandler(
     case "scan-components": {
       const components = scanComponents(figma);
       return getComponentsPayload(figma, components);
+    }
+
+    // The panel's open path. Deliberately not "scan-components": the picker's
+    // list is only needed once the picker is opened, and paying for it here
+    // froze the plugin thread for the whole of a large file's walk before the
+    // panel drew anything.
+    case "load-selected-component": {
+      return getSelectedComponentPayload(figma);
     }
 
     case "select-component": {
