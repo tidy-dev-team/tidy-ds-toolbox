@@ -345,7 +345,37 @@ body:has(.sidebar.small-width) .viewport-content {
 }
 
 body:has(.sidebar.small) button.build-button,
-body:has(.sidebar.small-width) button.build-button {
+body:has(.sidebar.small-width) .nav-item.docs-link {
+  /* A quiet footer link, not a destination: it must not read as one of the
+     module tabs above it. */
+  /* Keeps the vertical icon column of the tabs above, so nothing shifts when
+     the sidebar collapses to icons. */
+  padding: var(--pixel-8) var(--pixel-12);
+  margin-bottom: 0;
+  color: var(--disabled-color);
+}
+
+.nav-item.docs-link:hover {
+  color: #6b7280;
+  background: transparent;
+  border-color: transparent;
+}
+
+.nav-item.docs-link:active {
+  background: transparent;
+}
+
+.nav-item.docs-link .icon {
+  width: 20px;
+  margin-right: var(--pixel-4);
+}
+
+.nav-item.docs-link .label {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+button.build-button {
   right: 32px;
 }
 
