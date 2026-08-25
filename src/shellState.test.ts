@@ -27,7 +27,10 @@ describe("shellReducer", () => {
     const actions = [
       { type: "SET_ACTIVE_MODULE", payload: "audit" },
       { type: "RESTORE_ACTIVE_MODULE", payload: "audit" },
-      { type: "SET_FEATURE_FOCUS", payload: { pluginId: "audit", section: null } },
+      {
+        type: "SET_FEATURE_FOCUS",
+        payload: { pluginId: "audit", section: null },
+      },
       { type: "CLEAR_FEATURE_FOCUS" },
       { type: "SET_WINDOW_SIZE", payload: RESIZED },
       { type: "ENTER_BRIDGE_MODE" },
@@ -97,9 +100,9 @@ describe("bridge mode", () => {
     const second = shellReducer(first, { type: "ENTER_BRIDGE_MODE" });
 
     expect(second.lastNormalSize).toEqual(RESIZED);
-    expect(shellReducer(second, { type: "EXIT_BRIDGE_MODE" }).windowSize).toEqual(
-      RESIZED,
-    );
+    expect(
+      shellReducer(second, { type: "EXIT_BRIDGE_MODE" }).windowSize,
+    ).toEqual(RESIZED);
   });
 
   it("a resize while in bridge mode is not remembered as the normal size", () => {
