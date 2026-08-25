@@ -22,7 +22,10 @@ Considered: TOFU (server binds to the first connection that lands, rejects other
   The cost is also higher than the line above implies: a tab that connects first takes the single client slot, so the plugin is closed with MULTI_CONNECT and the agent sees only `BRIDGE_DISCONNECTED`, and a tab that answers gets its forged `BridgeResponse` handed to the agent as tool output.
   Arbitrary text written into an agent's context by a web page is not the same risk as a local process the user already trusts, which is the risk the rest of this section weighs.
   The Bridge now refuses handshakes carrying a browser origin (`mcp-server/src/origin-policy.ts`), which is a check rather than a credential: `Origin` is a forbidden header, so page JavaScript can neither set nor remove it, and the browser stamps it on every handshake it makes.
-  That closes the tab route without asking the plugin to hold a secret it has no way to store, and without narrowing the local-process access the first bullet deliberately accepts.
+  That raises the tab route from "any page, by accident" to "a page that sets out to do it", without asking the plugin to hold a secret the sandbox gives it nowhere to store, and without narrowing the local-process access the first bullet deliberately accepts.
+  It is deliberately not a closure, and the gap is named rather than left to be discovered: the plugin UI iframe presents the opaque `null` origin, so `null` has to be allowed, and a page can reach `null` by sandboxing an iframe of its own and dialling from there.
+  Allowing it is the choice between a check that a determined page can step around and no check at all, since refusing `null` refuses the only client that matters.
+  The same constructor caps `maxPayload` at 32 MB, down from ws's 100 MB default, and it belongs in this model rather than only in the code: an unauthenticated socket that any local process may open is a socket that decides how much of the server's memory a sender may spend, and the largest honest frame is a rendered PNG measured in megabytes.
   The decision this ADR records is therefore unchanged: the Bridge is still unauthenticated, and any local process can still impersonate the plugin.
 
 ## What "destructive" means here

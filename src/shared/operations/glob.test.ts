@@ -71,15 +71,29 @@ describe("globToMatcher", () => {
     expect(m.test("xbyaz")).toBe(false);
   });
 
+  // A newline is a character like any other. The RegExp this replaced joined
+  // the segments with `.*`, and `.` does not cross a newline, so this name was
+  // unmatchable by any pattern - an implementation detail leaking into the
+  // dialect, since Figma node names can contain newlines.
+  it("lets a wildcard span a newline", () => {
+    expect(globToMatcher("Icon/*").test("Icon/a\nb")).toBe(true);
+    expect(globToMatcher("*a*b*").test("x\na\nb\n")).toBe(true);
+    expect(globToMatcher("Icon/*").test("Other/a\nb")).toBe(false);
+  });
+
   // The regression this matcher exists for. The RegExp it replaced joined the
-  // segments with `.*`, and this pattern against this name backtracked for
-  // nearly two minutes on the plugin thread - per candidate name in the file.
-  // The bound is deliberately loose: the point is linear, not a benchmark.
+  // segments with `.*`, and 22 wildcards against a non-matching name backtracked
+  // for 111 seconds on the plugin thread - per candidate name in the file.
+  //
+  // No wall-clock assertion: a timing bound is a flaky test on a loaded CI box,
+  // and it is not needed to catch this. The count is set where the two
+  // implementations are not near each other but astronomically apart - a scan
+  // finishes in microseconds, while backtracking this pattern outlives the
+  // suite - so the guard is that the test returns at all, and a regression
+  // fails it by timing out rather than by missing a threshold.
   it("rejects a many-wildcard pattern without backtracking", () => {
-    const pattern = "*" + "a*".repeat(22) + "b";
-    const name = "Button/" + "a".repeat(60);
-    const started = Date.now();
+    const pattern = "*" + "a*".repeat(40) + "b";
+    const name = "Button/" + "a".repeat(120);
     expect(globToMatcher(pattern).test(name)).toBe(false);
-    expect(Date.now() - started).toBeLessThan(1_000);
   });
 });

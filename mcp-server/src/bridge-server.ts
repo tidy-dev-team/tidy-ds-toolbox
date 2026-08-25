@@ -147,7 +147,11 @@ export class BridgeServer {
         // rather than in `onConnection` is what makes the refusal cost the
         // caller a 401 instead of the single client slot: a page rejected
         // after connecting has already displaced whoever held it.
-        verifyClient: ({ origin }: { origin: string }) => {
+        // `origin` is typed optional against ws's own `string`, because the
+        // header genuinely can be absent and the policy has a deliberate answer
+        // for that case. Narrowing it here would make this file and
+        // `origin-policy.ts` disagree about the domain concept.
+        verifyClient: ({ origin }: { origin: string | undefined }) => {
           if (!isAllowedBridgeOrigin(origin)) {
             this.log(describeRefusedOrigin(origin));
             return false;

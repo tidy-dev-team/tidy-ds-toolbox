@@ -15,8 +15,16 @@
 // one that draws the UI and answers the Bridge, so there was no way out of it.
 // A `*`-only glob does not need a backtracking engine: the segments between the
 // wildcards are literals, and leftmost-first `indexOf` is both linear and
-// exactly as correct, because a segment matched earlier never rules out a match
-// that a later position would have allowed.
+// correct, because a segment matched earlier never rules out a match that a
+// later position would have allowed.
+//
+// One deliberate difference from the RegExp, found by fuzzing the two against
+// each other: `.` does not match a newline, so `Icon/*` used not to match
+// `Icon/a\nb`, while `*` now spans one like any other character. Figma node
+// names can contain newlines, so the old behaviour was a leak of the
+// implementation into the dialect - a name an agent can see in the file but
+// cannot write a pattern for. It is the only divergence, and it is a fix rather
+// than a cost, but it is a change in what the glob means and is pinned below.
 
 /**
  * A compiled glob. Shaped as `{ test }` so it reads at the call sites the way

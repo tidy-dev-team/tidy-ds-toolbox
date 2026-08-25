@@ -20,6 +20,12 @@ describe("isAllowedBridgeOrigin", () => {
     expect(isAllowedBridgeOrigin("file://")).toBe(true);
   });
 
+  // A `file:` origin carries no host. `startsWith("file://")` accepted one,
+  // which is the raw-string shape the figma tests below argue against.
+  it("refuses a file origin that carries a host", () => {
+    expect(isAllowedBridgeOrigin("file://x.evil.test")).toBe(false);
+  });
+
   it("allows figma.com and its subdomains over https", () => {
     expect(isAllowedBridgeOrigin("https://figma.com")).toBe(true);
     expect(isAllowedBridgeOrigin("https://www.figma.com")).toBe(true);
@@ -38,6 +44,8 @@ describe("isAllowedBridgeOrigin", () => {
     expect(
       isAllowedBridgeOrigin("https://evil.test/?x=https://figma.com"),
     ).toBe(false);
+    // Userinfo, where the host is what follows the `@`.
+    expect(isAllowedBridgeOrigin("https://figma.com@evil.test")).toBe(false);
   });
 
   it("refuses plain http on a figma host", () => {

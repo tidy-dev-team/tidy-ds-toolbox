@@ -26,55 +26,80 @@
 // no way to store, and without narrowing the local-process access the ADR
 // deliberately accepts.
 
-/**
- * Origins the plugin itself can present.
- *
- * The plugin UI is an iframe Figma serves; depending on host (desktop app or
- * browser) it presents a figma.com origin, the opaque `null` of a sandboxed
- * document, or a `file://` origin in the Electron app. All three are the
- * plugin, and all three are allowed.
- */
-const FIGMA_ORIGIN_SUFFIX = ".figma.com";
+/** The host the plugin UI is served from, and its subdomains. */
+const FIGMA_HOSTNAME = "figma.com";
 
-function isFigmaOrigin(origin: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(origin);
-  } catch {
-    return false;
-  }
+/**
+ * Whether a parsed origin is https on figma.com or a subdomain of it.
+ *
+ * Decided on `hostname` from a parsed URL, never on the raw string: a suffix
+ * test would accept `https://figma.com.evil.test`, and a substring test would
+ * accept a URL that merely mentions the host, like
+ * `https://evil.test/?x=https://figma.com`.
+ */
+function isFigmaOrigin(url: URL): boolean {
   if (url.protocol !== "https:") return false;
   return (
-    url.hostname === "figma.com" || url.hostname.endsWith(FIGMA_ORIGIN_SUFFIX)
+    url.hostname === FIGMA_HOSTNAME ||
+    url.hostname.endsWith(`.${FIGMA_HOSTNAME}`)
   );
 }
 
 /**
  * Whether a handshake carrying this `Origin` may open the Bridge.
  *
- * `undefined` means the header was absent, which is allowed: a non-browser
- * client (the smoketest's `ws` client, a script, any local process) sends none,
- * and those are exactly the callers ADR-0005 accepts. A browser never omits it,
- * so allowing the absent case does not reopen the tab route.
+ * The four cases below are the ones the plugin itself can present. The plugin
+ * UI is an iframe Figma serves, so depending on host it arrives with a
+ * figma.com origin, with the opaque `null` of a sandboxed document, with a
+ * `file://` origin under the Electron app, or with no header at all. Everything
+ * else is a browser saying truthfully that it is a web page, and is refused.
  *
- * The literal string `"null"` is allowed for the same reason it appears at all:
- * a sandboxed document has an opaque origin, which serializes to `null`, and
- * the plugin UI iframe is one. This is the one place the policy is looser than
- * it looks, because a page can reach `null` by sandboxing an iframe of its own.
- * It is still worth having: it costs an attacker a deliberate step, and the
- * alternative is refusing the plugin, which is the only client that matters.
+ * An absent header is allowed because a non-browser client (the smoketest's
+ * `ws` client, a script, any local process) sends none, and those are exactly
+ * the callers ADR-0005 accepts. A browser never omits it, so allowing the
+ * absent case does not reopen the tab route.
+ *
+ * `"null"` is where this policy is looser than it looks, and the ADR amendment
+ * says so rather than claiming a closure: a sandboxed document has an opaque
+ * origin, which serializes to `null`, and a page can reach `null` by sandboxing
+ * an iframe of its own and dialling from there. Allowing it is the choice
+ * between a check a determined page can step around and no check at all, since
+ * refusing `null` refuses the only client that matters.
  */
 export function isAllowedBridgeOrigin(origin: string | undefined): boolean {
   if (origin === undefined || origin === "") return true;
   if (origin === "null") return true;
-  if (origin.startsWith("file://")) return true;
-  return isFigmaOrigin(origin);
+
+  // Parsed once, and every remaining case decided from the parse. The earlier
+  // version tested `file://` with `startsWith` on the raw string, which is the
+  // shape the comment above argues against - `file://x.evil.test` passed it -
+  // and two halves of one policy deciding by different means is how they come
+  // to disagree.
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  // A `file:` origin carries no host - that is what makes it the origin of a
+  // local document rather than of somewhere. `file://x.evil.test` has one, and
+  // is refused for the same reason the figma test reads `hostname`.
+  if (url.protocol === "file:") return url.hostname === "";
+  return isFigmaOrigin(url);
 }
 
-/** What the log says about a refusal. Kept here so the reason is stated once. */
-export function describeRefusedOrigin(origin: string): string {
+/**
+ * What the log says about a refusal. Kept here so the reason is stated once.
+ *
+ * Takes the same `string | undefined` the policy takes, so a caller holding one
+ * unnarrowed value can pass it to both. An absent header is always allowed, so
+ * the fallback wording describes a case that cannot arrive rather than a case
+ * worth handling - which is cheaper than the two functions disagreeing about
+ * what an origin is.
+ */
+export function describeRefusedOrigin(origin: string | undefined): string {
   return (
-    `refusing a connection from origin ${origin} - the Bridge accepts the ` +
+    `refusing a connection from origin ${origin ?? "(absent)"} - the Bridge accepts the ` +
     `Figma plugin, not a web page. A page that can reach this socket can read ` +
     `Operation parameters and forge Operation results.`
   );
