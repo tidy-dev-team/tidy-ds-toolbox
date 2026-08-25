@@ -10,7 +10,7 @@
 // default variant to measure what breaks. Both are the ADR-0001 carve-out.
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
-import { globToRegex } from "../../shared/operations/glob";
+import { globToMatcher } from "../../shared/operations/glob";
 import { registerOperation } from "../../shared/operations/registry";
 import { prepareSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
@@ -137,7 +137,7 @@ async function resolveTarget(params: QaRunParams): Promise<ResolvedTarget> {
   }
 
   // name / glob path
-  const pattern = globToRegex(params.name);
+  const pattern = globToMatcher(params.name);
   await figma.loadAllPagesAsync();
   const candidates = figma.root.findAllWithCriteria({
     types: ["COMPONENT", "COMPONENT_SET"],
