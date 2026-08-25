@@ -150,6 +150,13 @@ The one piece of external data is #8's approved-asset manifest: `src/plugins/qa/
   A `query` gets a plain failure, because a read that stopped being waited on changed nothing.
   Both keep the unfocused-window explanation below, which is a real cause of these timeouts.
   A newly declared Operation is worded correctly with no edit here.
+  Who may open the socket at all is decided in `mcp-server/src/origin-policy.ts`, again a pure function with `bridge-server.ts` as its only caller.
+  ADR-0005 leaves the Bridge unauthenticated and that stands; what this answers is the one caller that cannot lie about who it is.
+  A WebSocket handshake is exempt from the same-origin policy, so any page the developer has open can dial `ws://localhost:9876` - and `Origin` is a forbidden header, so page JavaScript can neither set nor remove the one thing that gives it away.
+  The check therefore refuses browser origins and allows the plugin's (absent, `null`, `file://`, https on figma.com), which closes the tab route without asking the plugin to hold a secret the sandbox gives it nowhere to store.
+  It runs in `verifyClient`, before a socket exists, so a refused page costs itself a 401 rather than costing the plugin the single client slot.
+  An accepted origin that has one is logged, because if Figma ever serves the plugin UI from an origin this policy does not know, the refusal is the symptom and that line is the only diagnosis.
+  The same constructor caps `maxPayload`, for the reason the origin check exists: the socket is unauthenticated, so ws's 100 MB default is a sender's licence to spend this process's memory.
 - `claude-plugin/` — canonical source of the **Claude Code plugin** (`.claude-plugin/plugin.json`, `commands/tidy-*.md`, `skills/`). `npm run build:plugin` bundles the MCP server into it and assembles an installable, marketplace-rooted tree under `dist-plugin/` (version synced from the root `package.json`). The `/tidy-*` commands live here (not in `.claude/commands/`); see `docs/plugin-dev.md` for the local-install dogfood loop. Tools from the plugin-bundled server are namespaced `mcp__plugin_tidy-ds_tidy-ds-toolbox__<op>`.
 
 Production builds keep the dev WebSocket bridge disabled: the dev socket (`ws://localhost:9876`) is allow-listed only under `devAllowedDomains`, never `allowedDomains`. (`allowedDomains` now holds the single usage-analytics ingest origin — see below.) Adding a new Operation: implement and register in the module's `operations.ts`, declare it in `mcp-server/src/catalogue.ts` (Zod input schema + summary), rebuild, reload the plugin in Figma.

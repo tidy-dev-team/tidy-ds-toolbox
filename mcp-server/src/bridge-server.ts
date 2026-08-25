@@ -19,6 +19,10 @@ import type {
 } from "../../src/shared/operations/types.ts";
 import { buildTimeoutMessage } from "./timeout-message.ts";
 import {
+  describeRefusedOrigin,
+  isAllowedBridgeOrigin,
+} from "./origin-policy.ts";
+import {
   SERVER_VERSION,
   describeVersionMatch,
   versionSkewNote,
@@ -55,9 +59,7 @@ interface Pending {
  * is a real discriminated union (#183); this direction is a report told apart
  * from an answer, which is all it needs to be.
  */
-function isCancelResult(
-  msg: PluginFrame,
-): msg is BridgeCancelResult {
+function isCancelResult(msg: PluginFrame): msg is BridgeCancelResult {
   return (msg as BridgeCancelResult).type === "cancel_result";
 }
 
@@ -79,6 +81,18 @@ type PluginFrame = BridgeResponse | BridgeCancelResult | BridgeHello;
 /** Exported so the UI-side backstop can be held above every budget here. */
 export const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const WAIT_FOR_CLIENT_MS = 15_000;
+
+/**
+ * Largest frame the Bridge will accept, replacing `ws`'s 100 MB default.
+ *
+ * Held well above anything the plugin sends and well below "as much memory as
+ * the sender feels like spending": the biggest real frames are the rendered
+ * PNGs an image-returning Operation answers with, which are megabytes, not tens
+ * of them. A frame over the cap closes the socket rather than being buffered,
+ * and the plugin reconnects, so the cost of setting this too low is a visible
+ * reconnect loop rather than a silently truncated answer.
+ */
+const MAX_FRAME_BYTES = 32 * 1024 * 1024;
 
 export class BridgeServer {
   private client: WebSocket | null = null;
@@ -125,7 +139,32 @@ export class BridgeServer {
 
   async listen(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const wss = new WebSocketServer({ host: this.host, port: this.port });
+      const wss = new WebSocketServer({
+        host: this.host,
+        port: this.port,
+        maxPayload: MAX_FRAME_BYTES,
+        // Refused at the handshake, before a socket exists. Doing it here
+        // rather than in `onConnection` is what makes the refusal cost the
+        // caller a 401 instead of the single client slot: a page rejected
+        // after connecting has already displaced whoever held it.
+        // `origin` is typed optional against ws's own `string`, because the
+        // header genuinely can be absent and the policy has a deliberate answer
+        // for that case. Narrowing it here would make this file and
+        // `origin-policy.ts` disagree about the domain concept.
+        verifyClient: ({ origin }: { origin: string | undefined }) => {
+          if (!isAllowedBridgeOrigin(origin)) {
+            this.log(describeRefusedOrigin(origin));
+            return false;
+          }
+          // Said out loud on the way in, and only when there is something to
+          // say. If Figma ever serves the plugin UI from an origin this policy
+          // does not know, the refusal above is the symptom and this line is
+          // the diagnosis - without it, "the plugin stopped connecting" and
+          // "the plugin is not running" look the same from here.
+          if (origin) this.log(`handshake from origin ${origin}`);
+          return true;
+        },
+      });
       const onListening = () => {
         wss.off("error", onError);
         wss.on("connection", (ws) => this.onConnection(ws));
@@ -341,7 +380,9 @@ export class BridgeServer {
         this.log(`${what} was asked to stop and had not stopped yet`);
         return;
       default:
-        this.log(`${what} was asked to stop; the plugin did not say what happened`);
+        this.log(
+          `${what} was asked to stop; the plugin did not say what happened`,
+        );
     }
   }
 

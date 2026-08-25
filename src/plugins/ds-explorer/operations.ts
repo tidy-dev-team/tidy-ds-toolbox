@@ -2,7 +2,7 @@
 // Operation registry at module load (via src/shared/operations/register-all.ts).
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
-import { globToRegex } from "../../shared/operations/glob";
+import { globToMatcher } from "../../shared/operations/glob";
 import { registerOperation } from "../../shared/operations/registry";
 import { componentRegistry, getAllComponentNames } from "./utils/componentData";
 import {
@@ -37,7 +37,9 @@ registerOperation<ListComponentsParams, ListComponentsResult>(
   },
   async (params) => {
     const all = Object.values(componentRegistry);
-    const pattern = params.namePattern ? globToRegex(params.namePattern) : null;
+    const pattern = params.namePattern
+      ? globToMatcher(params.namePattern)
+      : null;
     const matches = pattern ? all.filter((c) => pattern.test(c.name)) : all;
     return {
       components: matches.map((c) => ({

@@ -24,7 +24,7 @@ import {
   ErrorCode,
   OperationError,
 } from "../../../shared/operations/errors.ts";
-import { globToRegex } from "../../../shared/operations/glob.ts";
+import { globToMatcher } from "../../../shared/operations/glob.ts";
 
 /** Default cap, chosen to stay inside the MCP output ceiling at ~95 chars/row. */
 export const DEFAULT_FIND_LIMIT = 200;
@@ -76,7 +76,9 @@ export function selectComponents(
 ): SelectComponentsResult {
   const limit = resolveLimit(options.limit);
 
-  const pattern = options.namePattern ? globToRegex(options.namePattern) : null;
+  const pattern = options.namePattern
+    ? globToMatcher(options.namePattern)
+    : null;
   const matches = pattern
     ? candidates.filter((c) => pattern.test(c.name))
     : candidates;
