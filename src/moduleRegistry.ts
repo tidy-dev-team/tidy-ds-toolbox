@@ -25,7 +25,6 @@ import { OffBoardingUI } from "./plugins/off-boarding/ui";
 import { IconFinderUI } from "./plugins/iconfinder/ui";
 import { TidyColorFinderUI } from "./plugins/color-finder/ui";
 import { TidyDocUI } from "./plugins/tidy-doc/ui";
-import { moduleHandlers } from "./moduleHandlers";
 
 export const moduleRegistry: ModuleRegistry = {
   "ds-explorer": {
@@ -34,7 +33,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconComponents,
     ui: DSExplorerUI,
-    handler: moduleHandlers["ds-explorer"],
     permissionRequirements: ["activeselection"],
     agentified: true,
     keywords: [
@@ -59,7 +57,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconTag,
     ui: ComponentLabelsUI,
-    handler: moduleHandlers["component-labels"],
     permissionRequirements: [],
     agentified: true,
     keywords: ["label", "annotation", "naming", "component"],
@@ -70,7 +67,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconIcons,
     ui: TidyIconCareUI,
-    handler: moduleHandlers["tidy-icon-care"],
     permissionRequirements: ["activeselection"],
     keywords: ["icon", "svg", "clean", "optimize", "tidy"],
   },
@@ -80,7 +76,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconSticker,
     ui: StickerSheetBuilderUI,
-    handler: moduleHandlers["sticker-sheet-builder"],
     permissionRequirements: ["activeselection"],
     keywords: ["sticker", "sheet", "build", "variants", "documentation"],
     features: [
@@ -98,7 +93,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconMap,
     ui: TidyMapperUI,
-    handler: moduleHandlers["tidy-mapper"],
     permissionRequirements: [],
     keywords: ["map", "mapping", "library", "swap", "migrate"],
   },
@@ -108,7 +102,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconTool,
     ui: UtilitiesUI,
-    handler: moduleHandlers.utilities,
     permissionRequirements: [],
     agentified: true,
     keywords: ["utility", "tools", "helper", "misc"],
@@ -164,7 +157,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconZoomCheck,
     ui: AuditUI,
-    handler: moduleHandlers.audit,
     permissionRequirements: ["activeselection"],
     keywords: ["audit", "check", "report", "analysis", "quality"],
     features: [
@@ -212,7 +204,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconFileText,
     ui: ReleaseNotesUI,
-    handler: moduleHandlers["release-notes"],
     permissionRequirements: [],
     keywords: ["release", "notes", "changelog", "version", "update"],
   },
@@ -222,7 +213,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconPackage,
     ui: OffBoardingUI,
-    handler: moduleHandlers["off-boarding"],
     permissionRequirements: [],
     keywords: [
       "pack",
@@ -258,7 +248,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconSearch,
     ui: IconFinderUI,
-    handler: moduleHandlers.iconfinder,
     permissionRequirements: ["activeselection"],
     keywords: ["icon", "find", "search", "identify", "match"],
     features: [
@@ -275,7 +264,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconPalette,
     ui: TidyColorFinderUI,
-    handler: moduleHandlers["color-finder"],
     permissionRequirements: ["activeselection"],
     keywords: [
       "color",
@@ -293,7 +281,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "alpha",
     icon: IconFileDescription,
     ui: TidyDocUI,
-    handler: moduleHandlers["tidy-doc"],
     permissionRequirements: ["activeselection"],
     agentified: true,
     keywords: ["documentation", "doc", "component", "generate", "variants"],

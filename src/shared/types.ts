@@ -60,7 +60,12 @@ export interface ModuleManifest {
   state: ModuleState;
   icon: React.ComponentType<any> | string;
   ui: React.ComponentType<any>;
-  handler: (action: string, payload: any, figma: any) => Promise<any>;
+  // No `handler` here, and do not add one. The manifest is read only by the UI,
+  // which reaches a module's backend over postMessage; the main thread resolves
+  // handlers itself through `moduleHandlers.ts`, keyed by the same id. Naming a
+  // handler here makes `moduleRegistry.ts` import `moduleHandlers.ts`, which
+  // pulls every module's `logic.ts`, every `operations.ts`, and the QA engine
+  // into the UI bundle - none of which the UI iframe can call.
   permissionRequirements: string[];
   settingsSchema?: any;
   keywords?: string[]; // Keywords for search

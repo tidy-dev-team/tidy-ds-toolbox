@@ -2,149 +2,20 @@ import React, {
   createContext,
   useContext,
   useReducer,
+  useRef,
+  useCallback,
   ReactNode,
   useEffect,
 } from "react";
-import { PluginID, ShellMessage } from "@shared/types";
+import { ShellMessage } from "@shared/types";
 import { postToFigma } from "@shared/bridge";
-import { RESIZE_BRIDGE, RESIZE_DEFAULT } from "@shared/resize";
-
-interface ShellState {
-  activeModule: PluginID;
-  featureFocus: string | null; // CSS selector for scrolling to a feature section
-  windowSize: { width: number; height: number };
-  bridgeMode: boolean;
-  lastNormalSize: { width: number; height: number };
-  theme: "light" | "dark";
-  settings: Record<string, unknown>;
-}
-
-type ShellAction =
-  | { type: "SET_ACTIVE_MODULE"; payload: PluginID }
-  | { type: "RESTORE_ACTIVE_MODULE"; payload: PluginID }
-  | {
-      type: "SET_FEATURE_FOCUS";
-      payload: { pluginId: PluginID; section: string | null };
-    }
-  | { type: "CLEAR_FEATURE_FOCUS" }
-  | { type: "SET_WINDOW_SIZE"; payload: { width: number; height: number } }
-  | { type: "ENTER_BRIDGE_MODE" }
-  | { type: "EXIT_BRIDGE_MODE" }
-  | { type: "RESTORE_BRIDGE_MODE"; payload: boolean }
-  | {
-      type: "RESTORE_LAST_NORMAL_SIZE";
-      payload: { width: number; height: number };
-    }
-  | { type: "SET_THEME"; payload: "light" | "dark" }
-  | { type: "UPDATE_SETTINGS"; payload: Record<string, unknown> };
-
-const initialState: ShellState = {
-  activeModule: "ds-explorer",
-  featureFocus: null,
-  windowSize: { ...RESIZE_DEFAULT },
-  bridgeMode: false,
-  lastNormalSize: { ...RESIZE_DEFAULT },
-  theme: "light",
-  settings: {},
-};
-
-function shellReducer(state: ShellState, action: ShellAction): ShellState {
-  switch (action.type) {
-    case "SET_ACTIVE_MODULE":
-      // Save to storage when module changes
-      postToFigma({
-        target: "shell",
-        action: "save-storage",
-        payload: { key: "activeModule", value: action.payload },
-      });
-      return { ...state, activeModule: action.payload, featureFocus: null };
-    case "RESTORE_ACTIVE_MODULE":
-      // Restore from storage without re-saving
-      return { ...state, activeModule: action.payload };
-    case "SET_FEATURE_FOCUS":
-      // Navigate to plugin and set section focus
-      postToFigma({
-        target: "shell",
-        action: "save-storage",
-        payload: { key: "activeModule", value: action.payload.pluginId },
-      });
-      return {
-        ...state,
-        activeModule: action.payload.pluginId,
-        featureFocus: action.payload.section,
-      };
-    case "CLEAR_FEATURE_FOCUS":
-      return { ...state, featureFocus: null };
-    case "SET_WINDOW_SIZE": {
-      const next = { ...state, windowSize: action.payload };
-      // Only the user-driven non-bridge size counts as "normal"
-      if (!state.bridgeMode) {
-        next.lastNormalSize = action.payload;
-      }
-      return next;
-    }
-    case "ENTER_BRIDGE_MODE": {
-      const lastNormalSize = state.bridgeMode
-        ? state.lastNormalSize
-        : state.windowSize;
-      postToFigma({
-        target: "shell",
-        action: "save-storage",
-        payload: { key: "bridgeMode", value: true },
-      });
-      postToFigma({
-        target: "shell",
-        action: "save-storage",
-        payload: { key: "lastNormalSize", value: lastNormalSize },
-      });
-      postToFigma({
-        target: "shell",
-        action: "resize-ui",
-        payload: { ...RESIZE_BRIDGE, mode: "bridge" },
-      });
-      return {
-        ...state,
-        bridgeMode: true,
-        lastNormalSize,
-        windowSize: { ...RESIZE_BRIDGE },
-      };
-    }
-    case "EXIT_BRIDGE_MODE": {
-      postToFigma({
-        target: "shell",
-        action: "save-storage",
-        payload: { key: "bridgeMode", value: false },
-      });
-      postToFigma({
-        target: "shell",
-        action: "resize-ui",
-        payload: { ...state.lastNormalSize, mode: "default" },
-      });
-      return {
-        ...state,
-        bridgeMode: false,
-        windowSize: { ...state.lastNormalSize },
-      };
-    }
-    case "RESTORE_BRIDGE_MODE":
-      return { ...state, bridgeMode: action.payload };
-    case "RESTORE_LAST_NORMAL_SIZE": {
-      // Update lastNormalSize regardless of current bridgeMode so the
-      // restore order between bridgeMode and lastNormalSize doesn't matter.
-      const next: ShellState = { ...state, lastNormalSize: action.payload };
-      if (!state.bridgeMode) {
-        next.windowSize = action.payload;
-      }
-      return next;
-    }
-    case "SET_THEME":
-      return { ...state, theme: action.payload };
-    case "UPDATE_SETTINGS":
-      return { ...state, settings: { ...state.settings, ...action.payload } };
-    default:
-      return state;
-  }
-}
+import {
+  initialState,
+  shellReducer,
+  stepShell,
+  type ShellAction,
+  type ShellState,
+} from "./shellState";
 
 const ShellContext = createContext<{
   state: ShellState;
@@ -152,7 +23,40 @@ const ShellContext = createContext<{
 } | null>(null);
 
 export function ShellProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(shellReducer, initialState);
+  const [state, baseDispatch] = useReducer(shellReducer, initialState);
+
+  // The state `dispatch` decides what to send from.
+  //
+  // Advanced by `dispatch` itself rather than assigned during render, and that
+  // is the whole point of it. React batches dispatches inside one event handler
+  // into a single re-render, so a ref refreshed on render would hand the second
+  // action of a batch the state from before the batch - and its effect would be
+  // computed from a state the reducer had already moved past. Stepping it here
+  // keeps it in lockstep with the action sequence instead of the render
+  // schedule. See `stepShell`.
+  //
+  // A ref rather than the `state` binding for a second reason too: the
+  // message-bus listener below is registered once and would otherwise close
+  // over the state as it was at mount.
+  const stateRef = useRef(state);
+
+  // The only place shell state reaches the main thread.
+  //
+  // `shellReducer` used to post from inside its own cases, which React is free
+  // to run more than once per dispatch - and does, under the StrictMode wrapper
+  // in `main.tsx`. Sending here instead makes the number of sends exactly the
+  // number of dispatches, and leaves the reducer pure enough to test.
+  //
+  // Effects are sent before `baseDispatch`, which is the order the old
+  // in-reducer sends had.
+  const dispatch = useCallback((action: ShellAction) => {
+    const { next, send } = stepShell(stateRef.current, action);
+    stateRef.current = next;
+    for (const message of send) {
+      postToFigma(message);
+    }
+    baseDispatch(action);
+  }, []);
 
   // Request stored active module + bridge mode on mount
   useEffect(() => {
@@ -238,7 +142,7 @@ export function ShellProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [dispatch]);
 
   return (
     <ShellContext.Provider value={{ state, dispatch }}>
