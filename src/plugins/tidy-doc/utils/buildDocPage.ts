@@ -164,15 +164,18 @@ async function findExistingDocPages(
  * - This lock (`buildLock.ts`, #187) answers "is this page already being
  *   built", for whichever route asked.
  *
- * The registry cannot cover this one: the panel's Document button reaches the
- * builder through the module-action path and never passes through `dispatch`
- * at all, so a designer clicking mid-agent-build is invisible to it. This lock
- * cannot cover the registry's question either - it is keyed by component and
- * says nothing about a QA run tying up the plugin. Both may legitimately
- * refuse the same call.
+ * The second route this lock was written for no longer exists. #187 added it
+ * because the panel's Document button reached this builder through the
+ * module-action path and never passed through `dispatch`; that button and the
+ * whole Tidy Doc panel were removed when documentation became something only
+ * Claude initiates. `operations.ts` is now the only caller, and it always
+ * passes "agent".
  *
- * `origin` is what the refusal names, so pass the route the call really came
- * from: "agent" from operations.ts, "panel" from logic.ts.
+ * So `origin` has one producer and `BuildOrigin`'s "panel" has none. Both are
+ * left here rather than collapsed in the same change, because whether the lock
+ * survives at all is #187's AC4 question - "exactly one mechanism answers this"
+ * - and that deserves its own decision (#211). Nothing new should be built on
+ * either.
  */
 export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,

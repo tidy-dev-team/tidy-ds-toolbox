@@ -5,3 +5,4 @@ export { FormControl } from "./FormControl";
 export { ErrorBoundary } from "./ErrorBoundary";
 export { ResizeHandle } from "./ResizeHandle";
 export { SearchDropdown } from "./SearchDropdown";
+export { BridgeStatusLamp } from "./BridgeStatusLamp";

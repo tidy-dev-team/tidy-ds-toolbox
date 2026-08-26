@@ -1,5 +1,5 @@
 import { ShellProvider, useShell } from "./ShellContext";
-import { ErrorBoundary, ResizeHandle } from "./components";
+import { BridgeStatusLamp, ErrorBoundary, ResizeHandle } from "./components";
 import { SearchDropdown } from "./components/SearchDropdown";
 import { SearchableFeature } from "./shared/searchIndex";
 import { moduleRegistry } from "./moduleRegistry";
@@ -228,6 +228,7 @@ function AppContent() {
         <aside className={`sidebar${sidebarSmall ? " small" : ""}`}>
           <Navigation />
           <div className="spacer"></div>
+          <BridgeStatusLamp />
           <button
             className="nav-item docs-link"
             aria-label="Documentation"

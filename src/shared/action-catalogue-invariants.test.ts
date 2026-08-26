@@ -42,7 +42,9 @@ const MODULE_LOGIC_FILES: Record<string, string> = {
   "off-boarding": "off-boarding/logic.ts",
   iconfinder: "iconfinder/logic.ts",
   "color-finder": "color-finder/logic.ts",
-  "tidy-doc": "tidy-doc/logic.ts",
+  // No "tidy-doc": the module has no panel and no logic.ts. Documentation is
+  // always initiated from Claude, so it is reached only through its Operations,
+  // which arrive on mcp-bridge:dispatch rather than on a target of its own.
 };
 
 /**
