@@ -29,6 +29,7 @@ import {
   RELEASE_NOTES_PAGE_NAME,
 } from "../utils/constants";
 import {
+  cardPlacementKey,
   classifyCardCandidate,
   isLegacyNamedCard,
   isStampedCard,
@@ -40,11 +41,9 @@ import { planClearCanvasDeletion } from "../utils/clearCanvas";
 import { allSubjectsInOrder } from "../utils/notes";
 import { getCardAppearance } from "../utils/appearanceHelpers";
 import {
-  cardPlacementKey,
   componentCardPosition,
   pageEdgeSlot,
-  resolveCardPlacement,
-  type RememberedPlacement,
+  type Position,
 } from "../utils/placement";
 import { resolveCardAppearance } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
@@ -167,23 +166,44 @@ function pageContent(page: PageNode): { x: number; y: number }[] {
     .map((child) => ({ x: child.x, y: child.y }));
 }
 
+/**
+ * Where a card was standing before this publish swept it away. The page is part
+ * of the answer: a card the user dragged to another page has to go back there,
+ * not to the page the rules would have chosen.
+ */
+interface RememberedPlacement extends Position {
+  page: PageNode;
+}
+
+/** The remembered page, unless the user has since deleted it. */
+function livePage(remembered: RememberedPlacement | null): PageNode | null {
+  return remembered && !remembered.page.removed ? remembered.page : null;
+}
+
+/**
+ * Put a card on the canvas: back where it was standing, or, for one that has
+ * never been drawn, where `computed` says.
+ *
+ * The rules in `placement.ts` decide where a card *starts*. They must not keep
+ * deciding after that: a card is a thing on a canvas that somebody arranges
+ * around the work it describes, and a publish that drags it back beside its
+ * component every time makes that arrangement impossible to keep.
+ *
+ * `computed` is a thunk because it is the expensive half - `pageEdgeSlot` reads
+ * the whole page - and after the first publish it is the half almost no card
+ * needs.
+ */
 function placeCard(
-  target: CardTarget,
   card: FrameNode,
-  slot: number,
+  fallbackPage: PageNode,
   remembered: RememberedPlacement | null,
+  computed: () => Position,
 ): void {
   // Safe to append first: the card is stamped by now, so it is an owned card
   // and pageContent leaves it out of its own measurement.
-  target.page.appendChild(card);
+  (livePage(remembered) ?? fallbackPage).appendChild(card);
 
-  const position = resolveCardPlacement(
-    remembered,
-    target.anchor
-      ? componentCardPosition(target.anchor, card.width, CARD_GAP)
-      : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP),
-  );
-
+  const position = remembered ?? computed();
   card.x = position.x;
   card.y = position.y;
 }
@@ -245,43 +265,30 @@ export async function publishNotes(
 
     for (const card of [...page.children]) {
       const described = describe(card);
-      if (described.stamp && isStampedCard(described)) {
-        remembered.set(
-          cardPlacementKey(described.stamp.kind, described.stamp.subjectId),
-          { pageId: page.id, x: card.x, y: card.y },
-        );
+      if (described.stamp) {
+        remembered.set(cardPlacementKey(described.stamp), {
+          page,
+          x: card.x,
+          y: card.y,
+        });
         card.remove();
       } else if (isLegacyNamedCard(described)) legacyCardsFound += 1;
     }
   }
 
-  /**
-   * The page a card goes back to, which is the one it was last on rather than
-   * the one the rules would pick. A remembered page that has since been deleted
-   * is no page at all, and the card is placed afresh.
-   */
-  const rememberedPage = (
-    placement: RememberedPlacement | null,
-  ): PageNode | null => {
-    if (!placement) return null;
-    const page = figma.getNodeById(placement.pageId);
-    return page?.type === "PAGE" ? page : null;
-  };
-
-  // Aggregate changelog: one card holding every sprint.
+  // Aggregate changelog: one card holding every sprint. It goes to the Release
+  // Notes page, which is created only if no remembered page is standing.
+  const aggregateStamp = { kind: "aggregate", subjectId: "" } as const;
   const aggregateRemembered =
-    remembered.get(cardPlacementKey("aggregate", "")) ?? null;
+    remembered.get(cardPlacementKey(aggregateStamp)) ?? null;
   const aggregatePage =
-    rememberedPage(aggregateRemembered) ?? getOrCreateReleaseNotesPage(figma);
+    livePage(aggregateRemembered) ?? getOrCreateReleaseNotesPage(figma);
   const aggregate = buildAggregateChangelog(figma, appearance, sprints);
-  stamp(aggregate, { kind: "aggregate", subjectId: "" });
-  aggregatePage.appendChild(aggregate);
-  const aggregatePosition = resolveCardPlacement(aggregateRemembered, {
+  stamp(aggregate, aggregateStamp);
+  placeCard(aggregate, aggregatePage, aggregateRemembered, () => ({
     x: 0,
     y: 0,
-  });
-  aggregate.x = aggregatePosition.x;
-  aggregate.y = aggregatePosition.y;
+  }));
   cardsBuilt += 1;
 
   // One card per Subject, and its slot on the page, from one ordered walk. The
@@ -314,11 +321,17 @@ export async function publishNotes(
     const card = buildSubjectCard(figma, appearance, subject, sprints);
     if (!card) continue;
 
-    stamp(card, { kind: subject.kind, subjectId: subject.id });
-    const placement =
-      remembered.get(cardPlacementKey(subject.kind, subject.id)) ?? null;
-    const page = rememberedPage(placement);
-    placeCard(page ? { page, anchor: null } : target, card, slot, placement);
+    const cardStamp = { kind: subject.kind, subjectId: subject.id };
+    stamp(card, cardStamp);
+    placeCard(
+      card,
+      target.page,
+      remembered.get(cardPlacementKey(cardStamp)) ?? null,
+      () =>
+        target.anchor
+          ? componentCardPosition(target.anchor, card.width, CARD_GAP)
+          : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP),
+    );
     cardsBuilt += 1;
   }
 

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  cardPlacementKey,
   isOwnedCard,
   isLegacyNamedCard,
   isStampedCard,
@@ -176,5 +177,35 @@ describe("isOwnedCard", () => {
     // removing one is a decision only a designer may take after review.
     expect(isOwnedCard(node({ name: "Retired-release-notes" }))).toBe(true);
     expect(isStampedCard(node({ name: "Retired-release-notes" }))).toBe(false);
+  });
+});
+
+describe("cardPlacementKey", () => {
+  it("tells the aggregate apart from a Subject card", () => {
+    expect(
+      cardPlacementKey(stamp({ kind: "aggregate", subjectId: "" })),
+    ).not.toBe(
+      cardPlacementKey(stamp({ kind: "component-set", subjectId: "" })),
+    );
+  });
+
+  it("tells two Subjects apart", () => {
+    expect(cardPlacementKey(stamp({ subjectId: "1:2" }))).not.toBe(
+      cardPlacementKey(stamp({ subjectId: "3:4" })),
+    );
+  });
+
+  it("is the same key for the same Subject on a later publish", () => {
+    expect(
+      cardPlacementKey(stamp({ kind: "foundation-page", subjectId: "9:9" })),
+    ).toBe(
+      cardPlacementKey(
+        stamp({
+          kind: "foundation-page",
+          subjectId: "9:9",
+          builtAt: "2026-08-26T00:00:00.000Z",
+        }),
+      ),
+    );
   });
 });
