@@ -62,19 +62,11 @@ export class UiBridge {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
   /**
-   * Whether the one `connecting` this run gets has already been announced.
+   * The last state handed to `onStatusChange`, and `null` until the first one.
    *
-   * The reconnect loop never stops, so every attempt used to announce
-   * `connecting` and every failure `closed` again: with no server listening
-   * that is an indicator changing colour and wording every few seconds, for
-   * ever, while nothing about the situation has changed. Only the first
-   * attempt says anything a later one does not, so only the first attempt is
-   * reported; after that the state is `closed` until a socket opens. That is
-   * the quieter reading and the more truthful one - a retry that has already
-   * failed is not news, and Claude is still not connected while it runs.
+   * It answers both questions this class asks about reporting: whether a state
+   * is a repeat, and whether anything has been said yet at all.
    */
-  private announcedConnecting = false;
-  /** The last state handed to `onStatusChange`, so a repeat can be dropped. */
   private reportedStatus: BridgeStatus | null = null;
 
   constructor(opts: BridgeOptions) {
@@ -122,12 +114,18 @@ export class UiBridge {
   private connect(): void {
     if (this.stopped) return;
     this.log(`connecting to ${this.url}`);
-    // Only the first attempt of a run is worth reporting: it is the one where
-    // "connecting" tells the user something they cannot see anywhere else.
-    if (!this.announcedConnecting) {
-      this.announcedConnecting = true;
-      this.report("connecting");
-    }
+    // Only the first attempt of a run announces `connecting`, which is why the
+    // guard is "nothing has been said yet" rather than a repeat check.
+    //
+    // The reconnect loop never stops, so every attempt used to announce
+    // `connecting` and every failure `closed` again: with no server listening
+    // that is an indicator changing colour and wording every few seconds, for
+    // ever, while nothing about the situation has changed. Only the first
+    // attempt says anything a later one does not, so after it the state is
+    // `closed` until a socket opens. That is the quieter reading and the more
+    // truthful one - a retry that has already failed is not news, and Claude
+    // is still not connected while it runs.
+    if (this.reportedStatus === null) this.report("connecting");
     let ws: WebSocket;
     try {
       ws = new WebSocket(this.url);
