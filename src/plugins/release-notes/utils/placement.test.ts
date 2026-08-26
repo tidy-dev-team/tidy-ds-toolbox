@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { componentCardPosition, pageEdgeSlot } from "./placement";
+import {
+  cardPlacementKey,
+  componentCardPosition,
+  pageEdgeSlot,
+  resolveCardPlacement,
+} from "./placement";
 
 describe("pageEdgeSlot", () => {
   it("puts slot 0 at the origin on an empty page", () => {
@@ -83,5 +88,46 @@ describe("componentCardPosition", () => {
       x: 340,
       y: 250,
     });
+  });
+});
+
+describe("cardPlacementKey", () => {
+  it("tells the aggregate apart from a Subject card", () => {
+    expect(cardPlacementKey("aggregate", "")).not.toBe(
+      cardPlacementKey("component-set", ""),
+    );
+  });
+
+  it("tells two Subjects apart", () => {
+    expect(cardPlacementKey("component-set", "1:2")).not.toBe(
+      cardPlacementKey("component-set", "3:4"),
+    );
+  });
+
+  it("is the same key for the same Subject on a later publish", () => {
+    expect(cardPlacementKey("foundation-page", "9:9")).toBe(
+      cardPlacementKey("foundation-page", "9:9"),
+    );
+  });
+});
+
+describe("resolveCardPlacement", () => {
+  it("positions a card that has never been drawn", () => {
+    expect(resolveCardPlacement(null, { x: 10, y: 20 })).toEqual({
+      x: 10,
+      y: 20,
+    });
+  });
+
+  it("leaves a card where the user moved it", () => {
+    expect(
+      resolveCardPlacement({ pageId: "1:1", x: -300, y: 940 }, { x: 0, y: 0 }),
+    ).toEqual({ x: -300, y: 940 });
+  });
+
+  it("keeps a remembered origin rather than treating it as unplaced", () => {
+    expect(
+      resolveCardPlacement({ pageId: "1:1", x: 0, y: 0 }, { x: 500, y: 500 }),
+    ).toEqual({ x: 0, y: 0 });
   });
 });

@@ -5,8 +5,8 @@
 // so it is faked here rather than dialled - that keeps the test free of a
 // listening port and lets a frame be delivered synchronously.
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { UiBridge } from "./ui-bridge";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { UiBridge, type BridgeStatus } from "./ui-bridge";
 import type {
   BridgeCancel,
   BridgeCancelResult,
@@ -46,6 +46,12 @@ class FakeWebSocket {
     for (const fn of this.listeners.get("open") ?? []) fn({});
   }
 
+  /** Fires the close event the way a refused or dropped socket would. */
+  drop(): void {
+    this.readyState = 3;
+    for (const fn of this.listeners.get("close") ?? []) fn({});
+  }
+
   /** Delivers a raw frame the way the socket would, and settles its handling. */
   async deliver(raw: string): Promise<void> {
     const results = (this.listeners.get("message") ?? []).map((fn) =>
@@ -72,6 +78,7 @@ function startBridge(
     dispatch?: (req: BridgeRequest) => Promise<BridgeResponse>;
     cancel?: (env: BridgeCancel) => Promise<BridgeCancelResult>;
     version?: string;
+    onStatusChange?: (status: BridgeStatus) => void;
   } = {},
 ): Harness {
   const dispatched: BridgeRequest[] = [];
@@ -81,6 +88,7 @@ function startBridge(
     url: "ws://localhost:9876",
     log: (m) => logs.push(m),
     version: overrides.version,
+    onStatusChange: overrides.onStatusChange,
     dispatch:
       overrides.dispatch ??
       (async (req) => {
@@ -224,5 +232,61 @@ describe("UiBridge version handshake (#189)", () => {
       { type: "hello", version: "1.17.2" },
       { type: "hello", version: "1.17.2" },
     ]);
+  });
+});
+
+// A reconnect loop that never stops must not narrate itself. The lamp in the
+// sidebar is the only thing showing this status, and it is on screen the whole
+// time the panel is open.
+describe("UiBridge status reporting", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reports the first attempt, then stays closed however often it retries", () => {
+    const seen: BridgeStatus[] = [];
+    const { socket } = startBridge({ onStatusChange: (s) => seen.push(s) });
+
+    expect(seen).toEqual(["connecting"]);
+
+    socket.drop();
+    expect(seen).toEqual(["connecting", "closed"]);
+
+    // Three more failed attempts. The user is told nothing new, because there
+    // is nothing new: still not connected, still retrying.
+    for (let i = 0; i < 3; i += 1) {
+      vi.runOnlyPendingTimers();
+      FakeWebSocket.instances[FakeWebSocket.instances.length - 1]?.drop();
+    }
+
+    expect(seen).toEqual(["connecting", "closed"]);
+  });
+
+  it("reports the connection when an attempt finally opens", () => {
+    const seen: BridgeStatus[] = [];
+    const { socket } = startBridge({ onStatusChange: (s) => seen.push(s) });
+
+    socket.drop();
+    vi.runOnlyPendingTimers();
+    FakeWebSocket.instances[FakeWebSocket.instances.length - 1]?.open();
+
+    expect(seen).toEqual(["connecting", "closed", "open"]);
+  });
+
+  it("stays closed while it retries a connection that was lost", () => {
+    const seen: BridgeStatus[] = [];
+    const { socket } = startBridge({ onStatusChange: (s) => seen.push(s) });
+
+    socket.open();
+    socket.drop();
+    vi.runOnlyPendingTimers();
+
+    // The amber is a first-attempt state, not a per-attempt one: a lost socket
+    // is red until it comes back, and the retry says nothing on its way past.
+    expect(seen).toEqual(["connecting", "open", "closed"]);
   });
 });

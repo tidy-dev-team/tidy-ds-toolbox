@@ -8,11 +8,18 @@
 // slip.
 //
 // Three states, not two. `BridgeStatus` is `connecting | open | closed`
-// (`operations/ui-bridge.ts`), and the socket's reconnect backoff runs
-// `MIN_BACKOFF_MS` 250ms to `MAX_BACKOFF_MS` 10s, so `connecting` is genuinely
-// on screen for seconds at a time rather than being a flicker between the other
-// two. A two-colour indicator cannot represent it, which is why `tone` has an
-// amber and why the label for it is not just a dimmer "not connected".
+// (`operations/ui-bridge.ts`), and `connecting` is genuinely on screen rather
+// than being a flicker between the other two: it is the first attempt of a run,
+// held until the socket answers or fails. A two-colour indicator cannot
+// represent it, which is why `tone` has an amber and why the label for it is
+// not just a dimmer "not connected".
+//
+// It is shown once per run and not again. The reconnect loop retries for as
+// long as the panel is open, and re-announcing each attempt would make the lamp
+// change colour and wording every few seconds for as long as no server is
+// listening - which says nothing, since a retry that has already failed is not
+// news. `UiBridge` therefore stays in `closed` from the first failure until a
+// socket actually opens.
 
 import type { BridgeStatus } from "./operations/ui-bridge";
 

@@ -61,6 +61,21 @@ export class UiBridge {
   private backoff = MIN_BACKOFF_MS;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private stopped = false;
+  /**
+   * Whether the one `connecting` this run gets has already been announced.
+   *
+   * The reconnect loop never stops, so every attempt used to announce
+   * `connecting` and every failure `closed` again: with no server listening
+   * that is an indicator changing colour and wording every few seconds, for
+   * ever, while nothing about the situation has changed. Only the first
+   * attempt says anything a later one does not, so only the first attempt is
+   * reported; after that the state is `closed` until a socket opens. That is
+   * the quieter reading and the more truthful one - a retry that has already
+   * failed is not news, and Claude is still not connected while it runs.
+   */
+  private announcedConnecting = false;
+  /** The last state handed to `onStatusChange`, so a repeat can be dropped. */
+  private reportedStatus: BridgeStatus | null = null;
 
   constructor(opts: BridgeOptions) {
     this.url = opts.url ?? DEFAULT_URL;
@@ -90,13 +105,29 @@ export class UiBridge {
       }
       this.ws = null;
     }
-    this.onStatusChange("closed");
+    this.report("closed");
+  }
+
+  /**
+   * Tell the listener, unless it already knows. A close is reported by both the
+   * close handler and every failed retry behind it, and re-reporting a state
+   * nothing has left is how an indicator ends up repainting on a timer.
+   */
+  private report(status: BridgeStatus): void {
+    if (status === this.reportedStatus) return;
+    this.reportedStatus = status;
+    this.onStatusChange(status);
   }
 
   private connect(): void {
     if (this.stopped) return;
     this.log(`connecting to ${this.url}`);
-    this.onStatusChange("connecting");
+    // Only the first attempt of a run is worth reporting: it is the one where
+    // "connecting" tells the user something they cannot see anywhere else.
+    if (!this.announcedConnecting) {
+      this.announcedConnecting = true;
+      this.report("connecting");
+    }
     let ws: WebSocket;
     try {
       ws = new WebSocket(this.url);
@@ -110,7 +141,7 @@ export class UiBridge {
     ws.addEventListener("open", () => {
       this.log("connected");
       this.backoff = MIN_BACKOFF_MS;
-      this.onStatusChange("open");
+      this.report("open");
       // First frame on every connection, including a reconnect: the server
       // logs its own version against this one, so a stale half is a line in
       // the log instead of an inexplicable timeout later (#189). Sent even
@@ -129,7 +160,7 @@ export class UiBridge {
     ws.addEventListener("close", () => {
       this.log("closed");
       this.ws = null;
-      this.onStatusChange("closed");
+      this.report("closed");
       this.scheduleReconnect();
     });
 

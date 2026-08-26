@@ -17,6 +17,10 @@ let currentStatus: BridgeStatus = "closed";
 const statusSubscribers = new Set<(status: BridgeStatus) => void>();
 
 function setStatus(status: BridgeStatus): void {
+  // A repeat of the state we are already in is not a change. The reconnect
+  // loop reports `closed` on every failed attempt, and a subscriber that
+  // repaints on each one is an indicator flickering at the backoff's rate.
+  if (status === currentStatus) return;
   currentStatus = status;
   for (const cb of statusSubscribers) cb(status);
 }
