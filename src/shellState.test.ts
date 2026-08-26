@@ -4,6 +4,8 @@ import {
   initialState,
   shellEffects,
   shellReducer,
+  stepShell,
+  type ShellAction,
   type ShellState,
 } from "./shellState";
 
@@ -214,5 +216,72 @@ describe("shellEffects", () => {
         payload: { ...RESIZED, mode: "default" },
       },
     ]);
+  });
+});
+
+// Several actions dispatched before a re-render.
+//
+// React batches dispatches inside one event handler, so the provider cannot get
+// its pre-action state from a ref refreshed during render - the second action
+// would be handed the state from before the batch. `stepShell` returns the next
+// state so the provider can advance its own record per action, and these drive
+// exactly that loop.
+describe("a batch of actions in one tick", () => {
+  /** What the provider does, minus React: step each action, collect the sends. */
+  function runBatch(from: ShellState, actions: readonly ShellAction[]) {
+    let state = from;
+    const sent = [];
+    for (const action of actions) {
+      const { next, send } = stepShell(state, action);
+      state = next;
+      sent.push(...send);
+    }
+    return { state, sent };
+  }
+
+  function storedValue(sent: { payload?: unknown }[], key: string) {
+    const hit = sent.find((m) => (m.payload as { key?: string })?.key === key);
+    return (hit?.payload as { value: unknown } | undefined)?.value;
+  }
+
+  // The restore path is the reachable case. Both stored values arrive as
+  // replies, and if two ever land in one tick the second must see the first.
+  it("persists the size restored earlier in the same batch, not the pre-batch one", () => {
+    const { state, sent } = runBatch(initialState, [
+      { type: "RESTORE_LAST_NORMAL_SIZE", payload: RESIZED },
+      { type: "ENTER_BRIDGE_MODE" },
+    ]);
+
+    expect(storedValue(sent, "lastNormalSize")).toEqual(RESIZED);
+    expect(state.lastNormalSize).toEqual(RESIZED);
+    // And the value that was persisted is the one a reload would restore.
+    expect(storedValue(sent, "lastNormalSize")).toEqual(state.lastNormalSize);
+  });
+
+  it("keeps what it sent and what it stored in step across a bridge round trip", () => {
+    const { state, sent } = runBatch(
+      stateWith({ windowSize: RESIZED, lastNormalSize: RESIZED }),
+      [{ type: "ENTER_BRIDGE_MODE" }, { type: "EXIT_BRIDGE_MODE" }],
+    );
+
+    expect(state.bridgeMode).toBe(false);
+    expect(state.windowSize).toEqual(RESIZED);
+    // The last resize asked for is the size the panel actually ends up at.
+    const resizes = sent.filter((m) => m.action === "resize-ui");
+    expect(resizes[resizes.length - 1]?.payload).toEqual({
+      ...RESIZED,
+      mode: "default",
+    });
+  });
+
+  it("sends exactly one message per action that has one", () => {
+    const { sent } = runBatch(initialState, [
+      { type: "SET_THEME", payload: "dark" },
+      { type: "SET_ACTIVE_MODULE", payload: "audit" },
+      { type: "CLEAR_FEATURE_FOCUS" },
+    ]);
+    // Only SET_ACTIVE_MODULE persists anything.
+    expect(sent).toHaveLength(1);
+    expect(storedValue(sent, "activeModule")).toBe("audit");
   });
 });

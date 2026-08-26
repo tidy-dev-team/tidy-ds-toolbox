@@ -50,7 +50,7 @@ The two threads communicate exclusively via typed postMessage. Helpers: `src/sha
 
 ### Plugin Registry System
 
-`src/moduleRegistry.ts` is the central manifest for all plugins. Each plugin exports a `ModuleManifest` with `id`, `label`, `state` (stable/beta/alpha), `icon`, `ui` (React component), `handler` (backend function), and `keywords`/`features` (for search).
+`src/moduleRegistry.ts` is the central manifest for all plugins. Each plugin exports a `ModuleManifest` with `id`, `label`, `state` (stable/beta/alpha), `icon`, `ui` (React component), and `keywords`/`features` (for search). It carries no `handler`: the UI is the only reader of the manifest and reaches a module's backend over postMessage, so naming the handler here only made `moduleRegistry.ts` import `moduleHandlers.ts` and pull the whole plugin thread into the UI bundle.
 
 `src/moduleHandlers.ts` routes incoming messages from `code.ts` to the appropriate plugin handler based on `target`.
 
@@ -66,6 +66,10 @@ To add a plugin: create the three files, then register the module in `moduleRegi
 ### Shell State
 
 `src/ShellContext.tsx` manages global state (active module, window dimensions, theme, settings) using React Context + Reducer. The active module ID is persisted to `figma.clientStorage` so it survives plugin reopens.
+The state itself is not in that file. `src/shellState.ts` holds the reducer, the actions, and `shellEffects`, which decides what an action sends to the main thread; the provider owns the sending.
+The reducer used to post from inside its own cases, which React may run more than once per dispatch - `main.tsx` wraps the app in StrictMode, so every module change was persisting twice.
+Drive the shell through `stepShell`, never the reducer and `shellEffects` separately: React batches dispatches in one event handler, and `stepShell` returns the next state so the provider can advance its record per action rather than per render. Reading pre-action state from a render-time ref hands the second action of a batch a state the reducer has already moved past.
+`src/shellState.ts` imports relatively, not through `@shared/*`, because `vitest.config.ts` declares no `resolve.alias` and does not inherit `vite.config.ts` - an aliased module cannot be unit tested at all.
 
 ### Path Aliases
 

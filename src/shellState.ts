@@ -30,12 +30,22 @@
 import type { PluginID, PluginMessage } from "./shared/types";
 import { RESIZE_BRIDGE, RESIZE_DEFAULT } from "./shared/resize";
 
+/**
+ * A panel size. The pair travelled together in six places before this existed
+ * - two state fields, two action payloads, and both ends of the bridge-mode
+ * derivation - and `src/shared/resize.ts` already speaks in width and height.
+ */
+export interface Size {
+  width: number;
+  height: number;
+}
+
 export interface ShellState {
   activeModule: PluginID;
   featureFocus: string | null; // CSS selector for scrolling to a feature section
-  windowSize: { width: number; height: number };
+  windowSize: Size;
   bridgeMode: boolean;
-  lastNormalSize: { width: number; height: number };
+  lastNormalSize: Size;
   theme: "light" | "dark";
   settings: Record<string, unknown>;
 }
@@ -48,14 +58,11 @@ export type ShellAction =
       payload: { pluginId: PluginID; section: string | null };
     }
   | { type: "CLEAR_FEATURE_FOCUS" }
-  | { type: "SET_WINDOW_SIZE"; payload: { width: number; height: number } }
+  | { type: "SET_WINDOW_SIZE"; payload: Size }
   | { type: "ENTER_BRIDGE_MODE" }
   | { type: "EXIT_BRIDGE_MODE" }
   | { type: "RESTORE_BRIDGE_MODE"; payload: boolean }
-  | {
-      type: "RESTORE_LAST_NORMAL_SIZE";
-      payload: { width: number; height: number };
-    }
+  | { type: "RESTORE_LAST_NORMAL_SIZE"; payload: Size }
   | { type: "SET_THEME"; payload: "light" | "dark" }
   | { type: "UPDATE_SETTINGS"; payload: Record<string, unknown> };
 
@@ -77,10 +84,7 @@ export const initialState: ShellState = {
  * at mount can produce) would make bridge dimensions permanent, and exiting
  * would resize to the panel it was already showing.
  */
-export function nextLastNormalSize(state: ShellState): {
-  width: number;
-  height: number;
-} {
+export function nextLastNormalSize(state: ShellState): Size {
   return state.bridgeMode ? state.lastNormalSize : state.windowSize;
 }
 
@@ -193,4 +197,34 @@ export function shellReducer(
     default:
       return state;
   }
+}
+
+/**
+ * One action: what to send, and the state it leaves behind.
+ *
+ * The provider drives the shell through this rather than calling the reducer and
+ * `shellEffects` separately, because the two have to see the *same* input state
+ * and that is easy to get wrong once more than one action is dispatched before a
+ * re-render.
+ *
+ * React batches dispatches inside a single event handler into one re-render, so
+ * a provider that read its pre-action state from a ref refreshed during render
+ * would hand the second action the state from before the batch. The effect for
+ * that action would then be computed from a state the reducer had already moved
+ * past - `RESTORE_LAST_NORMAL_SIZE` followed by `ENTER_BRIDGE_MODE` in one tick
+ * would persist the stale size, which is exactly the value a later reload
+ * restores from. The old in-reducer sends did not have this problem, because
+ * reducers chain and each case saw the previous case's output.
+ *
+ * Returning `next` is what lets the caller keep its own record in lockstep with
+ * the action sequence instead of with the render schedule.
+ */
+export function stepShell(
+  state: ShellState,
+  action: ShellAction,
+): { next: ShellState; send: PluginMessage[] } {
+  return {
+    next: shellReducer(state, action),
+    send: shellEffects(state, action),
+  };
 }

@@ -9,6 +9,10 @@ export default defineConfig({
     __INGEST_ENDPOINT__: JSON.stringify("https://example.invalid/events"),
     __INGEST_TOKEN__: JSON.stringify(""),
   },
+  // No `resolve.alias`, deliberately, and worth knowing before you reach for
+  // `@shared/*` in a module you want tested: this file does not inherit
+  // `vite.config.ts`, where the aliases live, so an aliased import is
+  // unresolvable here. Modules under test use relative specifiers.
   test: {
     globals: true,
     environment: "node",

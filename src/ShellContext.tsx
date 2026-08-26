@@ -11,13 +11,11 @@ import { ShellMessage } from "@shared/types";
 import { postToFigma } from "@shared/bridge";
 import {
   initialState,
-  shellEffects,
   shellReducer,
+  stepShell,
   type ShellAction,
   type ShellState,
 } from "./shellState";
-
-export type { ShellAction, ShellState };
 
 const ShellContext = createContext<{
   state: ShellState;
@@ -27,11 +25,20 @@ const ShellContext = createContext<{
 export function ShellProvider({ children }: { children: ReactNode }) {
   const [state, baseDispatch] = useReducer(shellReducer, initialState);
 
-  // The state `dispatch` reads when deciding what to send. A ref rather than
-  // the `state` binding because the message-bus listener below is registered
-  // once and would otherwise close over the state as it was at mount.
+  // The state `dispatch` decides what to send from.
+  //
+  // Advanced by `dispatch` itself rather than assigned during render, and that
+  // is the whole point of it. React batches dispatches inside one event handler
+  // into a single re-render, so a ref refreshed on render would hand the second
+  // action of a batch the state from before the batch - and its effect would be
+  // computed from a state the reducer had already moved past. Stepping it here
+  // keeps it in lockstep with the action sequence instead of the render
+  // schedule. See `stepShell`.
+  //
+  // A ref rather than the `state` binding for a second reason too: the
+  // message-bus listener below is registered once and would otherwise close
+  // over the state as it was at mount.
   const stateRef = useRef(state);
-  stateRef.current = state;
 
   // The only place shell state reaches the main thread.
   //
@@ -40,10 +47,12 @@ export function ShellProvider({ children }: { children: ReactNode }) {
   // in `main.tsx`. Sending here instead makes the number of sends exactly the
   // number of dispatches, and leaves the reducer pure enough to test.
   //
-  // Effects are computed from the pre-action state and sent before the reducer
-  // runs, which is the order the old in-reducer sends had.
+  // Effects are sent before `baseDispatch`, which is the order the old
+  // in-reducer sends had.
   const dispatch = useCallback((action: ShellAction) => {
-    for (const message of shellEffects(stateRef.current, action)) {
+    const { next, send } = stepShell(stateRef.current, action);
+    stateRef.current = next;
+    for (const message of send) {
       postToFigma(message);
     }
     baseDispatch(action);
