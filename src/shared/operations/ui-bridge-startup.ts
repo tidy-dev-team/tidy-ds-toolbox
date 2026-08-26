@@ -16,11 +16,10 @@ const dispatcher = new MainDispatcher({
 let currentStatus: BridgeStatus = "closed";
 const statusSubscribers = new Set<(status: BridgeStatus) => void>();
 
+// Fan-out only. Which transitions are worth reporting is `UiBridge`'s to
+// decide and it already drops a repeat before calling this, so a second guard
+// here would be a second copy of one rule with nothing to enforce.
 function setStatus(status: BridgeStatus): void {
-  // A repeat of the state we are already in is not a change. The reconnect
-  // loop reports `closed` on every failed attempt, and a subscriber that
-  // repaints on each one is an indicator flickering at the backoff's rate.
-  if (status === currentStatus) return;
   currentStatus = status;
   for (const cb of statusSubscribers) cb(status);
 }

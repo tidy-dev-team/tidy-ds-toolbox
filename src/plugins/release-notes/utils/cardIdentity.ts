@@ -52,6 +52,21 @@ export function parseCardStamp(raw: string): CardStamp | null {
   }
 }
 
+/**
+ * A card is identified across publishes by what it is about, which is exactly
+ * what its stamp records. Two cards can never share a key: the aggregate is one
+ * per file and every other card is one per Subject.
+ *
+ * It takes the stamp rather than its two fields so the key derives from the
+ * identity of record instead of running alongside it - a kind this module does
+ * not publish cannot be spelled here, and the two arguments cannot be swapped.
+ */
+export function cardPlacementKey(
+  stamp: Pick<CardStamp, "kind" | "subjectId">,
+): string {
+  return `${stamp.kind}:${stamp.subjectId}`;
+}
+
 function hasLegacyName(node: CardNode, name: string): boolean {
   return node.isFrame && node.name === name;
 }
