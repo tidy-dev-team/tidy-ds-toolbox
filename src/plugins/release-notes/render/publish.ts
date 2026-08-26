@@ -6,6 +6,11 @@
  * position, so renaming a Subject or dragging a card cannot orphan it or make
  * a second one appear. The stamp is also the only thing a publish will delete
  * by, because it is the only thing that proves this module wrote the frame.
+ *
+ * That same stamp is what lets a card stay where the user put it. The sweep
+ * notes each card's page and position before removing it, and the rebuilt card
+ * goes back there. The placement rules therefore only ever decide where a card
+ * appears for the first time.
  */
 
 import type {
@@ -34,7 +39,13 @@ import {
 import { planClearCanvasDeletion } from "../utils/clearCanvas";
 import { allSubjectsInOrder } from "../utils/notes";
 import { getCardAppearance } from "../utils/appearanceHelpers";
-import { componentCardPosition, pageEdgeSlot } from "../utils/placement";
+import {
+  cardPlacementKey,
+  componentCardPosition,
+  pageEdgeSlot,
+  resolveCardPlacement,
+  type RememberedPlacement,
+} from "../utils/placement";
 import { resolveCardAppearance } from "./primitives";
 import { buildSubjectCard } from "./subjectCard";
 import { buildAggregateChangelog } from "./aggregateChangelog";
@@ -156,14 +167,22 @@ function pageContent(page: PageNode): { x: number; y: number }[] {
     .map((child) => ({ x: child.x, y: child.y }));
 }
 
-function placeCard(target: CardTarget, card: FrameNode, slot: number): void {
+function placeCard(
+  target: CardTarget,
+  card: FrameNode,
+  slot: number,
+  remembered: RememberedPlacement | null,
+): void {
   // Safe to append first: the card is stamped by now, so it is an owned card
   // and pageContent leaves it out of its own measurement.
   target.page.appendChild(card);
 
-  const position = target.anchor
-    ? componentCardPosition(target.anchor, card.width, CARD_GAP)
-    : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP);
+  const position = resolveCardPlacement(
+    remembered,
+    target.anchor
+      ? componentCardPosition(target.anchor, card.width, CARD_GAP)
+      : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP),
+  );
 
   card.x = position.x;
   card.y = position.y;
@@ -216,24 +235,53 @@ export async function publishNotes(
   // named, and nothing here can tell. Publishing is routine and nobody confirms
   // it, so it takes the rule that cannot be wrong. Pre-stamp cards are counted
   // instead and reported, and Delete from canvas lets the user review them.
+  //
+  // Where each card was standing is read here, on the way past, because after
+  // the sweep there is nothing left to ask.
   let legacyCardsFound = 0;
+  const remembered = new Map<string, RememberedPlacement>();
   for (const page of figma.root.children) {
     if (page.type !== "PAGE") continue;
 
     for (const card of [...page.children]) {
       const described = describe(card);
-      if (isStampedCard(described)) card.remove();
-      else if (isLegacyNamedCard(described)) legacyCardsFound += 1;
+      if (described.stamp && isStampedCard(described)) {
+        remembered.set(
+          cardPlacementKey(described.stamp.kind, described.stamp.subjectId),
+          { pageId: page.id, x: card.x, y: card.y },
+        );
+        card.remove();
+      } else if (isLegacyNamedCard(described)) legacyCardsFound += 1;
     }
   }
 
+  /**
+   * The page a card goes back to, which is the one it was last on rather than
+   * the one the rules would pick. A remembered page that has since been deleted
+   * is no page at all, and the card is placed afresh.
+   */
+  const rememberedPage = (
+    placement: RememberedPlacement | null,
+  ): PageNode | null => {
+    if (!placement) return null;
+    const page = figma.getNodeById(placement.pageId);
+    return page?.type === "PAGE" ? page : null;
+  };
+
   // Aggregate changelog: one card holding every sprint.
-  const aggregatePage = getOrCreateReleaseNotesPage(figma);
+  const aggregateRemembered =
+    remembered.get(cardPlacementKey("aggregate", "")) ?? null;
+  const aggregatePage =
+    rememberedPage(aggregateRemembered) ?? getOrCreateReleaseNotesPage(figma);
   const aggregate = buildAggregateChangelog(figma, appearance, sprints);
   stamp(aggregate, { kind: "aggregate", subjectId: "" });
   aggregatePage.appendChild(aggregate);
-  aggregate.x = 0;
-  aggregate.y = 0;
+  const aggregatePosition = resolveCardPlacement(aggregateRemembered, {
+    x: 0,
+    y: 0,
+  });
+  aggregate.x = aggregatePosition.x;
+  aggregate.y = aggregatePosition.y;
   cardsBuilt += 1;
 
   // One card per Subject, and its slot on the page, from one ordered walk. The
@@ -250,6 +298,10 @@ export async function publishNotes(
     const target = resolveCardTarget(figma, subject);
     if (!target) continue;
 
+    // The slot is still counted for a card that will not use it. The count is
+    // the Subject's position in the notes, not a queue of free space, and that
+    // is what keeps a first-time card landing in the same place whether or not
+    // its neighbours have since been moved away.
     let slot = 0;
     if (!target.anchor) {
       slot = filled.get(target.page.id) ?? 0;
@@ -263,7 +315,10 @@ export async function publishNotes(
     if (!card) continue;
 
     stamp(card, { kind: subject.kind, subjectId: subject.id });
-    placeCard(target, card, slot);
+    const placement =
+      remembered.get(cardPlacementKey(subject.kind, subject.id)) ?? null;
+    const page = rememberedPage(placement);
+    placeCard(page ? { page, anchor: null } : target, card, slot, placement);
     cardsBuilt += 1;
   }
 
