@@ -1352,3 +1352,35 @@ button.resize-handle.dragging {
   white-space: nowrap;
   border: 0;
 }
+
+/* Suggestion list for SuggestInput. Fixed, so a scrolling panel cannot clip
+   it; placed beside the field rather than over it, so the text being edited
+   stays visible. */
+.suggest-input__list {
+  position: fixed;
+  z-index: 200;
+  margin: 0;
+  padding: var(--pixel-4);
+  list-style: none;
+  overflow-y: auto;
+  background: var(--light-color);
+  border: var(--pixel-1) solid var(--border-light);
+  border-radius: var(--pixel-8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.suggest-input__option {
+  padding: var(--pixel-6, 6px) var(--pixel-8);
+  border-radius: var(--pixel-6);
+  font-size: 13px;
+  line-height: 1.3;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggest-input__option--active {
+  background: var(--primary-alpha);
+}
