@@ -34,7 +34,8 @@
     "dashboard:down": "docker compose -f analytics-server/dashboard/docker-compose.yml down",
     "manifest:assets": "node scripts/generate-asset-manifest.mjs",
     "build:icon-db": "node --experimental-strip-types scripts/build-icon-db.mts",
-    "eval:icon-hash": "node --experimental-strip-types scripts/eval-icon-hash.mts"
+    "eval:icon-hash": "node --experimental-strip-types scripts/eval-icon-hash.mts",
+    "prototype:bridge": "vite --config vite.prototype.config.ts"
   },
   "keywords": [],
   "author": "",
