@@ -32,6 +32,14 @@ import {
   text,
 } from "./primitives";
 
+/**
+ * Stamps for the two blocks this module draws, so a re-run replaces its own
+ * prior block instead of stacking copies. They live beside the renderer that
+ * writes them, the same as `CHECKLIST_DATA_KEY` and `SHOWCASE_DATA_KEY`.
+ */
+export const EVIDENCE_DATA_KEY = "tidy:qa-resize-evidence";
+export const CONTACT_SHEET_DATA_KEY = "tidy:qa-contact-sheet";
+
 const GAP_FROM_ANCHOR = 32;
 
 /** Width reserved for the row labels down the left of a multi-row grid. */

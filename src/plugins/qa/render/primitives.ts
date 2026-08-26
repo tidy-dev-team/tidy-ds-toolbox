@@ -114,3 +114,23 @@ export function card(node: FrameNode, radius = 12): void {
   stroke(node, BORDER);
   node.cornerRadius = radius;
 }
+
+/**
+ * A frame as a PNG data URL, at the one scale both QA images use.
+ *
+ * 2x because the finding lines are 10-11px: at 1x they are the size where a
+ * vision model stops being able to read them, which would make the image
+ * decorative. Shared by the checklist image (#146) and the per-mode showcase
+ * image (#121) so the two cannot end up rendered at different scales - a
+ * difference nobody would notice until one of them became unreadable.
+ *
+ * The bridge lifts this into a viewable image block by recognising a data URL,
+ * not by any field name (#116).
+ */
+export async function exportPngDataUrl(frame: FrameNode): Promise<string> {
+  const bytes = await frame.exportAsync({
+    format: "PNG",
+    constraint: { type: "SCALE", value: 2 },
+  });
+  return `data:image/png;base64,${figma.base64Encode(bytes)}`;
+}
