@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { Card, FormControl } from "@shell/components";
+import { Card, FormControl, SuggestInput } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import {
   IconFocus2,
@@ -360,6 +360,11 @@ export function ReleaseNotesUI() {
       .filter((cs) => !cs.name.startsWith("."))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [components]);
+
+  const componentOptions = useMemo(
+    () => filteredComponents.map((component) => component.name),
+    [filteredComponents],
+  );
 
   const selectedFoundationPage = useMemo(
     () => foundationPages.find((page) => page.id === selectedFoundationPageId),
@@ -1489,10 +1494,10 @@ export function ReleaseNotesUI() {
           {/* The input is always here, because it is what triggers the scan.
               Hiding it until a list existed was only possible while the panel
               scanned on open; now the user has to be able to reach it first. */}
-          <input
-            type="text"
+          <SuggestInput
             value={componentSearchValue}
-            onChange={(e) => handleComponentSearch(e.target.value)}
+            options={componentOptions}
+            onChange={handleComponentSearch}
             onFocus={ensureComponentsScanned}
             placeholder={
               componentsScan === "scanning"
@@ -1500,13 +1505,7 @@ export function ReleaseNotesUI() {
                 : "Search component..."
             }
             style={inputStyle}
-            list="component-options"
           />
-          <datalist id="component-options">
-            {filteredComponents.map((component) => (
-              <option key={component.id} value={component.name} />
-            ))}
-          </datalist>
 
           {componentsScan === "idle" && (
             <div style={{ fontSize: "12px", opacity: 0.6 }}>
@@ -1601,20 +1600,14 @@ export function ReleaseNotesUI() {
           </div>
 
           <FormControl label="Font">
-            <input
-              type="text"
+            <SuggestInput
               value={fontDraft ?? appearance.fontFamily}
-              onChange={(e) => handleFontChange(e.target.value)}
+              options={availableFonts}
+              onChange={handleFontChange}
               onBlur={handleFontBlur}
               placeholder="Search font..."
               style={inputStyle}
-              list="card-font-options"
             />
-            <datalist id="card-font-options">
-              {availableFonts.map((family) => (
-                <option key={family} value={family} />
-              ))}
-            </datalist>
           </FormControl>
 
           {fontDraft !== null && (

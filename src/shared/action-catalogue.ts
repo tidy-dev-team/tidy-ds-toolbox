@@ -485,18 +485,10 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     budget: { kind: "timed", ms: 180000 },
   },
 
-  // tidy-doc (target "tidy-doc"). Its Operations surface
-  // (tidy_doc_read_component / tidy_doc_build_page) arrives via the
-  // exempt mcp-bridge:dispatch action, not through this target, so it
-  // has no separate entries here.
-  "tidy-doc:get-context": {
-    effect: "reads",
-    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
-  },
-  "tidy-doc:document-selection": {
-    effect: "writes",
-    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
-  },
+  // No "tidy-doc" target. The module has no panel any more - documentation is
+  // always initiated from Claude - so it reaches the plugin only through its
+  // Operations (tidy_doc_read_component / tidy_doc_build_page), which arrive on
+  // the exempt mcp-bridge:dispatch action rather than through a target here.
 };
 
 /** Result of classifying an action id against the catalogue. */

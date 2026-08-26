@@ -1267,3 +1267,120 @@ button.resize-handle.dragging {
 .sidebar.small-width .agentified-badge {
   display: none;
 }
+
+/* Bridge status lamp — whether Claude is attached. Sits at the foot of the
+   sidebar, above the documentation link, and is the only place in the panel
+   that reports this since the Tidy Doc tab was removed.
+
+   Takes .nav-item so it lines up with the rail, then opts out of the parts of
+   that class that imply it can be pressed: it is a div and does nothing. */
+.nav-item.bridge-lamp {
+  cursor: default;
+  color: #6b7280;
+}
+
+.nav-item.bridge-lamp:hover,
+.nav-item.bridge-lamp:active {
+  background: transparent;
+  border-color: transparent;
+  color: #6b7280;
+}
+
+.nav-item.bridge-lamp .icon {
+  width: 20px;
+  margin-right: var(--pixel-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-item.bridge-lamp .label {
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.bridge-lamp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: currentColor;
+}
+
+/* Three tones, because BridgeStatus is three states. "connecting" can last
+   seconds (the socket backs off from 250ms to 10s), so it gets its own colour
+   rather than being drawn as a dimmer failure. */
+.nav-item.bridge-lamp.tone-live .bridge-lamp-dot {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.nav-item.bridge-lamp.tone-pending .bridge-lamp-dot {
+  background: #d97706;
+  animation: bridge-lamp-pulse 1.2s ease-in-out infinite;
+}
+
+.nav-item.bridge-lamp.tone-down .bridge-lamp-dot {
+  background: #dc2626;
+}
+
+@keyframes bridge-lamp-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* A still lamp says as much as a pulsing one here; the pulse is decoration. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-item.bridge-lamp.tone-pending .bridge-lamp-dot {
+    animation: none;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Suggestion list for SuggestInput. Fixed, so a scrolling panel cannot clip
+   it; placed beside the field rather than over it, so the text being edited
+   stays visible. */
+.suggest-input__list {
+  position: fixed;
+  z-index: 200;
+  margin: 0;
+  padding: var(--pixel-4);
+  list-style: none;
+  overflow-y: auto;
+  background: var(--light-color);
+  border: var(--pixel-1) solid var(--border-light);
+  border-radius: var(--pixel-8);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.suggest-input__option {
+  padding: var(--pixel-6, 6px) var(--pixel-8);
+  border-radius: var(--pixel-6);
+  font-size: 13px;
+  line-height: 1.3;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggest-input__option--active {
+  background: var(--primary-alpha);
+}

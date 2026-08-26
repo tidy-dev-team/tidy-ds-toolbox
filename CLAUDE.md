@@ -50,7 +50,7 @@ The two threads communicate exclusively via typed postMessage. Helpers: `src/sha
 
 ### Plugin Registry System
 
-`src/moduleRegistry.ts` is the central manifest for all plugins. Each plugin exports a `ModuleManifest` with `id`, `label`, `state` (stable/beta/alpha), `icon`, `ui` (React component), and `keywords`/`features` (for search). It carries no `handler`: the UI is the only reader of the manifest and reaches a module's backend over postMessage, so naming the handler here only made `moduleRegistry.ts` import `moduleHandlers.ts` and pull the whole plugin thread into the UI bundle.
+`src/moduleRegistry.ts` is the central manifest for all plugins that have a panel. A module with no panel is absent from it: `tidy-doc` has no UI, no `logic.ts` and no entry here, because documentation is always initiated from Claude and it is reached only through its Operations. `qa` is the same. Neither is a gap. Each plugin exports a `ModuleManifest` with `id`, `label`, `state` (stable/beta/alpha), `icon`, `ui` (React component), and `keywords`/`features` (for search). It carries no `handler`: the UI is the only reader of the manifest and reaches a module's backend over postMessage, so naming the handler here only made `moduleRegistry.ts` import `moduleHandlers.ts` and pull the whole plugin thread into the UI bundle.
 
 `src/moduleHandlers.ts` routes incoming messages from `code.ts` to the appropriate plugin handler based on `target`.
 
@@ -94,10 +94,12 @@ Layout:
   The guard is global rather than per-target, and that is the whole point - the QA probes' stray-node sweep is page-scoped, so two runs against *different* components collide exactly as readily as two against the same one, and a per-target key would let through the case the guard exists to stop.
   Refused rather than queued because a queued call would wait behind a run that can last two minutes while its own Bridge budget expires, turning a fast honest refusal into the slow timeout #182 has just finished rewording.
   The slot is freed in a `finally`, on every path out of a run, because one leak locks the plugin out of Operations for the rest of the session.
-  This guard covers the agent-facing path only, and it is not the only one (#187).
-  The Documentation Page builder keeps its own lock in `src/plugins/tidy-doc/utils/buildLock.ts`, keyed by source component, because the panel's Document button reaches that builder through the module-action path and never passes through `dispatch` at all.
-  The two answer different questions - the registry "is another Operation running", the lock "is this page already being built" - and both may legitimately refuse the same call, so neither is redundant and deleting the lock as duplicated work reopens the designer-versus-agent collision it exists to stop.
-  The lock is keyed by component rather than global because, unlike the QA probe sweep, two Documentation Page builds share no page state; its refusal names the route holding the key (`agent` or `panel`) so a designer who clicked nothing can tell what to wait for.
+  This guard covers the agent-facing path, and it is not the only one (#187).
+  The Documentation Page builder keeps its own lock in `src/plugins/tidy-doc/utils/buildLock.ts`, keyed by source component.
+  The two answer different questions - the registry "is another Operation running", the lock "is this page already being built" - and the lock is keyed by component rather than global because, unlike the QA probe sweep, two Documentation Page builds share no page state.
+  **The second route that lock existed for is gone.** #187 wrote it because the panel's Document button reached the builder through the module-action path and never passed through `dispatch`; that button and the whole Tidy Doc panel were removed when documentation became something only Claude initiates, so `buildDocPage` now has exactly one caller and `dispatch` already serializes it.
+  The lock and `BuildOrigin`'s `"panel"` value are left in place rather than deleted in the same change, because removing them is #187's AC4 question ("exactly one mechanism answers this") and deserves its own decision - see #211.
+  Do not build anything new on either.
   The Bridge can ask a run to stop, and gets a truthful answer about whether asking achieved anything (#183).
   `requestCancellation(requestId)` lives on the same `RUNNING` record as the guard above, not in a second in-flight map, because two structures tracking one run would eventually disagree about whether there is anything left to stop.
   It answers one of four things, and only one of them is a successful stop: `not_running` (the reply and the timeout crossed, which is normal and not an error), `not_cancellable`, `stopped`, or `still_running`.
