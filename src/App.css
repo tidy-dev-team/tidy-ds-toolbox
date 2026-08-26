@@ -1307,9 +1307,11 @@ button.resize-handle.dragging {
   background: currentColor;
 }
 
-/* Three tones, because BridgeStatus is three states. "connecting" can last
-   seconds (the socket backs off from 250ms to 10s), so it gets its own colour
-   rather than being drawn as a dimmer failure. */
+/* Three tones, because BridgeStatus is three states. "connecting" is the first
+   attempt of a run and is held until the socket answers or fails, so it gets
+   its own colour rather than being drawn as a dimmer failure. The retries after
+   a failure stay red: a lamp that repainted per attempt would blink for as long
+   as no server was listening. */
 .nav-item.bridge-lamp.tone-live .bridge-lamp-dot {
   background: #16a34a;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
