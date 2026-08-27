@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { createCancellationToken, runUntilCancelled } from "./cancellation";
+import {
+  createCancellationGate,
+  createCancellationToken,
+  runUntilCancelled,
+} from "./cancellation";
 
 describe("createCancellationToken", () => {
   it("starts not cancelled", () => {
@@ -127,5 +131,67 @@ describe("runUntilCancelled", () => {
     // The uncancelled run is the common one and must be untouched by all of
     // the above: everything stamped, and no claim that anything stopped.
     expect(result).toEqual({ completed: items, cancelled: false });
+  });
+});
+
+describe("createCancellationGate", () => {
+  // A fake yield that records how often it was asked for, so a test can assert
+  // the gate yields per batch rather than per item.
+  function fakeYield(): { yields: number; fn: () => Promise<void> } {
+    const state = { yields: 0, fn: async () => {} };
+    state.fn = async () => {
+      state.yields += 1;
+    };
+    return state;
+  }
+
+  it("yields once per batch, not once per item", async () => {
+    const token = createCancellationToken();
+    const y = fakeYield();
+    const gate = createCancellationGate(token, 4, y.fn);
+    for (let i = 0; i < 12; i++) await gate.step();
+    expect(y.yields).toBe(3);
+  });
+
+  it("never yields when the batch size is not reached", async () => {
+    const token = createCancellationToken();
+    const y = fakeYield();
+    const gate = createCancellationGate(token, 100, y.fn);
+    for (let i = 0; i < 99; i++) await gate.step();
+    expect(y.yields).toBe(0);
+  });
+
+  it("reports stop as soon as the token is cancelled, batch or not", async () => {
+    const token = createCancellationToken();
+    const gate = createCancellationGate(token, 1000, async () => {});
+    expect(await gate.step()).toBe(false);
+    token.cancel();
+    expect(await gate.step()).toBe(true);
+  });
+
+  it("reads the token after the yield, so a cancellation that the yield delivered is seen at once", async () => {
+    const token = createCancellationToken();
+    // Stands in for the "cancel-scan" message the yield gives a turn to.
+    const gate = createCancellationGate(token, 2, async () => {
+      token.cancel();
+    });
+    expect(await gate.step()).toBe(false);
+    expect(await gate.step()).toBe(true);
+  });
+
+  it("keeps reporting stop once cancelled", async () => {
+    const token = createCancellationToken();
+    const gate = createCancellationGate(token, 1000, async () => {});
+    token.cancel();
+    expect(await gate.step()).toBe(true);
+    expect(await gate.step()).toBe(true);
+  });
+
+  it("treats a batch size below one as every item, rather than dividing by it", async () => {
+    const token = createCancellationToken();
+    const y = fakeYield();
+    const gate = createCancellationGate(token, 0, y.fn);
+    for (let i = 0; i < 3; i++) await gate.step();
+    expect(y.yields).toBe(3);
   });
 });

@@ -83,3 +83,49 @@ export async function runUntilCancelled<I, T>(
   }
   return { completed, cancelled: false };
 }
+
+/** Reports, once per item, whether a loop must stop. */
+export interface CancellationGate {
+  /**
+   * Call once per item. Yields every `yieldEvery` calls, then reports whether
+   * the token is now cancelled. True means stop.
+   */
+  step(): Promise<boolean>;
+}
+
+/**
+ * The check-and-yield pairing for a loop whose items `runUntilCancelled` cannot
+ * take: one that grows as it runs, such as a tree walk pushing children onto a
+ * queue.
+ *
+ * It exists for the same reason `runUntilCancelled` does - so the pairing has
+ * one home - and differs in the one way a walk needs: it yields per *batch*.
+ * A tree walk visits tens of thousands of nodes, and a macrotask each would
+ * cost far more than the walk, so yielding every item is not an option and
+ * yielding never is the bug. `yieldEvery` is where a caller says which.
+ *
+ * The token is read *after* the yield, never before, because the yield is what
+ * gives the incoming "cancel" message its turn - reading first would always
+ * miss the cancellation that this very yield delivered, and hold the stop back
+ * by a whole batch.
+ *
+ * `yieldFn` is injectable so a test can count yields and cancel from inside
+ * one; production takes the default, as `probeThemeResolution`'s `sweep` does.
+ */
+export function createCancellationGate(
+  token: CancellationToken,
+  yieldEvery: number,
+  yieldFn: () => Promise<void> = yieldToMain,
+): CancellationGate {
+  // A batch size below one would make the modulo below divide by zero or never
+  // match; treat it as "every item", which is the safe reading of the intent.
+  const batch = yieldEvery >= 1 ? Math.floor(yieldEvery) : 1;
+  let seen = 0;
+  return {
+    async step() {
+      seen += 1;
+      if (seen % batch === 0) await yieldFn();
+      return token.isCancelled;
+    },
+  };
+}

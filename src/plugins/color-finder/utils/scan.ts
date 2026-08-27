@@ -1,19 +1,54 @@
 /// <reference types="@figma/plugin-typings" />
 
+import { CancellationGate } from "../../../shared/cancellation";
+
 import { ColorRole, ColorUsage, ScanOptions, UsageContainer } from "../types";
 import { rgbToHex } from "./color";
 import { isIconName, roleFor, roundOpacity } from "./categorize";
+import {
+  ContainerChain,
+  descendChain,
+  pickContainer,
+  seedChainFromAncestors,
+} from "./container";
 
 /**
  * Figma-bound tree walk. Thin adapter around the pure aggregator: it reads
  * paints / styles / bound variables off live nodes and emits a serializable
- * `ColorUsage[]`. Verified manually in Figma, not unit-tested.
+ * `ColorUsage[]`. Verified manually in Figma, not unit-tested - the one rule
+ * that used to be decided in here, which container a usage belongs to, is pure
+ * and fixture-tested in `container.ts`.
  */
+
+/**
+ * Items between yields, counted over everything that leaves the walk's queue -
+ * hidden nodes included, since a wide band of them must not cross a batch
+ * unchecked.
+ *
+ * The walk visits tens of thousands of nodes, so a yield per node would cost
+ * far more than the walk itself, while a yield per batch stays a rounding error
+ * next to the reads between them. Exported because `scanColors` builds the
+ * cancellation gate from it, and the gate is what does the counting.
+ */
+export const SCAN_YIELD_EVERY = 500;
+
+/**
+ * Visible nodes between progress reports.
+ *
+ * Deliberately a different number from `SCAN_YIELD_EVERY`, and off a different
+ * counter: this counts only the nodes actually scanned, so on a page with many
+ * hidden nodes the two intervals drift apart and no relation between them would
+ * hold anyway. A report that lands between yields simply waits for the next one
+ * before the UI can paint it, which is what it did before any of this.
+ */
+const PROGRESS_EVERY = 250;
 
 export interface ScanResult {
   usages: ColorUsage[];
   otherSkipped: number;
   nodesScanned: number;
+  /** Whether the walk stopped early. False means it covered every node. */
+  cancelled: boolean;
 }
 
 // A color style resolved once per scan: its name plus, per paint index, the id
@@ -30,41 +65,66 @@ interface ResolveCaches {
   styles: Map<string, ResolvedStyle | null>;
 }
 
-// A node paired with whether it sits inside an icon-named subtree.
+// A node paired with what its ancestry already decided: whether it sits inside
+// an icon-named subtree, and which container its colors are attributed to. Both
+// ride down from the parent rather than being recomputed by climbing (#215).
 interface QueueItem {
   node: SceneNode;
   inIcon: boolean;
+  chain: ContainerChain;
 }
 
 export async function collectUsages(
   roots: readonly SceneNode[],
   options: ScanOptions,
   onProgress?: (nodesScanned: number) => void,
+  gate?: CancellationGate,
 ): Promise<ScanResult> {
   const usages: ColorUsage[] = [];
   const caches: ResolveCaches = { variables: new Map(), styles: new Map() };
   let otherSkipped = 0;
   let nodesScanned = 0;
+  let cancelled = false;
 
-  // Seed each root with the icon state of its real ancestors. For page/all-page
-  // scope roots are top-level (no ancestors), but a current-selection root can
-  // be a deep node whose "icon/…" ancestor is not part of the walk.
-  const queue: QueueItem[] = roots.map((node) => ({
-    node,
-    inIcon: ancestorIsIcon(node),
-  }));
+  // Seed each root from its real ancestors. For page/all-page scope roots are
+  // top-level and this finds nothing, but a current-selection root can be a
+  // deep node whose "icon/…" ancestor and enclosing component are not part of
+  // the walk. Paid once per root; every node below inherits by descent.
+  const queue: QueueItem[] = roots.map((node) => {
+    const seeded = seedChainFromAncestors(node);
+    return { node, inIcon: seeded.inIcon, chain: seeded.chain };
+  });
 
-  while (queue.length > 0) {
-    const { node, inIcon } = queue.shift()!;
+  // An index rather than `shift()`, which is O(n) on an array and so made the
+  // queue itself a cost on a page with many nodes. The trade is memory: the
+  // consumed prefix is retained for the whole walk, where `shift()` released
+  // each item as it went, so the queue holds one small record per node visited
+  // rather than one per node on the frontier. Worth it against a quadratic, and
+  // it is a judgement rather than a free win.
+  for (let head = 0; head < queue.length; head++) {
+    const { node, inIcon, chain } = queue[head];
+
+    // Every item that leaves the queue ticks the gate, visible or not. Counting
+    // it after the visibility test instead would let a wide band of hidden
+    // siblings cross a whole batch with no yield and no cancellation check.
+    // Read before the work, so a stopped walk never leaves a half-scanned node.
+    if (gate && (await gate.step())) {
+      cancelled = true;
+      break;
+    }
+
     if (node.visible === false) continue;
 
     nodesScanned += 1;
-    if (nodesScanned % 250 === 0) onProgress?.(nodesScanned);
+    if (nodesScanned % PROGRESS_EVERY === 0) onProgress?.(nodesScanned);
 
     const nodeIsIcon = inIcon || isIconName(node.name);
+    // One per node, not one per paint: every usage on this node shares it.
+    const container = pickContainer(chain, node);
     otherSkipped += await collectFromNode(
       node,
       nodeIsIcon,
+      container,
       options,
       caches,
       usages,
@@ -73,30 +133,24 @@ export async function collectUsages(
     if ("children" in node) {
       const isInstance = node.type === "INSTANCE";
       if (!isInstance || options.lookInsideInstances) {
+        const childChain = descendChain(chain, node);
         for (const child of node.children) {
-          queue.push({ node: child, inIcon: nodeIsIcon });
+          queue.push({ node: child, inIcon: nodeIsIcon, chain: childChain });
         }
       }
     }
   }
 
-  onProgress?.(nodesScanned);
-  return { usages, otherSkipped, nodesScanned };
-}
-
-// Climb a node's real ancestors (up to the page) to see if any is icon-named.
-function ancestorIsIcon(node: SceneNode): boolean {
-  let cur: BaseNode | null = node.parent;
-  while (cur && cur.type !== "PAGE" && cur.type !== "DOCUMENT") {
-    if (isIconName(cur.name)) return true;
-    cur = cur.parent;
-  }
-  return false;
+  // Not on the stopped path: the caller discards a cancelled page, so a final
+  // count for it would be a progress report for work that is being thrown away.
+  if (!cancelled) onProgress?.(nodesScanned);
+  return { usages, otherSkipped, nodesScanned, cancelled };
 }
 
 async function collectFromNode(
   node: SceneNode,
   nodeIsIcon: boolean,
+  container: UsageContainer,
   options: ScanOptions,
   caches: ResolveCaches,
   out: ColorUsage[],
@@ -119,7 +173,7 @@ async function collectFromNode(
       const fills = node.fills as readonly Paint[];
       for (let i = 0; i < fills.length; i++) {
         otherSkipped += await pushPaint(
-          node,
+          container,
           fills[i],
           fillRole,
           style,
@@ -142,7 +196,7 @@ async function collectFromNode(
       const strokes = node.strokes as readonly Paint[];
       for (let i = 0; i < strokes.length; i++) {
         otherSkipped += await pushPaint(
-          node,
+          container,
           strokes[i],
           "border",
           style,
@@ -160,7 +214,7 @@ async function collectFromNode(
 
 // Returns 1 if the paint was a skipped (non-solid) "other" paint, else 0.
 async function pushPaint(
-  node: SceneNode,
+  container: UsageContainer,
   paint: Paint,
   role: ColorRole,
   style: ResolvedStyle | null,
@@ -188,7 +242,7 @@ async function pushPaint(
     hex: rgbToHex(paint.color.r, paint.color.g, paint.color.b),
     opacity: roundOpacity(paint.opacity ?? 1),
     role,
-    container: resolveContainer(node),
+    container,
     variableName,
     styleName,
   });
@@ -200,40 +254,6 @@ function roleIncluded(role: ColorRole, options: ScanOptions): boolean {
   if (role === "text") return options.includeText;
   if (role === "icon") return options.includeIcons;
   return options.includeBorders;
-}
-
-/**
- * Walk ancestors to the nearest meaningful container, in priority order:
- * an enclosing COMPONENT_SET, else the nearest INSTANCE/COMPONENT (so a color
- * used inside an instance is attributed to e.g. "Button"), else the nearest
- * SECTION, else the top-level node under the page. Falls back to the node
- * itself.
- */
-function resolveContainer(node: SceneNode): UsageContainer {
-  let componentSet: BaseNode | null = null;
-  let instanceOrComponent: BaseNode | null = null;
-  let section: BaseNode | null = null;
-  let cur: BaseNode = node;
-
-  while (
-    cur.parent &&
-    cur.parent.type !== "PAGE" &&
-    cur.parent.type !== "DOCUMENT"
-  ) {
-    cur = cur.parent;
-    if (cur.type === "COMPONENT_SET" && !componentSet) {
-      componentSet = cur;
-    } else if (
-      (cur.type === "INSTANCE" || cur.type === "COMPONENT") &&
-      !instanceOrComponent
-    ) {
-      instanceOrComponent = cur;
-    }
-    if (cur.type === "SECTION" && !section) section = cur;
-  }
-
-  const chosen = componentSet ?? instanceOrComponent ?? section ?? cur;
-  return { id: chosen.id, name: chosen.name, type: chosen.type };
 }
 
 async function resolveVariableName(
