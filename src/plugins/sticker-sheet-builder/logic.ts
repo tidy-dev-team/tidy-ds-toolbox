@@ -12,7 +12,10 @@ import {
 } from "./utils/findAtomPages";
 import { loadFonts } from "./utils/loadFonts";
 import { lockStickers } from "./utils/lockStickers";
-import { createModuleListeners } from "../../shared/module-listeners";
+import {
+  createModuleListeners,
+  onSelectionAndPageChanges,
+} from "../../shared/module-listeners";
 import {
   StickerSheetBuilderAction,
   StickerSheetBuilderContext,
@@ -154,16 +157,11 @@ function ensureEventListeners() {
   // searches the pages for a sticker sheet, and it was doing that on every
   // selection and page change for the rest of the session, for a panel that had
   // gone.
-  listeners.ensure(() => {
-    const notify = () => {
+  listeners.ensure(() =>
+    onSelectionAndPageChanges(() => {
       broadcastContext();
-    };
-    return [
-      { type: "run", handler: notify },
-      { type: "selectionchange", handler: notify },
-      { type: "currentpagechange", handler: notify },
-    ];
-  });
+    }),
+  );
 }
 
 function broadcastContext(): StickerSheetBuilderContext {

@@ -5,7 +5,10 @@ import { AxisSlot, chooseSlotValue, collectAxisSlots } from "./utils/axisSlots";
 import { extractVariantValue } from "./utils/variantValue";
 import { splitArrayOfObjects } from "./utils/splitArrayOfObjects";
 import { extractToTheTop } from "./utils/extractToTheTop";
-import { createModuleListeners } from "../../shared/module-listeners";
+import {
+  createModuleListeners,
+  onSelectionAndPageChanges,
+} from "../../shared/module-listeners";
 import {
   LabelConfig,
   BuildLabelsPayload,
@@ -71,17 +74,11 @@ function ensureListeners() {
   // `src/shared/module-listeners.ts`). Until that existed these three kept
   // posting `variant-props` to a panel that was no longer mounted, for the rest
   // of the session, on every selection and page change in the file.
-  listeners.ensure(() => [
-    {
-      type: "selectionchange",
-      handler: () => handleSelectionChange({ silent: true }),
-    },
-    {
-      type: "currentpagechange",
-      handler: () => handleSelectionChange({ silent: true }),
-    },
-    { type: "run", handler: () => handleSelectionChange({ silent: true }) },
-  ]);
+  listeners.ensure(() =>
+    onSelectionAndPageChanges(() => {
+      handleSelectionChange({ silent: true });
+    }),
+  );
 }
 
 type SelectionChangeOptions = {

@@ -241,6 +241,61 @@ describe("shellEffects", () => {
     ]);
   });
 
+  it("announces deactivation when the bridge takes the panel away", () => {
+    // Bridge mode is the deactivation path that looks least like one: the module
+    // does not change, so `activeModule` still names it, but `App.tsx` returns
+    // the bridge bar and unmounts the panel. Without this, tidy-mapper's writing
+    // selectionchange handler survives a whole agent-driven session with no
+    // panel on screen - the same bug, during the hours nobody is watching the
+    // canvas.
+    const effects = shellEffects(stateWith({ activeModule: "tidy-mapper" }), {
+      type: "ENTER_BRIDGE_MODE",
+    });
+
+    expect(effects).toContainEqual({
+      target: "shell",
+      action: "module-deactivated",
+      payload: { moduleId: "tidy-mapper" },
+    });
+  });
+
+  it("announces deactivation when the bridge is restored at startup", () => {
+    const effects = shellEffects(stateWith({ activeModule: "tidy-mapper" }), {
+      type: "RESTORE_BRIDGE_MODE",
+      payload: true,
+    });
+
+    expect(effects).toEqual([
+      {
+        target: "shell",
+        action: "module-deactivated",
+        payload: { moduleId: "tidy-mapper" },
+      },
+    ]);
+  });
+
+  it("announces nothing when the bridge is restored off", () => {
+    // The ordinary startup. Nothing was taken away, so nothing to say.
+    expect(
+      shellEffects(stateWith({ activeModule: "tidy-mapper" }), {
+        type: "RESTORE_BRIDGE_MODE",
+        payload: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it("says nothing about deactivation when the bridge gives the panel back", () => {
+    // Leaving bridge mode remounts the panel, and every affected module posts on
+    // mount, which reinstalls its listeners. Announcing a deactivation here
+    // would remove the listeners that mount is about to install.
+    const effects = shellEffects(
+      stateWith({ activeModule: "tidy-mapper", bridgeMode: true }),
+      { type: "EXIT_BRIDGE_MODE" },
+    );
+
+    expect(effects.map((e) => e.action)).not.toContain("module-deactivated");
+  });
+
   it("announces nothing when the restore lands on the module already showing", () => {
     // The common case: storage agrees with the default, so nothing moved.
     expect(

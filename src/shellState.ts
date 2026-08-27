@@ -106,12 +106,27 @@ function saveStorage(key: string, value: unknown): PluginMessage {
  * needed to know were each guessing from their own panel's lifecycle or, in
  * three cases, not guessing at all.
  *
- * Emitted only when the module actually changed. Announcing it for a navigation
- * that stays put - clicking the active tab, or a feature jump inside the current
- * module - would tear down the listeners of the module still on screen, and
- * nothing would reinstall them until its next message.
+ * Emitted only when the module actually stopped showing. Announcing it for a
+ * navigation that stays put - clicking the active tab, or a feature jump inside
+ * the current module - would tear down the listeners of the module still on
+ * screen, and nothing would reinstall them until its next message.
+ *
+ * `to` is `null` for the paths where no module is showing afterwards at all,
+ * which is bridge mode. That case looks least like a deactivation and is the
+ * worst one to miss: `activeModule` still names the module, so nothing here
+ * changes, but `App.tsx` returns the bridge bar and unmounts the panel. A
+ * listener left behind then survives a whole agent-driven session, which is
+ * exactly the stretch when nobody is watching the canvas.
+ *
+ * There is no matching announcement when the bridge gives the panel back:
+ * every module that installs listeners posts on mount, so remounting
+ * reinstalls them, and announcing a deactivation there would remove what the
+ * mount is about to add.
  */
-function moduleDeactivated(from: PluginID, to: PluginID): PluginMessage[] {
+function moduleDeactivated(
+  from: PluginID,
+  to: PluginID | null,
+): PluginMessage[] {
   if (from === to) return [];
   return [
     {
@@ -153,8 +168,14 @@ export function shellEffects(
       ];
     case "RESTORE_ACTIVE_MODULE":
       return moduleDeactivated(state.activeModule, action.payload);
+    case "RESTORE_BRIDGE_MODE":
+      // Same reasoning as the restore above: the panel renders before storage
+      // answers, so a module has had a chance to install listeners before this
+      // says there is no panel.
+      return action.payload ? moduleDeactivated(state.activeModule, null) : [];
     case "ENTER_BRIDGE_MODE":
       return [
+        ...moduleDeactivated(state.activeModule, null),
         saveStorage("bridgeMode", true),
         saveStorage("lastNormalSize", nextLastNormalSize(state)),
         {

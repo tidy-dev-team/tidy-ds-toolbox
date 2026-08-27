@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   createModuleListeners,
   deactivateModule,
+  onSelectionAndPageChanges,
   type ListenerEnv,
   type ListenerBinding,
 } from "./module-listeners";
@@ -148,5 +149,30 @@ describe("createModuleListeners", () => {
 
     expect(() => deactivateModule("alpha")).not.toThrow();
     expect(detached.map((b) => b.type)).toEqual(["documentchange"]);
+  });
+});
+
+describe("onSelectionAndPageChanges", () => {
+  it("watches the three events, all through the one handler", () => {
+    const notify = () => {};
+
+    const bindings = onSelectionAndPageChanges(notify);
+
+    expect(bindings).toEqual([
+      { type: "selectionchange", handler: notify },
+      { type: "currentpagechange", handler: notify },
+      { type: "run", handler: notify },
+    ]);
+  });
+
+  it("passes the handler by reference, so it can be detached again", () => {
+    // The whole set shares one reference, and `figma.off` matches on identity.
+    // Wrapping each arm in its own closure here would make three handlers that
+    // look interchangeable and detach to three different things.
+    const notify = () => {};
+
+    expect(
+      new Set(onSelectionAndPageChanges(notify).map((b) => b.handler)).size,
+    ).toBe(1);
   });
 });

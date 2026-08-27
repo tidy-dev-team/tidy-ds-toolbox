@@ -29,6 +29,8 @@
  * Nothing here asks a module to remember to tear itself down.
  */
 
+import type { PluginID } from "./types";
+
 /**
  * One listener, kept as data.
  *
@@ -49,35 +51,32 @@ export interface ListenerEnv {
   off(binding: ListenerBinding): void;
 }
 
+/**
+ * Applies one binding through `figma.on` or `figma.off`.
+ *
+ * One switch rather than one per direction. The arms are identical apart from
+ * the method, and a pair of switches over the same union is a pair that can
+ * drift - an event kind added to `on` and forgotten in `off` would leak exactly
+ * the listener this module exists to remove, while looking handled.
+ */
+function applyBinding(method: "on" | "off", binding: ListenerBinding): void {
+  switch (binding.type) {
+    case "selectionchange":
+    case "currentpagechange":
+      figma[method](binding.type, binding.handler);
+      return;
+    case "run":
+      figma[method]("run", binding.handler);
+      return;
+    case "documentchange":
+      figma[method]("documentchange", binding.handler);
+      return;
+  }
+}
+
 export const figmaListenerEnv: ListenerEnv = {
-  on(binding) {
-    switch (binding.type) {
-      case "selectionchange":
-      case "currentpagechange":
-        figma.on(binding.type, binding.handler);
-        return;
-      case "run":
-        figma.on("run", binding.handler);
-        return;
-      case "documentchange":
-        figma.on("documentchange", binding.handler);
-        return;
-    }
-  },
-  off(binding) {
-    switch (binding.type) {
-      case "selectionchange":
-      case "currentpagechange":
-        figma.off(binding.type, binding.handler);
-        return;
-      case "run":
-        figma.off("run", binding.handler);
-        return;
-      case "documentchange":
-        figma.off("documentchange", binding.handler);
-        return;
-    }
-  },
+  on: (binding) => applyBinding("on", binding),
+  off: (binding) => applyBinding("off", binding),
 };
 
 export interface ModuleListeners {
@@ -111,10 +110,10 @@ interface Installed {
   env: ListenerEnv;
 }
 
-const installed = new Map<string, Installed>();
+const installed = new Map<PluginID, Installed>();
 
 export function createModuleListeners(
-  moduleId: string,
+  moduleId: PluginID,
   env: ListenerEnv = figmaListenerEnv,
 ): ModuleListeners {
   return {
@@ -140,7 +139,7 @@ export function createModuleListeners(
  * reasoning as the QA probe sweep: one listener that cannot be removed must not
  * strand the others, because a stranded listener is the entire bug.
  */
-export function deactivateModule(moduleId: string): void {
+export function deactivateModule(moduleId: PluginID): void {
   const entry = installed.get(moduleId);
   if (!entry) return;
   const { bindings, env } = entry;
@@ -157,4 +156,21 @@ export function deactivateModule(moduleId: string): void {
       );
     }
   }
+}
+
+/**
+ * The three events a module watches when it mirrors "what is selected, where".
+ *
+ * `component-labels` and `sticker-sheet-builder` both wanted exactly this trio
+ * around a single notify function, and both spelled it out. Named once instead,
+ * so the set cannot drift between two modules that mean the same thing by it.
+ */
+export function onSelectionAndPageChanges(
+  notify: () => void,
+): ListenerBinding[] {
+  return [
+    { type: "selectionchange", handler: notify },
+    { type: "currentpagechange", handler: notify },
+    { type: "run", handler: notify },
+  ];
 }
