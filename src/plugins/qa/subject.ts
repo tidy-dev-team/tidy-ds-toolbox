@@ -106,10 +106,17 @@ export async function resolveTarget(
     types: ["COMPONENT", "COMPONENT_SET"],
   });
 
+  // Resolved as one batch. Cheaper than it looks on this path rather than more
+  // expensive: `resolveUp` only awaits for an INSTANCE, and the criteria above
+  // admit no instances, so today every one of these settles without a round
+  // trip. Batching it costs nothing and stops the shape being the one that has
+  // to be revisited if the criteria ever widen.
+  const matched = candidates.filter((candidate) =>
+    pattern.test(candidate.name),
+  );
+  const resolved = await Promise.all(matched.map((node) => resolveUp(node)));
   const subjects = new Map<string, QaSubject>();
-  for (const candidate of candidates) {
-    if (!pattern.test(candidate.name)) continue;
-    const subject = await resolveUp(candidate);
+  for (const subject of resolved) {
     if (subject) subjects.set(subject.id, subject);
   }
 

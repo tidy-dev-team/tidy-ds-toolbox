@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  readStampedKeys,
   indexPriorArtifacts,
   removeIfPresent,
   type StampedFrame,
@@ -116,5 +117,75 @@ describe("removeIfPresent", () => {
     });
 
     expect(calls).toBe(0);
+  });
+});
+
+describe("readStampedKeys", () => {
+  /**
+   * Stand-in for a node's plugin-data surface, counting the reads so the test
+   * can assert the round-trip cost rather than only the answer. That cost is
+   * the whole point of this function: every call here is a sandbox round trip,
+   * paid once per frame in the document.
+   */
+  function node(data: Record<string, string>) {
+    const reads: string[] = [];
+    let keyListings = 0;
+    return {
+      reads,
+      keyListings: () => keyListings,
+      getPluginDataKeys: () => {
+        keyListings += 1;
+        return Object.keys(data);
+      },
+      getPluginData: (key: string) => {
+        reads.push(key);
+        return data[key] ?? "";
+      },
+    };
+  }
+
+  it("reads only the requested keys the node actually carries", () => {
+    const n = node({ [SHOWCASE]: "1:2" });
+
+    expect(readStampedKeys(n, [CHECKLIST, SHOWCASE, EVIDENCE])).toEqual({
+      [SHOWCASE]: "1:2",
+    });
+    expect(n.reads).toEqual([SHOWCASE]);
+  });
+
+  it("costs one call on a frame carrying none of the keys", () => {
+    // The common case by an enormous margin: almost every frame in a design
+    // system file has no plugin data of ours at all. Asking each of them for
+    // every key in turn is what made this a per-key cost per frame.
+    const n = node({});
+
+    expect(readStampedKeys(n, [CHECKLIST, SHOWCASE, EVIDENCE])).toBeNull();
+    expect(n.reads).toEqual([]);
+    expect(n.keyListings()).toBe(1);
+  });
+
+  it("ignores plugin data belonging to another feature", () => {
+    const n = node({ "tidy:doc-page": "1:2" });
+
+    expect(readStampedKeys(n, [CHECKLIST])).toBeNull();
+    expect(n.reads).toEqual([]);
+  });
+
+  it("keeps every requested key the node carries", () => {
+    const n = node({ [SHOWCASE]: "1:2", [EVIDENCE]: "1:2" });
+
+    expect(readStampedKeys(n, [CHECKLIST, SHOWCASE, EVIDENCE])).toEqual({
+      [SHOWCASE]: "1:2",
+      [EVIDENCE]: "1:2",
+    });
+  });
+
+  it("treats a listed key with an empty value as absent", () => {
+    // Figma deletes a key when its value is set to "", so a listed-but-empty
+    // key should not arise. The guard stays because the old code skipped empty
+    // values too, and dropping it would let one into the index as a match.
+    const n = node({ [SHOWCASE]: "" });
+
+    expect(readStampedKeys(n, [SHOWCASE])).toBeNull();
   });
 });

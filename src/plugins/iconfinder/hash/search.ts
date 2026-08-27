@@ -15,6 +15,43 @@ export interface TextMatch {
   score: number;
 }
 
+/**
+ * One database entry with the two things a query compares against already
+ * derived: the lowercased name, and the term string split into tokens.
+ *
+ * Both used to be recomputed per entry per query. That is 22k `toLowerCase`
+ * calls and 22k `split` allocations on every keystroke, and it was the bulk of
+ * a search's cost - the comparison work itself is trivial by contrast. Neither
+ * derived value depends on the query, so both are computed once when the
+ * database is loaded.
+ */
+export interface IndexedEntry {
+  entry: IconEntry;
+  /** `entry.name`, lowercased. */
+  name: string;
+  /** `entry.terms`, split on spaces. Empty when the entry carries no terms. */
+  termTokens: string[];
+}
+
+/**
+ * Derives the search index for a database.
+ *
+ * Call once per database load and keep the result; see `db/load.ts`, which
+ * memoizes it beside the database itself. The entry is kept by reference rather
+ * than copied: this index is held for the whole session next to 22k entries
+ * whose `svg` fields dominate their size, and copying them would double the
+ * cost of the thing being optimised.
+ */
+export function buildTextSearchIndex(
+  database: readonly IconEntry[],
+): IndexedEntry[] {
+  return database.map((entry) => ({
+    entry,
+    name: entry.name.toLowerCase(),
+    termTokens: entry.terms ? entry.terms.split(" ") : [],
+  }));
+}
+
 // Score tiers, highest first. The exact-name tier dominates so that querying a
 // glyph's real name always floats it to the top above tag-only hits.
 const SCORE_NAME_EXACT = 1000;
@@ -61,24 +98,22 @@ function scoreToken(name: string, termTokens: string[], token: string): number {
 }
 
 /**
- * Rank the database against a free-text query. Every query token must hit an
+ * Rank the database against a free-text query, via the index built by
+ * `buildTextSearchIndex`. Every query token must hit an
  * entry (AND semantics) for it to be included, so "bell off" narrows rather
  * than widens. Results are sorted by descending score, then by shorter name
  * (more specific) as a stable tiebreak, and limited to `n`.
  */
 export function searchByText(
   query: string,
-  database: IconEntry[],
+  index: readonly IndexedEntry[],
   n: number,
 ): TextMatch[] {
   const tokens = tokenize(query);
   if (tokens.length === 0) return [];
 
   const matches: TextMatch[] = [];
-  for (const entry of database) {
-    const name = entry.name.toLowerCase();
-    const termTokens = entry.terms ? entry.terms.split(" ") : [];
-
+  for (const { entry, name, termTokens } of index) {
     let total = 0;
     let everyTokenHit = true;
     for (const token of tokens) {

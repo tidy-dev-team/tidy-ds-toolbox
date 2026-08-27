@@ -26,6 +26,7 @@ import {
   type QaRun,
 } from "./render/compose-artifacts";
 import type { CheckId, QaRunResult } from "./types";
+import { timedRun, type PhaseTimer } from "./phase-timing";
 import { bindsOwnThemeVariables } from "./variable-usage";
 
 interface QaRunParams {
@@ -57,7 +58,7 @@ interface QaRunParams {
  * checked. Which snapshot facets a filtered run needs is the catalogue's business
  * rather than this module's - see `prepareSnapshot` (#134).
  */
-async function runQa(params: QaRunParams): Promise<QaRun> {
+async function runQa(params: QaRunParams, timer: PhaseTimer): Promise<QaRun> {
   if (params.checks) {
     const unknown = unknownCheckIds(params.checks);
     if (unknown.length > 0) {
@@ -70,10 +71,19 @@ async function runQa(params: QaRunParams): Promise<QaRun> {
     }
   }
 
-  const { subject, origin } = await resolveTarget(params);
-  const snapshot = await prepareSnapshot(subject, params.checks);
+  // The three phases named separately because they cost unrelated things:
+  // resolving searches the document, the snapshot is where the per-id reads and
+  // both probes are paid, and the checks themselves are pure.
+  const { subject, origin } = await timer.phase("resolve", () =>
+    resolveTarget(params),
+  );
+  const snapshot = await timer.phase("snapshot", () =>
+    prepareSnapshot(subject, params.checks),
+  );
 
-  const outcome = runChecks(snapshot, params.checks as CheckId[] | undefined);
+  const outcome = await timer.phase("checks", () =>
+    runChecks(snapshot, params.checks as CheckId[] | undefined),
+  );
   const target = { id: subject.id, name: subject.name };
   // Record the instance the run started from, if any (for canvas placement).
   const generatedFor =
@@ -111,18 +121,21 @@ registerOperation<QaRunParams, QaRunResult>(
       "Run the DS Component QA checklist against a component set. Target by nodeId or name/glob, or omit both to use the current selection. Returns CheckResults plus a 19-item checklist model. Read-only toward the target: it never modifies the component set. Three documented carve-outs from ADR-0001's read-only Query definition, all transient and all removed before the call returns: the themes (#17) and high-contrast (#16) checks create and remove one temporary off-canvas probe frame to resolve variables per theme mode; the responsiveness check (#7) instances the default variant into a temporary off-canvas frame, drives its width and lengthens its text to measure what breaks, then removes it; and `includeModeImages` builds, exports and removes the per-mode showcase it returns.",
     paramsExample: { name: "Button" },
   },
-  async (params) => {
-    const run = await runQa(params);
-    const { result } = run;
-    if (params.includeModeImages) {
-      const { image, skipped } = await renderModeImage(run);
-      if (image) result.modeImage = image;
-      // Why there is no picture, rather than silently returning none: "this set
-      // has no theme axis" is a fact about the component and worth saying.
-      if (skipped) result.modeImageSkipped = skipped;
-    }
-    return result;
-  },
+  async (params) =>
+    timedRun("tidy_qa_run", async (timer) => {
+      const run = await runQa(params, timer);
+      const { result } = run;
+      if (params.includeModeImages) {
+        const { image, skipped } = await timer.phase("mode-image", () =>
+          renderModeImage(run),
+        );
+        if (image) result.modeImage = image;
+        // Why there is no picture, rather than silently returning none: "this set
+        // has no theme axis" is a fact about the component and worth saying.
+        if (skipped) result.modeImageSkipped = skipped;
+      }
+      return result;
+    }),
 );
 
 interface BuildChecklistResult {
@@ -246,25 +259,33 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
       "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items - automated ones with grouped findings, manual ones on a tinted row with no status chip. A finding from a check whose defects are visible also gets a live instance of one offending variant drawn beneath it, captioned with the variant and how many share the defect. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, sampleCount, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
     paramsExample: {},
   },
-  async (params) => {
-    const run = await runQa(params);
-    const anchor = await resolveAnchor(
-      params.anchorNodeId,
-      run.origin,
-      run.subject,
-    );
+  async (params) =>
+    timedRun("tidy_qa_build_checklist", async (timer) => {
+      const run = await runQa(params, timer);
+      const anchor = await resolveAnchor(
+        params.anchorNodeId,
+        run.origin,
+        run.subject,
+      );
 
-    const artifacts = await composeChecklistArtifacts(run, {
-      anchor,
-      anchorRequested: params.anchorNodeId !== undefined,
-      includeContactSheet: params.includeContactSheet ?? false,
-      includeImage: params.includeImage ?? false,
-    });
+      // The composition times its own document traversal separately, because
+      // that is the step #213 changed; everything else it does is drawing, and
+      // splitting the drawing per block would mean threading the timer through
+      // the sequence that exists to keep the drawing in one place.
+      const artifacts = await timer.phase("compose", () =>
+        composeChecklistArtifacts(run, {
+          anchor,
+          anchorRequested: params.anchorNodeId !== undefined,
+          includeContactSheet: params.includeContactSheet ?? false,
+          includeImage: params.includeImage ?? false,
+          timer,
+        }),
+      );
 
-    return {
-      ...artifacts,
-      target: run.result.target,
-      counts: run.result.checklist.counts,
-    };
-  },
+      return {
+        ...artifacts,
+        target: run.result.target,
+        counts: run.result.checklist.counts,
+      };
+    }),
 );

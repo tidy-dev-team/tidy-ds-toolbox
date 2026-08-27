@@ -10,6 +10,7 @@
  * stays pure and fixture-tested.
  */
 
+import { loadByIdInOrder } from "./batch";
 import { requiredFacets } from "./checklist-catalogue";
 import { toHex } from "./color";
 import { probeResizeBehaviour } from "./resize-probe";
@@ -501,8 +502,11 @@ export async function collectColorStyles(
   if (ids.length === 0) return undefined;
 
   const styles: Record<string, ColorStyleSnapshot> = {};
-  for (const id of ids) {
-    const style = await figma.getStyleByIdAsync(id);
+  // One batch rather than one round trip at a time: the ids are independent
+  // reads and nothing here depends on the order they settle in.
+  for (const [id, style] of await loadByIdInOrder(ids, (styleId) =>
+    figma.getStyleByIdAsync(styleId),
+  )) {
     // A style that cannot be loaded (deleted, or a remote library that is
     // unavailable) is simply left out: #16 then falls back to the node's own
     // fills, losing the name but not the colour.

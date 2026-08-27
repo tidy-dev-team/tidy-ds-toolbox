@@ -20,6 +20,7 @@
  * lying on whatever page it was built on.
  */
 
+import type { PhaseTimer } from "../phase-timing";
 import {
   collectPriorArtifacts,
   type PriorArtifactIndex,
@@ -213,6 +214,14 @@ export interface ComposeRequest {
   anchorRequested: boolean;
   includeContactSheet: boolean;
   includeImage: boolean;
+  /**
+   * Times the one document traversal this composition makes (#213).
+   *
+   * Named separately from the drawing rather than folded into it because it is
+   * the step #213 changed: the traversal reads plugin data on every frame in the
+   * file, and a single "compose" number cannot say whether that got cheaper.
+   */
+  timer: PhaseTimer;
 }
 
 export interface ComposedArtifacts {
@@ -252,12 +261,14 @@ export async function composeChecklistArtifacts(
   // and shared by the checklist lookup and all three removals below - which
   // used to be four separate walks of the whole document, three of them
   // unindexed, all before any useful work began.
-  const priorArtifacts = await collectPriorArtifacts(targetId, [
-    CHECKLIST_DATA_KEY,
-    SHOWCASE_DATA_KEY,
-    EVIDENCE_DATA_KEY,
-    CONTACT_SHEET_DATA_KEY,
-  ]);
+  const priorArtifacts = await request.timer.phase("prior-artifacts", () =>
+    collectPriorArtifacts(targetId, [
+      CHECKLIST_DATA_KEY,
+      SHOWCASE_DATA_KEY,
+      EVIDENCE_DATA_KEY,
+      CONTACT_SHEET_DATA_KEY,
+    ]),
+  );
 
   const { frame, sampleCount } = await renderChecklist(
     result.checklist,

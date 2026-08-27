@@ -78,6 +78,53 @@ export function indexPriorArtifacts<F>(
 }
 
 /**
+ * A node's plugin-data surface, narrowed to what this module reads.
+ *
+ * Declared structurally rather than taken as a `FrameNode` so the read pattern
+ * below is testable without a document: it is the part with a cost worth
+ * asserting, and the assertion is about how many calls it makes.
+ */
+export interface StampedNode {
+  getPluginDataKeys(): string[];
+  getPluginData(key: string): string;
+}
+
+/**
+ * What the requested keys hold on one node, or `null` when it carries none of
+ * them.
+ *
+ * Asks the node which keys it has *once*, then reads only the ones both sides
+ * agree on. The obvious form - `getPluginData` per requested key - looks free
+ * and is not: every one of those is a sandbox round trip, and this runs on
+ * every frame in the document, so the cost is keys x frames. A design system
+ * file has tens of thousands of frames and almost none of them carry any of
+ * our plugin data, so the overwhelmingly common answer is `null` and it should
+ * cost one call to reach, not one per key.
+ *
+ * Returning `null` rather than an empty object keeps the caller's skip
+ * condition a null check instead of a second `Object.keys` pass over a record
+ * that is nearly always empty.
+ */
+export function readStampedKeys(
+  node: StampedNode,
+  keys: readonly string[],
+): Record<string, string> | null {
+  const present = new Set(node.getPluginDataKeys());
+  let data: Record<string, string> | null = null;
+  for (const key of keys) {
+    if (!present.has(key)) continue;
+    const value = node.getPluginData(key);
+    // Figma deletes a key when its value is set to "", so a listed-but-empty
+    // key should not arise. The guard stays because letting one through would
+    // put an empty stamp into the index, where it can only be a false match.
+    if (!value) continue;
+    if (data === null) data = {};
+    data[key] = value;
+  }
+  return data;
+}
+
+/**
  * The one traversal. Loads every page once, walks once, and reads only the
  * keys asked for.
  *
@@ -96,12 +143,8 @@ export async function collectPriorArtifacts(
   await figma.loadAllPagesAsync();
   const stamped: StampedFrame<FrameNode>[] = [];
   for (const frame of figma.root.findAllWithCriteria({ types: ["FRAME"] })) {
-    const data: Record<string, string> = {};
-    for (const key of keys) {
-      const value = frame.getPluginData(key);
-      if (value) data[key] = value;
-    }
-    if (Object.keys(data).length > 0) stamped.push({ frame, data });
+    const data = readStampedKeys(frame, keys);
+    if (data) stamped.push({ frame, data });
   }
   return indexPriorArtifacts(stamped, targetId);
 }
