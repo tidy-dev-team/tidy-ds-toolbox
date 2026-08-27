@@ -12,6 +12,7 @@ import {
 } from "./utils/findAtomPages";
 import { loadFonts } from "./utils/loadFonts";
 import { lockStickers } from "./utils/lockStickers";
+import { createModuleListeners } from "../../shared/module-listeners";
 import {
   StickerSheetBuilderAction,
   StickerSheetBuilderContext,
@@ -26,7 +27,7 @@ import {
 } from "./types";
 
 let fontsLoaded = false;
-let listenersRegistered = false;
+const listeners = createModuleListeners("sticker-sheet-builder");
 // #167: the token backing both build-one and build-all's stop control.
 // Recreated at the start of each run so an earlier cancellation doesn't
 // leak into the next one.
@@ -148,14 +149,21 @@ async function ensureFontsLoaded() {
 }
 
 function ensureEventListeners() {
-  if (listenersRegistered) return;
-  listenersRegistered = true;
-
-  const notify = () => broadcastContext();
-
-  figma.on("run", notify);
-  figma.on("selectionchange", notify);
-  figma.on("currentpagechange", notify);
+  // Removed again when the shell navigates away (see
+  // `src/shared/module-listeners.ts`). `broadcastContext` reads the selection and
+  // searches the pages for a sticker sheet, and it was doing that on every
+  // selection and page change for the rest of the session, for a panel that had
+  // gone.
+  listeners.ensure(() => {
+    const notify = () => {
+      broadcastContext();
+    };
+    return [
+      { type: "run", handler: notify },
+      { type: "selectionchange", handler: notify },
+      { type: "currentpagechange", handler: notify },
+    ];
+  });
 }
 
 function broadcastContext(): StickerSheetBuilderContext {

@@ -86,7 +86,10 @@ export function classifyMessage(msg: IncomingMessage): EventIdentity | null {
       }
     }
     // FR5: load-storage (including the startup activeModule restore) and all
-    // other shell housekeeping (save-storage for other keys, resize-ui) is noise.
+    // other shell housekeeping (save-storage for other keys, resize-ui,
+    // module-deactivated) is noise. `module-deactivated` in particular rides
+    // alongside the activeModule write on every module switch, and counting both
+    // would double every switch in the numbers.
     return null;
   }
 

@@ -1,31 +1,27 @@
 /// <reference types="@figma/plugin-typings" />
 
 import { postToUI } from "../../shared/bridge";
+import { createModuleListeners } from "../../shared/module-listeners";
 
-let listenersRegistered = false;
-let isActive = false;
+const listeners = createModuleListeners("iconfinder");
 
 function ensureListeners(): void {
-  if (listenersRegistered) {
-    return;
-  }
-  listenersRegistered = true;
-
-  figma.on("selectionchange", () => {
-    void handleSelectionChange();
-  });
-}
-
-function setActive(active: boolean): void {
-  isActive = active;
+  // This module used to guard the handler with an `isActive` flag that its panel
+  // set by posting `stop` on unmount - a second mechanism answering the question
+  // `module-deactivated` now answers for every module. The listener is simply
+  // gone while another module is showing, so there is nothing to guard against.
+  // See `src/shared/module-listeners.ts`.
+  listeners.ensure(() => [
+    {
+      type: "selectionchange",
+      handler: () => {
+        void handleSelectionChange();
+      },
+    },
+  ]);
 }
 
 async function handleSelectionChange(): Promise<void> {
-  // Active-module guard: do no work while another module is showing.
-  if (!isActive) {
-    return;
-  }
-
   const selection = figma.currentPage.selection;
 
   if (selection.length === 0) {
@@ -74,12 +70,9 @@ export async function iconFinderHandler(
 
   switch (action) {
     case "start": {
-      setActive(true);
+      // Analyse what is already selected, rather than waiting for the designer
+      // to reselect it. Installing the listener is `ensureListeners` above.
       await handleSelectionChange();
-      return;
-    }
-    case "stop": {
-      setActive(false);
       return;
     }
     default:

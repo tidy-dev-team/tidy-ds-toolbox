@@ -460,10 +460,6 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
     effect: "reads",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
   },
-  "iconfinder:stop": {
-    effect: "reads",
-    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
-  },
 
   // Tidy Icon Care (target "tidy-icon-care").
   "tidy-icon-care:load-params": {

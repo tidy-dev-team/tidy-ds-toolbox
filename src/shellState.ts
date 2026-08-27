@@ -97,15 +97,44 @@ function saveStorage(key: string, value: unknown): PluginMessage {
 }
 
 /**
+ * Tells the main thread a module stopped showing, so it can drop the document
+ * listeners that module installed. See `src/shared/module-listeners.ts` for what
+ * was wrong without it.
+ *
+ * The shell is the right place to say this because it is the only part that
+ * knows: a module cannot notice it is no longer on screen, and the four that
+ * needed to know were each guessing from their own panel's lifecycle or, in
+ * three cases, not guessing at all.
+ *
+ * Emitted only when the module actually changed. Announcing it for a navigation
+ * that stays put - clicking the active tab, or a feature jump inside the current
+ * module - would tear down the listeners of the module still on screen, and
+ * nothing would reinstall them until its next message.
+ */
+function moduleDeactivated(from: PluginID, to: PluginID): PluginMessage[] {
+  if (from === to) return [];
+  return [
+    {
+      target: "shell",
+      action: "module-deactivated",
+      payload: { moduleId: from },
+    },
+  ];
+}
+
+/**
  * What this action should send to the main thread, given the state it acts on.
  *
  * Takes the state *before* the action. Every caller dispatches immediately
  * after, so "before" is the state that is actually to hand, and it keeps this
  * function independent of the reducer rather than chained behind it.
  *
- * The `RESTORE_*` actions deliberately send nothing: they exist to bring stored
- * values back into state, and persisting them again on the way in would be a
- * write for every read.
+ * The `RESTORE_*` actions deliberately persist nothing: they exist to bring
+ * stored values back into state, and writing them again on the way in would be a
+ * write for every read. `RESTORE_ACTIVE_MODULE` still announces a deactivation,
+ * because that is not a write and the restore is a real module change - the panel
+ * renders the default module before storage answers, so the default has had a
+ * chance to install listeners.
  */
 export function shellEffects(
   state: ShellState,
@@ -113,9 +142,17 @@ export function shellEffects(
 ): PluginMessage[] {
   switch (action.type) {
     case "SET_ACTIVE_MODULE":
-      return [saveStorage("activeModule", action.payload)];
+      return [
+        ...moduleDeactivated(state.activeModule, action.payload),
+        saveStorage("activeModule", action.payload),
+      ];
     case "SET_FEATURE_FOCUS":
-      return [saveStorage("activeModule", action.payload.pluginId)];
+      return [
+        ...moduleDeactivated(state.activeModule, action.payload.pluginId),
+        saveStorage("activeModule", action.payload.pluginId),
+      ];
+    case "RESTORE_ACTIVE_MODULE":
+      return moduleDeactivated(state.activeModule, action.payload);
     case "ENTER_BRIDGE_MODE":
       return [
         saveStorage("bridgeMode", true),
