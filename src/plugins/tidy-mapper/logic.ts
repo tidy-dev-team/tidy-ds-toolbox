@@ -10,6 +10,7 @@ import {
   CurrentNameResult,
 } from "./types";
 import { makeRasters, renameSelection } from "./utils/sliceProcessor";
+import { createModuleListeners } from "../../shared/module-listeners";
 import {
   setTrailsVisibility,
   showTrailsByName,
@@ -22,7 +23,8 @@ import {
 
 // Module state - current slice name for auto-naming
 let currentSliceName = "Avatar";
-let listenersRegistered = false;
+
+const listeners = createModuleListeners("tidy-mapper");
 
 /**
  * Tidy Mapper handler - processes messages from the UI
@@ -32,7 +34,7 @@ export async function tidyMapperHandler(
   payload: any,
   figma: any,
 ): Promise<any> {
-  ensureListeners(figma);
+  ensureListeners();
 
   switch (action) {
     case "grab-slices":
@@ -158,28 +160,35 @@ function handleGetCurrentName(): CurrentNameResult {
 }
 
 /**
- * Sets up event listeners for selection changes
- * Called when the module is first used
+ * Sets up event listeners for selection changes.
+ *
+ * Removed again when the shell navigates away from this module, which matters
+ * more here than anywhere else: the `selectionchange` handler below *writes*, so
+ * while it was installed for the whole session it renamed every slice the
+ * designer selected in any module, to a name they may never have typed. See
+ * `src/shared/module-listeners.ts`.
  */
-function ensureListeners(figma: any): void {
-  if (listenersRegistered) {
-    return;
-  }
-  listenersRegistered = true;
-
-  figma.on("selectionchange", () => {
-    // Auto-name new slices with current name
-    renameSelection(currentSliceName);
-  });
-
-  figma.on("documentchange", (event: DocumentChangeEvent) => {
-    for (const change of event.documentChanges) {
-      if (change.type === "CREATE" && change.node.type === "SLICE") {
-        // Notify UI that a new slice was created
-        figma.ui.postMessage({
-          type: "slice-created",
-        });
-      }
-    }
-  });
+function ensureListeners(): void {
+  listeners.ensure(() => [
+    {
+      type: "selectionchange",
+      handler: () => {
+        // Auto-name new slices with current name
+        renameSelection(currentSliceName);
+      },
+    },
+    {
+      type: "documentchange",
+      handler: (event) => {
+        for (const change of event.documentChanges) {
+          if (change.type === "CREATE" && change.node.type === "SLICE") {
+            // Notify UI that a new slice was created
+            figma.ui.postMessage({
+              type: "slice-created",
+            });
+          }
+        }
+      },
+    },
+  ]);
 }

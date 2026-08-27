@@ -65,6 +65,17 @@ To add a plugin: create the three files, then register the module in `moduleRegi
 
 ### Shell State
 
+The shell also announces when a module stops showing, and `src/shared/module-listeners.ts` is what acts on it.
+Four modules registered `figma.on` handlers behind a module-level `listenersRegistered` boolean that was never reset, and nothing in `src/` ever called `figma.off`, so a handler installed by visiting a tab ran for the rest of the plugin session whatever module was showing.
+That was not only a cost: `tidy-mapper`'s `selectionchange` handler *writes*, renaming every selected `SLICE` to the name the module holds (default "Avatar"), and it was installed from the top of the module's message handler while the panel posts a message on mount - so opening the tab once, without using it, was enough to have every slice the designer selected afterwards silently renamed.
+`shellEffects` emits `module-deactivated` naming the module it navigated away from, `code.ts` routes it to `deactivateModule`, and a module declares its listeners as data (`ListenerBinding[]`) rather than as `figma.on` calls, because `figma.off` matches on function identity and the surest way to keep the attached reference is never to separate it from the detach.
+Only when the module actually stopped showing: announcing it for a navigation that stays put would strand the module still on screen with no listeners and nothing to reinstall them.
+Bridge mode counts, and it is the path that looks least like a deactivation - `activeModule` still names the module, so nothing about the navigation changes, but `App.tsx` returns the bridge bar and unmounts the panel.
+Missing it is the worst version of the bug, because a listener left behind then survives a whole agent-driven session, which is the stretch when nobody is watching the canvas.
+Leaving bridge mode announces nothing, and needs to: every module that installs listeners posts on mount, so the remount reinstalls them, and a deactivation there would remove what the mount is about to add.
+**A module that needs a document event takes `createModuleListeners`; a bare `figma.on` in a module is the leak coming back.**
+Iconfinder's `isActive` flag and its `stop` action were a second mechanism answering the same question from the panel's end, and went with this change rather than being copied into the other three.
+
 `src/ShellContext.tsx` manages global state (active module, window dimensions, theme, settings) using React Context + Reducer. The active module ID is persisted to `figma.clientStorage` so it survives plugin reopens.
 The state itself is not in that file. `src/shellState.ts` holds the reducer, the actions, and `shellEffects`, which decides what an action sends to the main thread; the provider owns the sending.
 The reducer used to post from inside its own cases, which React may run more than once per dispatch - `main.tsx` wraps the app in StrictMode, so every module change was persisting twice.

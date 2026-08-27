@@ -143,9 +143,33 @@ describe("bridge mode", () => {
 });
 
 describe("shellEffects", () => {
-  it("persists the module the user picked", () => {
+  it("persists the module the user picked, and says which one it left", () => {
     expect(
       shellEffects(initialState, {
+        type: "SET_ACTIVE_MODULE",
+        payload: "audit",
+      }),
+    ).toEqual([
+      {
+        target: "shell",
+        action: "module-deactivated",
+        payload: { moduleId: "ds-explorer" },
+      },
+      {
+        target: "shell",
+        action: "save-storage",
+        payload: { key: "activeModule", value: "audit" },
+      },
+    ]);
+  });
+
+  it("says nothing about deactivation when the module has not changed", () => {
+    // Clicking the tab that is already showing. Announcing a deactivation here
+    // would tear down the listeners of the module still on screen, and nothing
+    // would put them back until its next message - which for a passive module
+    // is never.
+    expect(
+      shellEffects(stateWith({ activeModule: "audit" }), {
         type: "SET_ACTIVE_MODULE",
         payload: "audit",
       }),
@@ -158,7 +182,31 @@ describe("shellEffects", () => {
     ]);
   });
 
-  it("sends nothing for the restore actions", () => {
+  it("announces deactivation when a feature jump changes module too", () => {
+    // The other action that navigates. It was the one that would have been
+    // forgotten, because it looks like it is about scrolling.
+    const effects = shellEffects(stateWith({ activeModule: "audit" }), {
+      type: "SET_FEATURE_FOCUS",
+      payload: { pluginId: "iconfinder", section: "[data-feature='search']" },
+    });
+
+    expect(effects).toContainEqual({
+      target: "shell",
+      action: "module-deactivated",
+      payload: { moduleId: "audit" },
+    });
+  });
+
+  it("says nothing about deactivation for a feature jump within one module", () => {
+    const effects = shellEffects(stateWith({ activeModule: "audit" }), {
+      type: "SET_FEATURE_FOCUS",
+      payload: { pluginId: "audit", section: "[data-feature='report']" },
+    });
+
+    expect(effects.map((e) => e.action)).toEqual(["save-storage"]);
+  });
+
+  it("persists nothing for the restore actions", () => {
     const restores = [
       { type: "RESTORE_ACTIVE_MODULE", payload: "audit" },
       { type: "RESTORE_BRIDGE_MODE", payload: true },
@@ -166,8 +214,96 @@ describe("shellEffects", () => {
     ] as const;
 
     for (const action of restores) {
-      expect(shellEffects(initialState, action)).toEqual([]);
+      expect(
+        shellEffects(initialState, action).filter(
+          (e) => e.action === "save-storage",
+        ),
+      ).toEqual([]);
     }
+  });
+
+  it("announces deactivation when a restore moves off the default module", () => {
+    // The restore at mount is a module change like any other: the panel renders
+    // the default module before storage answers, so whatever that default is has
+    // had a chance to install listeners. Today no module with listeners is the
+    // default, which is luck rather than a guarantee.
+    expect(
+      shellEffects(initialState, {
+        type: "RESTORE_ACTIVE_MODULE",
+        payload: "audit",
+      }),
+    ).toEqual([
+      {
+        target: "shell",
+        action: "module-deactivated",
+        payload: { moduleId: "ds-explorer" },
+      },
+    ]);
+  });
+
+  it("announces deactivation when the bridge takes the panel away", () => {
+    // Bridge mode is the deactivation path that looks least like one: the module
+    // does not change, so `activeModule` still names it, but `App.tsx` returns
+    // the bridge bar and unmounts the panel. Without this, tidy-mapper's writing
+    // selectionchange handler survives a whole agent-driven session with no
+    // panel on screen - the same bug, during the hours nobody is watching the
+    // canvas.
+    const effects = shellEffects(stateWith({ activeModule: "tidy-mapper" }), {
+      type: "ENTER_BRIDGE_MODE",
+    });
+
+    expect(effects).toContainEqual({
+      target: "shell",
+      action: "module-deactivated",
+      payload: { moduleId: "tidy-mapper" },
+    });
+  });
+
+  it("announces deactivation when the bridge is restored at startup", () => {
+    const effects = shellEffects(stateWith({ activeModule: "tidy-mapper" }), {
+      type: "RESTORE_BRIDGE_MODE",
+      payload: true,
+    });
+
+    expect(effects).toEqual([
+      {
+        target: "shell",
+        action: "module-deactivated",
+        payload: { moduleId: "tidy-mapper" },
+      },
+    ]);
+  });
+
+  it("announces nothing when the bridge is restored off", () => {
+    // The ordinary startup. Nothing was taken away, so nothing to say.
+    expect(
+      shellEffects(stateWith({ activeModule: "tidy-mapper" }), {
+        type: "RESTORE_BRIDGE_MODE",
+        payload: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it("says nothing about deactivation when the bridge gives the panel back", () => {
+    // Leaving bridge mode remounts the panel, and every affected module posts on
+    // mount, which reinstalls its listeners. Announcing a deactivation here
+    // would remove the listeners that mount is about to install.
+    const effects = shellEffects(
+      stateWith({ activeModule: "tidy-mapper", bridgeMode: true }),
+      { type: "EXIT_BRIDGE_MODE" },
+    );
+
+    expect(effects.map((e) => e.action)).not.toContain("module-deactivated");
+  });
+
+  it("announces nothing when the restore lands on the module already showing", () => {
+    // The common case: storage agrees with the default, so nothing moved.
+    expect(
+      shellEffects(initialState, {
+        type: "RESTORE_ACTIVE_MODULE",
+        payload: initialState.activeModule,
+      }),
+    ).toEqual([]);
   });
 
   it("sends nothing for state that only lives in the panel", () => {
@@ -274,14 +410,20 @@ describe("a batch of actions in one tick", () => {
     });
   });
 
-  it("sends exactly one message per action that has one", () => {
+  it("sends each of an action's messages exactly once", () => {
     const { sent } = runBatch(initialState, [
       { type: "SET_THEME", payload: "dark" },
       { type: "SET_ACTIVE_MODULE", payload: "audit" },
       { type: "CLEAR_FEATURE_FOCUS" },
     ]);
-    // Only SET_ACTIVE_MODULE persists anything.
-    expect(sent).toHaveLength(1);
+    // Only SET_ACTIVE_MODULE sends anything, and it sends two different things:
+    // the module it left, then the module to remember. Counting each kind rather
+    // than the total is what keeps this a test about *doubling* - the StrictMode
+    // failure this file exists for - now that one action legitimately sends two.
+    expect(sent.filter((m) => m.action === "module-deactivated")).toHaveLength(
+      1,
+    );
+    expect(sent.filter((m) => m.action === "save-storage")).toHaveLength(1);
     expect(storedValue(sent, "activeModule")).toBe("audit");
   });
 });

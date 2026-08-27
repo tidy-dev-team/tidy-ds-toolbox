@@ -6,6 +6,10 @@ import { extractVariantValue } from "./utils/variantValue";
 import { splitArrayOfObjects } from "./utils/splitArrayOfObjects";
 import { extractToTheTop } from "./utils/extractToTheTop";
 import {
+  createModuleListeners,
+  onSelectionAndPageChanges,
+} from "../../shared/module-listeners";
+import {
   LabelConfig,
   BuildLabelsPayload,
   SettingsPayload,
@@ -15,7 +19,7 @@ import {
 /**
  * Component Labels handler - processes messages from the UI
  */
-let listenersRegistered = false;
+const listeners = createModuleListeners("component-labels");
 
 export async function componentLabelsHandler(
   action: string,
@@ -66,14 +70,15 @@ function handleInit(): SettingsPayload {
  * Handle selection change - extract variant props from selected component set
  */
 function ensureListeners() {
-  if (listenersRegistered) {
-    return;
-  }
-  listenersRegistered = true;
-
-  figma.on("selectionchange", () => handleSelectionChange({ silent: true }));
-  figma.on("currentpagechange", () => handleSelectionChange({ silent: true }));
-  figma.on("run", () => handleSelectionChange({ silent: true }));
+  // Removed again when the shell navigates away (see
+  // `src/shared/module-listeners.ts`). Until that existed these three kept
+  // posting `variant-props` to a panel that was no longer mounted, for the rest
+  // of the session, on every selection and page change in the file.
+  listeners.ensure(() =>
+    onSelectionAndPageChanges(() => {
+      handleSelectionChange({ silent: true });
+    }),
+  );
 }
 
 type SelectionChangeOptions = {

@@ -119,10 +119,10 @@ export function IconFinderUI() {
   }, []);
 
   useEffect(() => {
+    // No matching `stop` on unmount: the shell announces the deactivation and
+    // the main thread drops this module's selection listener with it, for every
+    // module rather than only this one. See `src/shared/module-listeners.ts`.
     postToFigma({ target: "iconfinder", action: "start", payload: {} });
-    return () => {
-      postToFigma({ target: "iconfinder", action: "stop", payload: {} });
-    };
   }, []);
 
   useEffect(() => {

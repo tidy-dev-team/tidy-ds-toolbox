@@ -11,7 +11,7 @@
     "build:ui": "vite build",
     "build:main": "node esbuild.config.cjs",
     "build": "npm run build:ui && npm run build:main",
-    "lint": "eslint src --ext .ts,.tsx --max-warnings 157",
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 156",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p mcp-server/tsconfig.json",

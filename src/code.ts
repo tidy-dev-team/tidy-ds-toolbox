@@ -11,6 +11,8 @@ import {
 import { classifyAction, buildOverrunMessage } from "./shared/action-catalogue";
 import { createLogger, enableDebugLogging } from "./shared/logging";
 import { bindSession } from "./shared/operations/registry";
+import { deactivateModule } from "./shared/module-listeners";
+import type { PluginID } from "./shared/types";
 import { captureUsage, setUsageRelay } from "./shared/analytics/capture";
 import { dumpUsageEvents } from "./shared/analytics/buffer";
 
@@ -81,6 +83,15 @@ async function handleShellCommand(
         requestId,
         result: value,
       });
+      return;
+    }
+    case "module-deactivated": {
+      // The shell navigated away from a module, so the document listeners that
+      // module installed go with it. See src/shared/module-listeners.ts: without
+      // this, a handler installed by visiting a tab ran for the rest of the
+      // session, and one of them renamed the designer's slices.
+      const p = payload as { moduleId?: PluginID };
+      if (p?.moduleId) deactivateModule(p.moduleId);
       return;
     }
     case "resize-ui": {
