@@ -14,11 +14,12 @@ import {
   RenderPalettePageResult,
   SourceNodeRef,
 } from "./types";
-import { collectUsages } from "./utils/scan";
+import { collectUsages, SCAN_YIELD_EVERY } from "./utils/scan";
 import { buildColorInventory } from "./utils/inventory";
 import { buildInventoryPage } from "./utils/render";
 import { buildPalettePage } from "./utils/render-palette";
 import {
+  createCancellationGate,
   createCancellationToken,
   yieldToMain,
 } from "../../shared/cancellation";
@@ -129,6 +130,11 @@ async function scanColors(
   const resolved = resolveScope(scope);
   const totalPages = resolved.pages.length;
 
+  // One gate for the whole scan, so the batch spans pages rather than restarting
+  // at each one. The interval is the walk's, not this function's - see
+  // `SCAN_YIELD_EVERY` for what it counts and why it is that size.
+  const gate = createCancellationGate(scanToken, SCAN_YIELD_EVERY);
+
   const allUsages: ColorUsage[] = [];
   let otherSkipped = 0;
   let cumulativeNodes = 0;
@@ -145,16 +151,27 @@ async function scanColors(
       ? resolved.selection
       : page.children;
 
-    const result = await collectUsages(roots, options, (nodesScanned) => {
-      figma.ui.postMessage({
-        type: "progress",
-        payload: {
-          pagesScanned,
-          totalPages,
-          nodesScanned: cumulativeNodes + nodesScanned,
-        },
-      });
-    });
+    const result = await collectUsages(
+      roots,
+      options,
+      (nodesScanned) => {
+        figma.ui.postMessage({
+          type: "progress",
+          payload: {
+            pagesScanned,
+            totalPages,
+            nodesScanned: cumulativeNodes + nodesScanned,
+          },
+        });
+      },
+      gate,
+    );
+
+    // Stopped mid-page, so this page is not scanned: it is not counted, and
+    // its partial usages are dropped rather than collected and then discarded.
+    if (result.cancelled) {
+      return { stopped: true, pagesScanned, totalPages };
+    }
 
     allUsages.push(...result.usages);
     otherSkipped += result.otherSkipped;
@@ -166,8 +183,9 @@ async function scanColors(
       payload: { pagesScanned, totalPages, nodesScanned: cumulativeNodes },
     });
 
-    // Yield so a "cancel-scan" message sent while this loop is running has
-    // a chance to be processed before the next page starts.
+    // The gate already yields inside the walk, but only once per batch, so a
+    // page with fewer nodes than a batch can go by without one. This is the
+    // guarantee that every page boundary gives a queued "cancel-scan" a turn.
     await yieldToMain();
   }
 
