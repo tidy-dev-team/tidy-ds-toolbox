@@ -12,7 +12,12 @@
  * faster, and the Operation result is an agent-facing contract that should not
  * grow a diagnostic that every caller then has to ignore.
  *
- * The clock is injected so the formatting is testable without real time.
+ * The clock is a parameter with a real default, injected only so the formatting
+ * is testable: a summary assembled from `Date.now()` cannot be asserted, and the
+ * nesting rule below - that the total is a wall-clock span rather than a sum -
+ * is precisely the kind of arithmetic that should not rest on reading the code.
+ * Every production caller takes the default. Same shape, and for the same
+ * reason, as `probeThemeResolution`'s injected `sweep`.
  */
 
 import { createLogger } from "../../shared/logging";
