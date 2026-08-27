@@ -15,6 +15,7 @@
 import { describe, it, expect } from "vitest";
 import type { ComponentSetSnapshot } from "./snapshot";
 import {
+  partitionLookedUpVariables,
   probeThemeResolution,
   isStrayProbe,
   markProbe,
@@ -262,5 +263,66 @@ describe("probeThemeResolution", () => {
     // is about a run that never reached the probe lifecycle at all.
     expect(result).toBeUndefined();
     expect(swept).toBe(1);
+  });
+});
+
+describe("partitionLookedUpVariables", () => {
+  /** Only the field the partition reads; the real Variable is far wider. */
+  const variable = (name: string) => ({ name }) as unknown as Variable;
+
+  it("keeps the resolved variables, in the order they were looked up", () => {
+    const looked = new Map([
+      ["a", variable("A")],
+      ["b", variable("B")],
+    ]);
+
+    const { variables } = partitionLookedUpVariables(looked, new Set());
+
+    expect([...variables.keys()]).toEqual(["a", "b"]);
+  });
+
+  it("reports a dead direct binding, so the check has something to fail on", () => {
+    // The broken-chain case #17 exists to catch: a deleted variable, or a remote
+    // one whose library is unavailable. Dropping the id let a set with one
+    // broken binding report `pass` on the strength of its healthy ones.
+    const looked = new Map([
+      ["dead", null],
+      ["alive", variable("A")],
+    ]);
+
+    const { variables, unavailable } = partitionLookedUpVariables(
+      looked,
+      new Set(),
+    );
+
+    expect(unavailable).toEqual(["dead"]);
+    expect([...variables.keys()]).toEqual(["alive"]);
+  });
+
+  it("stays silent about a dead variable reached only through a style", () => {
+    // A style's broken binding is not a defect of the component that applied the
+    // style, so it must not become one of #17's findings.
+    const looked = new Map([["dead", null]]);
+
+    const { unavailable } = partitionLookedUpVariables(
+      looked,
+      new Set(["dead"]),
+    );
+
+    expect(unavailable).toEqual([]);
+  });
+
+  it("reports the dead bindings in lookup order", () => {
+    // The ids reach a check that reports them. A set of findings that reorders
+    // itself between runs on an unchanged component reads as churn.
+    const looked = new Map([
+      ["second", null],
+      ["first", null],
+    ]);
+
+    expect(partitionLookedUpVariables(looked, new Set()).unavailable).toEqual([
+      "second",
+      "first",
+    ]);
   });
 });

@@ -9,7 +9,7 @@ import {
   TimeoutError,
 } from "./shared/error-handler";
 import { classifyAction, buildOverrunMessage } from "./shared/action-catalogue";
-import { createLogger } from "./shared/logging";
+import { createLogger, enableDebugLogging } from "./shared/logging";
 import { bindSession } from "./shared/operations/registry";
 import { captureUsage, setUsageRelay } from "./shared/analytics/capture";
 import { dumpUsageEvents } from "./shared/analytics/buffer";
@@ -32,6 +32,20 @@ bindSession(`sess_${figma.fileKey ?? "unknown"}_${Date.now().toString(36)}`);
 // production (reads in-memory state only). See issues #36–#38 and
 // docs/prd-usage-analytics-phase1.md (FR8).
 (globalThis as Record<string, unknown>).__dumpUsageEvents = dumpUsageEvents;
+
+// Debug logging, reachable at runtime (#213). The QA Operations report where a
+// run's time went (`qa/phase-timing.ts`), and that report is at debug level
+// because a run a designer triggered should not print diagnostics. Without this
+// there was no way to turn it on: nothing in src/ called
+// `enableDebugLogging()`, so reading the numbers meant editing the source and
+// rebuilding the plugin - which is the same footing as not measuring at all,
+// and the reason #213's own numbers had to be taken outside the sandbox.
+//
+// Exposed on the plugin global rather than as a setting, following
+// `__dumpUsageEvents` above: it is a thing you reach for from the Figma dev
+// console while investigating, not a thing a designer chooses.
+(globalThis as Record<string, unknown>).__tidyEnableDebugLogging =
+  enableDebugLogging;
 
 // Usage analytics (Phase 2, #43): the plugin thread cannot do network, so relay
 // each captured event to the UI thread, which POSTs it to the ingest endpoint.

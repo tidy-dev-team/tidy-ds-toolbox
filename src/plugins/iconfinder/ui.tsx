@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+} from "react";
 import { IconSearch, IconExternalLink } from "@tabler/icons-react";
 import { Card } from "@shell/components";
 import { postToFigma, openExternalLink } from "@shared/bridge";
@@ -10,7 +17,7 @@ import {
   type MatchResult,
 } from "./hash/query";
 import { searchByText, type TextMatch } from "./hash/search";
-import { getIconDatabase } from "./db/load";
+import { getIconDatabase, getIconTextIndex } from "./db/load";
 import { docUrlFor } from "./db/links";
 import type { AnalyzedNode } from "./types";
 
@@ -45,12 +52,26 @@ export function IconFinderUI() {
   const [query, setQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const trimmedQuery = query.trim();
+  // Decoding the database is ~14 MB of JSON through gunzip and JSON.parse, and
+  // deriving the search index walks all 22k entries. Both used to happen inside
+  // the memo below, which means they happened *during a render* - on the first
+  // keystroke the user ever typed, so the search box froze on first use. Warmed
+  // here instead: a passive effect runs after the panel has painted, so the work
+  // lands in the gap between the module opening and anyone typing.
+  useEffect(() => {
+    getIconTextIndex();
+  }, []);
+  // The search scans every entry, so it must not run on the keystroke itself.
+  // The panel below still switches on the live `trimmedQuery`, so typing feels
+  // immediate; only the ranked results lag, and until they arrive React keeps
+  // showing the previous ones rather than an empty grid.
+  const deferredQuery = useDeferredValue(trimmedQuery);
   const textResults = useMemo<TextMatch[]>(
     () =>
-      trimmedQuery
-        ? searchByText(trimmedQuery, getIconDatabase(), TEXT_TOP_N)
+      deferredQuery
+        ? searchByText(deferredQuery, getIconTextIndex(), TEXT_TOP_N)
         : [],
-    [trimmedQuery],
+    [deferredQuery],
   );
 
   const focusSearch = useCallback(() => searchInputRef.current?.focus(), []);
@@ -153,7 +174,10 @@ export function IconFinderUI() {
       <SearchBox value={query} onChange={setQuery} inputRef={searchInputRef} />
 
       {trimmedQuery ? (
-        <TextResults query={trimmedQuery} results={textResults} />
+        // `deferredQuery`, not `trimmedQuery`: the empty state names the query
+        // it searched for, and naming the one still being typed would report
+        // "no icons match" against a query that has not been searched yet.
+        <TextResults query={deferredQuery} results={textResults} />
       ) : (
         <>
           {state.kind === "loading" && <LoadingState />}

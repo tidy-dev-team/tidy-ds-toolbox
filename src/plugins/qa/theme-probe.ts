@@ -30,6 +30,7 @@
  * set itself is never touched.
  */
 
+import { loadByIdInOrder } from "./batch";
 import { toHex } from "./color";
 import { collectVariableUsage, colorStyleVariableIds } from "./variable-usage";
 import { selectPrimaryCollection } from "../../shared/theme-collection";
@@ -245,6 +246,46 @@ function isAlias(value: VariableValue): boolean {
 }
 
 /**
+ * Splits looked-up variable ids into the ones that resolved and the dead direct
+ * bindings.
+ *
+ * Pure, and separated from the lookup for the reason the rest of this file is
+ * structured the way it is: `theme-probe.ts` is one of the deliberately
+ * figma-touching files, so a rule that lives inside it cannot be exercised
+ * without Figma unless it is lifted out. This rule is worth exercising - which
+ * ids reach the check as `unavailableVariableIds` is what decides whether a set
+ * with one broken binding fails #17 or passes on the strength of its healthy
+ * ones.
+ *
+ * `styleIds` are the ids reached only through a fill style the set applied. A
+ * dead one of those is not reported: a style's broken binding is not a defect of
+ * the component that applied the style, so it must not become one of #17's
+ * findings.
+ *
+ * Order is preserved on both sides. The unavailable ids reach a check that
+ * reports them, and a set of findings that reorders itself between runs on an
+ * unchanged component reads as churn.
+ */
+export function partitionLookedUpVariables(
+  looked: ReadonlyMap<string, Variable | null>,
+  styleIds: ReadonlySet<string>,
+): { variables: Map<string, Variable>; unavailable: string[] } {
+  const variables = new Map<string, Variable>();
+  const unavailable: string[] = [];
+  for (const [id, variable] of looked) {
+    if (variable) {
+      variables.set(id, variable);
+    } else if (!styleIds.has(id)) {
+      // A binding Figma cannot load: a deleted variable, or a remote one whose
+      // library is unavailable. That is precisely the broken-chain case #17
+      // exists to catch, so the id is kept for the check to fail on.
+      unavailable.push(id);
+    }
+  }
+  return { variables, unavailable };
+}
+
+/**
  * Resolve every variable the set uses, once per mode of the theme collection.
  *
  * Returns `undefined` when there is nothing to evaluate - no bound variables,
@@ -280,21 +321,16 @@ export async function probeThemeResolution(
   );
   if (boundIds.length === 0 && styleIds.length === 0) return undefined;
 
-  // Memoized by id, so cost scales with unique ids rather than node count.
-  const variables = new Map<string, Variable>();
-  const unavailable: string[] = [];
-  for (const id of [...boundIds, ...styleIds]) {
-    if (variables.has(id)) continue;
-    const variable = await figma.variables.getVariableByIdAsync(id);
-    if (variable) {
-      variables.set(id, variable);
-    } else if (!styleIds.includes(id)) {
-      // A binding Figma cannot load: a deleted variable, or a remote one whose
-      // library is unavailable. That is precisely the broken-chain case #17
-      // exists to catch, so the id is kept for the check to fail on.
-      unavailable.push(id);
-    }
-  }
+  // Deduplicated by id, so cost scales with unique ids rather than node count,
+  // and resolved as one batch rather than one round trip at a time - a set that
+  // binds a few hundred variables paid a few hundred sequential sandbox round
+  // trips here before any check had run.
+  const { variables, unavailable } = partitionLookedUpVariables(
+    await loadByIdInOrder([...boundIds, ...styleIds], (id) =>
+      figma.variables.getVariableByIdAsync(id),
+    ),
+    new Set(styleIds),
+  );
   // No modes to evaluate against, but the dead bindings still have to reach the
   // check: dropping them let a set with one broken binding report `pass` on the
   // strength of its remaining healthy variables.
@@ -327,14 +363,19 @@ export async function probeThemeResolution(
       : styleIds.filter((id) => variables.has(id)),
   );
 
-  const collections = new Map<string, VariableCollection>();
+  const decidingCollectionIds: string[] = [];
   for (const [id, variable] of variables) {
     if (!deciding.has(id)) continue;
-    const collectionId = variable.variableCollectionId;
-    if (collections.has(collectionId)) continue;
-    const collection =
-      await figma.variables.getVariableCollectionByIdAsync(collectionId);
-    if (collection) collections.set(collectionId, collection);
+    decidingCollectionIds.push(variable.variableCollectionId);
+  }
+  const collections = new Map<string, VariableCollection>();
+  for (const [id, collection] of await loadByIdInOrder(
+    decidingCollectionIds,
+    (id) => figma.variables.getVariableCollectionByIdAsync(id),
+  )) {
+    // A collection that will not load is simply not a candidate for "the
+    // theme"; `selectPrimaryCollection` is handed only what resolved, as before.
+    if (collection) collections.set(id, collection);
   }
 
   const facts: ModeCollectionFact[] = [...collections.values()].map((c) => ({
