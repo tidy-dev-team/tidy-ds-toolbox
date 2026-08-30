@@ -84,7 +84,7 @@ interface StoppedQaRun {
  * read half has changed nothing. The yield comes before the read, because the
  * yield is what gives an arriving stop request its turn.
  */
-async function runQa(
+export async function runQa(
   params: QaRunParams,
   timer: PhaseTimer,
   token?: CancellationToken,
