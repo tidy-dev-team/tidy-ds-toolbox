@@ -34,8 +34,8 @@ export interface CardStamp {
   /**
    * The identity of the publish that drew this card, minted once per publish
    * and shared by every card it draws. Absent on a stamp written before this
-   * field existed, which `isCurrentPublish` treats as belonging to a previous
-   * publish - which is what it is.
+   * field existed, which `isPreviousPublishCard` treats as belonging to a
+   * previous publish - which is what it is.
    */
   publishId?: string;
 }

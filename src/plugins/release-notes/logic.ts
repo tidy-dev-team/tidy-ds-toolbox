@@ -323,7 +323,12 @@ export async function releaseNotesHandler(
 
         const mergedSprints = Array.from(mergedMap.values());
         for (const sprint of mergedSprints) {
-          saveSprint(figma, sprint);
+          // Reported rather than swallowed, like every other write in this
+          // module. An import that says it imported and did not is the same
+          // silent loss as a note that says it saved and did not, and here it
+          // is worse: the designer has just been told a file was taken in.
+          const saveResult = saveSprint(figma, sprint);
+          if (!saveResult.success) return saveResult;
         }
 
         let targetSprintId = getLastSprintId(figma);

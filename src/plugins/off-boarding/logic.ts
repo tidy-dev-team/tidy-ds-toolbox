@@ -14,6 +14,7 @@ import {
 } from "../../shared/cancellation";
 import { describeFonts, loadFontsUnder, type FontRef } from "./fonts";
 import {
+  clearManifest,
   collectInventory,
   isOurTempPage,
   markAsOurTempPage,
@@ -22,6 +23,7 @@ import {
 } from "./collect";
 import {
   describePlan,
+  PackManifest,
   PackPlan,
   planPack,
   planUnpack,
@@ -272,12 +274,25 @@ async function packPages(plan: PackPlan): Promise<OffBoardingResult> {
   }
 
   clearPage(tempPage);
+  // Clearing the page removes its children, not its plugin data, so the record
+  // of the previous pack has to be forgotten explicitly. Every path out of this
+  // function below either writes a fresh manifest or leaves none at all.
+  clearManifest(tempPage);
   figma.currentPage = tempPage;
 
   const frames: Array<FrameNode> = [];
   const skipped: Array<SkippedPage> = [];
   // Not frames.length: a skipped page is finished with, but produced no frame.
   let processed = 0;
+
+  /** What the frames packed so far restore to, in the order they sit in. */
+  const manifestForPackedFrames = (): PackManifest => ({
+    version: 1,
+    packedAt: new Date().toISOString(),
+    pages: frames.map((frame) => ({
+      name: frame.getPluginData(PACKED_FRAME_PAGE_NAME_KEY) || frame.name,
+    })),
+  });
 
   const buildStoppedResult = (): OffBoardingResult => {
     const remainingPageNames = sourcePages.slice(processed).map((p) => p.name);
@@ -286,6 +301,9 @@ async function packPages(plan: PackPlan): Promise<OffBoardingResult> {
       arrangeFramesInGrid(frames, 200);
       figma.currentPage.selection = frames;
       figma.viewport.scrollAndZoomIntoView(frames);
+      // A stopped pack is still a pack: what it did get through is recorded, so
+      // unpacking it restores real names rather than falling back to the frames.
+      writeManifest(tempPage, manifestForPackedFrames());
     }
 
     const stoppedMessage = `Stopped by you after packing ${frames.length} of ${sourcePages.length} page${sourcePages.length === 1 ? "" : "s"}.`;
@@ -362,13 +380,7 @@ async function packPages(plan: PackPlan): Promise<OffBoardingResult> {
 
   // Stored WITH the packed content, so unpack in a different file still knows
   // the original page names rather than reading them off the frames.
-  writeManifest(tempPage, {
-    version: 1,
-    packedAt: new Date().toISOString(),
-    pages: frames.map((frame) => ({
-      name: frame.getPluginData(PACKED_FRAME_PAGE_NAME_KEY) || frame.name,
-    })),
-  });
+  writeManifest(tempPage, manifestForPackedFrames());
 
   const packedMessage = `Packed ${frames.length} page${frames.length === 1 ? "" : "s"} into ${TEMP_PAGE_NAME}. Copy selection (Cmd/Ctrl+C).`;
 

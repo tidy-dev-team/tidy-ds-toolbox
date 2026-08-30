@@ -47,6 +47,20 @@ export function writeManifest(page: PageNode, manifest: PackManifest): void {
 }
 
 /**
+ * Forgets what the last pack recorded.
+ *
+ * Called when the temporary page is emptied, and it has to be, because clearing
+ * the page removes its children and not its plugin data. A manifest left behind
+ * describes frames that no longer exist, and `planUnpack` accepts a manifest
+ * whose length matches the frames it can see - so a later pack that happens to
+ * produce the same number of frames would restore them under the *previous*
+ * pack's page names, silently and with nothing to signal it.
+ */
+export function clearManifest(page: PageNode): void {
+  page.setPluginData(TEMP_PAGE_MANIFEST_KEY, "");
+}
+
+/**
  * The manifest a pack wrote, or null.
  *
  * Unreadable data is null rather than an error: a manifest that will not parse
