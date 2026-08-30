@@ -7,3 +7,4 @@ export { ResizeHandle } from "./ResizeHandle";
 export { SearchDropdown } from "./SearchDropdown";
 export { BridgeStatusLamp } from "./BridgeStatusLamp";
 export { SuggestInput } from "./SuggestInput";
+export { EasterEggVersion } from "./EasterEgg";

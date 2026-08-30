@@ -1,5 +1,10 @@
 import { ShellProvider, useShell } from "./ShellContext";
-import { BridgeStatusLamp, ErrorBoundary, ResizeHandle } from "./components";
+import {
+  BridgeStatusLamp,
+  EasterEggVersion,
+  ErrorBoundary,
+  ResizeHandle,
+} from "./components";
 import { SearchDropdown } from "./components/SearchDropdown";
 import { SearchableFeature } from "./shared/searchIndex";
 import { moduleRegistry } from "./moduleRegistry";
@@ -202,7 +207,7 @@ function AppContent() {
         </button>
         <h1>
           Tidy DS Toolbox
-          <span className="version">v{__APP_VERSION__}</span>
+          <EasterEggVersion />
         </h1>
 
         <div className="searchdiv">

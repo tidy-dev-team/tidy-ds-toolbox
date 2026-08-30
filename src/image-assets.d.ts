@@ -16,6 +16,10 @@ declare module "*.svg" {
   const content: string;
   export default content;
 }
+declare module "*.mp4" {
+  const content: string;
+  export default content;
+}
 
 // Injected at build time by Vite's `define` from package.json version.
 declare const __APP_VERSION__: string;
