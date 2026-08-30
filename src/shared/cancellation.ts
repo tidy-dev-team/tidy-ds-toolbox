@@ -94,6 +94,25 @@ export interface CancellationGate {
 }
 
 /**
+ * Yields, then reports whether the token is now cancelled. True means stop.
+ *
+ * The check-and-yield pairing for a run whose stop boundaries are whole
+ * phases rather than a loop over items - a builder with a few checkpoints,
+ * say, not a list to map. `runUntilCancelled` and `createCancellationGate`
+ * own the pairing for loops; this owns it for the sparse case, where the
+ * mistake it prevents is the same one in a different shape: reading the
+ * token without yielding first can only ever notice a cancellation that
+ * arrived before the previous await, so the stop this very checkpoint exists
+ * to observe is never seen.
+ */
+export async function stopRequestedAfterYield(
+  token: CancellationToken,
+): Promise<boolean> {
+  await yieldToMain();
+  return token.isCancelled;
+}
+
+/**
  * The check-and-yield pairing for a loop whose items `runUntilCancelled` cannot
  * take: one that grows as it runs, such as a tree walk pushing children onto a
  * queue.

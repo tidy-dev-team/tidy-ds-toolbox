@@ -3,6 +3,7 @@ import {
   createCancellationGate,
   createCancellationToken,
   runUntilCancelled,
+  stopRequestedAfterYield,
 } from "./cancellation";
 
 describe("createCancellationToken", () => {
@@ -193,5 +194,22 @@ describe("createCancellationGate", () => {
     const gate = createCancellationGate(token, 0, y.fn);
     for (let i = 0; i < 3; i++) await gate.step();
     expect(y.yields).toBe(3);
+  });
+});
+
+describe("stopRequestedAfterYield", () => {
+  it("yields before reading the token, so a just-arrived cancel is seen", async () => {
+    const token = createCancellationToken();
+    const uncancelled = await stopRequestedAfterYield(token);
+    expect(uncancelled).toBe(false);
+
+    token.cancel();
+    expect(await stopRequestedAfterYield(token)).toBe(true);
+  });
+
+  it("does not report a stop for a token that nothing cancelled", async () => {
+    expect(await stopRequestedAfterYield(createCancellationToken())).toBe(
+      false,
+    );
   });
 });

@@ -5,7 +5,7 @@ import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
 import { resolveComponentByIdOrSelection } from "../../shared/operations/resolveComponent";
 import { findAllVariantProps } from "./utils/getVariantProps";
-import { executeBuildLabels } from "./logic";
+import { describeStoppedLabelsBuild, executeBuildLabels } from "./logic";
 import { LabelConfig, VariantProperty } from "./types";
 
 const COMPONENT_SET_ONLY = ["COMPONENT_SET"] as const;
@@ -56,10 +56,14 @@ interface BuildLabelsParams {
   fontSize?: number;
   extractElement?: boolean;
 }
-interface BuildLabelsResult {
-  nodeId: string;
-  name: string;
-}
+
+type BuildLabelsResult =
+  | { cancelled: true; message: string; nodeId: string; name: string }
+  | {
+      cancelled?: false;
+      nodeId: string;
+      name: string;
+    };
 
 const LABEL_AXES = ["top", "left", "secondTop", "secondLeft"] as const;
 
@@ -69,7 +73,11 @@ registerOperation<BuildLabelsParams, BuildLabelsResult>(
     kind: "execute",
     module: "component-labels",
     summary:
-      "Build variant labels around a component set's top and left edges. Accepts an explicit nodeId or falls back to the current selection. Errors if the target isn't a component set or if any axis references an unknown variant property.",
+      "Build variant labels around a component set's top and left edges. Accepts an explicit nodeId or falls back to the current selection. Errors if the target isn't a component set or if any axis references an unknown variant property. Stoppable between build steps (per label axis, then grouping, then extraction): a stopped run reports which steps finished; the labels it drew stay and were not removed. Not idempotent - re-running draws a second set of labels rather than completing a stopped run's.",
+    // Stoppable between the build's steps (#185). The build only ever adds
+    // nodes, so a stop between steps leaves a subset of a normal result and
+    // never anything worse than not having run.
+    cancellable: true,
     paramsExample: {
       labels: {
         top: "Size",
@@ -81,7 +89,7 @@ registerOperation<BuildLabelsParams, BuildLabelsResult>(
       },
     },
   },
-  async (params) => {
+  async (params, ctx) => {
     if (!params.labels || typeof params.labels !== "object") {
       throw new OperationError(
         ErrorCode.INVALID_PARAMS,
@@ -108,19 +116,37 @@ registerOperation<BuildLabelsParams, BuildLabelsResult>(
       );
     }
 
-    await executeBuildLabels(set, {
-      labels: {
-        top: params.labels.top ?? "",
-        left: params.labels.left ?? "",
-        secondTop: params.labels.secondTop ?? "",
-        secondLeft: params.labels.secondLeft ?? "",
-        groupSecondTop: Boolean(params.labels.groupSecondTop),
-        groupSecondLeft: Boolean(params.labels.groupSecondLeft),
+    const outcome = await executeBuildLabels(
+      set,
+      {
+        labels: {
+          top: params.labels.top ?? "",
+          left: params.labels.left ?? "",
+          secondTop: params.labels.secondTop ?? "",
+          secondLeft: params.labels.secondLeft ?? "",
+          groupSecondTop: Boolean(params.labels.groupSecondTop),
+          groupSecondLeft: Boolean(params.labels.groupSecondLeft),
+        },
+        spacing: typeof params.spacing === "number" ? params.spacing : 16,
+        fontSize: typeof params.fontSize === "number" ? params.fontSize : 12,
+        extractElement: Boolean(params.extractElement),
       },
-      spacing: typeof params.spacing === "number" ? params.spacing : 16,
-      fontSize: typeof params.fontSize === "number" ? params.fontSize : 12,
-      extractElement: Boolean(params.extractElement),
-    });
+      ctx.cancellation,
+    );
+
+    // A stop lands here with whatever steps finished. The designer is who is
+    // left - the Bridge answered the caller when it timed out - so the
+    // stopped run's account of itself is a toast, not only a return value
+    // that reaches nobody.
+    if (outcome.cancelled) {
+      const message =
+        describeStoppedLabelsBuild(
+          outcome.completedSteps,
+          outcome.plannedSteps,
+        ) ?? "Label build was asked to stop.";
+      figma.notify(message, { timeout: 10_000 });
+      return { cancelled: true, message, nodeId: set.id, name: set.name };
+    }
 
     return { nodeId: set.id, name: set.name };
   },

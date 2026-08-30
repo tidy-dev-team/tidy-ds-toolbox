@@ -6,6 +6,11 @@ import {
   lookupComponentAliases,
   upsertAlsoKnownAsLine,
 } from "../../../shared/component-aliases";
+import {
+  createCancellationToken,
+  runUntilCancelled,
+  type CancellationToken,
+} from "../../../shared/cancellation";
 
 export interface SearchabilityResult {
   /** The alternative names written, empty when the table has no entry (#176). */
@@ -104,4 +109,132 @@ function describeRun(total: number, withoutAliases: string[]): string {
     withoutAliases.length > 5 ? ` and ${withoutAliases.length - 5} more` : "";
 
   return `${done} No alternative names on file for ${named}${rest} - add them to the alias table.`;
+}
+
+/**
+ * One id resolved far enough to know whether it can be written to.
+ *
+ * The node is carried rather than re-fetched by the writing half, so each id
+ * is looked up exactly once and what validation learned is what writing acts
+ * on.
+ */
+export interface MisprintTarget {
+  id: string;
+  node: { type: string; name: string; descriptionMarkdown?: string };
+}
+
+/** What validating the id list produced, and whether it ran to the end. */
+export interface MisprintResolution {
+  resolved: MisprintTarget[];
+  missing: string[];
+  wrongType: string[];
+  /** True when a stop request ended validation before every id was checked. */
+  cancelled: boolean;
+}
+
+/** Loose enough to take a real Figma node and a test stand-in alike. */
+export type MisprintLookup = (
+  id: string,
+) => Promise<{ type: string; name: string; id: string } | null>;
+
+/**
+ * Look every id up, one at a time, and sort it into resolved, missing and
+ * wrong-type.
+ *
+ * This is the stoppable half of `tidy_misprint_apply` (#185). Nothing has been
+ * written while it runs, so a stop here costs nothing: the run ends before the
+ * first description changes, which is exactly the atomic behaviour the
+ * Operation's summary promises - it fails-or-stops as a whole, before any
+ * write. `runUntilCancelled` owns the check-and-yield pairing; the handler
+ * throws its NOT_FOUND / WRONG_NODE_TYPE errors only when `cancelled` is
+ * false, so a stopped run is reported as a stop rather than dressed up as a
+ * validation failure over an id list it never finished reading.
+ */
+export async function resolveMisprintTargets(
+  ids: readonly string[],
+  lookup: MisprintLookup,
+  token: CancellationToken = createCancellationToken(),
+): Promise<MisprintResolution> {
+  const missing: string[] = [];
+  const wrongType: string[] = [];
+  const resolved: MisprintTarget[] = [];
+
+  const { cancelled } = await runUntilCancelled(
+    ids,
+    async (id) => {
+      const node = await lookup(id);
+      if (!node) {
+        missing.push(id);
+      } else if (node.type !== "COMPONENT" && node.type !== "COMPONENT_SET") {
+        wrongType.push(id);
+      } else {
+        resolved.push({ id, node });
+      }
+      return id;
+    },
+    token,
+  );
+
+  return { resolved, missing, wrongType, cancelled };
+}
+
+/** What writing produced. The shape the Operation has always returned. */
+export interface MisprintApplyOutcome {
+  updated: number;
+  ids: string[];
+  /** Names the alias table has no entry for, so #176's line was not written. */
+  withoutAliases: string[];
+}
+
+/**
+ * Write both searchability lines on every resolved component.
+ *
+ * Deliberately NOT stoppable, and that is the decision #185 asks this
+ * Operation to make honestly. The write loop takes no cancellation token, so
+ * a stop that arrives once writing has begun is not observed and the run
+ * completes - the refusal is structural rather than a checkpoint somebody can
+ * forget to consult. The alternative, stopping part way, would leave some
+ * descriptions written and others not, and the Operation's summary promises
+ * the opposite: it fails as a whole when validation rejects any id, so a
+ * caller can rely on "failed" meaning "nothing changed". A silent partial
+ * write would break exactly that reliance. The writes themselves are fast -
+ * two string upserts per component - so the uninterruptible region is short.
+ */
+export function applyMisprintDescriptions(
+  resolved: readonly MisprintTarget[],
+  write: (node: MisprintTarget["node"]) => { aliases: string[] } = (node) =>
+    // Production only ever passes real Figma nodes here; the loose structural
+    // type on MisprintTarget["node"] exists so the loop is testable without
+    // the API. The cast is that boundary, in one place.
+    addSearchabilityToDescription(node as ComponentNode | ComponentSetNode),
+): MisprintApplyOutcome {
+  const withoutAliases: string[] = [];
+  for (const { node } of resolved) {
+    const { aliases } = write(node);
+    if (aliases.length === 0) withoutAliases.push(node.name);
+  }
+
+  return {
+    updated: resolved.length,
+    ids: resolved.map((t) => t.id),
+    withoutAliases,
+  };
+}
+
+/**
+ * What a stopped run tells the designer.
+ *
+ * By the time the stop arrives the Bridge has already answered the caller, so
+ * this sentence is the only account that reaches anybody. The two facts worth
+ * saying: nothing was written, and re-running is the right move - this
+ * Operation is idempotent and validates everything before it writes, so
+ * running it again cannot double anything or leave a partial state behind.
+ */
+export function describeStoppedMisprintApply(): string {
+  return (
+    "Misprint run stopped while looking up components. " +
+    "Nothing was written - no description changed. " +
+    "Running it again is safe: it re-validates everything first and writes " +
+    "each component in full."
+  );
 }

@@ -4,6 +4,7 @@
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { globToMatcher } from "../../shared/operations/glob";
 import { registerOperation } from "../../shared/operations/registry";
+import { stopRequestedAfterYield } from "../../shared/cancellation";
 import { componentRegistry, getAllComponentNames } from "./utils/componentData";
 import {
   importComponent,
@@ -17,6 +18,7 @@ import {
   LOCALIZE_LEVELS,
   type LocalizeLevel,
 } from "./utils/localize";
+import { describeStoppedPlaceSet } from "./utils/stopMessages";
 
 interface ListComponentsParams {
   namePattern?: string;
@@ -137,15 +139,18 @@ interface PlaceSetParams {
   y?: number;
   localize?: LocalizeLevel;
 }
-interface PlaceSetResult {
-  nodeId: string;
-  name: string;
-  pageId: string;
-  x: number;
-  y: number;
-  detachedInstances: number;
-  localizedStyles: number;
-}
+type PlaceSetResult =
+  | { cancelled: true; message: string }
+  | {
+      cancelled?: false;
+      nodeId: string;
+      name: string;
+      pageId: string;
+      x: number;
+      y: number;
+      detachedInstances: number;
+      localizedStyles: number;
+    };
 
 registerOperation<PlaceSetParams, PlaceSetResult>(
   {
@@ -153,10 +158,14 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
     kind: "execute",
     module: "ds-explorer",
     summary:
-      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. By default (localize='full') the clone is de-linked from Kido-DS: nested instances are detached into frames and paint/text/effect styles are localized; variables/tokens are intentionally left bound to Kido-DS. Pass localize='none' for the old fully-linked behavior, or 'detach'/'styles' for one half. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set).",
+      "Place a registered DS Explorer component SET onto a page as an editable clone, ready to be labelled by tidy_component_labels_build. By default (localize='full') the clone is de-linked from Kido-DS: nested instances are detached into frames and paint/text/effect styles are localized; variables/tokens are intentionally left bound to Kido-DS. Pass localize='none' for the old fully-linked behavior, or 'detach'/'styles' for one half. Defaults to the current page and the viewport centre. Returns the new nodeId so it can be piped into tidy_component_labels_build. Errors WRONG_NODE_TYPE if the named component is a single component (not a set). Stoppable after the import but before anything is placed - a stop then leaves the canvas unchanged. Once the clone exists the run is not interrupted again: a half-localized clone is the silent-relinking hazard this module exists to prevent.",
+    // Stoppable at exactly one boundary (#185): after the import, before the
+    // clone. `localizeClone` takes no token on purpose - the clone is either
+    // fully de-linked or never created.
+    cancellable: true,
     paramsExample: { name: "Buttons" },
   },
-  async (params) => {
+  async (params, ctx) => {
     if (!params.name || typeof params.name !== "string") {
       throw new OperationError(ErrorCode.INVALID_PARAMS, "name is required");
     }
@@ -219,6 +228,14 @@ registerOperation<PlaceSetParams, PlaceSetResult>(
       targetPage = page;
     } else {
       targetPage = figma.currentPage;
+    }
+
+    // The one stop boundary (#185): everything before this point placed
+    // nothing in the document, so stopping here is a clean no-op.
+    if (await stopRequestedAfterYield(ctx.cancellation)) {
+      const message = describeStoppedPlaceSet(params.name);
+      figma.notify(message, { timeout: 10_000 });
+      return { cancelled: true, message };
     }
 
     const clone = imported.clone();

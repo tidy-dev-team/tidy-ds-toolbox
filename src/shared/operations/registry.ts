@@ -43,6 +43,19 @@ export function registerOperation<P, R>(
   });
 }
 
+/**
+ * Every registered Operation's spec, read-only.
+ *
+ * For invariant tests, not for dispatch: the execute-stoppable test
+ * (`execute-stoppable.test.ts`, #185) walks this list and holds every
+ * document-writing Operation to its cancellation declaration. Returns the
+ * specs themselves, which are treated as frozen by convention - nothing
+ * mutates a spec after registration.
+ */
+export function registeredOperationSpecs(): OperationSpec[] {
+  return [...OPERATIONS.values()].map((entry) => entry.spec);
+}
+
 // Session is owned by code.ts and rebound when the file changes. MVP supports
 // exactly one Session at a time (CONTEXT.md).
 let CURRENT_SESSION: { sessionId: string; active: boolean } | null = null;

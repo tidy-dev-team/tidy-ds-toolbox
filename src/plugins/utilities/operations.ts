@@ -6,7 +6,11 @@
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
-import { addSearchabilityToDescription } from "./utils/misprint";
+import {
+  applyMisprintDescriptions,
+  describeStoppedMisprintApply,
+  resolveMisprintTargets,
+} from "./utils/misprint";
 import { buildDsTemplate, describeStoppedRun } from "./utils/dsTemplate";
 import {
   selectComponents,
@@ -107,12 +111,22 @@ registerOperation<Record<string, never>, ListPagesResult>(
 interface ApplyMisprintParams {
   nodeIds: string[];
 }
-interface ApplyMisprintResult {
-  updated: number;
-  ids: string[];
-  /** Names the alias table has no entry for, so #176's line was not written. */
-  withoutAliases: string[];
-}
+
+type ApplyMisprintResult =
+  | {
+      cancelled: true;
+      message: string;
+      updated: 0;
+      ids: [];
+      withoutAliases: [];
+    }
+  | {
+      cancelled?: false;
+      updated: number;
+      ids: string[];
+      /** Names the alias table has no entry for, so #176's line was not written. */
+      withoutAliases: string[];
+    };
 
 registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
   {
@@ -120,10 +134,15 @@ registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
     kind: "execute",
     module: "utilities",
     summary:
-      "Write both searchability lines on each component's description: an 'Also known as:' line of alternative names, and the Hebrew-scrambled 'misprint' line. Idempotent. Names the alias table does not know are returned in `withoutAliases` and get no alias line. Atomic-fails if any id is missing or not a component.",
+      "Write both searchability lines on each component's description: an 'Also known as:' line of alternative names, and the Hebrew-scrambled 'misprint' line. Idempotent. Names the alias table does not know are returned in `withoutAliases` and get no alias line. Atomic-fails if any id is missing or not a component. Stoppable while validating ids - a stop then leaves every description untouched - and once writing begins a stop is refused and the run completes, so the atomic promise holds either way.",
+    // Stoppable during the validation loop (#185). The write loop takes no
+    // token on purpose: a stop part way through the writing would leave some
+    // descriptions written and others not, breaking the atomic-fails promise
+    // the summary makes. See `applyMisprintDescriptions`.
+    cancellable: true,
     paramsExample: { nodeIds: ["1:2"] },
   },
-  async (params) => {
+  async (params, ctx) => {
     if (!Array.isArray(params.nodeIds) || params.nodeIds.length === 0) {
       throw new OperationError(
         ErrorCode.INVALID_PARAMS,
@@ -131,49 +150,45 @@ registerOperation<ApplyMisprintParams, ApplyMisprintResult>(
       );
     }
 
-    const missing: string[] = [];
-    const wrongType: string[] = [];
-    const resolved: (ComponentNode | ComponentSetNode)[] = [];
-    for (const id of params.nodeIds) {
-      const node = await figma.getNodeByIdAsync(id);
-      if (!node) {
-        missing.push(id);
-        continue;
-      }
-      if (node.type !== "COMPONENT" && node.type !== "COMPONENT_SET") {
-        wrongType.push(id);
-        continue;
-      }
-      resolved.push(node);
+    const resolution = await resolveMisprintTargets(
+      params.nodeIds,
+      (id) => figma.getNodeByIdAsync(id),
+      ctx.cancellation,
+    );
+
+    // A stop during validation ends the run before the first write, which is
+    // the clean half of the stop decision. The designer is who is left - the
+    // Bridge answered the caller when it timed out - hence the notify.
+    if (resolution.cancelled) {
+      const message = describeStoppedMisprintApply();
+      figma.notify(message, { timeout: 10_000 });
+      return {
+        cancelled: true,
+        message,
+        updated: 0,
+        ids: [],
+        withoutAliases: [],
+      };
     }
-    if (missing.length) {
+
+    if (resolution.missing.length) {
       throw new OperationError(
         ErrorCode.NOT_FOUND,
-        `${missing.length} nodeId(s) not found`,
+        `${resolution.missing.length} nodeId(s) not found`,
         true,
-        { missing },
+        { missing: resolution.missing },
       );
     }
-    if (wrongType.length) {
+    if (resolution.wrongType.length) {
       throw new OperationError(
         ErrorCode.WRONG_NODE_TYPE,
-        `${wrongType.length} node(s) are not components or component sets`,
+        `${resolution.wrongType.length} node(s) are not components or component sets`,
         true,
-        { wrongType },
+        { wrongType: resolution.wrongType },
       );
     }
 
-    const withoutAliases: string[] = [];
-    for (const node of resolved) {
-      const { aliases } = addSearchabilityToDescription(node);
-      if (aliases.length === 0) withoutAliases.push(node.name);
-    }
-
-    return {
-      updated: resolved.length,
-      ids: resolved.map((n) => n.id),
-      withoutAliases,
-    };
+    return applyMisprintDescriptions(resolution.resolved);
   },
 );
 

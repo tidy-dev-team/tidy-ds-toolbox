@@ -40,10 +40,14 @@ interface BuildPageParams {
   nodeId?: string;
   docSpec: DocSpec;
 }
-interface BuildPageResult {
-  pageFrameId: string;
-  sourceComponentId: string;
-}
+
+type BuildPageResult =
+  | { cancelled: true; message: string; sourceComponentId: string }
+  | {
+      cancelled?: false;
+      pageFrameId: string;
+      sourceComponentId: string;
+    };
 
 registerOperation<BuildPageParams, BuildPageResult>(
   {
@@ -51,10 +55,14 @@ registerOperation<BuildPageParams, BuildPageResult>(
     kind: "execute",
     module: "tidy-doc",
     summary:
-      "Build (or replace) a Documentation Page next to the source component: Chrome (status badge) + a Variants Section with one specimen per keyed family. Re-running replaces the prior page for the same source. Rejects unresolved family-value references in a single batched error.",
+      "Build (or replace) a Documentation Page next to the source component: Chrome (status badge) + a Variants Section with one specimen per keyed family. Re-running replaces the prior page for the same source. Rejects unresolved family-value references in a single batched error. Stoppable during its read-and-plan half (facts, reference resolution, scan for the prior page) - a stop then leaves the existing page untouched. Once the rebuild begins it is not interrupted: a run stopped with the old page deleted and the new one half-built is exactly what the boundaries exist to prevent.",
+    // Stoppable in the read-and-plan half only (#185); past the last
+    // checkpoint the removal and rebuild are one committed region and the
+    // token is never consulted. See `buildDocPageUnguarded`.
+    cancellable: true,
     paramsExample: { docSpec: { status: "IDEATION" } },
   },
-  async (params) => {
+  async (params, ctx) => {
     const parsed = DocSpecSchema.safeParse(params.docSpec);
     if (!parsed.success) {
       throw new OperationError(
@@ -66,8 +74,24 @@ registerOperation<BuildPageParams, BuildPageResult>(
     }
 
     const source = await resolveComponent(params.nodeId);
-    const root = await buildDocPage(source, parsed.data, "agent");
+    const build = await buildDocPage(
+      source,
+      parsed.data,
+      "agent",
+      ctx.cancellation,
+    );
 
-    return { pageFrameId: root.id, sourceComponentId: source.id };
+    if (build.cancelled) {
+      // The designer is who is left - the Bridge answered the caller when it
+      // timed out - so the stopped run's account of itself is a toast.
+      figma.notify(build.message, { timeout: 10_000 });
+      return {
+        cancelled: true,
+        message: build.message,
+        sourceComponentId: source.id,
+      };
+    }
+
+    return { pageFrameId: build.root.id, sourceComponentId: source.id };
   },
 );

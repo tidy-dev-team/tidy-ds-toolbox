@@ -16,10 +16,15 @@
 
 import { ErrorCode, OperationError } from "../../shared/operations/errors";
 import { registerOperation } from "../../shared/operations/registry";
+import {
+  stopRequestedAfterYield,
+  type CancellationToken,
+} from "../../shared/cancellation";
 import { prepareSnapshot } from "./collector";
 import { runChecks, unknownCheckIds } from "./checks";
 import { buildChecklistReport } from "./report";
 import { resolveTarget, type QaSubject } from "./subject";
+import { describeStoppedChecklistRun } from "./stopMessages";
 import {
   composeChecklistArtifacts,
   renderModeImage,
@@ -47,6 +52,20 @@ interface QaRunParams {
 }
 
 /**
+ * What a run that was asked to stop looks like inside the pipeline.
+ *
+ * A stopped run has written nothing - every stop boundary sits before the
+ * first removal - so there is no partial QaRun to carry, only the fact of
+ * the stop and, when the run got past resolving, the name of the component
+ * it was about. `describeStoppedChecklistRun` turns that into the designer's
+ * account.
+ */
+interface StoppedQaRun {
+  cancelled: true;
+  targetName?: string;
+}
+
+/**
  * Shared pipeline for both QA operations: validate the check filter, resolve the
  * target up to its set, collect the snapshot the requested checks need, run them,
  * and build the full QaRunResult (results + checklist). Returns the resolved
@@ -57,8 +76,19 @@ interface QaRunParams {
  * them would leave the two QA surfaces silently disagreeing about what was
  * checked. Which snapshot facets a filtered run needs is the catalogue's business
  * rather than this module's - see `prepareSnapshot` (#134).
+ *
+ * `token` is how the checklist build stops (#185), and only it passes one -
+ * the Query Operation is deliberately out of cancellation's scope. The token
+ * is consulted at the phase boundaries and never inside a phase: each phase
+ * is one unit, so a stop is observed between units and a run stopped in the
+ * read half has changed nothing. The yield comes before the read, because the
+ * yield is what gives an arriving stop request its turn.
  */
-async function runQa(params: QaRunParams, timer: PhaseTimer): Promise<QaRun> {
+async function runQa(
+  params: QaRunParams,
+  timer: PhaseTimer,
+  token?: CancellationToken,
+): Promise<QaRun | StoppedQaRun> {
   if (params.checks) {
     const unknown = unknownCheckIds(params.checks);
     if (unknown.length > 0) {
@@ -71,15 +101,24 @@ async function runQa(params: QaRunParams, timer: PhaseTimer): Promise<QaRun> {
     }
   }
 
+  const stopPoint = (): Promise<boolean> => {
+    if (!token) return Promise.resolve(false);
+    return stopRequestedAfterYield(token);
+  };
+  if (await stopPoint()) return { cancelled: true };
+
   // The three phases named separately because they cost unrelated things:
   // resolving searches the document, the snapshot is where the per-id reads and
   // both probes are paid, and the checks themselves are pure.
   const { subject, origin } = await timer.phase("resolve", () =>
     resolveTarget(params),
   );
+  if (await stopPoint()) return { cancelled: true, targetName: subject.name };
+
   const snapshot = await timer.phase("snapshot", () =>
     prepareSnapshot(subject, params.checks),
   );
+  if (await stopPoint()) return { cancelled: true, targetName: subject.name };
 
   const outcome = await timer.phase("checks", () =>
     runChecks(snapshot, params.checks as CheckId[] | undefined),
@@ -124,6 +163,14 @@ registerOperation<QaRunParams, QaRunResult>(
   async (params) =>
     timedRun("tidy_qa_run", async (timer) => {
       const run = await runQa(params, timer);
+      // Unreachable as written: no token was passed, so runQa cannot stop.
+      // Kept total rather than asserted away.
+      if ("cancelled" in run) {
+        throw new OperationError(
+          ErrorCode.INTERNAL,
+          "QA run stopped although no cancellation token was given",
+        );
+      }
       const { result } = run;
       if (params.includeModeImages) {
         const { image, skipped } = await timer.phase("mode-image", () =>
@@ -138,43 +185,19 @@ registerOperation<QaRunParams, QaRunResult>(
     }),
 );
 
-interface BuildChecklistResult {
-  frameId: string;
-  target: { id: string; name: string };
-  counts: QaRunResult["checklist"]["counts"];
-  /**
-   * The per-mode showcase frame drawn beside the checklist (#121), when the set
-   * has a theme axis worth showing. Absent means there was nothing to show, not
-   * that anything failed.
-   */
-  modeShowcaseId?: string;
-  /**
-   * The baseline beside the state that broke, when the resize probe measured an
-   * anomaly (#111). Absent on a healthy component, which is the common case and
-   * costs nothing.
-   */
-  resizeEvidenceId?: string;
-  /**
-   * The property-combination contact sheet, when `includeContactSheet` asked for it
-   * and the component has combinations worth comparing (#112).
-   */
-  contactSheetId?: string;
-  /**
-   * How many offending variants were drawn as samples inside the checklist (#171).
-   *
-   * Only a count, deliberately: this operation returns a stub and never findings,
-   * and a number is enough to confirm the pictures were drawn without reopening
-   * what the stub exists to withhold. Zero is the ordinary case - it means no row
-   * both failed and came from a check whose defects are visible.
-   */
-  sampleCount: number;
-  /**
-   * The checklist frame as a PNG data URL, when `includeImage` asked for it.
-   * Lifted into a viewable image block by the bridge (#116), which recognises an
-   * image by the payload being a data URL rather than by any field name.
-   */
-  image?: string;
-}
+type BuildChecklistResult =
+  | { cancelled: true; message: string; target?: { id: string; name: string } }
+  | {
+      cancelled?: false;
+      frameId: string;
+      target: { id: string; name: string };
+      counts: QaRunResult["checklist"]["counts"];
+      modeShowcaseId?: string;
+      resizeEvidenceId?: string;
+      contactSheetId?: string;
+      sampleCount: number;
+      image?: string;
+    };
 
 // No `name`/glob field: per CONTEXT.md, Execute Operations take explicit ids
 // (selection is the only fallback) — lookup-by-name belongs to a Query
@@ -256,22 +279,44 @@ registerOperation<BuildChecklistParams, BuildChecklistResult>(
     kind: "execute",
     module: "qa",
     summary:
-      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items - automated ones with grouped findings, manual ones on a tinted row with no status chip. A finding from a check whose defects are visible also gets a live instance of one offending variant drawn beneath it, captioned with the variant and how many share the defect. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, sampleCount, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against.",
+      "Run the DS Component QA checklist and render it as a frame on the canvas next to the target (intended: a placed instance; resolves up to the owning set). Draws all 19 checklist items - automated ones with grouped findings, manual ones on a tinted row with no status chip. A finding from a check whose defects are visible also gets a live instance of one offending variant drawn beneath it, captioned with the variant and how many share the defect. Idempotent per target: re-running replaces the prior checklist frame. Returns only a stub (frame id, target, sampleCount, and pass/warn/fail/manual/pending counts), never the full findings. Target by nodeId, or omit it to use the current selection (to target by name/glob, look it up first with tidy_qa_run and pass the resulting nodeId); optionally pass anchorNodeId to place the frame next to a different node (e.g. the instance) than the one checks ran against. Stoppable anywhere in its read half (resolve, snapshot, checks) and before drawing - a stop then leaves the canvas unchanged, prior checklist included. Once drawing begins the run is not interrupted: every prior block is removed only as its replacement is drawn, so a stop mid-draw could leave a target with neither, which is the one outcome the boundaries exist to prevent.",
+    // The stop policy in one line (#185): stoppable before the first removal,
+    // committed from there on. The composer takes no token, so a checkpoint
+    // inside the drawing cannot exist to be missed.
+    cancellable: true,
     paramsExample: {},
   },
-  async (params) =>
+  async (params, ctx) =>
     timedRun("tidy_qa_build_checklist", async (timer) => {
-      const run = await runQa(params, timer);
+      const run = await runQa(params, timer, ctx.cancellation);
+      if ("cancelled" in run) {
+        // Stopped in the read half: nothing was drawn and nothing removed.
+        const message = describeStoppedChecklistRun(run.targetName ?? null);
+        figma.notify(message, { timeout: 10_000 });
+        return { cancelled: true, message };
+      }
+
       const anchor = await resolveAnchor(
         params.anchorNodeId,
         run.origin,
         run.subject,
       );
 
+      // Last stop boundary before the first removal. Everything the run has
+      // done so far is read-only; everything after this check writes.
+      if (await stopRequestedAfterYield(ctx.cancellation)) {
+        const message = describeStoppedChecklistRun(run.result.target.name);
+        figma.notify(message, { timeout: 10_000 });
+        return { cancelled: true, message, target: run.result.target };
+      }
+
       // The composition times its own document traversal separately, because
       // that is the step #213 changed; everything else it does is drawing, and
       // splitting the drawing per block would mean threading the timer through
-      // the sequence that exists to keep the drawing in one place.
+      // the sequence that exists to keep the drawing in one place. No token is
+      // passed into the composition - once the first removal happens the run
+      // is committed, which is what keeps a cancelled build from leaving a
+      // target with its old blocks cleared and no new ones drawn (#185).
       const artifacts = await timer.phase("compose", () =>
         composeChecklistArtifacts(run, {
           anchor,

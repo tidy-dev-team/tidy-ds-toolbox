@@ -15,6 +15,11 @@ import {
   SettingsPayload,
   VariantProperty,
 } from "./types";
+import {
+  createCancellationToken,
+  runUntilCancelled,
+  type CancellationToken,
+} from "../../shared/cancellation";
 
 /**
  * Component Labels handler - processes messages from the UI
@@ -158,6 +163,10 @@ async function handleBuildLabels(payload: BuildLabelsPayload): Promise<void> {
 /**
  * Build labels on a given component set. Shared between the UI message
  * handler and the agent-facing Operation.
+ *
+ * The token is optional and defaults to one nothing can cancel, so the
+ * designer path - which has no Bridge and nobody to ask it to stop - behaves
+ * exactly as it did. `runUntilCancelled` owns the check-and-yield pairing.
  */
 export async function executeBuildLabels(
   element: ComponentSetNode,
@@ -167,21 +176,88 @@ export async function executeBuildLabels(
     fontSize: number;
     extractElement: boolean;
   },
-): Promise<void> {
+  token: CancellationToken = createCancellationToken(),
+): Promise<LabelsBuildOutcome> {
   await loadFonts();
-  await buildLabelElements(
+  return await buildLabelElements(
     element.children,
     opts.labels,
     element,
     opts.spacing,
     opts.fontSize,
+    opts.extractElement,
+    token,
   );
-
-  if (opts.extractElement) {
-    extractToTheTop(element);
-  }
 }
 
+/**
+ * What one step of the label build contributes.
+ *
+ * The build is a sequence of steps, not a uniform list of items: each axis
+ * needs the previous axes' labels for its own positioning, and the grouping
+ * needs both second-level rows. That is why the steps are thunks closing over
+ * local results rather than items `runUntilCancelled` maps over directly.
+ */
+export type LabelStepName =
+  | "top"
+  | "left"
+  | "second-top"
+  | "second-left"
+  | "grouping"
+  | "extract";
+
+/** Every step a full run takes, in the order it takes them. */
+export const LABEL_STEP_ORDER: LabelStepName[] = [
+  "top",
+  "left",
+  "second-top",
+  "second-left",
+  "grouping",
+  "extract",
+];
+/** The outcome of a label build, whether it finished or was stopped. */
+export interface LabelsBuildOutcome {
+  /** The steps that ran to completion, in the order they ran. */
+  completedSteps: LabelStepName[];
+  /**
+   * The steps this run was actually planning - the conditional ones
+   * (grouping, extraction) are planned only when their condition is true, so
+   * a report never names a step the run was never going to take.
+   */
+  plannedSteps: LabelStepName[];
+  /** Whether the run stopped before covering every planned step. */
+  cancelled: boolean;
+}
+
+/**
+ * What a run that stopped short should tell the designer, or null if it did
+ * not stop short.
+ *
+ * Same audience and same three questions as the DS Template's
+ * `describeStoppedRun` (#184): how far did it get, what is on the canvas now,
+ * and what happens if I run it again. The third matters most here because the
+ * build only ever adds nodes - a second run draws a second set of labels
+ * beside the first rather than completing it.
+ */
+export function describeStoppedLabelsBuild(
+  completedSteps: readonly LabelStepName[],
+  plannedSteps: readonly LabelStepName[],
+): string | null {
+  const missing = plannedSteps.filter((step) => !completedSteps.includes(step));
+  if (missing.length === 0) return null;
+
+  const completed =
+    completedSteps.length === 0 ? "no steps" : completedSteps.join(", ");
+
+  return (
+    `Label build stopped after ${completed}. ` +
+    `The labels already drawn are still on the canvas and were not undone; ` +
+    `not drawn: ${missing.join(", ")}. ` +
+    `Running it again draws a whole new set of labels beside these rather ` +
+    `than filling in the missing ones - delete the drawn ones first if you ` +
+    `want one clean set.`
+  );
+}
 /**
  * Save plugin data to document
  */
@@ -344,7 +420,16 @@ function computeMaximumBounds(
 }
 
 /**
- * Build all label elements for the component set
+ * Build all label elements for the component set.
+ *
+ * Stoppable between steps, never inside one (#185): the token is read by
+ * `runUntilCancelled` between whole steps, so whatever a step draws is either
+ * finished or never started. The build only ever adds nodes and removes
+ * none, so a stopped run leaves the labels its completed steps drew - a
+ * subset of a normal result, and never anything worse than not having run.
+ * The grouping and extraction steps are listed even when their condition is
+ * false, so the step order is the same for every run and a stopped run's
+ * report names real steps either way.
  */
 async function buildLabelElements(
   nodes: readonly SceneNode[],
@@ -352,89 +437,151 @@ async function buildLabelElements(
   element: ComponentSetNode,
   spacing: number,
   fontSize: number,
-): Promise<void> {
+  extractElement: boolean,
+  token: CancellationToken,
+): Promise<LabelsBuildOutcome> {
   // Every column of the grid, and every row - read from all of the
   // children, so a ragged set still reports the rows that its first column
   // never reaches (#175).
   const columns = collectAxisSlots(nodes, "x");
   const rows = collectAxisSlots(nodes, "y");
 
-  // Create first-level labels
-  const topResult = await createLabelsForSlots(
-    columns,
-    labels.top,
-    element,
-    fontSize,
-    (slot, label) => ({
-      x: element.x + slot.center - label.width / 2,
-      y: element.y - label.height - spacing,
-    }),
-  );
-  const topLabels = topResult.labels;
+  let topResult: LabelRowResult = { labels: [], sources: [] };
+  let leftResult: LabelRowResult = { labels: [], sources: [] };
+  let secondTopResult: LabelRowResult = { labels: [], sources: [] };
+  let secondLeftResult: LabelRowResult = { labels: [], sources: [] };
+  let leftWidth = 0;
 
-  const leftResult = await createLabelsForSlots(
-    rows,
-    labels.left,
-    element,
-    fontSize,
-    (slot, label) => ({
-      x: element.x - label.width - spacing,
-      y: element.y + slot.center - label.height / 2,
-    }),
-  );
-  const leftLabels = leftResult.labels;
+  // The conditional steps are planned only when their condition is true, so
+  // a stopped run's report names real steps rather than steps that were
+  // never going to run.
+  const groupingStep: {
+    name: LabelStepName;
+    run: () => Promise<void> | void;
+  } = {
+    name: "grouping",
+    run: () => {
+      // Process and optimize label groups (optional per axis). Grouping is
+      // scoped to the parent (primary) axis bucket so labels in different
+      // primary groups stay distinct — otherwise e.g. all "primary" labels
+      // across every size group would collapse into one globally-centered label.
+      if (labels.groupSecondLeft) {
+        const sourceByLabel = new Map(
+          secondLeftResult.labels.map((l, i) => [
+            l,
+            secondLeftResult.sources[i],
+          ]),
+        );
+        processLabelGroups(secondLeftResult.labels, "y", (label) => {
+          const src = sourceByLabel.get(label);
+          return src ? extractVariantValue(src.name, labels.left) : "";
+        });
+      }
+      if (labels.groupSecondTop) {
+        const sourceByLabel = new Map(
+          secondTopResult.labels.map((l, i) => [l, secondTopResult.sources[i]]),
+        );
+        processLabelGroups(secondTopResult.labels, "x", (label) => {
+          const src = sourceByLabel.get(label);
+          return src ? extractVariantValue(src.name, labels.top) : "";
+        });
+      }
+    },
+  };
 
-  // Calculate bounds for positioning second-level labels
-  const leftBounds = computeMaximumBounds(leftLabels);
-  const leftWidth = leftLabels.length ? leftBounds[1].x - leftBounds[0].x : 0;
-
-  // Create second-level labels
-  const secondTopResult = await createLabelsForSlots(
-    columns,
-    labels.secondTop,
-    element,
-    fontSize,
-    (slot, label) => ({
-      x: element.x + slot.center - label.width / 2,
-      y: topLabels.length
-        ? topLabels[0].y - label.height - spacing
-        : element.y - label.height - spacing * 2,
-    }),
-  );
-  const secondLevelTopLabels = secondTopResult.labels;
-
-  const secondLeftResult = await createLabelsForSlots(
-    rows,
-    labels.secondLeft,
-    element,
-    fontSize,
-    (slot, label) => ({
-      x: element.x - (leftWidth + label.width + spacing * 2),
-      y: element.y + slot.center - label.height / 2,
-    }),
-  );
-  const secondLevelLeftLabels = secondLeftResult.labels;
-
-  // Process and optimize label groups (optional per axis). Grouping is
-  // scoped to the parent (primary) axis bucket so labels in different
-  // primary groups stay distinct — otherwise e.g. all "primary" labels
-  // across every size group would collapse into one globally-centered label.
-  if (labels.groupSecondLeft) {
-    const sourceByLabel = new Map(
-      secondLeftResult.labels.map((l, i) => [l, secondLeftResult.sources[i]]),
-    );
-    processLabelGroups(secondLevelLeftLabels, "y", (label) => {
-      const src = sourceByLabel.get(label);
-      return src ? extractVariantValue(src.name, labels.left) : "";
+  const steps: { name: LabelStepName; run: () => Promise<void> | void }[] = [
+    {
+      name: "top",
+      run: async () => {
+        topResult = await createLabelsForSlots(
+          columns,
+          labels.top,
+          element,
+          fontSize,
+          (slot, label) => ({
+            x: element.x + slot.center - label.width / 2,
+            y: element.y - label.height - spacing,
+          }),
+        );
+      },
+    },
+    {
+      name: "left",
+      run: async () => {
+        leftResult = await createLabelsForSlots(
+          rows,
+          labels.left,
+          element,
+          fontSize,
+          (slot, label) => ({
+            x: element.x - label.width - spacing,
+            y: element.y + slot.center - label.height / 2,
+          }),
+        );
+        // Calculate bounds for positioning second-level labels
+        const leftBounds = computeMaximumBounds(leftResult.labels);
+        leftWidth = leftResult.labels.length
+          ? leftBounds[1].x - leftBounds[0].x
+          : 0;
+      },
+    },
+    {
+      name: "second-top",
+      run: async () => {
+        secondTopResult = await createLabelsForSlots(
+          columns,
+          labels.secondTop,
+          element,
+          fontSize,
+          (slot, label) => ({
+            x: element.x + slot.center - label.width / 2,
+            y: topResult.labels.length
+              ? topResult.labels[0].y - label.height - spacing
+              : element.y - label.height - spacing * 2,
+          }),
+        );
+      },
+    },
+    {
+      name: "second-left",
+      run: async () => {
+        secondLeftResult = await createLabelsForSlots(
+          rows,
+          labels.secondLeft,
+          element,
+          fontSize,
+          (slot, label) => ({
+            x: element.x - (leftWidth + label.width + spacing * 2),
+            y: element.y + slot.center - label.height / 2,
+          }),
+        );
+      },
+    },
+  ];
+  if (labels.groupSecondLeft || labels.groupSecondTop) {
+    steps.push(groupingStep);
+  }
+  if (extractElement) {
+    steps.push({
+      name: "extract",
+      run: () => {
+        extractToTheTop(element);
+      },
     });
   }
-  if (labels.groupSecondTop) {
-    const sourceByLabel = new Map(
-      secondTopResult.labels.map((l, i) => [l, secondTopResult.sources[i]]),
-    );
-    processLabelGroups(secondLevelTopLabels, "x", (label) => {
-      const src = sourceByLabel.get(label);
-      return src ? extractVariantValue(src.name, labels.top) : "";
-    });
-  }
+
+  const { completed, cancelled } = await runUntilCancelled(
+    steps,
+    async (step) => {
+      await step.run();
+      return step;
+    },
+    token,
+  );
+
+  return {
+    completedSteps: completed.map((step) => step.name),
+    plannedSteps: steps.map((step) => step.name),
+    cancelled,
+  };
 }

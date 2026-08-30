@@ -5,6 +5,11 @@
 // by manual round-trip in Figma per the plan's verification section.
 
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
+import {
+  createCancellationToken,
+  stopRequestedAfterYield,
+  type CancellationToken,
+} from "../../../shared/cancellation";
 import { withDocPageBuildLock, type BuildOrigin } from "./buildLock";
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { deriveFacts } from "./deriveFacts";
@@ -181,17 +186,48 @@ export async function buildDocPage(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
   origin: BuildOrigin,
-): Promise<FrameNode> {
+  token: CancellationToken = createCancellationToken(),
+): Promise<DocPageBuild | StoppedDocBuild> {
   return await withDocPageBuildLock(
     { sourceId: source.id, sourceName: source.name, origin },
-    () => buildDocPageUnguarded(source, spec),
+    () => buildDocPageUnguarded(source, spec, token),
   );
+}
+
+/**
+ * What a run that stopped in the read-and-plan half reports.
+ *
+ * The stop boundaries all sit before the first existing page is removed, so a
+ * stopped run has changed nothing: the previous documentation page, if any,
+ * is exactly where it was. Same audience as the DS Template's
+ * `describeStoppedRun` (#184) - the Bridge has already answered the caller,
+ * so this sentence is what reaches anybody.
+ */
+export function describeStoppedDocBuild(): string {
+  return (
+    "Documentation build stopped before changing anything. " +
+    "The existing documentation page is untouched. " +
+    "Running it again is safe: it replaces the old page, as it always does."
+  );
+}
+
+/** The outcome of a build that was asked to stop before it wrote. */
+export interface StoppedDocBuild {
+  cancelled: true;
+  message: string;
+}
+
+/** The outcome of a build that ran: the new page frame. */
+export interface DocPageBuild {
+  cancelled?: false;
+  root: FrameNode;
 }
 
 async function buildDocPageUnguarded(
   source: ComponentNode | ComponentSetNode,
   spec: DocSpec,
-): Promise<FrameNode> {
+  token: CancellationToken,
+): Promise<DocPageBuild | StoppedDocBuild> {
   // Fixed, and the single place that fixes it (ADR-0010). The vertical branch
   // below is parked on purpose - the sections, the header builder and the
   // chrome-less assembly path are all still here and still compiled - but
@@ -202,7 +238,25 @@ async function buildDocPageUnguarded(
   // Typed as the union rather than inferred, so the branch stays live code
   // instead of something the compiler narrows away.
   const layout: DocLayout = DEFAULT_DOC_LAYOUT;
+
+  // The three checkpoints below are the run's stop boundaries (#185). Each
+  // yields first, because the yield is what gives an arriving stop request
+  // its turn - reading the token without yielding would only ever notice a
+  // cancellation that arrived before the previous await. Everything before
+  // the last checkpoint is read-only, so a stop there costs nothing. Past
+  // the last one the token is never consulted again: the removal and the
+  // rebuild are one committed region, because a run stopped with the old
+  // page gone and the new one half-built is the outcome this design exists
+  // to make impossible.
+  const stopPoint = (): Promise<StoppedDocBuild | null> => {
+    return stopRequestedAfterYield(token).then((stop) =>
+      stop ? { cancelled: true, message: describeStoppedDocBuild() } : null,
+    );
+  };
+
   const facts = await deriveFacts(source);
+  const stoppedAfterFacts = await stopPoint();
+  if (stoppedAfterFacts) return stoppedAfterFacts;
 
   const { unresolved } = resolveDocSpecReferences(spec, facts);
   if (unresolved.length > 0) {
@@ -213,9 +267,14 @@ async function buildDocPageUnguarded(
       { unresolved },
     );
   }
+  const stoppedAfterReferences = await stopPoint();
+  if (stoppedAfterReferences) return stoppedAfterReferences;
 
   const page = figma.currentPage;
   const existing = await findExistingDocPages(source.id);
+  const stoppedAfterScan = await stopPoint();
+  if (stoppedAfterScan) return stoppedAfterScan;
+
   if (existing.length > 0) {
     if (existing.length > 1) {
       console.warn(
@@ -259,7 +318,7 @@ async function buildDocPageUnguarded(
 
   figma.viewport.scrollAndZoomIntoView([root]);
 
-  return root;
+  return { root };
 }
 
 // One loop, either layout (#72): test `applies`, skip wholesale (Chrome card
