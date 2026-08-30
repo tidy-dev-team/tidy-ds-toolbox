@@ -132,22 +132,51 @@ export interface CsvExportResult {
 }
 
 /** What a publish actually did, so the panel can report it. */
-export interface PublishResult {
-  success: true;
-  /** The family the cards were drawn with. */
-  fontFamily: string;
-  /** The family the file asked for, which differs when `fontFallback`. */
-  fontRequested: string;
-  fontFallback: boolean;
-  cardsBuilt: number;
-  /**
-   * Frames named like this module's pre-stamp output that the publish left
-   * alone. It cannot prove they are not a designer's own, so it never deletes
-   * them; saying how many there are is what makes Delete from canvas findable
-   * when an old file starts showing a card twice.
-   */
-  legacyCardsFound: number;
+export type PublishResult =
+  | {
+      success: true;
+      /** The family the cards were drawn with. */
+      fontFamily: string;
+      /** The family the file asked for, which differs when `fontFallback`. */
+      fontRequested: string;
+      fontFallback: boolean;
+      cardsBuilt: number;
+      /**
+       * Frames named like this module's pre-stamp output that the publish left
+       * alone. It cannot prove they are not a designer's own, so it never
+       * deletes them; saying how many there are is what makes Delete from
+       * canvas findable when an old file starts showing a card twice.
+       */
+      legacyCardsFound: number;
+    }
+  | {
+      success: false;
+      /**
+       * Also reported when the draw phase throws partway through: publishing
+       * draws before it sweeps, so an interruption there can leave the old and
+       * the new cards standing together rather than leaving a hole. Nothing
+       * about a publish is atomic, so the message says the canvas may be
+       * incomplete and that publishing again is the recovery path - the next
+       * publish's sweep removes whatever the interrupted one left behind.
+       */
+      message: string;
+    };
+
+/**
+ * A save that could not be written, named by the sprint it belongs to.
+ *
+ * `reason` splits "too large to store" from every other failure because the
+ * designer's response differs: a size limit means trim the sprint, anything
+ * else means retry.
+ */
+export interface SprintSaveFailure {
+  success: false;
+  sprintId: string;
+  reason: "too-large" | "write-failed";
+  message: string;
 }
+
+export type SprintSaveResult = { success: true } | SprintSaveFailure;
 
 export type ClearCanvasCandidateOwnership =
   | "verified-stamped"

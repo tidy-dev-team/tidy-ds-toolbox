@@ -31,6 +31,13 @@ export interface CardStamp {
   /** Empty for the aggregate, which is about every Subject rather than one. */
   subjectId: string;
   builtAt: string;
+  /**
+   * The identity of the publish that drew this card, minted once per publish
+   * and shared by every card it draws. Absent on a stamp written before this
+   * field existed, which `isCurrentPublish` treats as belonging to a previous
+   * publish - which is what it is.
+   */
+  publishId?: string;
 }
 
 /** All the rules need to know about a node sitting on a page. */
@@ -121,6 +128,25 @@ export function classifyCardCandidate(
 /** Whether this node belongs in the explicit Delete from canvas review. */
 export function isClearCanvasCandidate(node: CardNode): boolean {
   return classifyCardCandidate(node) !== null;
+}
+
+/**
+ * Whether a publish sweep should remove this owned card: it carries this
+ * module's stamp, and that stamp's publish identity is not the one the current
+ * publish is drawing.
+ *
+ * Publishing draws every card before it sweeps any of them, so a card newly
+ * drawn in this publish is stamped with `currentPublishId` and survives; every
+ * other owned card - from an older publish, or from a build before the publish
+ * identity field existed at all - carries a different (or absent) identity and
+ * is swept. A card with no publish identity is treated as belonging to a
+ * previous publish, which is what it is.
+ */
+export function isPreviousPublishCard(
+  node: CardNode,
+  currentPublishId: string,
+): boolean {
+  return isStampedCard(node) && node.stamp?.publishId !== currentPublishId;
 }
 
 /**

@@ -1,14 +1,21 @@
 /**
- * Publishing: sweep every stamped card, then redraw the whole file - the
- * aggregate changelog, and one card beside every Subject any sprint mentions.
+ * Publishing: redraw the whole file - the aggregate changelog, and one card
+ * beside every Subject any sprint mentions - and only then sweep away
+ * whatever the previous publish left behind.
  *
  * A card is found again by its plugin-data stamp, never by frame name or
  * position, so renaming a Subject or dragging a card cannot orphan it or make
  * a second one appear. The stamp is also the only thing a publish will delete
  * by, because it is the only thing that proves this module wrote the frame.
  *
- * That same stamp is what lets a card stay where the user put it. The sweep
- * notes each card's page and position before removing it, and the rebuilt card
+ * Draw-then-sweep, not sweep-then-draw: an interruption partway through must
+ * never leave a hole. Each publish mints one publish identity, stamps it on
+ * every card it draws, and afterwards removes only owned cards stamped with a
+ * *different* identity (or none at all). See `publishNotes` for the full
+ * reasoning.
+ *
+ * That same stamp is what lets a card stay where the user put it. Each card's
+ * page and position are read before anything is drawn, and the rebuilt card
  * goes back there. The placement rules therefore only ever decide where a card
  * appears for the first time.
  */
@@ -32,6 +39,7 @@ import {
   cardPlacementKey,
   classifyCardCandidate,
   isLegacyNamedCard,
+  isPreviousPublishCard,
   isStampedCard,
   parseCardStamp,
   type CardNode,
@@ -40,6 +48,7 @@ import {
 import { planClearCanvasDeletion } from "../utils/clearCanvas";
 import { allSubjectsInOrder } from "../utils/notes";
 import { getCardAppearance } from "../utils/appearanceHelpers";
+import { mintId } from "../utils/id";
 import {
   componentCardPosition,
   pageEdgeSlot,
@@ -221,6 +230,18 @@ function placeCard(
  *
  * The cost is that a publish is proportional to the file rather than to the
  * sprint.
+ *
+ * Drawing happens before sweeping. Each publish mints one publish identity and
+ * stamps it onto every card it draws; only afterwards does it remove owned
+ * cards stamped with a *different* identity - the previous publish's, or none
+ * at all. That order means an interruption can leave the old and new cards
+ * standing together, but it can never leave a hole: the canvas holds a
+ * complete old set, a complete new set, or (only while something has gone
+ * wrong) both, and never neither. A publish is not made atomic - Figma offers
+ * no transaction - so an interruption during the draw phase is reported as an
+ * incomplete canvas, and the fix is to publish again: the next publish's own
+ * sweep removes whatever the interrupted one left behind, because everything
+ * this module draws is stamped and nothing it draws is ever nameless.
  */
 export async function publishNotes(
   figma: PluginAPI,
@@ -238,32 +259,25 @@ export async function publishNotes(
     );
   }
 
-  let cardsBuilt = 0;
-
+  const publishId = mintId(Date.now());
   const subjects = allSubjectsInOrder(sprints);
 
-  // Sweep this publish's own output, everywhere, before drawing any of it.
+  // Read where every owned card currently stands, without touching the
+  // canvas. Nothing is removed here: drawing must succeed first, or an
+  // interruption during this pass would have destroyed the previous complete
+  // set for nothing.
   //
-  // Whole-file rather than per-Subject: removing only the cards about to be
-  // redrawn leaves the ones that should no longer exist. Delete the last note
-  // about a Subject and it drops out of the notes, so nothing rebuilds its card
-  // and nothing removes it either; same for a Subject whose node was deleted.
-  // Both would sit there for ever, in the previous appearance.
-  //
-  // Stamped cards only. A name is not proof: `Buttons-release-notes` is a card
-  // from a build older than the stamp, or it is a frame a designer made and
-  // named, and nothing here can tell. Publishing is routine and nobody confirms
-  // it, so it takes the rule that cannot be wrong. Pre-stamp cards are counted
-  // instead and reported, and Delete from canvas lets the user review them.
-  //
-  // Where each card was standing is read here, on the way past, because after
-  // the sweep there is nothing left to ask.
+  // Stamped cards only feed `remembered`. A name is not proof:
+  // `Buttons-release-notes` is a card from a build older than the stamp, or it
+  // is a frame a designer made and named, and nothing here can tell. Legacy
+  // names are counted instead and reported, and Delete from canvas lets the
+  // user review them.
   let legacyCardsFound = 0;
   const remembered = new Map<string, RememberedPlacement>();
   for (const page of figma.root.children) {
     if (page.type !== "PAGE") continue;
 
-    for (const card of [...page.children]) {
+    for (const card of page.children) {
       const described = describe(card);
       if (described.stamp) {
         remembered.set(cardPlacementKey(described.stamp), {
@@ -271,81 +285,123 @@ export async function publishNotes(
           x: card.x,
           y: card.y,
         });
-        card.remove();
       } else if (isLegacyNamedCard(described)) legacyCardsFound += 1;
     }
   }
 
-  // Aggregate changelog: one card holding every sprint. It goes to the Release
-  // Notes page, which is created only if no remembered page is standing.
-  const aggregateStamp = { kind: "aggregate", subjectId: "" } as const;
-  const aggregateRemembered =
-    remembered.get(cardPlacementKey(aggregateStamp)) ?? null;
-  const aggregatePage =
-    livePage(aggregateRemembered) ?? getOrCreateReleaseNotesPage(figma);
-  const aggregate = buildAggregateChangelog(figma, appearance, sprints);
-  stamp(aggregate, aggregateStamp);
-  placeCard(aggregate, aggregatePage, aggregateRemembered, () => ({
-    x: 0,
-    y: 0,
-  }));
-  cardsBuilt += 1;
+  try {
+    let cardsBuilt = 0;
 
-  // One card per Subject, and its slot on the page, from one ordered walk. The
-  // order is the Subject's, taken from the notes, so a card lands in the same
-  // place on every publish.
-  const filled = new Map<string, number>();
-  const targets: Array<{
-    subject: Subject;
-    target: CardTarget;
-    slot: number;
-  }> = [];
-
-  for (const subject of subjects) {
-    const target = resolveCardTarget(figma, subject);
-    if (!target) continue;
-
-    // The slot is still counted for a card that will not use it. The count is
-    // the Subject's position in the notes, not a queue of free space, and that
-    // is what keeps a first-time card landing in the same place whether or not
-    // its neighbours have since been moved away.
-    let slot = 0;
-    if (!target.anchor) {
-      slot = filled.get(target.page.id) ?? 0;
-      filled.set(target.page.id, slot + 1);
-    }
-    targets.push({ subject, target, slot });
-  }
-
-  for (const { subject, target, slot } of targets) {
-    const card = buildSubjectCard(figma, appearance, subject, sprints);
-    if (!card) continue;
-
-    const cardStamp = { kind: subject.kind, subjectId: subject.id };
-    stamp(card, cardStamp);
-    placeCard(
-      card,
-      target.page,
-      remembered.get(cardPlacementKey(cardStamp)) ?? null,
-      () =>
-        target.anchor
-          ? componentCardPosition(target.anchor, card.width, CARD_GAP)
-          : pageEdgeSlot(pageContent(target.page), slot, card.width, CARD_GAP),
-    );
+    // Aggregate changelog: one card holding every sprint. It goes to the
+    // Release Notes page, which is created only if no remembered page is
+    // standing.
+    const aggregateStamp = {
+      kind: "aggregate",
+      subjectId: "",
+      publishId,
+    } as const;
+    const aggregateRemembered =
+      remembered.get(cardPlacementKey(aggregateStamp)) ?? null;
+    const aggregatePage =
+      livePage(aggregateRemembered) ?? getOrCreateReleaseNotesPage(figma);
+    const aggregate = buildAggregateChangelog(figma, appearance, sprints);
+    stamp(aggregate, aggregateStamp);
+    placeCard(aggregate, aggregatePage, aggregateRemembered, () => ({
+      x: 0,
+      y: 0,
+    }));
     cardsBuilt += 1;
+
+    // One card per Subject, and its slot on the page, from one ordered walk.
+    // The order is the Subject's, taken from the notes, so a card lands in
+    // the same place on every publish.
+    const filled = new Map<string, number>();
+    const targets: Array<{
+      subject: Subject;
+      target: CardTarget;
+      slot: number;
+    }> = [];
+
+    for (const subject of subjects) {
+      const target = resolveCardTarget(figma, subject);
+      if (!target) continue;
+
+      // The slot is still counted for a card that will not use it. The count
+      // is the Subject's position in the notes, not a queue of free space,
+      // and that is what keeps a first-time card landing in the same place
+      // whether or not its neighbours have since been moved away.
+      let slot = 0;
+      if (!target.anchor) {
+        slot = filled.get(target.page.id) ?? 0;
+        filled.set(target.page.id, slot + 1);
+      }
+      targets.push({ subject, target, slot });
+    }
+
+    for (const { subject, target, slot } of targets) {
+      const card = buildSubjectCard(figma, appearance, subject, sprints);
+      if (!card) continue;
+
+      const cardStamp = {
+        kind: subject.kind,
+        subjectId: subject.id,
+        publishId,
+      };
+      stamp(card, cardStamp);
+      placeCard(
+        card,
+        target.page,
+        remembered.get(cardPlacementKey(cardStamp)) ?? null,
+        () =>
+          target.anchor
+            ? componentCardPosition(target.anchor, card.width, CARD_GAP)
+            : pageEdgeSlot(
+                pageContent(target.page),
+                slot,
+                card.width,
+                CARD_GAP,
+              ),
+      );
+      cardsBuilt += 1;
+    }
+
+    // Sweep, now that the complete new set is standing: remove every owned
+    // card stamped with a publish identity other than this one. This is the
+    // only place anything is removed, and it runs last on purpose.
+    for (const page of figma.root.children) {
+      if (page.type !== "PAGE") continue;
+
+      for (const card of [...page.children]) {
+        if (isPreviousPublishCard(describe(card), publishId)) {
+          card.remove();
+        }
+      }
+    }
+
+    figma.currentPage = aggregatePage;
+    figma.viewport.scrollAndZoomIntoView([aggregate]);
+
+    return {
+      success: true,
+      fontFamily: appearance.family,
+      fontRequested: appearance.requested,
+      fontFallback: appearance.fallback,
+      cardsBuilt,
+      legacyCardsFound,
+    };
+  } catch (error) {
+    // Drawing (or the sweep right after it) threw partway through. Nothing
+    // here is rolled back - there is no transaction to roll back to - so the
+    // canvas may hold the old set, the new set, or both at once. Publishing
+    // again is the recovery path: its own sweep removes whatever this
+    // attempt left standing, because every card either publish draws is
+    // stamped with that publish's identity.
+    const detail = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      message: `Publishing was interrupted (${detail}), so the canvas may hold both the old and the new cards. Publish again to finish it.`,
+    };
   }
-
-  figma.currentPage = aggregatePage;
-  figma.viewport.scrollAndZoomIntoView([aggregate]);
-
-  return {
-    success: true,
-    fontFamily: appearance.family,
-    fontRequested: appearance.requested,
-    fontFallback: appearance.fallback,
-    cardsBuilt,
-    legacyCardsFound,
-  };
 }
 
 /** Return the current candidates for the explicit Delete from canvas review. */

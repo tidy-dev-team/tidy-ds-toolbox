@@ -1,4 +1,4 @@
-import type { Sprint, SprintsPayload } from "../types";
+import type { Sprint, SprintSaveResult, SprintsPayload } from "../types";
 import {
   PLUGIN_NAMESPACE,
   SPRINT_KEY_PREFIX,
@@ -31,9 +31,39 @@ export function loadAllSprints(figma: PluginAPI): Sprint[] {
   return sprints;
 }
 
-export function saveSprint(figma: PluginAPI, sprint: Sprint): void {
+/** A failure message that names a size limit rather than a transient error. */
+const SIZE_LIMIT_PATTERN = /limit|too large|maximum|exceed/i;
+
+/**
+ * Write a sprint, and report whether it actually landed.
+ *
+ * `setSharedPluginData` can throw - most concretely at Figma's per-entry size
+ * limit - and the previous call site had no error handling at all, so a note
+ * could appear to save in the panel while nothing was written underneath it.
+ * The result names the sprint and says why, so a size-limit failure (trim the
+ * sprint) reads differently from any other write failure (retry).
+ */
+export function saveSprint(figma: PluginAPI, sprint: Sprint): SprintSaveResult {
   const key = `${SPRINT_KEY_PREFIX}${sprint.id}`;
-  figma.root.setSharedPluginData(PLUGIN_NAMESPACE, key, JSON.stringify(sprint));
+  try {
+    figma.root.setSharedPluginData(
+      PLUGIN_NAMESPACE,
+      key,
+      JSON.stringify(sprint),
+    );
+    return { success: true };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const tooLarge = SIZE_LIMIT_PATTERN.test(detail);
+    return {
+      success: false,
+      sprintId: sprint.id,
+      reason: tooLarge ? "too-large" : "write-failed",
+      message: tooLarge
+        ? `"${sprint.name}" was not saved: it has grown too large to store. Remove some notes and try again.`
+        : `"${sprint.name}" was not saved: ${detail}`,
+    };
+  }
 }
 
 export function deleteSprint(figma: PluginAPI, id: string): void {

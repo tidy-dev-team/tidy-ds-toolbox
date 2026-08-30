@@ -43,6 +43,7 @@ import {
 
 import { buildSprintCsv, csvFileName } from "./utils/csv";
 import { migrateSprint } from "./utils/notes";
+import { mintId, idMintedAt } from "./utils/id";
 import {
   deleteSelectedCards,
   previewClearCanvas,
@@ -101,14 +102,15 @@ export async function releaseNotesHandler(
 
     case "create-sprint": {
       const name = payload as string;
-      const id = Date.now().toString();
+      const id = mintId(Date.now());
       const sprint: Sprint = {
         id,
         name,
         notes: [],
       };
 
-      saveSprint(figma, sprint);
+      const saveResult = saveSprint(figma, sprint);
+      if (!saveResult.success) return saveResult;
       setLastSprintId(figma, id); // Auto-select newly created sprint
 
       return getSprintsPayload(figma);
@@ -121,7 +123,8 @@ export async function releaseNotesHandler(
 
       if (sprint) {
         sprint.name = data.name;
-        saveSprint(figma, sprint);
+        const saveResult = saveSprint(figma, sprint);
+        if (!saveResult.success) return saveResult;
       }
 
       return getSprintsPayload(figma);
@@ -156,7 +159,7 @@ export async function releaseNotesHandler(
 
       if (sprint) {
         const note: ReleaseNote = {
-          id: Date.now().toString(),
+          id: mintId(Date.now()),
           description: data.description,
           tag: data.tag,
           subject: data.subject,
@@ -166,7 +169,8 @@ export async function releaseNotesHandler(
         };
 
         sprint.notes.push(note);
-        saveSprint(figma, sprint);
+        const saveResult = saveSprint(figma, sprint);
+        if (!saveResult.success) return saveResult;
       }
 
       return getSprintsPayload(figma);
@@ -182,7 +186,8 @@ export async function releaseNotesHandler(
         if (note) {
           note.description = data.description;
           note.tag = data.tag;
-          saveSprint(figma, sprint);
+          const saveResult = saveSprint(figma, sprint);
+          if (!saveResult.success) return saveResult;
         }
       }
 
@@ -196,7 +201,8 @@ export async function releaseNotesHandler(
 
       if (sprint) {
         sprint.notes = sprint.notes.filter((n) => n.id !== data.noteId);
-        saveSprint(figma, sprint);
+        const saveResult = saveSprint(figma, sprint);
+        if (!saveResult.success) return saveResult;
       }
 
       return getSprintsPayload(figma);
@@ -324,7 +330,7 @@ export async function releaseNotesHandler(
         if (!targetSprintId || !mergedMap.has(targetSprintId)) {
           const newestImported = newlyAdded
             .slice()
-            .sort((a, b) => parseInt(b.id) - parseInt(a.id))[0];
+            .sort((a, b) => idMintedAt(b.id) - idMintedAt(a.id))[0];
           targetSprintId = newestImported?.id ?? mergedSprints[0]?.id ?? null;
         }
         setLastSprintId(figma, targetSprintId);

@@ -26,6 +26,7 @@ import type {
   SelectedComponentPayload,
   PublishResult,
   Sprint,
+  SprintSaveFailure,
   SprintsPayload,
   ReleaseNote,
   NoteTag,
@@ -53,6 +54,18 @@ interface PendingRequest {
   onSuccess?: (result: unknown) => void;
   onError?: (error: string) => void;
   onFinally?: () => void;
+}
+
+/**
+ * A sprint mutation's response is `SprintsPayload` on a normal write, or a
+ * named `SprintSaveFailure` when the write itself did not land - a size limit,
+ * or anything else `setSharedPluginData` can throw. Narrowing on `success`
+ * (absent from `SprintsPayload`) is what tells the two apart.
+ */
+function isSaveFailure(
+  result: SprintsPayload | SprintSaveFailure,
+): result is SprintSaveFailure {
+  return "success" in result && result.success === false;
 }
 
 function formatDate(isoString: string): string {
@@ -765,7 +778,11 @@ export function ReleaseNotesUI() {
 
     sendRequest("create-sprint", trimmedName, {
       onSuccess: (result) => {
-        const payload = result as SprintsPayload;
+        const payload = result as SprintsPayload | SprintSaveFailure;
+        if (isSaveFailure(payload)) {
+          setErrorMessage(payload.message);
+          return;
+        }
         setSprints(payload.sprints);
         setSelectedSprintId(payload.lastSelectedSprintId);
         setNewSprintName("");
@@ -792,7 +809,11 @@ export function ReleaseNotesUI() {
     };
     sendRequest("rename-sprint", payload, {
       onSuccess: (result) => {
-        const sprintsPayload = result as SprintsPayload;
+        const sprintsPayload = result as SprintsPayload | SprintSaveFailure;
+        if (isSaveFailure(sprintsPayload)) {
+          setErrorMessage(sprintsPayload.message);
+          return;
+        }
         setSprints(sprintsPayload.sprints);
         setIsRenaming(false);
         setRenameSprintName("");
@@ -829,9 +850,7 @@ export function ReleaseNotesUI() {
     setIsPublishing(true);
     sendRequest("publish-notes", selectedSprintId, {
       onSuccess: (result) => {
-        const publish = result as
-          | PublishResult
-          | { success: false; message: string };
+        const publish = result as PublishResult;
         if (!publish.success) {
           setErrorMessage(publish.message);
           return;
@@ -1121,7 +1140,11 @@ export function ReleaseNotesUI() {
       };
       sendRequest("edit-note", payload, {
         onSuccess: (result) => {
-          const sprintsPayload = result as SprintsPayload;
+          const sprintsPayload = result as SprintsPayload | SprintSaveFailure;
+          if (isSaveFailure(sprintsPayload)) {
+            setErrorMessage(sprintsPayload.message);
+            return;
+          }
           setSprints(sprintsPayload.sprints);
           handleCloseNoteModal();
           setStatusMessage("Note updated");
@@ -1137,7 +1160,11 @@ export function ReleaseNotesUI() {
       };
       sendRequest("add-note", payload, {
         onSuccess: (result) => {
-          const sprintsPayload = result as SprintsPayload;
+          const sprintsPayload = result as SprintsPayload | SprintSaveFailure;
+          if (isSaveFailure(sprintsPayload)) {
+            setErrorMessage(sprintsPayload.message);
+            return;
+          }
           setSprints(sprintsPayload.sprints);
           handleCloseNoteModal();
           setStatusMessage("Note added");
@@ -1169,7 +1196,11 @@ export function ReleaseNotesUI() {
     };
     sendRequest("delete-note", payload, {
       onSuccess: (result) => {
-        const sprintsPayload = result as SprintsPayload;
+        const sprintsPayload = result as SprintsPayload | SprintSaveFailure;
+        if (isSaveFailure(sprintsPayload)) {
+          setErrorMessage(sprintsPayload.message);
+          return;
+        }
         setSprints(sprintsPayload.sprints);
         setIsDeleteNoteConfirmOpen(false);
         setPendingDeleteNoteId(null);

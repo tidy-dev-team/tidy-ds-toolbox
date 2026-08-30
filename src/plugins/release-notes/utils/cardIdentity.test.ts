@@ -3,6 +3,7 @@ import {
   cardPlacementKey,
   isOwnedCard,
   isLegacyNamedCard,
+  isPreviousPublishCard,
   isStampedCard,
   parseCardStamp,
   classifyCardCandidate,
@@ -177,6 +178,50 @@ describe("isOwnedCard", () => {
     // removing one is a decision only a designer may take after review.
     expect(isOwnedCard(node({ name: "Retired-release-notes" }))).toBe(true);
     expect(isStampedCard(node({ name: "Retired-release-notes" }))).toBe(false);
+  });
+});
+
+describe("isPreviousPublishCard", () => {
+  it("keeps a card this publish just drew", () => {
+    expect(
+      isPreviousPublishCard(
+        node({ stamp: stamp({ publishId: "current" }) }),
+        "current",
+      ),
+    ).toBe(false);
+  });
+
+  it("sweeps a card stamped by an earlier publish", () => {
+    expect(
+      isPreviousPublishCard(
+        node({ stamp: stamp({ publishId: "older" }) }),
+        "current",
+      ),
+    ).toBe(true);
+  });
+
+  it("sweeps a stamp minted before the publish identity field existed", () => {
+    // A card with no publish identity belongs to a previous publish, which is
+    // what it is.
+    expect(isPreviousPublishCard(node({ stamp: stamp() }), "current")).toBe(
+      true,
+    );
+  });
+
+  it("never touches a designer's own unstamped frame", () => {
+    expect(
+      isPreviousPublishCard(node({ name: "Buttons", stamp: null }), "current"),
+    ).toBe(false);
+  });
+
+  it("never touches an unverified legacy-name match", () => {
+    // Same rule the sweep already followed: only a stamp is proof.
+    expect(
+      isPreviousPublishCard(
+        node({ name: "Buttons-release-notes", stamp: null }),
+        "current",
+      ),
+    ).toBe(false);
   });
 });
 
