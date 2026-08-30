@@ -1,32 +1,54 @@
 /// <reference types="@figma/plugin-typings" />
 
 import {
+  ApplyPackPayload,
+  ApplyUnpackPayload,
   OffBoardingAction,
   OffBoardingResult,
-  PackPagesPayload,
   PageInfo,
+  PlanPackPayload,
 } from "./types";
 import {
   createCancellationToken,
   yieldToMain,
 } from "../../shared/cancellation";
 import { describeFonts, loadFontsUnder, type FontRef } from "./fonts";
+import {
+  collectInventory,
+  isOurTempPage,
+  markAsOurTempPage,
+  PACKED_FRAME_PAGE_NAME_KEY,
+  writeManifest,
+} from "./collect";
+import {
+  describePlan,
+  PackPlan,
+  planPack,
+  planUnpack,
+  TEMP_PAGE_NAME,
+  UnpackPlan,
+} from "./plan";
 
-const TEMP_PAGE_NAME = "__TCC_TEMP__";
-
-function isTempPage(page: PageNode): boolean {
-  return page.name.trim() === TEMP_PAGE_NAME;
-}
-
-function getOrCreateTempPage(): PageNode {
-  const existingTempPage = figma.root.children.find((page) => isTempPage(page));
-  if (existingTempPage !== undefined) {
-    return existingTempPage;
+/**
+ * The temporary page named by a plan, or null.
+ *
+ * Ownership is re-checked here and not taken from the plan, because the plan was
+ * built before the designer confirmed it and a page can have been renamed,
+ * removed or replaced in between. A page that is no longer ours is not cleared.
+ */
+function resolvePlannedTempPage(plan: PackPlan): PageNode | null {
+  if (plan.tempPage.action === "create") {
+    const page = figma.createPage();
+    page.name = TEMP_PAGE_NAME;
+    markAsOurTempPage(page);
+    figma.root.insertChild(figma.root.children.length, page);
+    return page;
   }
-  const page = figma.createPage();
-  page.name = TEMP_PAGE_NAME;
-  figma.root.insertChild(figma.root.children.length, page);
-  return page;
+
+  const wanted = plan.tempPage.id;
+  const existing = figma.root.children.find((page) => page.id === wanted);
+  if (!existing || !isOurTempPage(existing)) return null;
+  return existing;
 }
 
 function clearPage(page: PageNode): void {
@@ -195,9 +217,10 @@ function collectNodesWithBoundVariables(
 }
 
 function getPagesList(): PageInfo[] {
-  return figma.root.children
-    .filter((page) => !isTempPage(page))
-    .map((page) => ({ id: page.id, name: page.name }));
+  return collectInventory().pages.map((page) => ({
+    id: page.id,
+    name: page.name,
+  }));
 }
 
 /** A page that could not be packed, kept so the run can name it instead of dying on it. */
@@ -224,24 +247,30 @@ function describeSkippedPages(skipped: ReadonlyArray<SkippedPage>): string {
 // of each pack so an earlier cancellation doesn't leak into the next one.
 let packToken = createCancellationToken();
 
-async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
+async function packPages(plan: PackPlan): Promise<OffBoardingResult> {
   packToken = createCancellationToken();
 
-  const allPages = figma.root.children.filter((page) => !isTempPage(page));
-
-  const sourcePages =
-    pageIds.length > 0
-      ? allPages.filter((page) => pageIds.includes(page.id))
-      : allPages;
+  // Re-resolved rather than carried: the plan holds ids the designer confirmed,
+  // and a page can have been removed while the dialog was open.
+  const sourcePages = plan.pages
+    .map((planned) => figma.root.children.find((p) => p.id === planned.id))
+    .filter((page): page is PageNode => page !== undefined);
 
   if (sourcePages.length === 0) {
     return {
       success: false,
-      message: "No pages selected to pack.",
+      message: "None of the pages in this plan are still in the file.",
     };
   }
 
-  const tempPage = getOrCreateTempPage();
+  const tempPage = resolvePlannedTempPage(plan);
+  if (tempPage === null) {
+    return {
+      success: false,
+      message: `The page named "${TEMP_PAGE_NAME}" is no longer the one this plan was built for, so nothing was cleared. Try packing again.`,
+    };
+  }
+
   clearPage(tempPage);
   figma.currentPage = tempPage;
 
@@ -287,7 +316,7 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
 
     const frame = figma.createFrame();
     frame.name = page.name;
-    frame.setPluginData("tcc:pageName", page.name);
+    frame.setPluginData(PACKED_FRAME_PAGE_NAME_KEY, page.name);
 
     tempPage.appendChild(frame);
 
@@ -330,6 +359,16 @@ async function packPages(pageIds: string[]): Promise<OffBoardingResult> {
 
   figma.currentPage.selection = frames;
   figma.viewport.scrollAndZoomIntoView(frames);
+
+  // Stored WITH the packed content, so unpack in a different file still knows
+  // the original page names rather than reading them off the frames.
+  writeManifest(tempPage, {
+    version: 1,
+    packedAt: new Date().toISOString(),
+    pages: frames.map((frame) => ({
+      name: frame.getPluginData(PACKED_FRAME_PAGE_NAME_KEY) || frame.name,
+    })),
+  });
 
   const packedMessage = `Packed ${frames.length} page${frames.length === 1 ? "" : "s"} into ${TEMP_PAGE_NAME}. Copy selection (Cmd/Ctrl+C).`;
 
@@ -374,17 +413,25 @@ function restoreSectionsRecursively(
   }
 }
 
-async function unpackPages(): Promise<OffBoardingResult> {
-  let sourcePage: PageNode;
-  const tempPage = figma.root.children.find((page) => isTempPage(page));
+async function unpackPages(plan: UnpackPlan): Promise<OffBoardingResult> {
+  // Never a fallback to the current page. That fallback is what took a working
+  // page apart when a designer deleted the temporary page by hand and clicked
+  // Unpack to undo. Ownership is re-checked here rather than trusted from the
+  // plan, because the plan was built before the designer confirmed it.
+  const sourcePage = figma.root.children.find(
+    (page) => page.id === plan.tempPageId,
+  );
 
-  if (tempPage === undefined) {
-    sourcePage = figma.currentPage;
-  } else {
-    sourcePage = tempPage;
-    if (figma.currentPage.id !== tempPage.id) {
-      figma.currentPage = tempPage;
-    }
+  if (sourcePage === undefined || !isOurTempPage(sourcePage)) {
+    return {
+      success: false,
+      message:
+        "The packed page this plan was built for is gone, so nothing was taken apart. Try unpacking again.",
+    };
+  }
+
+  if (figma.currentPage.id !== sourcePage.id) {
+    figma.currentPage = sourcePage;
   }
 
   const frames = sourcePage.children.filter(
@@ -394,7 +441,7 @@ async function unpackPages(): Promise<OffBoardingResult> {
   if (frames.length === 0) {
     return {
       success: false,
-      message: `No top-level frames found on page "${sourcePage.name}".`,
+      message: `No packed frames found on page "${sourcePage.name}".`,
     };
   }
 
@@ -407,8 +454,14 @@ async function unpackPages(): Promise<OffBoardingResult> {
   let createdPagesCount = 0;
   const skipped: Array<SkippedPage> = [];
 
-  for (const frame of frames) {
-    const pageName = frame.getPluginData("tcc:pageName") || frame.name;
+  for (const [index, frame] of frames.entries()) {
+    // The plan's names are what the confirmation promised, so they are what is
+    // restored. The frame's own record is the fallback for a frame the plan does
+    // not reach, which means the packed page changed after the plan was built.
+    const pageName =
+      plan.pageNames[index] ||
+      frame.getPluginData(PACKED_FRAME_PAGE_NAME_KEY) ||
+      frame.name;
 
     const page = figma.createPage();
     page.name = pageName;
@@ -570,12 +623,39 @@ export async function offBoardingHandler(
         pages: getPagesList(),
       };
 
-    case "pack-pages":
-      const packPayload = payload as PackPagesPayload;
-      return await packPages(packPayload?.pageIds || []);
+    case "plan-pack": {
+      const ids = (payload as PlanPackPayload)?.pageIds ?? [];
+      const plan = planPack(collectInventory(), ids);
+      return plan.ok
+        ? { success: true, message: describePlan(plan), plan }
+        : { success: false, message: plan.message, refusalCode: plan.code };
+    }
 
-    case "unpack-pages":
-      return await unpackPages();
+    case "plan-unpack": {
+      const plan = planUnpack(collectInventory());
+      return plan.ok
+        ? { success: true, message: describePlan(plan), plan }
+        : { success: false, message: plan.message, refusalCode: plan.code };
+    }
+
+    case "pack-pages": {
+      const plan = (payload as ApplyPackPayload)?.plan;
+      if (!plan || plan.kind !== "pack") {
+        return { success: false, message: "Pack was asked for with no plan." };
+      }
+      return await packPages(plan);
+    }
+
+    case "unpack-pages": {
+      const plan = (payload as ApplyUnpackPayload)?.plan;
+      if (!plan || plan.kind !== "unpack") {
+        return {
+          success: false,
+          message: "Unpack was asked for with no plan.",
+        };
+      }
+      return await unpackPages(plan);
+    }
 
     case "find-bound-variables":
       return findBoundVariables();

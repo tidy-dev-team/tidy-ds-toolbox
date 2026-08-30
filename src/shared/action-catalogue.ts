@@ -177,6 +177,17 @@ export const ACTION_CATALOGUE: Record<string, ActionCatalogueEntry> = {
         "Mirror of pack-pages: loads every font used by the packed frames, then moves each frame's contents onto a new page - same per-page cost, so the same timeout.",
     },
   },
+  // #155: both plan actions read the page structure and decide; neither
+  // touches the document, which is the point - a designer can ask what pack or
+  // unpack would do and cancel with nothing changed.
+  "off-boarding:plan-pack": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
+  "off-boarding:plan-unpack": {
+    effect: "reads",
+    budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },
+  },
   "off-boarding:find-bound-variables": {
     effect: "reads",
     budget: { kind: "timed", ms: DEFAULT_TIMEOUT_MS },

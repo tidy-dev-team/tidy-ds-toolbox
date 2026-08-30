@@ -3,6 +3,7 @@ import { Card } from "@shell/components";
 import { postToFigma } from "@shared/bridge";
 import { isStoppable } from "@shared/action-catalogue";
 import { OffBoardingAction, PageInfo } from "./types";
+import { PackPlan, UnpackPlan } from "./plan";
 import {
   IconPackage,
   IconPackageExport,
@@ -25,6 +26,14 @@ export function OffBoardingUI() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pages, setPages] = useState<PageSelection[]>([]);
+  // #155: the plan awaiting the designer's confirmation. Both actions can
+  // destroy work and neither used to ask. The plan the dialog renders is the
+  // same object the applier is handed, so the confirmation cannot describe work
+  // that differs from the work performed.
+  const [pendingPlan, setPendingPlan] = useState<PackPlan | UnpackPlan | null>(
+    null,
+  );
+  const [planDescription, setPlanDescription] = useState<string>("");
 
   const pendingRequests = useRef(new Map<string, PendingRequest>());
 
@@ -109,21 +118,58 @@ export function OffBoardingUI() {
   const noneSelected = pages.every((p) => !p.selected);
   const selectedCount = pages.filter((p) => p.selected).length;
 
+  // Asking for a plan changes nothing in the file. The dialog it opens is the
+  // only route to `pack-pages` / `unpack-pages`, which is what makes the
+  // confirmation unskippable rather than advisory.
+  const requestPlan = useCallback(
+    (action: OffBoardingAction, payload: unknown, busy: string) => {
+      setIsLoading(busy);
+      setStatusMessage(null);
+      setErrorMessage(null);
+      setPendingPlan(null);
+
+      sendRequest(action, payload, {
+        onSuccess: (result) => {
+          if (result?.success && result.plan) {
+            setPendingPlan(result.plan);
+            setPlanDescription(result.message);
+          } else {
+            setErrorMessage(result?.message ?? "Could not work out what to do");
+          }
+        },
+        onError: (error) => setErrorMessage(error),
+        onFinally: () => setIsLoading(null),
+      });
+    },
+    [sendRequest],
+  );
+
   const handlePackPages = useCallback(() => {
     const selectedIds = pages.filter((p) => p.selected).map((p) => p.id);
     if (selectedIds.length === 0) return;
+    requestPlan("plan-pack", { pageIds: selectedIds }, "pack");
+  }, [pages, requestPlan]);
 
-    setIsLoading("pack");
+  const handleCancelPlan = useCallback(() => setPendingPlan(null), []);
+
+  const handleConfirmPlan = useCallback(() => {
+    if (!pendingPlan) return;
+    const plan = pendingPlan;
+    const isPack = plan.kind === "pack";
+    setPendingPlan(null);
+    setIsLoading(isPack ? "pack" : "unpack");
     setStatusMessage(null);
     setErrorMessage(null);
 
     sendRequest(
-      "pack-pages",
-      { pageIds: selectedIds },
+      isPack ? "pack-pages" : "unpack-pages",
+      { plan },
       {
         onSuccess: (result) => {
           if (result?.success) {
             const remaining = result.remainingPageNames as string[] | undefined;
+            // The summary after, so a designer who wants to undo knows there is
+            // something to undo, and can compare it with what was promised.
             setStatusMessage(
               remaining && remaining.length > 0
                 ? `${result.message} Not packed: ${remaining.join(", ")}.`
@@ -131,14 +177,14 @@ export function OffBoardingUI() {
             );
             refreshPages();
           } else {
-            setErrorMessage(result?.message ?? "Failed to pack pages");
+            setErrorMessage(result?.message ?? "The run did not finish");
           }
         },
         onError: (error) => setErrorMessage(error),
         onFinally: () => setIsLoading(null),
       },
     );
-  }, [pages, sendRequest, refreshPages]);
+  }, [pendingPlan, sendRequest, refreshPages]);
 
   const handleStopPack = useCallback(() => {
     postToFigma({
@@ -148,27 +194,8 @@ export function OffBoardingUI() {
   }, []);
 
   const handleUnpackPages = useCallback(() => {
-    setIsLoading("unpack");
-    setStatusMessage(null);
-    setErrorMessage(null);
-
-    sendRequest(
-      "unpack-pages",
-      {},
-      {
-        onSuccess: (result) => {
-          if (result?.success) {
-            setStatusMessage(result.message);
-            refreshPages();
-          } else {
-            setErrorMessage(result?.message ?? "Failed to unpack pages");
-          }
-        },
-        onError: (error) => setErrorMessage(error),
-        onFinally: () => setIsLoading(null),
-      },
-    );
-  }, [sendRequest, refreshPages]);
+    requestPlan("plan-unpack", {}, "unpack");
+  }, [requestPlan]);
 
   const handleFindBoundVariables = useCallback(() => {
     setIsLoading("find");
@@ -364,6 +391,37 @@ export function OffBoardingUI() {
               </div>
             )}
           </div>
+
+          {/*
+            #155: the confirmation. It states the count and names the pages, so
+            a run against the wrong source is obvious from the numbers alone
+            without reading the canvas. Cancelling changes nothing, so trying
+            either feature carries no risk.
+          */}
+          {pendingPlan && (
+            <div
+              style={{
+                border: "1px solid var(--figma-color-border)",
+                borderRadius: "6px",
+                padding: "12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+            >
+              <div style={{ fontSize: "12px", lineHeight: 1.5 }}>
+                {planDescription}
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={handleConfirmPlan} className="note">
+                  {pendingPlan.kind === "pack" ? "Pack" : "Unpack"}
+                </button>
+                <button onClick={handleCancelPlan} className="secondary note">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
