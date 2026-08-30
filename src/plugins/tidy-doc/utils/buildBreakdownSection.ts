@@ -12,11 +12,18 @@ import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityF
 import { buildSizeMarks } from "../../../shared/doc-markers/sizeMarks";
 import { loadInterFont } from "../../../shared/doc-markers/fontLoader";
 import type { SpacingsConfig } from "../../../shared/doc-markers/types";
-import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import {
+  buildTitleBlock,
+  createText,
+  DOC_SCALE,
+  DOC_SPACING,
+  TOKENS,
+} from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
+import { describedIconPlacements, planIconPlacementExamples } from "./anatomy";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
-import type { SizeMeasurement } from "./anatomy";
+import type { IconPlacementExample, SizeMeasurement } from "./anatomy";
 
 const SIZE_MARKS_CONFIG: SpacingsConfig = {
   includeSize: true,
@@ -27,8 +34,24 @@ const SIZE_MARKS_CONFIG: SpacingsConfig = {
   isShallow: true,
 };
 
+// Between one measured specimen and the next. Wider than the block rhythm
+// because a height row carries redline markers that overhang its specimen on
+// two sides — at 12 the marks of adjacent rows read as one figure.
+const SPECIMEN_ROW_SPACING = 32;
+// Between a specimen and the label naming it.
+const SPECIMEN_LABEL_SPACING = 12;
+
 function verticalSizingLabel(sizing: "FIXED" | "HUG" | "FILL"): string {
   return sizing.charAt(0) + sizing.slice(1).toLowerCase();
+}
+
+function familyDefaultOf(
+  source: ComponentSetNode,
+  facts: DerivedFacts,
+): string | undefined {
+  return facts.familyAxis.name
+    ? source.defaultVariant.variantProperties?.[facts.familyAxis.name]
+    : undefined;
 }
 
 function createSizeSpecimenInstance(
@@ -36,17 +59,18 @@ function createSizeSpecimenInstance(
   facts: DerivedFacts,
   sizeValue: string,
 ): InstanceNode {
-  const familyDefault = facts.familyAxis.name
-    ? source.defaultVariant.variantProperties?.[facts.familyAxis.name]
-    : undefined;
-
   return createSpecimenInstance(source, {
     facts,
-    familyValue: familyDefault,
+    familyValue: familyDefaultOf(source, facts),
     overrides: facts.sizeAxis?.name
       ? { [facts.sizeAxis.name]: sizeValue }
       : undefined,
   });
+}
+
+/** A specimen label: the line naming what sits under it. */
+async function specimenLabel(text: string): Promise<TextNode> {
+  return createText(text, DOC_SCALE.body, undefined, TOKENS.mutedDark);
 }
 
 // Builds one specimen + code-generated size markers (tags-spacings,
@@ -54,17 +78,15 @@ function createSizeSpecimenInstance(
 // wrapper. The wrapper is built at the page origin so absolute-space marker
 // math (buildSizeMarks) and local-space reparenting agree; the wrapper's own
 // position is then free to be repositioned by the outer auto-layout flow.
-async function buildHeightRow(
-  source: ComponentSetNode,
-  facts: DerivedFacts,
-  measurement: SizeMeasurement,
+async function buildMarkedSpecimen(
+  specimen: InstanceNode,
+  name: string,
 ): Promise<FrameNode> {
-  const specimen = createSizeSpecimenInstance(source, facts, measurement.value);
   specimen.x = 0;
   specimen.y = 0;
 
   const wrapper = figma.createFrame();
-  wrapper.name = `height-specimen — ${measurement.value}`;
+  wrapper.name = name;
   wrapper.fills = [];
   wrapper.clipsContent = false;
   wrapper.x = 0;
@@ -86,25 +108,42 @@ async function buildHeightRow(
   );
   wrapper.resize(Math.max(maxX, 1), Math.max(maxY, 1));
 
-  const label = await createText(
-    `${measurement.value} — ${Math.round(measurement.height)}px — ${verticalSizingLabel(
-      measurement.verticalSizing,
-    )}`,
-    12,
-    undefined,
-    TOKENS.mutedDark,
-  );
+  return wrapper;
+}
 
+/**
+ * One measured size: the label over the specimen it measures.
+ *
+ * The label leads and the specimen follows, rather than sitting beside it,
+ * because the redline markers extend the specimen to the right and below —
+ * a label placed after them ended up detached from the figure it names, at a
+ * distance that varied with the specimen's own width.
+ */
+async function buildHeightRow(
+  source: ComponentSetNode,
+  facts: DerivedFacts,
+  measurement: SizeMeasurement,
+): Promise<FrameNode> {
   const row = buildAutoLayoutFrame(
     `height-row — ${measurement.value}`,
-    "HORIZONTAL",
+    "VERTICAL",
     0,
     0,
-    12,
+    SPECIMEN_LABEL_SPACING,
   );
-  row.counterAxisAlignItems = "CENTER";
-  row.appendChild(wrapper);
-  row.appendChild(label);
+  row.appendChild(
+    await specimenLabel(
+      `${measurement.value} — ${Math.round(measurement.height)}px — ${verticalSizingLabel(
+        measurement.verticalSizing,
+      )}`,
+    ),
+  );
+  row.appendChild(
+    await buildMarkedSpecimen(
+      createSizeSpecimenInstance(source, facts, measurement.value),
+      `height-specimen — ${measurement.value}`,
+    ),
+  );
   return row;
 }
 
@@ -113,20 +152,23 @@ async function buildHeightSubSection(
   facts: DerivedFacts,
   caption?: string,
 ): Promise<FrameNode> {
-  const block = buildAutoLayoutFrame("breakdown — height", "VERTICAL", 0, 0, 8);
-  block.appendChild(await createText("Height", 14, FONT_BOLD));
-  if (caption) {
-    block.appendChild(
-      await createText(caption, 12, undefined, TOKENS.mutedDark),
-    );
-  }
+  const block = buildAutoLayoutFrame(
+    "breakdown — height",
+    "VERTICAL",
+    0,
+    0,
+    DOC_SPACING.block,
+  );
+  block.appendChild(
+    await buildTitleBlock("title", "Height", caption ? [caption] : []),
+  );
 
   const rows = buildAutoLayoutFrame(
     "breakdown — height — rows",
     "VERTICAL",
     0,
     0,
-    12,
+    SPECIMEN_ROW_SPACING,
   );
   for (const measurement of facts.breakdown.heights) {
     rows.appendChild(await buildHeightRow(source, facts, measurement));
@@ -136,24 +178,25 @@ async function buildHeightSubSection(
   return block;
 }
 
+// Width has no specimen of its own — the redlines under Height already show
+// the geometry — so it stays a title group with the measured bounds appended
+// as further lines, on the group's own rhythm.
 async function buildWidthSubSection(
   facts: DerivedFacts,
   caption?: string,
 ): Promise<FrameNode> {
-  const block = buildAutoLayoutFrame("breakdown — width", "VERTICAL", 0, 0, 8);
-  block.appendChild(await createText("Width", 14, FONT_BOLD));
-  if (caption) {
-    block.appendChild(
-      await createText(caption, 12, undefined, TOKENS.mutedDark),
-    );
-  }
+  const block = await buildTitleBlock(
+    "breakdown — width",
+    "Width",
+    caption ? [caption] : [],
+  );
 
   const width = facts.breakdown.width!;
   if (width.minWidth !== null) {
     block.appendChild(
       await createText(
         `Min width: ${Math.round(width.minWidth)}px`,
-        12,
+        DOC_SCALE.body,
         undefined,
         TOKENS.muted,
       ),
@@ -163,7 +206,7 @@ async function buildWidthSubSection(
     block.appendChild(
       await createText(
         `Max width: ${Math.round(width.maxWidth)}px`,
-        12,
+        DOC_SCALE.body,
         undefined,
         TOKENS.muted,
       ),
@@ -173,7 +216,46 @@ async function buildWidthSubSection(
   return block;
 }
 
+function iconPropertyLine(fact: {
+  propertyName: string;
+  propertyType: string;
+  values: string[];
+}): string {
+  const type = fact.propertyType.toLowerCase();
+  return fact.values.length > 0
+    ? `${fact.propertyName} (${type}) — ${fact.values.join(", ")}`
+    : `${fact.propertyName} (${type})`;
+}
+
+async function buildIconExample(
+  source: ComponentNode | ComponentSetNode,
+  facts: DerivedFacts,
+  example: IconPlacementExample,
+): Promise<FrameNode> {
+  const row = buildAutoLayoutFrame(
+    `icon-placement — ${example.label}`,
+    "VERTICAL",
+    0,
+    0,
+    SPECIMEN_LABEL_SPACING,
+  );
+  row.appendChild(await specimenLabel(example.label));
+  row.appendChild(
+    createSpecimenInstance(source, {
+      facts,
+      familyValue:
+        source.type === "COMPONENT_SET"
+          ? familyDefaultOf(source, facts)
+          : undefined,
+      overrides: example.variantOverrides,
+      booleanOverrides: example.booleanOverrides,
+    }),
+  );
+  return row;
+}
+
 async function buildIconPlacementSubSection(
+  source: ComponentNode | ComponentSetNode,
   facts: DerivedFacts,
   caption?: string,
 ): Promise<FrameNode> {
@@ -182,21 +264,44 @@ async function buildIconPlacementSubSection(
     "VERTICAL",
     0,
     0,
-    8,
+    DOC_SPACING.title,
   );
-  block.appendChild(await createText("Icon placement", 14, FONT_BOLD));
-  if (caption) {
-    block.appendChild(
-      await createText(caption, 12, undefined, TOKENS.mutedDark),
+
+  const title = await buildTitleBlock(
+    "title",
+    "Icon placement",
+    caption ? [caption] : [],
+  );
+  for (const fact of describedIconPlacements(facts.breakdown.iconPlacements)) {
+    title.appendChild(
+      await createText(
+        iconPropertyLine(fact),
+        DOC_SCALE.body,
+        undefined,
+        TOKENS.muted,
+      ),
     );
   }
+  block.appendChild(title);
 
-  const icon = facts.breakdown.iconPlacement!;
-  const detail =
-    icon.values.length > 0
-      ? `${icon.propertyName} (${icon.propertyType.toLowerCase()}) — ${icon.values.join(", ")}`
-      : `${icon.propertyName} (${icon.propertyType.toLowerCase()})`;
-  block.appendChild(await createText(detail, 12, undefined, TOKENS.muted));
+  // Specimens are what actually answer "where does the icon go"; the property
+  // lines above only name the controls. A component whose icon property is an
+  // INSTANCE_SWAP plans no examples — there is no icon here to choose — and
+  // then the block is the property lines alone, as it was before #215.
+  const examples = planIconPlacementExamples(facts.breakdown.iconPlacements);
+  if (examples.length > 0) {
+    const grid = buildAutoLayoutFrame(
+      "breakdown — icon-placement — examples",
+      "VERTICAL",
+      0,
+      0,
+      SPECIMEN_ROW_SPACING,
+    );
+    for (const example of examples) {
+      grid.appendChild(await buildIconExample(source, facts, example));
+    }
+    block.appendChild(grid);
+  }
 
   return block;
 }
@@ -210,8 +315,8 @@ export function appliesBreakdownSection(
 ): boolean {
   if (!spec.breakdown) return false;
 
-  const { heights, width, iconPlacement } = facts.breakdown;
-  if (heights.length === 0 && !width && !iconPlacement) {
+  const { heights, width, iconPlacements } = facts.breakdown;
+  if (heights.length === 0 && !width && iconPlacements.length === 0) {
     console.warn(
       `tidy-doc: "breakdown" key present but no derived anatomy facts for "${facts.componentName}" (${facts.componentId}); dropping the Component Breakdown Section.`,
     );
@@ -227,14 +332,14 @@ export async function buildBreakdownSection(
   facts: DerivedFacts,
 ): Promise<FrameNode> {
   const breakdownSpec = spec.breakdown!;
-  const { heights, width, iconPlacement } = facts.breakdown;
+  const { heights, width, iconPlacements } = facts.breakdown;
 
   const section = buildAutoLayoutFrame(
     "breakdown-section",
     "VERTICAL",
     0,
     0,
-    24,
+    DOC_SPACING.section,
   );
 
   if (heights.length > 0 && source.type === "COMPONENT_SET") {
@@ -247,9 +352,10 @@ export async function buildBreakdownSection(
       await buildWidthSubSection(facts, breakdownSpec.widthCaption),
     );
   }
-  if (iconPlacement) {
+  if (iconPlacements.length > 0) {
     section.appendChild(
       await buildIconPlacementSubSection(
+        source,
         facts,
         breakdownSpec.iconPlacementCaption,
       ),

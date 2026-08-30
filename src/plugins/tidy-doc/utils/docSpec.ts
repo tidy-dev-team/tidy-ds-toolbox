@@ -45,6 +45,10 @@ const SpecimenSceneSchema = z.object({
 });
 
 const DoDontPairSchema = z.object({
+  // Optional so specs authored before the Do/Don't grid gained a heading
+  // (#215) still validate; a pair without one renders its description alone
+  // in the same column.
+  title: z.string().max(60).optional(),
   description: z.string().max(200),
   good: SpecimenSceneSchema,
   bad: SpecimenSceneSchema,

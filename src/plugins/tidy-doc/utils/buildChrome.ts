@@ -1,8 +1,10 @@
 /// <reference types="@figma/plugin-typings" />
 
-// Chrome builder (ADR-0006, CONTEXT.md "Chrome"): card frame + header (icon +
-// section title + component-name subtitle + status-badge pill). Raw nodes
-// with literal hex/spacing values — no library-component linkage, ever.
+// Chrome builder (ADR-0006, CONTEXT.md "Chrome"): the section card and the
+// pieces every Section repeats inside it — a dark title bar, a block's
+// `title` group, a bullet list. Raw nodes with literal hex/spacing values —
+// no library-component linkage, ever, so a doc page renders the same in a
+// file that has none of the design system's helper components published.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
 import { STATUS_BADGE } from "./statusBadge";
@@ -16,17 +18,65 @@ export const TOKENS = {
   muted: "#6B7280",
   mutedDark: "#4B5563",
   faint: "#9CA3AF",
-  card: "#FFFFFF",
+  white: "#FFFFFF",
   border: "#E5E7EB",
   marker: "#8B5CF6",
   good: "#16A34A",
   bad: "#DC2626",
   brand: "#202257",
   black: "#000000",
+  // Horizontal-layout chrome (#215): the section card's dark title bar, the
+  // tinted ground a Do/Don't specimen sits on, and the two verdict hues.
+  // `white` above is named for the colour rather than the card, because it
+  // is already also a text colour (a pill label, the title bar's heading) —
+  // and one hex may carry only one name here, which buildChrome.test asserts.
+  // `good`/`bad` above are the parked vertical layout's inline glyph colours
+  // and are deliberately left alone — the two layouts draw different marks.
+  headerBar: "#101820",
+  specimenGround: "#F7F7F7",
+  verdictGood: "#41AD46",
+  verdictBad: "#E02020",
 } as const;
 
 export const FONT_REGULAR: FontName = { family: "Inter", style: "Regular" };
 export const FONT_BOLD: FontName = { family: "Inter", style: "Bold" };
+export const FONT_SEMIBOLD: FontName = { family: "Inter", style: "Semi Bold" };
+
+/**
+ * The horizontal layout's type scale and rhythm (#215), in one place.
+ *
+ * Every number here was measured off the approved reference page rather than
+ * chosen: a section card is a dark 40px title bar over a 24-padded body, one
+ * Section's blocks stand 60 apart, a block's own `title` group stands 24 from
+ * the specimens it introduces, and the lines inside that group stand 8 apart.
+ * Builders read these instead of repeating literals, so the rhythm changes in
+ * one edit the way TOKENS changes a colour.
+ */
+export const DOC_SCALE = {
+  /** Section title in the dark bar. */
+  sectionTitle: 40,
+  /** A block's own heading — a variant family, an anatomy fact, a sibling. */
+  blockTitle: 18,
+  /** A Do/Don't row's heading, which sits in a narrower column. */
+  rowTitle: 16,
+  /** Descriptions, captions, bullets, specimen labels. */
+  body: 14,
+  /** The label under a state specimen. */
+  caption: 10,
+} as const;
+
+export const DOC_SPACING = {
+  /** Card padding, and the gap between cards on the page. */
+  card: 24,
+  /** Between the blocks of one Section. */
+  section: 60,
+  /** Between a block's `title` group and its specimens. */
+  block: 24,
+  /** Between the lines of a `title` group. */
+  title: 8,
+  /** Between bullets in a list. */
+  bullet: 4,
+} as const;
 
 // Vertical-layout section title, matching the original DS docs' `dsc-title`:
 // Heebo SemiBold 40px in #202257 with a full-width 4px bottom rule.
@@ -174,53 +224,115 @@ export async function buildSizeSeparator(label: string): Promise<FrameNode> {
 }
 
 /**
- * One Section's Chrome: a card frame with a header row (title + component
- * subtitle + status badge) ready to receive Section-specific content.
+ * A block's `title` group: a heading over zero or more description lines,
+ * the pattern every Section repeats (a variant family, an anatomy fact, a
+ * Do/Don't row, a related sibling).
+ *
+ * It exists as a frame rather than as loose children because a block's own
+ * rhythm is two-level — 8 between the lines that introduce the block, 24
+ * between the whole introduction and the specimens under it. Appending the
+ * lines straight onto the block would flatten that to a single gap, which is
+ * what the pre-#215 output did.
+ *
+ * Callers may append further children (a bullet list, an extra fact line);
+ * they land inside the group, on the 8 rhythm.
+ */
+export async function buildTitleBlock(
+  name: string,
+  heading: string,
+  descriptions: string[] = [],
+  headingSize: number = DOC_SCALE.blockTitle,
+): Promise<FrameNode> {
+  const frame = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, DOC_SPACING.title);
+  frame.appendChild(
+    await createText(heading, headingSize, FONT_SEMIBOLD, TOKENS.ink),
+  );
+  for (const description of descriptions) {
+    frame.appendChild(
+      await createText(
+        description,
+        DOC_SCALE.body,
+        FONT_REGULAR,
+        TOKENS.mutedDark,
+      ),
+    );
+  }
+  return frame;
+}
+
+/** A bulleted list, on its own tighter rhythm inside a `title` group. */
+export async function buildBulletList(
+  name: string,
+  items: string[],
+  hex: string = TOKENS.muted,
+): Promise<FrameNode> {
+  const list = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, DOC_SPACING.bullet);
+  for (const item of items) {
+    list.appendChild(
+      await createText(`• ${item}`, DOC_SCALE.body, FONT_REGULAR, hex),
+    );
+  }
+  return list;
+}
+
+/**
+ * One Section's Chrome: a white card whose title sits in a full-width dark
+ * bar, over a 24-padded body ready to receive Section content.
+ *
+ * The bar carries the Section title and nothing else. It used to also carry
+ * the source component's name and the Doc Spec's status pill; both are gone
+ * (#215). The name repeated on all five cards what the page frame already
+ * says once, and the status was five copies of a single fact about the
+ * component rather than anything about the Section under it. `status` stays
+ * in the Doc Spec, and the parked vertical layout still draws it once, in
+ * buildVerticalHeader — which is where a per-page fact belongs.
  */
 export async function buildSectionCard(
   name: string,
   title: string,
-  subtitle: string,
-  status: DocStatus,
 ): Promise<{ card: FrameNode; body: FrameNode }> {
-  const card = buildAutoLayoutFrame(name, "VERTICAL", 24, 24, 16);
-  fill(card, TOKENS.card);
+  const card = buildAutoLayoutFrame(name, "VERTICAL", 0, 0, 0);
+  fill(card, TOKENS.white);
   stroke(card, TOKENS.border);
   card.strokeWeight = 1;
   card.cornerRadius = 12;
+  // The one frame on the doc canvas that clips: the title bar is a filled
+  // rectangle running to the card's edges, so without this its square
+  // corners sit proud of the card's 12px radius.
+  card.clipsContent = true;
 
   const header = buildAutoLayoutFrame(
     `${name} — header`,
     "HORIZONTAL",
+    DOC_SPACING.card,
+    DOC_SPACING.card,
     0,
-    0,
-    12,
   );
+  fill(header, TOKENS.headerBar);
   header.counterAxisAlignItems = "CENTER";
+  // Run the bar the full width of the card, however wide the body hugs to.
+  // STRETCH alone is not enough and the bar still hugged its own title: the
+  // header is HORIZONTAL, so its width is its *primary* axis, and that axis
+  // defaults to AUTO. Fixing it is what lets the parent's width win — the
+  // same pairing buildSizeSeparator needs, for the same reason.
+  header.layoutAlign = "STRETCH";
+  header.primaryAxisSizingMode = "FIXED";
+  header.appendChild(
+    await createText(
+      title,
+      DOC_SCALE.sectionTitle,
+      FONT_SEMIBOLD,
+      TOKENS.white,
+    ),
+  );
 
-  const titleColumn = buildAutoLayoutFrame(
-    `${name} — title`,
+  const body = buildAutoLayoutFrame(
+    `${name} — body`,
     "VERTICAL",
+    DOC_SPACING.card,
+    DOC_SPACING.card,
     0,
-    0,
-    2,
   );
-  const titleText = await createText(title, 18, FONT_BOLD);
-  const subtitleText = await createText(
-    subtitle,
-    13,
-    FONT_REGULAR,
-    TOKENS.muted,
-  );
-  titleColumn.appendChild(titleText);
-  titleColumn.appendChild(subtitleText);
-
-  const badge = await buildStatusBadge(status);
-
-  header.appendChild(titleColumn);
-  header.appendChild(badge);
-
-  const body = buildAutoLayoutFrame(`${name} — body`, "VERTICAL", 0, 0, 20);
 
   card.appendChild(header);
   card.appendChild(body);

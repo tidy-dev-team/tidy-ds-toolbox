@@ -19,7 +19,7 @@ function makeFacts(overrides: Partial<DerivedFacts> = {}): DerivedFacts {
     breakdown: {
       heights: [],
       width: null,
-      iconPlacement: null,
+      iconPlacements: [],
       constraintWidths: [],
     },
     booleanProperties: [],

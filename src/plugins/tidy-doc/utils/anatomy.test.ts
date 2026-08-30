@@ -3,7 +3,10 @@ import {
   dedupeConstraintFacts,
   deriveBooleanProperties,
   deriveWidthFact,
-  detectIconPlacement,
+  describedIconPlacements,
+  detectIconPlacements,
+  MAX_ICON_PLACEMENT_EXAMPLES,
+  planIconPlacementExamples,
   findMatchingVariantIndex,
   widthConstraintLabel,
   type ConstraintCandidate,
@@ -34,57 +37,227 @@ describe("deriveWidthFact", () => {
   });
 });
 
-describe("detectIconPlacement", () => {
-  it("returns null when no property name mentions icon", () => {
+describe("detectIconPlacements", () => {
+  it("returns nothing when no property name mentions icon", () => {
     const descriptors: PropertyDescriptor[] = [
       { name: "Type", type: "VARIANT", values: ["Primary", "Secondary"] },
     ];
-    expect(detectIconPlacement(descriptors)).toBeNull();
+    expect(detectIconPlacements(descriptors)).toEqual([]);
   });
 
-  it("prefers a VARIANT icon-position axis over a BOOLEAN toggle", () => {
+  it("keeps every icon property, in declaration order", () => {
     const descriptors: PropertyDescriptor[] = [
-      { name: "Has Icon", type: "BOOLEAN" },
+      { name: "left icon#119:2", type: "BOOLEAN" },
+      { name: "right icon#119:3", type: "BOOLEAN" },
       {
         name: "Icon Position",
         type: "VARIANT",
-        values: ["Leading", "Trailing", "None"],
+        values: ["Leading", "Trailing"],
       },
     ];
-    expect(detectIconPlacement(descriptors)).toEqual({
-      propertyName: "Icon Position",
-      propertyType: "VARIANT",
-      values: ["Leading", "Trailing", "None"],
-    });
+    expect(detectIconPlacements(descriptors)).toEqual([
+      {
+        propertyName: "left icon#119:2",
+        propertyType: "BOOLEAN",
+        values: ["True", "False"],
+      },
+      {
+        propertyName: "right icon#119:3",
+        propertyType: "BOOLEAN",
+        values: ["True", "False"],
+      },
+      {
+        propertyName: "Icon Position",
+        propertyType: "VARIANT",
+        values: ["Leading", "Trailing"],
+      },
+    ]);
   });
 
-  it("falls back to a BOOLEAN presence toggle when no VARIANT axis exists", () => {
-    const descriptors: PropertyDescriptor[] = [
-      { name: "Icon", type: "BOOLEAN" },
-    ];
-    expect(detectIconPlacement(descriptors)).toEqual({
-      propertyName: "Icon",
-      propertyType: "BOOLEAN",
-      values: ["True", "False"],
-    });
-  });
-
-  it("falls back to a bare INSTANCE_SWAP slot with no placement values", () => {
+  it("keeps a bare INSTANCE_SWAP slot with no placement values", () => {
     const descriptors: PropertyDescriptor[] = [
       { name: "Icon Slot", type: "INSTANCE_SWAP" },
     ];
-    expect(detectIconPlacement(descriptors)).toEqual({
-      propertyName: "Icon Slot",
-      propertyType: "INSTANCE_SWAP",
-      values: [],
-    });
+    expect(detectIconPlacements(descriptors)).toEqual([
+      {
+        propertyName: "Icon Slot",
+        propertyType: "INSTANCE_SWAP",
+        values: [],
+      },
+    ]);
+  });
+
+  it("ignores a TEXT property whose name happens to mention icon", () => {
+    const descriptors: PropertyDescriptor[] = [
+      { name: "Icon caption", type: "TEXT" },
+    ];
+    expect(detectIconPlacements(descriptors)).toEqual([]);
   });
 
   it("matches case-insensitively", () => {
     const descriptors: PropertyDescriptor[] = [
       { name: "ICON", type: "BOOLEAN" },
     ];
-    expect(detectIconPlacement(descriptors)?.propertyName).toBe("ICON");
+    expect(detectIconPlacements(descriptors)[0].propertyName).toBe("ICON");
+  });
+});
+
+describe("describedIconPlacements", () => {
+  it("names only the properties that decide where the icon sits", () => {
+    const facts = detectIconPlacements([
+      { name: "left icon#119:2", type: "BOOLEAN" },
+      { name: "left icon M swap#119:4", type: "INSTANCE_SWAP" },
+      { name: "right icon#119:6", type: "BOOLEAN" },
+      { name: "right icon M swap#119:8", type: "INSTANCE_SWAP" },
+      { name: "right icon S swap#156:38", type: "INSTANCE_SWAP" },
+      { name: "left icon S swap#156:57", type: "INSTANCE_SWAP" },
+    ]);
+    expect(describedIconPlacements(facts).map((f) => f.propertyName)).toEqual([
+      "left icon#119:2",
+      "right icon#119:6",
+    ]);
+  });
+
+  it("falls back to swap slots when nothing else describes placement", () => {
+    const facts = detectIconPlacements([
+      { name: "Icon Slot", type: "INSTANCE_SWAP" },
+    ]);
+    expect(describedIconPlacements(facts).map((f) => f.propertyName)).toEqual([
+      "Icon Slot",
+    ]);
+  });
+
+  it("keeps a VARIANT placement axis", () => {
+    const facts = detectIconPlacements([
+      { name: "Icon Position", type: "VARIANT", values: ["Leading"] },
+      { name: "Icon Slot", type: "INSTANCE_SWAP" },
+    ]);
+    expect(describedIconPlacements(facts).map((f) => f.propertyName)).toEqual([
+      "Icon Position",
+    ]);
+  });
+
+  it("narrows the prose without narrowing what was detected", () => {
+    const facts = detectIconPlacements([
+      { name: "left icon#119:2", type: "BOOLEAN" },
+      { name: "left icon M swap#119:4", type: "INSTANCE_SWAP" },
+    ]);
+    expect(facts).toHaveLength(2);
+    expect(describedIconPlacements(facts)).toHaveLength(1);
+  });
+});
+
+describe("planIconPlacementExamples", () => {
+  it("plans nothing when there are no icon properties", () => {
+    expect(planIconPlacementExamples([])).toEqual([]);
+  });
+
+  it("turns two boolean toggles into left, right and none", () => {
+    const examples = planIconPlacementExamples(
+      detectIconPlacements([
+        { name: "left icon#119:2", type: "BOOLEAN" },
+        { name: "right icon#119:3", type: "BOOLEAN" },
+      ]),
+    );
+    expect(examples).toEqual([
+      {
+        label: "Left Icon",
+        booleanOverrides: {
+          "left icon#119:2": true,
+          "right icon#119:3": false,
+        },
+        variantOverrides: {},
+      },
+      {
+        label: "Right Icon",
+        booleanOverrides: {
+          "left icon#119:2": false,
+          "right icon#119:3": true,
+        },
+        variantOverrides: {},
+      },
+      {
+        label: "No Icon",
+        booleanOverrides: {
+          "left icon#119:2": false,
+          "right icon#119:3": false,
+        },
+        variantOverrides: {},
+      },
+    ]);
+  });
+
+  it("never turns on two toggles at once", () => {
+    const examples = planIconPlacementExamples(
+      detectIconPlacements([
+        { name: "a icon#1:1", type: "BOOLEAN" },
+        { name: "b icon#1:2", type: "BOOLEAN" },
+        { name: "c icon#1:3", type: "BOOLEAN" },
+      ]),
+    );
+    for (const example of examples) {
+      const on = Object.values(example.booleanOverrides).filter(Boolean);
+      expect(on.length).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("plans one example per value of a VARIANT icon axis", () => {
+    const examples = planIconPlacementExamples(
+      detectIconPlacements([
+        {
+          name: "Icon Position",
+          type: "VARIANT",
+          values: ["Leading", "Trailing"],
+        },
+      ]),
+    );
+    expect(examples).toEqual([
+      {
+        label: "Leading",
+        booleanOverrides: {},
+        variantOverrides: { "Icon Position": "Leading" },
+      },
+      {
+        label: "Trailing",
+        booleanOverrides: {},
+        variantOverrides: { "Icon Position": "Trailing" },
+      },
+    ]);
+  });
+
+  it("turns every boolean off while a variant value is shown", () => {
+    const examples = planIconPlacementExamples(
+      detectIconPlacements([
+        { name: "left icon#119:2", type: "BOOLEAN" },
+        { name: "Icon Position", type: "VARIANT", values: ["Leading"] },
+      ]),
+    );
+    const variantExample = examples.find(
+      (example) => example.variantOverrides["Icon Position"] === "Leading",
+    );
+    expect(variantExample?.booleanOverrides).toEqual({
+      "left icon#119:2": false,
+    });
+  });
+
+  it("plans nothing for an INSTANCE_SWAP slot, which offers no icon to pick", () => {
+    expect(
+      planIconPlacementExamples(
+        detectIconPlacements([{ name: "Icon Slot", type: "INSTANCE_SWAP" }]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("caps the plan so a many-toggle component stays a placement note", () => {
+    const examples = planIconPlacementExamples(
+      detectIconPlacements(
+        Array.from({ length: 10 }, (_, i) => ({
+          name: `icon ${i}#1:${i}`,
+          type: "BOOLEAN" as const,
+        })),
+      ),
+    );
+    expect(examples).toHaveLength(MAX_ICON_PLACEMENT_EXAMPLES);
   });
 });
 

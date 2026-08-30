@@ -59,7 +59,7 @@ function baseFacts(overrides: Partial<DerivedFacts> = {}): DerivedFacts {
     breakdown: {
       heights: [],
       width: null,
-      iconPlacement: null,
+      iconPlacements: [],
       constraintWidths: [],
     },
     booleanProperties: [],

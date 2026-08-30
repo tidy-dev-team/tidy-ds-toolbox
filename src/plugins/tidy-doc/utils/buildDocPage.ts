@@ -281,8 +281,6 @@ async function assembleSections(
       const { card, body } = await buildSectionCard(
         descriptor.id,
         descriptor.title,
-        ctx.source.name,
-        ctx.spec.status,
       );
       body.appendChild(rendered);
       root.appendChild(card);

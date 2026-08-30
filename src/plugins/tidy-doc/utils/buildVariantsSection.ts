@@ -9,7 +9,14 @@
 // cell — the scene never expands into a state×axis grid.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import {
+  buildBulletList,
+  buildTitleBlock,
+  createText,
+  DOC_SCALE,
+  DOC_SPACING,
+  TOKENS,
+} from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";
 import type { DerivedFacts } from "./facts";
@@ -32,7 +39,7 @@ async function createSpecimenScene(
     "HORIZONTAL",
     0,
     0,
-    24,
+    DOC_SPACING.block,
   );
 
   for (const stateValue of facts.stateAxis.values) {
@@ -41,7 +48,7 @@ async function createSpecimenScene(
       "VERTICAL",
       0,
       0,
-      8,
+      DOC_SPACING.title,
     );
     cell.counterAxisAlignItems = "CENTER";
 
@@ -50,7 +57,12 @@ async function createSpecimenScene(
       facts,
       stateValue,
     });
-    const label = await createText(stateValue, 10, undefined, TOKENS.muted);
+    const label = await createText(
+      stateValue,
+      DOC_SCALE.caption,
+      undefined,
+      TOKENS.muted,
+    );
 
     cell.appendChild(instance);
     cell.appendChild(label);
@@ -80,7 +92,7 @@ export async function buildVariantsSection(
     "VERTICAL",
     0,
     0,
-    24,
+    DOC_SPACING.section,
   );
 
   for (const [familyValue, content] of Object.entries(variants)) {
@@ -89,7 +101,7 @@ export async function buildVariantsSection(
       "VERTICAL",
       0,
       0,
-      8,
+      DOC_SPACING.block,
     );
 
     // The reserved key "default" (single-unnamed-family fallback, per
@@ -98,36 +110,22 @@ export async function buildVariantsSection(
     // literal word "default".
     const displayTitle =
       facts.familyAxis.name === null ? source.name : familyValue;
-    const title = await createText(displayTitle, 14, FONT_BOLD);
-    const description = await createText(
+
+    // Name, description and the "when to use" bullets are one introduction
+    // and sit together in the block's `title` group; the specimens below
+    // stand a `block` gap away from the whole of it.
+    const title = await buildTitleBlock("title", displayTitle, [
       content.description,
-      12,
-      undefined,
-      TOKENS.mutedDark,
-    );
-
-    block.appendChild(title);
-    block.appendChild(description);
-
+    ]);
     if (content.whenToUse?.length) {
-      const list = buildAutoLayoutFrame(
-        `variant — ${familyValue} — when to use`,
-        "VERTICAL",
-        0,
-        0,
-        4,
+      title.appendChild(
+        await buildBulletList(
+          `variant — ${familyValue} — when to use`,
+          content.whenToUse,
+        ),
       );
-      for (const item of content.whenToUse) {
-        const bullet = await createText(
-          `• ${item}`,
-          12,
-          undefined,
-          TOKENS.muted,
-        );
-        list.appendChild(bullet);
-      }
-      block.appendChild(list);
     }
+    block.appendChild(title);
 
     const specimen = await createSpecimenScene(source, familyValue, facts);
     block.appendChild(specimen);

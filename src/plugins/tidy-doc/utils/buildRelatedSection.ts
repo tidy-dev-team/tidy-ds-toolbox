@@ -7,7 +7,7 @@
 // key that isn't a real candidate before this runs).
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
+import { buildTitleBlock, DOC_SPACING } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import { ErrorCode, OperationError } from "../../../shared/operations/errors";
 import type { DocSpec } from "./docSpec";
@@ -64,7 +64,13 @@ export async function buildRelatedSection(
 ): Promise<FrameNode> {
   const related = spec.related!;
 
-  const section = buildAutoLayoutFrame("related-section", "VERTICAL", 0, 0, 24);
+  const section = buildAutoLayoutFrame(
+    "related-section",
+    "VERTICAL",
+    0,
+    0,
+    DOC_SPACING.section,
+  );
 
   const orderedNames = facts.relatedCandidates
     .map((candidate) => candidate.name)
@@ -79,18 +85,10 @@ export async function buildRelatedSection(
       "VERTICAL",
       0,
       0,
-      8,
+      DOC_SPACING.block,
     );
 
-    const title = await createText(name, 14, FONT_BOLD);
-    const guidance = await createText(
-      content.guidance,
-      12,
-      undefined,
-      TOKENS.mutedDark,
-    );
-    block.appendChild(title);
-    block.appendChild(guidance);
+    block.appendChild(await buildTitleBlock("title", name, [content.guidance]));
 
     const sibling = siblingsByName.get(name);
     if (!sibling) {

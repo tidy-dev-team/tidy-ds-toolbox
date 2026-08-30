@@ -16,7 +16,7 @@ describe("TOKENS", () => {
 
 describe("paint", () => {
   it("converts a hex token to a SOLID paint with normalized RGB", () => {
-    expect(paint(TOKENS.card)).toEqual({
+    expect(paint(TOKENS.white)).toEqual({
       type: "SOLID",
       color: { r: 1, g: 1, b: 1 },
     });

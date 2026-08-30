@@ -10,7 +10,7 @@ import {
   deriveWidthFact,
   deriveBooleanProperties,
   dedupeConstraintFacts,
-  detectIconPlacement,
+  detectIconPlacements,
   findMatchingVariantIndex,
   type ConstraintCandidate,
   type ConstraintWidthFact,
@@ -298,7 +298,7 @@ export async function deriveFacts(
     widthSource.minWidth ?? null,
     widthSource.maxWidth ?? null,
   );
-  const iconPlacement = detectIconPlacement(propertyDescriptors);
+  const iconPlacements = detectIconPlacements(propertyDescriptors);
   const booleanProperties = deriveBooleanProperties(
     Object.entries(node.componentPropertyDefinitions).map(([key, def]) => ({
       key,
@@ -319,7 +319,7 @@ export async function deriveFacts(
     componentId: node.id,
     componentName: node.name,
     ...categorization,
-    breakdown: { heights, width, iconPlacement, constraintWidths },
+    breakdown: { heights, width, iconPlacements, constraintWidths },
     booleanProperties,
     modeCollections,
     relatedCandidates,

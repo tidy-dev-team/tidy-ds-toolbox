@@ -27,7 +27,7 @@ function baseFacts(overrides: Partial<DerivedFacts> = {}): DerivedFacts {
     breakdown: {
       heights: [],
       width: null,
-      iconPlacement: null,
+      iconPlacements: [],
       constraintWidths: [],
     },
     booleanProperties: [],
@@ -79,7 +79,7 @@ describe("appliesBreakdownSection", () => {
       breakdown: {
         heights: [],
         width: { minWidth: 40, maxWidth: null },
-        iconPlacement: null,
+        iconPlacements: [],
         constraintWidths: [],
       },
     });
@@ -157,7 +157,7 @@ describe("appliesConstraintsSection", () => {
       breakdown: {
         heights: [],
         width: null,
-        iconPlacement: null,
+        iconPlacements: [],
         constraintWidths: [
           {
             width: 120,

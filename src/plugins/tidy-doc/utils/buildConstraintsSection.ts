@@ -46,7 +46,7 @@ async function buildMarkerPill(label: string): Promise<FrameNode> {
   const pill = buildAutoLayoutFrame("marker-pill", "HORIZONTAL", 8, 3, 4);
   pill.cornerRadius = 6;
   fill(pill, TOKENS.marker);
-  pill.appendChild(await createText(label, 10, FONT_BOLD, TOKENS.card));
+  pill.appendChild(await createText(label, 10, FONT_BOLD, TOKENS.white));
   return pill;
 }
 

@@ -11,7 +11,7 @@
     "build:ui": "vite build",
     "build:main": "node esbuild.config.cjs",
     "build": "npm run build:ui && npm run build:main",
-    "lint": "eslint src --ext .ts,.tsx --max-warnings 147 && eslint scripts mcp-server/src analytics-server --ext .js,.mjs,.mts,.ts --max-warnings 0",
+    "lint": "eslint src --ext .ts,.tsx --max-warnings 146 && eslint scripts mcp-server/src analytics-server --ext .js,.mjs,.mts,.ts --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.{js,mjs,mts}\" \"mcp-server/src/**/*.ts\" \"analytics-server/**/*.js\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"scripts/**/*.{js,mjs,mts}\" \"mcp-server/src/**/*.ts\" \"analytics-server/**/*.js\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p mcp-server/tsconfig.json",
