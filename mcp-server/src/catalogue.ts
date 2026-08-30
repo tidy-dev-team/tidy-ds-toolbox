@@ -75,6 +75,108 @@ export interface CatalogueEntry {
   timeoutMs?: number;
 }
 
+/**
+ * Exposure gate for the three test-only sleeper Operations (#192,
+ * `src/shared/operations/test-sleep-operations.ts`). They exist to make the
+ * Bridge-timeout -> cancellation-token path exercisable on demand, and #192's
+ * acceptance criteria are explicit that "an Operation that exists purely to
+ * waste time should not be discoverable by an agent working on a real file."
+ *
+ * The plugin-thread registry always registers them (they are inert, no-Figma
+ * handlers - see that file's header for why gating *there* isn't viable: no
+ * separate dev build, no `process` global in the plugin sandbox). This
+ * process, though, is a real Node server with a real environment, spawned
+ * fresh per session - so this is where the gate actually lives.
+ *
+ * `CATALOGUE` below is what `server.ts` turns 1:1 into MCP tools
+ * (`for (const entry of CATALOGUE) server.registerTool(...)`), so an id
+ * simply absent from this array is not a tool an agent can see or call, on
+ * any file, ever - no flag, no hidden option, nothing to accidentally trip.
+ * Setting `TIDY_ENABLE_TEST_OPERATIONS=1` before starting the server is the
+ * one way to make them appear, and is something a human does deliberately
+ * while manually verifying this ticket's live acceptance criteria, never
+ * something an agent's own session can set for itself mid-conversation.
+ */
+const TEST_OPERATIONS_ENABLED = process.env.TIDY_ENABLE_TEST_OPERATIONS === "1";
+
+const TEST_ONLY_CATALOGUE: CatalogueEntry[] = TEST_OPERATIONS_ENABLED
+  ? [
+      {
+        id: "tidy_test_sleep_cancellable",
+        kind: "execute",
+        module: "test",
+        summary:
+          "TEST-ONLY (#192). Sleeps for durationMs in unitMs-sized cancellable units, checking its cancellation token between each. Writes nothing to any file. Call with durationMs well beyond this tool's 5s Bridge budget to trigger a real cancellation: the Bridge sends a cancel when it stops waiting, the run stops at its next unit boundary, and the result reports cancelled=true. Set unitMs above 2000 (the cancellation grace) to instead observe the run reported still_running - it has a checkpoint but had not reached it yet.",
+        inputSchema: {
+          durationMs: z
+            .number()
+            .int()
+            .positive()
+            .describe(
+              "Total time to sleep, ms. Set this well above the tool's Bridge timeout (5000ms) to force a real cancellation.",
+            ),
+          unitMs: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe(
+              "Checkpoint granularity, ms. Defaults to 250. Set above 2000 to deliberately produce still_running instead of stopped.",
+            ),
+        },
+        // Deliberately short: the whole point is that a durationMs an order
+        // of magnitude larger reliably crosses this budget every time.
+        timeoutMs: 5_000,
+      },
+      {
+        id: "tidy_test_sleep_ignore_token",
+        kind: "execute",
+        module: "test",
+        summary:
+          "TEST-ONLY (#192). Declares cancellable but its loop never checks the token - models a checkpoint declared but not actually wired up. A cancel always reports still_running for this one, deterministically, since the run never stops early regardless of unitMs. Writes nothing to any file. Call with durationMs well beyond this tool's 5s Bridge budget.",
+        inputSchema: {
+          durationMs: z
+            .number()
+            .int()
+            .positive()
+            .describe("Total time to sleep, ms. Set well above 5000ms."),
+          unitMs: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe(
+              "Sleep granularity, ms. Defaults to 250. Has no effect on cancellability - this Operation never checks its token.",
+            ),
+        },
+        timeoutMs: 5_000,
+      },
+      {
+        id: "tidy_test_sleep_uncancellable",
+        kind: "execute",
+        module: "test",
+        summary:
+          "TEST-ONLY (#192). Sleeps for durationMs with no cancellable declaration at all - the honest 'this cannot be stopped' case. A cancel against it reports not_cancellable immediately, without waiting, and the run is left going to completion. Writes nothing to any file. Call with durationMs well beyond this tool's 5s Bridge budget.",
+        inputSchema: {
+          durationMs: z
+            .number()
+            .int()
+            .positive()
+            .describe("Total time to sleep, ms. Set well above 5000ms."),
+          unitMs: z
+            .number()
+            .int()
+            .positive()
+            .optional()
+            .describe(
+              "Sleep granularity, ms. Defaults to 250. This Operation has no checkpoint at all, declared or otherwise.",
+            ),
+        },
+        timeoutMs: 5_000,
+      },
+    ]
+  : [];
+
 export const CATALOGUE: CatalogueEntry[] = [
   {
     id: "tidy_misprint_find_components",
@@ -342,8 +444,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     id: "tidy_qa_run",
     kind: "query",
     module: "qa",
-    summary:
-      `Run the DS Component QA checklist against a component set. Read-only toward the target - it never modifies the component set - with three documented exceptions, all transient and all removed before the call returns (carve-outs from ADR-0001): the themes (#17) and high-contrast (#16) checks create and remove a temporary off-canvas probe frame in order to resolve variables per theme mode; the responsiveness check (#7) instances the default variant into a temporary off-canvas frame, drives its width and lengthens its text to measure what breaks, then removes it; and \`includeModeImages\` builds, exports and removes the per-mode showcase it returns. Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding; findings are deduped one-per-defect, so a finding covering several nodes carries \`count\`, a capped \`nodeIds\` list with \`nodeId\` as the representative, and \`nodeNames\` when those nodes had differing names - do not re-group them), ids of requested checks not implemented yet, and a ${ROW_COUNT}-item \`checklist\` model (checklist order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run/not_applicable - the last when a check ran but had nothing applicable to evaluate, e.g. no instance-swap properties; every such row carries a \`note\` giving the specific reason, which on an asset set is most of what the run established).`,
+    summary: `Run the DS Component QA checklist against a component set. Read-only toward the target - it never modifies the component set - with three documented exceptions, all transient and all removed before the call returns (carve-outs from ADR-0001): the themes (#17) and high-contrast (#16) checks create and remove a temporary off-canvas probe frame in order to resolve variables per theme mode; the responsiveness check (#7) instances the default variant into a temporary off-canvas frame, drives its width and lengthens its text to measure what breaks, then removes it; and \`includeModeImages\` builds, exports and removes the per-mode showcase it returns. Target by nodeId or by name/glob, or omit both to use the current Figma selection; any instance/component resolves up to its owning set. Returns structured CheckResults (status per check, severity + offender node per finding; findings are deduped one-per-defect, so a finding covering several nodes carries \`count\`, a capped \`nodeIds\` list with \`nodeId\` as the representative, and \`nodeNames\` when those nodes had differing names - do not re-group them), ids of requested checks not implemented yet, and a ${ROW_COUNT}-item \`checklist\` model (checklist order) merging engine results with the full DS QA catalogue (pass/warn/fail/manual/not_implemented/not_run/not_applicable - the last when a check ran but had nothing applicable to evaluate, e.g. no instance-swap properties; every such row carries a \`note\` giving the specific reason, which on an asset set is most of what the run established).`,
     inputSchema: {
       nodeId: z
         .string()
@@ -379,8 +480,7 @@ export const CATALOGUE: CatalogueEntry[] = [
     id: "tidy_qa_build_checklist",
     kind: "execute",
     module: "qa",
-    summary:
-      `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones on a tinted row with no status chip. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. When the responsiveness probe measured something breaking, also draws the baseline beside the state that broke, labelled with the measured numbers (returned as \`resizeEvidenceId\`) - proof of the row-7 finding, drawn only when there is a defect, so a healthy component costs nothing. Pass \`includeContactSheet\` for a grid of every property combination (returned as \`contactSheetId\`). Neither block ever changes a row's status. Inside the checklist itself, a finding from a check whose defects are visible gets a live instance of one offending variant drawn beneath it, captioned with which variant it is and how many share the defect; \`sampleCount\` reports how many were drawn, and 0 is the ordinary case. Idempotent per target - re-running replaces the prior checklist frame, and each block beside it, instead of duplicating them. Returns only a stub (frame id, target, \`sampleCount\`, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload - pass \`includeImage\` to also get a picture of the drawn frame. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
+    summary: `Run the DS Component QA checklist and render it as a frame on the canvas next to the target - intended for a placed instance (resolves up to its owning set), or omit the target to use the current selection. Draws all ${ROW_COUNT} checklist items: automated ones with grouped findings, manual ones on a tinted row with no status chip. Alongside it, when the set has more than one theme mode, draws a labelled block showing the default variant rendered once per mode side by side (returned as \`modeShowcaseId\`) - evidence for row 17's visual half, which no check can judge; it never changes any row's status. When the responsiveness probe measured something breaking, also draws the baseline beside the state that broke, labelled with the measured numbers (returned as \`resizeEvidenceId\`) - proof of the row-7 finding, drawn only when there is a defect, so a healthy component costs nothing. Pass \`includeContactSheet\` for a grid of every property combination (returned as \`contactSheetId\`). Neither block ever changes a row's status. Inside the checklist itself, a finding from a check whose defects are visible gets a live instance of one offending variant drawn beneath it, captioned with which variant it is and how many share the defect; \`sampleCount\` reports how many were drawn, and 0 is the ordinary case. Idempotent per target - re-running replaces the prior checklist frame, and each block beside it, instead of duplicating them. Returns only a stub (frame id, target, \`sampleCount\`, and pass/warn/fail/manual/pending/notApplicable/notRun counts plus a \`partial\` overlay), never the full findings payload - pass \`includeImage\` to also get a picture of the drawn frame. The status counts sum to all ${ROW_COUNT} rows, so a short total means one was misread rather than rows missing. Takes an explicit nodeId (or the current selection) - no name/glob lookup here; resolve a name to a nodeId with tidy_qa_run first if needed.`,
     inputSchema: {
       nodeId: z
         .string()
@@ -415,4 +515,5 @@ export const CATALOGUE: CatalogueEntry[] = [
     },
     timeoutMs: 60_000,
   },
+  ...TEST_ONLY_CATALOGUE,
 ];
