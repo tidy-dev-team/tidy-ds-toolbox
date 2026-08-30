@@ -31,7 +31,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconComponents,
     ui: DSExplorerUI,
-    permissionRequirements: ["activeselection"],
     agentified: true,
     keywords: [
       "design system",
@@ -55,7 +54,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconTag,
     ui: ComponentLabelsUI,
-    permissionRequirements: [],
     agentified: true,
     keywords: ["label", "annotation", "naming", "component"],
   },
@@ -65,7 +63,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconIcons,
     ui: TidyIconCareUI,
-    permissionRequirements: ["activeselection"],
     keywords: ["icon", "svg", "clean", "optimize", "tidy"],
   },
   "sticker-sheet-builder": {
@@ -74,7 +71,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconSticker,
     ui: StickerSheetBuilderUI,
-    permissionRequirements: ["activeselection"],
     keywords: ["sticker", "sheet", "build", "variants", "documentation"],
     features: [
       {
@@ -91,7 +87,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconMap,
     ui: TidyMapperUI,
-    permissionRequirements: [],
     keywords: ["map", "mapping", "library", "swap", "migrate"],
   },
   utilities: {
@@ -100,7 +95,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconTool,
     ui: UtilitiesUI,
-    permissionRequirements: [],
     agentified: true,
     keywords: ["utility", "tools", "helper", "misc"],
     features: [
@@ -155,7 +149,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "stable",
     icon: IconZoomCheck,
     ui: AuditUI,
-    permissionRequirements: ["activeselection"],
     keywords: ["audit", "check", "report", "analysis", "quality"],
     features: [
       {
@@ -202,7 +195,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconFileText,
     ui: ReleaseNotesUI,
-    permissionRequirements: [],
     keywords: ["release", "notes", "changelog", "version", "update"],
   },
   "off-boarding": {
@@ -211,7 +203,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconPackage,
     ui: OffBoardingUI,
-    permissionRequirements: [],
     keywords: [
       "pack",
       "unpack",
@@ -246,7 +237,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconSearch,
     ui: IconFinderUI,
-    permissionRequirements: ["activeselection"],
     keywords: ["icon", "find", "search", "identify", "match"],
     features: [
       {
@@ -262,7 +252,6 @@ export const moduleRegistry: ModuleRegistry = {
     state: "beta",
     icon: IconPalette,
     ui: TidyColorFinderUI,
-    permissionRequirements: ["activeselection"],
     keywords: [
       "color",
       "palette",

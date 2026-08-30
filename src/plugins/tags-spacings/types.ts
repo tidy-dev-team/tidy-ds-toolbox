@@ -1,21 +1,18 @@
 /// <reference types="@figma/plugin-typings" />
 
 // This directory is not a plugin module. "Tags & Spacings" was retired (its
-// moduleRegistry.ts entry is gone), and most of its code went with it. What
-// remains here are the measurement-marker builders that tidy-doc's Component
-// Breakdown section still imports - the one part of the old plugin that
-// turned out to be load-bearing. Do not go looking for a UI; there isn't one.
+// moduleRegistry.ts entry is gone). Its live measurement-marker code - the
+// part tidy-doc's Component Breakdown section actually imports - has since
+// moved to src/shared/doc-markers/ (see the README in this folder for the
+// full story). What is left below is parked types for the rest of the old
+// plugin: not dead, just waiting for a home. Do not go looking for a UI;
+// there isn't one.
 
 /**
- * Type definitions for Tags & Spacings plugin
+ * Type definitions for the parked parts of Tags & Spacings
  */
 
-// Supported container node types for processing
-export type SupportedContainerNode =
-  | FrameNode
-  | ComponentNode
-  | InstanceNode
-  | GroupNode;
+import type { SpacingsConfig } from "../../shared/doc-markers/types";
 
 // Available actions for the plugin
 export type TagsSpacingsAction =
@@ -38,9 +35,6 @@ export type IndexingScheme =
   | "circled"
   | "extended";
 
-// Spacing units
-export type SpacingUnits = "px" | "rem" | "percent" | "var";
-
 // Tag configuration from UI
 export interface TagsConfig {
   tagDirection: TagDirection;
@@ -51,15 +45,9 @@ export interface TagsConfig {
   maxWidth?: number;
 }
 
-// Spacing configuration from UI
-export interface SpacingsConfig {
-  includeSize: boolean;
-  includePaddings: boolean;
-  includeItemSpacing: boolean;
-  units: SpacingUnits;
-  rootSize: number;
-  isShallow: boolean;
-}
+// Re-exported for parked code that still refers to the spacing config by
+// its old name. The type itself now lives in src/shared/doc-markers/types.
+export type { SpacingsConfig };
 
 // Combined settings for persistence
 export interface TagsSpacingsSettings {

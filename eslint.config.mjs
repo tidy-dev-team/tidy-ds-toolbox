@@ -68,13 +68,79 @@ export default [
     },
   },
   {
+    // Node-side code that ships or deploys releases: the build/dogfood
+    // scripts (scripts/**, now including scripts/lib/), the MCP server
+    // (its own dependency tree, checked as it stands rather than merged
+    // into the root tree), and the analytics ingest service. This is
+    // server-side Node, not plugin/browser code, so it gets its own
+    // globals instead of the `figma`/`window` set above, and it is
+    // linted with zero warnings allowed rather than the src ratchet.
+    files: [
+      "scripts/**/*.{js,mjs,mts}",
+      "mcp-server/src/**/*.ts",
+      "analytics-server/**/*.js",
+    ],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+      },
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
+        Promise: "readonly",
+        Buffer: "readonly",
+        URL: "readonly",
+        URLSearchParams: "readonly",
+        fetch: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly",
+      },
+    },
+    plugins: {
+      "@typescript-eslint": typescript,
+    },
+    rules: {
+      ...typescript.configs.recommended.rules,
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "@typescript-eslint/no-unsafe-function-type": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
+      "@typescript-eslint/ban-ts-comment": "warn",
+      "@typescript-eslint/no-unused-expressions": "warn",
+      "@typescript-eslint/no-empty-interface": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "no-console": "off",
+      "prefer-const": "warn",
+      "no-var": "error",
+      "no-undef": "off", // TypeScript handles this
+      "no-empty": "warn",
+      "no-case-declarations": "warn",
+    },
+  },
+  {
     ignores: [
       "dist/**",
-      "node_modules/**",
+      "**/node_modules/**",
       "*.config.js",
       "*.config.ts",
       // Generated icon database — multi-MB string artifact, see build:icon-db.
       "src/plugins/iconfinder/db/**",
+      "mcp-server/dist/**",
+      "mcp-server/dist-plugin-mcp-server/**",
     ],
   },
 ];

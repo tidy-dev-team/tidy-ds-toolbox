@@ -33,7 +33,9 @@ const NC = "\x1b[0m";
 const log = (m) => process.stdout.write(`[verify-plugin] ${m}\n`);
 
 function fail(lines) {
-  process.stderr.write(`\n${RED}✗ installed plugin does not match claude-plugin/${NC}\n\n`);
+  process.stderr.write(
+    `\n${RED}✗ installed plugin does not match claude-plugin/${NC}\n\n`,
+  );
   for (const line of lines) process.stderr.write(`  ${line}\n`);
   process.stderr.write(
     `\n${YELLOW}Reload does not install.${NC} \`/reload-plugins\` only re-reads the\n` +
@@ -44,9 +46,16 @@ function fail(lines) {
 }
 
 // 1. What does Claude Code think is installed?
-const installedRecordPath = join(homedir(), ".claude", "plugins", "installed_plugins.json");
+const installedRecordPath = join(
+  homedir(),
+  ".claude",
+  "plugins",
+  "installed_plugins.json",
+);
 if (!existsSync(installedRecordPath)) {
-  fail([`no installed_plugins.json at ${installedRecordPath}; the plugin has never been installed.`]);
+  fail([
+    `no installed_plugins.json at ${installedRecordPath}; the plugin has never been installed.`,
+  ]);
 }
 const record = JSON.parse(readFileSync(installedRecordPath, "utf8"));
 const entries = record.plugins?.[PLUGIN_KEY];
@@ -72,7 +81,9 @@ if (!existsSync(installed.installPath)) {
 }
 
 // 2. The version the source tree *would* assemble to.
-const rootVersion = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).version;
+const rootVersion = JSON.parse(
+  readFileSync(join(repoRoot, "package.json"), "utf8"),
+).version;
 const problems = [];
 if (installed.version !== rootVersion) {
   problems.push(
@@ -132,7 +143,12 @@ for (const abs of sourceFiles) {
 //    skipping the check.
 const bundledServer = join("mcp", "server.cjs");
 const installedServerPath = join(installed.installPath, bundledServer);
-const referenceServerPath = join(repoRoot, "dist-plugin", "tidy-ds", bundledServer);
+const referenceServerPath = join(
+  repoRoot,
+  "dist-plugin",
+  "tidy-ds",
+  bundledServer,
+);
 const installedServerExists = existsSync(installedServerPath);
 const referenceServerExists = existsSync(referenceServerPath);
 problems.push(
@@ -140,8 +156,12 @@ problems.push(
     versionMatches: installed.version === rootVersion,
     installedExists: installedServerExists,
     referenceExists: referenceServerExists,
-    installedBytes: installedServerExists ? readFileSync(installedServerPath) : null,
-    referenceBytes: referenceServerExists ? readFileSync(referenceServerPath) : null,
+    installedBytes: installedServerExists
+      ? readFileSync(installedServerPath)
+      : null,
+    referenceBytes: referenceServerExists
+      ? readFileSync(referenceServerPath)
+      : null,
   }),
 );
 
@@ -162,4 +182,6 @@ for (const abs of walk(installed.installPath)) {
 
 if (problems.length) fail(problems);
 
-log(`${GREEN}✓ installed plugin matches claude-plugin/ (${compared} files, version ${rootVersion})${NC}`);
+log(
+  `${GREEN}✓ installed plugin matches claude-plugin/ (${compared} files, version ${rootVersion})${NC}`,
+);

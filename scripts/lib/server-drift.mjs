@@ -41,7 +41,9 @@ export function checkBundledServer({
   referenceBytes,
 }) {
   if (!installedExists) {
-    return ["missing from the installed tree: mcp/server.cjs (the bundled MCP server)"];
+    return [
+      "missing from the installed tree: mcp/server.cjs (the bundled MCP server)",
+    ];
   }
   if (!referenceExists) {
     return [

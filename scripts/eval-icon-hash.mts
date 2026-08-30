@@ -18,7 +18,10 @@
 //   npm run eval:icon-hash -- --sample=5000
 
 import { Resvg } from "@resvg/resvg-js";
-import { phashFloat64, hammingDistance } from "../src/plugins/iconfinder/hash/core.ts";
+import {
+  phashFloat64,
+  hammingDistance,
+} from "../src/plugins/iconfinder/hash/core.ts";
 import {
   rgbaToGrayscale,
   letterboxGrayscale,
@@ -64,7 +67,9 @@ function render(svg: string, width: number): Pixmap {
 
 // WITH trim — the production pipeline.
 function hashTrim(p: Pixmap): bigint {
-  return phashFloat64(rgbaToLetterboxGrayscale(p.pixels, p.width, p.height, 32));
+  return phashFloat64(
+    rgbaToLetterboxGrayscale(p.pixels, p.width, p.height, 32),
+  );
 }
 
 // WITHOUT trim — letterbox the full frame, the pre-#27 behavior.
@@ -88,19 +93,28 @@ interface Perturbation {
 function padViewBox(svg: string): { svg: string; width: number } | null {
   const m = svg.match(/viewBox="([^"]+)"/);
   if (!m) return null;
-  const parts = m[1].trim().split(/[\s,]+/).map(Number);
+  const parts = m[1]
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
   if (parts.length !== 4 || parts.some(Number.isNaN)) return null;
   const [x, y, w, h] = parts;
   const mx = w * 0.25;
   const my = h * 0.25;
   const vb = `${x - mx} ${y - my} ${w + 2 * mx} ${h + 2 * my}`;
-  return { svg: svg.replace(/viewBox="[^"]+"/, `viewBox="${vb}"`), width: RENDER_WIDTH };
+  return {
+    svg: svg.replace(/viewBox="[^"]+"/, `viewBox="${vb}"`),
+    width: RENDER_WIDTH,
+  };
 }
 
 // Thicken strokes ×1.5 (no-op on fill-only glyphs → trivially self-matches).
 function thickenStroke(svg: string): { svg: string; width: number } | null {
   if (!/stroke-width="/.test(svg)) return null;
-  const out = svg.replace(/stroke-width="([\d.]+)"/g, (_, n) => `stroke-width="${Number(n) * 1.5}"`);
+  const out = svg.replace(
+    /stroke-width="([\d.]+)"/g,
+    (_, n) => `stroke-width="${Number(n) * 1.5}"`,
+  );
   return { svg: out, width: RENDER_WIDTH };
 }
 
@@ -145,6 +159,15 @@ interface Tally {
   matchedNoTrim: number;
 }
 
+// `tallies` is pre-populated with every PERTURBATIONS key before either loop
+// below reads it, so a lookup miss here means the invariant broke, not a
+// legitimately-absent key - worth a thrown error rather than a silent `!`.
+function mustGetTally(tallies: Map<string, Tally>, key: string): Tally {
+  const tally = tallies.get(key);
+  if (!tally) throw new Error(`no tally registered for perturbation "${key}"`);
+  return tally;
+}
+
 function main(): void {
   const json = strFromU8(
     gunzipSync(Uint8Array.from(atob(ICON_DB_GZIP_B64), (c) => c.charCodeAt(0))),
@@ -175,37 +198,52 @@ function main(): void {
     const baseNoTrim = hashNoTrim(basePix);
 
     for (const p of PERTURBATIONS) {
-      const tally = tallies.get(p.key)!;
+      const tally = mustGetTally(tallies, p.key);
       const perturbed = p.apply(entry.svg);
       if (!perturbed) continue; // not applicable to this glyph
       tally.applicable++;
       try {
         const pix = render(perturbed.svg, perturbed.width);
-        if (hammingDistance(baseTrim, hashTrim(pix)) < MAX_DIST) tally.matchedTrim++;
-        if (hammingDistance(baseNoTrim, hashNoTrim(pix)) < MAX_DIST) tally.matchedNoTrim++;
+        if (hammingDistance(baseTrim, hashTrim(pix)) < MAX_DIST)
+          tally.matchedTrim++;
+        if (hammingDistance(baseNoTrim, hashNoTrim(pix)) < MAX_DIST)
+          tally.matchedNoTrim++;
       } catch {
         renderErrors++;
       }
     }
 
-    if (++processed % 500 === 0) console.log(`  ${processed}/${sample.length}…`);
+    if (++processed % 500 === 0)
+      console.log(`  ${processed}/${sample.length}…`);
   }
 
-  const pct = (n: number, d: number) => (d === 0 ? "  n/a" : `${((100 * n) / d).toFixed(1)}%`);
+  const pct = (n: number, d: number) =>
+    d === 0 ? "  n/a" : `${((100 * n) / d).toFixed(1)}%`;
 
-  console.log(`\nSelf-match rate (perturbed glyph within MAX_DIST of its own hash):\n`);
-  console.log(`  ${"perturbation".padEnd(22)} ${"n".padStart(6)}  ${"no-trim".padStart(8)}  ${"trim".padStart(8)}  ${"Δ".padStart(7)}`);
-  console.log(`  ${"-".repeat(22)} ${"-".repeat(6)}  ${"-".repeat(8)}  ${"-".repeat(8)}  ${"-".repeat(7)}`);
+  console.log(
+    `\nSelf-match rate (perturbed glyph within MAX_DIST of its own hash):\n`,
+  );
+  console.log(
+    `  ${"perturbation".padEnd(22)} ${"n".padStart(6)}  ${"no-trim".padStart(8)}  ${"trim".padStart(8)}  ${"Δ".padStart(7)}`,
+  );
+  console.log(
+    `  ${"-".repeat(22)} ${"-".repeat(6)}  ${"-".repeat(8)}  ${"-".repeat(8)}  ${"-".repeat(7)}`,
+  );
   for (const p of PERTURBATIONS) {
-    const t = tallies.get(p.key)!;
-    const noTrim = t.applicable === 0 ? 0 : (100 * t.matchedNoTrim) / t.applicable;
+    const t = mustGetTally(tallies, p.key);
+    const noTrim =
+      t.applicable === 0 ? 0 : (100 * t.matchedNoTrim) / t.applicable;
     const trim = t.applicable === 0 ? 0 : (100 * t.matchedTrim) / t.applicable;
-    const delta = t.applicable === 0 ? "  n/a" : `${(trim - noTrim >= 0 ? "+" : "")}${(trim - noTrim).toFixed(1)}`;
+    const delta =
+      t.applicable === 0
+        ? "  n/a"
+        : `${trim - noTrim >= 0 ? "+" : ""}${(trim - noTrim).toFixed(1)}`;
     console.log(
       `  ${p.key.padEnd(22)} ${String(t.applicable).padStart(6)}  ${pct(t.matchedNoTrim, t.applicable).padStart(8)}  ${pct(t.matchedTrim, t.applicable).padStart(8)}  ${delta.padStart(7)}`,
     );
   }
-  if (renderErrors > 0) console.log(`\n  (${renderErrors} render error(s) skipped)`);
+  if (renderErrors > 0)
+    console.log(`\n  (${renderErrors} render error(s) skipped)`);
 }
 
 main();

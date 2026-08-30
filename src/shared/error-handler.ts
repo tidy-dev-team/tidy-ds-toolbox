@@ -58,37 +58,6 @@ export async function withTimeout<T>(
 }
 
 /**
- * Wraps a function with retry logic
- * @param fn Function to retry
- * @param maxRetries Maximum number of retries
- * @param delayMs Delay between retries in milliseconds
- * @returns The function result
- */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  delayMs: number = 1000,
-): Promise<T> {
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error as Error;
-
-      if (attempt < maxRetries) {
-        // Wait before retrying
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-        console.warn(`Retry attempt ${attempt + 1}/${maxRetries}:`, error);
-      }
-    }
-  }
-
-  throw lastError;
-}
-
-/**
  * Formats an error for user display
  */
 export function formatErrorMessage(error: unknown): string {

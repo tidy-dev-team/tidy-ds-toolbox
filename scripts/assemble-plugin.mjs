@@ -16,7 +16,14 @@
 // assertions on the real output so a broken assemble fails loudly.
 
 import { execFileSync, spawn } from "node:child_process";
-import { cpSync, mkdirSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 

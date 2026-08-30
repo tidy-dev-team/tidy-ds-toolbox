@@ -27,7 +27,11 @@ npm run release:push   # Push commits and tags to remote
 Every ESLint rule here is `warn` rather than `error`, including `no-explicit-any` and `no-non-null-assertion`, so before the cap the count could climb forever without failing anything - it had reached 179, and a `no-non-null-assertion` warning sitting in that pile was pointing straight at a real defect (#180) that nobody could see for the noise.
 The number in the script is the count on the day it was set, not a target: lower it whenever a change removes warnings, and never raise it to make a commit pass.
 A change that genuinely needs a higher ceiling is a change worth discussing, which is the point.
-`scripts/` is not linted at all, though it now holds code (`scripts/lib/`) - a gap, not a decision.
+`npm run lint` is two passes, because the two halves are held to different standards (#158).
+`src` carries the ratchet above; `scripts`, `mcp-server/src` and `analytics-server` are linted at `--max-warnings 0`, and started green because the three violations the new coverage found were fixed in the change that added it.
+Zero rather than a second ratchet: a ratchet is what you need when you inherit debt, and these directories had none recorded, so the honest starting point is the one that stays honest.
+`format` covers the same directories.
+They are Node code rather than plugin code, so `eslint.config.mjs` gives them their own block with Node globals instead of `figma` and `__html__`.
 
 Node version: `.nvmrc` is the single source of truth (`package.json` `engines` records the supported floor).
 Single-version CI jobs read `.nvmrc`; the unit tests and the bundled MCP smoketest run a matrix that CI derives from `.nvmrc` and `engines` at run time, so no Node version is written into the workflow.
@@ -63,6 +67,18 @@ Each plugin lives in `src/plugins/{module-name}/` with three files:
 
 To add a plugin: create the three files, then register the module in `moduleRegistry.ts`.
 
+### Deciding before writing (Off-Boarding)
+
+`src/plugins/off-boarding/` is the worked example of the split #157 wants for the other untested document-mutating modules, and it exists because both of its actions could destroy work without asking (#155).
+`collect.ts` reads the file into a plain `FileInventory` with no Figma nodes in it, `plan.ts` turns that plus the designer's selection into a plan or a typed refusal, and `logic.ts` applies a plan.
+There is one plan shape and it serves three consumers - the confirmation dialog renders it, the applier executes it, the tests assert on it - so the dialog can never describe work that differs from the work performed.
+A refusal is a returned value rather than a thrown error, so the UI can explain it instead of showing a stack message.
+
+Two rules in there are load-bearing and must not be relaxed.
+The temporary page is identified by a marker this module writes, never by its name: the old code deleted every child of any page called `__TCC_TEMP__`, so a designer's own page with that name lost its contents.
+Unpack has no fallback to the current page: finding no packed page, the old code silently took apart whatever the designer was looking at, and the realistic path into that was packing, deleting the temporary page by hand, and clicking Unpack to undo.
+Ownership is re-checked at apply time rather than trusted from the plan, because the plan is built before the designer confirms it.
+
 ### Shell State
 
 The shell also announces when a module stops showing, and `src/shared/module-listeners.ts` is what acts on it.
@@ -81,6 +97,16 @@ The state itself is not in that file. `src/shellState.ts` holds the reducer, the
 The reducer used to post from inside its own cases, which React may run more than once per dispatch - `main.tsx` wraps the app in StrictMode, so every module change was persisting twice.
 Drive the shell through `stepShell`, never the reducer and `shellEffects` separately: React batches dispatches in one event handler, and `stepShell` returns the next state so the provider can advance its record per action rather than per render. Reading pre-action state from a render-time ref hands the second action of a batch a state the reducer has already moved past.
 `src/shellState.ts` imports relatively, not through `@shared/*`, because `vitest.config.ts` declares no `resolve.alias` and does not inherit `vite.config.ts` - an aliased module cannot be unit tested at all.
+
+### The parked tags-spacings module
+
+`src/plugins/tags-spacings/` is commented out of the registry and reads as switched off, and part of it was a live dependency of the shipping documentation Operation.
+An audit read the whole repository, concluded the folder was deletable, and was wrong; acting on that would have broken the build.
+The live part now lives in `src/shared/doc-markers/`, which is where cross-module code belongs, and `tidy-doc` imports it from there (#158).
+It turned out to be larger than the issue estimated - all eleven files under the old `utils/`, not three - because `getMarker.ts` reaches `buildInternalComponents.ts`, which imports the tag and spacing builders unconditionally even though the live size-marker path never calls them.
+The folder keeps a `README.md` saying what moved, what is still parked, and that it is deliberately absent from `moduleRegistry.ts`.
+The module is not deleted and not revived: the recorded decision is that it should come back, but not on the current Internal Tools page, so it waits for a home.
+What that change removed is the trap, not the folder.
 
 ### Path Aliases
 
@@ -118,6 +144,10 @@ Layout:
   Inferring it by cancelling the token and calling it stopped if the run happened to end would report a run that merely finished on its own as one that obeyed, which is the exact false claim the ticket exists to prevent.
   A declaring Operation is watched for `CANCEL_GRACE_MS` after its token is marked, so `stopped` is a claim about the loop rather than about the clock.
   `tidy_ds_template_run` is the first and so far only adopter (#184); every other Operation is honestly reported `not_cancellable`, which is an accurate description rather than a gap - cancellation in this sandbox is cooperative and always will be, because Figma offers no way to interrupt a running handler.
+  Triggering a cancellation used to need an Operation that overran its budget, and the only lever for that was macOS throttling an unfocused window, which was tried twice against a live file and failed both times - so the whole path had never been observed working (#192).
+  `src/shared/operations/test-sleep-operations.ts` is the trigger: three Operations that sleep in cancellable units and write nothing, one declaring and checking its token, one declaring but never reading it, one not declaring at all, so each of the four `CancellationStatus` values can be produced deliberately.
+  They are registered in the plugin unconditionally, because the sandbox has no `process` to read an env var from and there is no separate dev build; exposure is decided in `mcp-server/src/catalogue.ts` instead, where the three ids are added only when `TIDY_ENABLE_TEST_OPERATIONS=1` is set in the server's own environment.
+  The server builds its MCP tools from `CATALOGUE`, so an id absent from it is not something an agent can see or reach for by accident on a designer's file, and nothing an agent's own session can flip.
   Adopting it is one flag on the spec plus `runUntilCancelled` (`src/shared/cancellation.ts`) around the loop's body.
   Take that helper rather than writing the loop: it owns the check-and-yield pairing, and the yield is the half that is easy to forget and silent when forgotten - the loop is itself what stops the cancellation message from ever running, so the token is never seen cancelled and the run finishes as if nobody asked.
   A loop whose items are not a fixed list - a tree walk that pushes children onto its own queue - takes `createCancellationGate` from the same file instead, which owns the same pairing and differs in the one way a walk needs: it yields per batch rather than per item, because a macrotask per node would cost far more than the walk.
@@ -201,7 +231,7 @@ Anonymous usage events (module opens + actions) ship to a self-hosted pipeline. 
 
 - Figma API types come from `@figma/plugin-typings` — no runtime import needed, types are globally available.
 - `figma` and `__html__` are declared as globals in ESLint (`eslint.config.mjs`).
-- The `manifest.json` controls plugin permissions; most features need `activeselection` scope.
+- The `manifest.json` controls plugin permissions; it currently requests only the `currentuser` permission.
 - The plugin runs under legacy whole-document access (`manifest.json` declares no `documentAccess`). Newer modules call `figma.loadAllPagesAsync()` anyway and older ones do not; that split is recorded, and is not a migration in progress, in [ADR-0013](docs/adr/0013-legacy-document-access-by-default.md).
 - To load locally in Figma: Plugins → Development → Import plugin from manifest → select `manifest.json`.
 

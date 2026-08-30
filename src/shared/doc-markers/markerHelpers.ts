@@ -1,6 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 
-import { SpacingUnits } from "../types";
+import { SpacingUnits } from "./types";
 
 /**
  * Set text content on a marker using component properties

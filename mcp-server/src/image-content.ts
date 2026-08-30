@@ -110,7 +110,11 @@ export function liftImages(result: unknown): LiftImagesResult {
   const stack: Slot[] = [{ parent: root, key: "value", value: result }];
 
   while (stack.length > 0) {
-    const { parent, key, value } = stack.pop()!;
+    // Guarded by the loop condition above - pop() cannot return undefined
+    // here, but TypeScript's Array#pop signature can't express that.
+    const slot = stack.pop();
+    if (!slot) break;
+    const { parent, key, value } = slot;
 
     if (typeof value === "string") {
       parent[key] = liftString(value);
@@ -118,7 +122,11 @@ export function liftImages(result: unknown): LiftImagesResult {
       const copy: unknown[] = new Array(value.length);
       parent[key] = copy;
       for (let i = value.length - 1; i >= 0; i--) {
-        stack.push({ parent: copy as unknown as Record<number, unknown>, key: i, value: value[i] });
+        stack.push({
+          parent: copy as unknown as Record<number, unknown>,
+          key: i,
+          value: value[i],
+        });
       }
     } else if (value !== null && typeof value === "object") {
       const copy: Record<string, unknown> = {};

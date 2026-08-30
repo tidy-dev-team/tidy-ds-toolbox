@@ -61,26 +61,3 @@ export function buildSearchIndex(): SearchableFeature[] {
 export function getSearchIndex(): SearchableFeature[] {
   return buildSearchIndex();
 }
-
-/**
- * Get all unique plugin entries (for plugin-level search)
- */
-export function getPluginEntries(): SearchableFeature[] {
-  const index = getSearchIndex();
-  const seen = new Set<PluginID>();
-  return index.filter((feature) => {
-    if (feature.id === feature.pluginId && !seen.has(feature.pluginId)) {
-      seen.add(feature.pluginId);
-      return true;
-    }
-    return false;
-  });
-}
-
-/**
- * Get all feature entries (for feature-level search)
- */
-export function getFeatureEntries(): SearchableFeature[] {
-  const index = getSearchIndex();
-  return index.filter((feature) => feature.id !== feature.pluginId);
-}

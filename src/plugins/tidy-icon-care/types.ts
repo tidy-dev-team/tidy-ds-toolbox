@@ -14,20 +14,6 @@ export interface TidyIconCareSettings {
   labelCase: LabelCase;
 }
 
-export interface BuildIconGridPayload {
-  settings: TidyIconCareSettings;
-}
-
-export type TidyIconCareAction =
-  | "load-params"
-  | "save-params"
-  | "build-icon-grid";
-
-export interface TidyIconCareResponse<T = any> {
-  success: boolean;
-  data?: T;
-}
-
 export const TIDY_ICON_CARE_STORAGE_KEY = "tidy-icon-care-settings";
 
 export const DEFAULT_TIDY_ICON_CARE_SETTINGS: TidyIconCareSettings = {

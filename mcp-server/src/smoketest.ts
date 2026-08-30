@@ -140,7 +140,14 @@ async function roundTripImage(client: Client): Promise<void> {
     const res = (await client.callTool({
       name: "tidy_ds_explorer_get_component",
       arguments: { name: "Button", includeImage: true },
-    })) as { content: Array<{ type: string; text?: string; data?: string; mimeType?: string }> };
+    })) as {
+      content: Array<{
+        type: string;
+        text?: string;
+        data?: string;
+        mimeType?: string;
+      }>;
+    };
 
     const images = res.content.filter((c) => c.type === "image");
     if (images.length !== 1) {
@@ -153,7 +160,9 @@ async function roundTripImage(client: Client): Promise<void> {
       throw new Error(`image block mimeType was '${images[0].mimeType}'`);
     }
     if (images[0].data !== PNG_BASE64) {
-      throw new Error("image block data is not the payload the plugin returned");
+      throw new Error(
+        "image block data is not the payload the plugin returned",
+      );
     }
 
     // The point of lifting it out: the base64 must no longer be sitting in the

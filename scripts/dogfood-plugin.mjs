@@ -53,12 +53,19 @@ run(
   "assembling dist-plugin/",
 );
 
-const version = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).version;
+const version = JSON.parse(
+  readFileSync(join(repoRoot, "package.json"), "utf8"),
+).version;
 
 // 2. Work out what will actually deliver the build. There are two distinct
 //    ways an install silently does nothing, and they need different verbs -
 //    see `lib/install-plan.mjs`.
-const installedPath = join(homedir(), ".claude", "plugins", "installed_plugins.json");
+const installedPath = join(
+  homedir(),
+  ".claude",
+  "plugins",
+  "installed_plugins.json",
+);
 const installedVersion = existsSync(installedPath)
   ? (JSON.parse(readFileSync(installedPath, "utf8")).plugins?.[
       `${PLUGIN}@${MARKETPLACE}`
@@ -69,7 +76,15 @@ const plan = planInstallStep({ installedVersion, assemblingVersion: version });
 log(plan.reason);
 
 if (plan.clearCache) {
-  const cacheDir = join(homedir(), ".claude", "plugins", "cache", MARKETPLACE, PLUGIN, version);
+  const cacheDir = join(
+    homedir(),
+    ".claude",
+    "plugins",
+    "cache",
+    MARKETPLACE,
+    PLUGIN,
+    version,
+  );
   if (existsSync(cacheDir)) {
     log(`clearing stale cache: ${cacheDir}`);
     rmSync(cacheDir, { recursive: true, force: true });
@@ -79,8 +94,15 @@ if (plan.clearCache) {
 }
 
 // 3. Point the marketplace at this repo's dist-plugin, then install from it.
-const knownPath = join(homedir(), ".claude", "plugins", "known_marketplaces.json");
-const known = existsSync(knownPath) ? JSON.parse(readFileSync(knownPath, "utf8")) : {};
+const knownPath = join(
+  homedir(),
+  ".claude",
+  "plugins",
+  "known_marketplaces.json",
+);
+const known = existsSync(knownPath)
+  ? JSON.parse(readFileSync(knownPath, "utf8"))
+  : {};
 const registered = known[MARKETPLACE]?.installLocation;
 
 if (!registered) {
@@ -105,7 +127,9 @@ if (!registered) {
   );
 }
 
-log(`${plan.verb === "update" ? "updating" : "installing"} ${PLUGIN}@${MARKETPLACE}…`);
+log(
+  `${plan.verb === "update" ? "updating" : "installing"} ${PLUGIN}@${MARKETPLACE}…`,
+);
 run(
   "claude",
   ["plugin", plan.verb, `${PLUGIN}@${MARKETPLACE}`],
@@ -119,4 +143,6 @@ run(
   "verifying the installed plugin matches claude-plugin/",
 );
 
-log("restart Claude Code (or start a new session) to pick up the new commands.");
+log(
+  "restart Claude Code (or start a new session) to pick up the new commands.",
+);

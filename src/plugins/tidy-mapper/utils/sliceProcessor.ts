@@ -79,12 +79,3 @@ export function renameSelection(currentName: string): void {
     });
   }
 }
-
-/**
- * Gets all slice nodes from current selection
- */
-export function getSelectedSlices(): SliceNode[] {
-  return figma.currentPage.selection.filter(
-    (node) => node.type === "SLICE",
-  ) as SliceNode[];
-}

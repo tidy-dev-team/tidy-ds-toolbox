@@ -5,18 +5,6 @@ export interface SliceData {
   trail: FrameNode;
 }
 
-export interface ProcessedSlice {
-  name: string;
-  raster: FrameNode;
-  trail: FrameNode;
-}
-
-export interface TrailInfo {
-  id: string;
-  name: string;
-  visible: boolean;
-}
-
 export type TidyMapperAction =
   | "grab-slices"
   | "set-slice-name"
@@ -26,8 +14,6 @@ export type TidyMapperAction =
   | "get-current-name";
 
 // Payload types
-export interface GrabSlicesPayload {}
-
 export interface SetSliceNamePayload {
   name: string;
 }
@@ -39,10 +25,6 @@ export interface ShowTrailsPayload {
 export interface ShowChosenPayload {
   name: string;
 }
-
-export interface GetTrailNamesPayload {}
-
-export interface GetCurrentNamePayload {}
 
 // Response types
 export interface GrabSlicesResult {

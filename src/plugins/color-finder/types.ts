@@ -252,18 +252,3 @@ export interface RenderPalettePageResult {
   pageId: string;
   pageName: string;
 }
-
-// Progress messages posted to the UI during image-palette scanning. Extends
-// the vector-scan `ScanProgress` with a `phase` field so the UI can render
-// distinct export/sampling progress (slice 3). Slice 1 only emits the
-// `exporting` phase from the plugin thread.
-export interface ScanImageProgress {
-  type: "progress";
-  payload: {
-    phase: "exporting" | "sampling";
-    pagesScanned: number;
-    totalPages: number;
-    imagesExported: number; // exporting: images sent so far
-    totalImages: number; // known after the scope walk completes
-  };
-}

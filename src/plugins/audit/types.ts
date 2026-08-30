@@ -25,9 +25,6 @@ export interface NotePayload {
   note?: string;
 }
 
-// Empty payload for quick win action - intentionally has no properties
-export type QuickWinPayload = Record<string, never>;
-
 export interface AuditResult {
   success: boolean;
   message: string;
@@ -37,24 +34,6 @@ export interface AuditResult {
 export interface SelectionState {
   hasSelection: boolean;
   isValid: boolean;
-  message?: string;
-}
-
-export interface ExportPdfResult {
-  success: boolean;
-  data?: Uint8Array;
-  message?: string;
-}
-
-export interface ExportMultipagePdfResult {
-  success: boolean;
-  pages?: Uint8Array[];
-  message?: string;
-}
-
-export interface ExportCsvResult {
-  success: boolean;
-  data?: CsvData;
   message?: string;
 }
 
@@ -70,18 +49,6 @@ export interface CsvData {
     severity: string;
     quickWin: boolean;
   };
-}
-
-export interface CheckReportExistsResult {
-  success: boolean;
-  exists: boolean;
-  entryCount?: number;
-}
-
-export interface SeverityConfig {
-  name: string;
-  symbol: string;
-  value: number;
 }
 
 export interface DropdownOption {

@@ -43,20 +43,12 @@ export function registerOperation<P, R>(
   });
 }
 
-export function listOperations(): OperationSpec[] {
-  return Array.from(OPERATIONS.values(), (e) => e.spec);
-}
-
 // Session is owned by code.ts and rebound when the file changes. MVP supports
 // exactly one Session at a time (CONTEXT.md).
 let CURRENT_SESSION: { sessionId: string; active: boolean } | null = null;
 
 export function bindSession(sessionId: string): void {
   CURRENT_SESSION = { sessionId, active: true };
-}
-
-export function endSession(): void {
-  if (CURRENT_SESSION) CURRENT_SESSION.active = false;
 }
 
 /**

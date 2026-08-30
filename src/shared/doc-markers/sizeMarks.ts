@@ -1,6 +1,6 @@
 /// <reference types="@figma/plugin-typings" />
 
-import { SpacingsConfig, SupportedContainerNode } from "../types";
+import { SpacingsConfig, SupportedContainerNode } from "./types";
 import { getMarker } from "./getMarker";
 import { setMarkerSizeProps } from "./markerHelpers";
 

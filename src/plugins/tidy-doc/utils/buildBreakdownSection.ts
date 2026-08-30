@@ -9,9 +9,9 @@
 // invents a fact the component doesn't expose.
 
 import { buildAutoLayoutFrame } from "../../sticker-sheet-builder/utils/utilityFunctions";
-import { buildSizeMarks } from "../../tags-spacings/utils/sizeMarks";
-import { loadInterFont } from "../../tags-spacings/utils/fontLoader";
-import type { SpacingsConfig } from "../../tags-spacings/types";
+import { buildSizeMarks } from "../../../shared/doc-markers/sizeMarks";
+import { loadInterFont } from "../../../shared/doc-markers/fontLoader";
+import type { SpacingsConfig } from "../../../shared/doc-markers/types";
 import { createText, FONT_BOLD, TOKENS } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
 import type { DocSpec } from "./docSpec";

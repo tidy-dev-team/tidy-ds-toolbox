@@ -55,10 +55,3 @@ export function startBridge(url?: string): void {
   });
   bridge.start();
 }
-
-export function stopBridge(): void {
-  bridge?.stop();
-  bridge = null;
-  window.removeEventListener("message", handleMainResponse);
-  dispatcher.close();
-}

@@ -14,7 +14,9 @@ describe("liftImages", () => {
     // where the image went rather than finding the key silently absent.
     const out = result as { name: string; image: string };
     expect(out.name).toBe("Button");
-    expect(out.image).toMatch(/^<image\/png, [\d.]+ KB - returned as image block 1/);
+    expect(out.image).toMatch(
+      /^<image\/png, [\d.]+ KB - returned as image block 1/,
+    );
     expect(out.image).not.toContain(PNG);
   });
 
@@ -67,7 +69,8 @@ describe("liftImages", () => {
     expect(images).toEqual([{ data: PNG, mimeType: "image/png" }]);
 
     let node = result as Record<string, unknown>;
-    for (let i = 0; i < depth; i++) node = node.inner as Record<string, unknown>;
+    for (let i = 0; i < depth; i++)
+      node = node.inner as Record<string, unknown>;
     expect(node.image).toContain("returned as image block 1");
     expect(node.image).not.toContain(PNG);
   });

@@ -61,7 +61,7 @@ npm run release:push  # Push commits and tags
 
 ## 🤖 AI Agent Access (MCP — Dev Only)
 
-The plugin ships with an MCP server that exposes a curated set of **Operations** (typed Figma actions) to Claude Code and other MCP hosts. This is a development-only surface today — `manifest.json` has `networkAccess.allowedDomains: ["none"]` so production builds get no network, and the dev socket is `ws://localhost:9876` (see [`docs/adr/0005-localhost-bridge-no-auth.md`](docs/adr/0005-localhost-bridge-no-auth.md) for the threat model). Background and vocabulary in [`CONTEXT.md`](CONTEXT.md).
+The plugin ships with an MCP server that exposes a curated set of **Operations** (typed Figma actions) to Claude Code and other MCP hosts. This is a development-only surface today - `manifest.json` has `networkAccess.allowedDomains: ["https://toolbox-logs.wearekido.dev"]`, so production builds reach exactly that one origin (the analytics ingest endpoint) and nothing else, and the dev socket `ws://localhost:9876` is allow-listed only under `devAllowedDomains`, so it is not available in production (see [`docs/adr/0005-localhost-bridge-no-auth.md`](docs/adr/0005-localhost-bridge-no-auth.md) for the threat model). Background and vocabulary in [`CONTEXT.md`](CONTEXT.md).
 
 ### One-time setup
 

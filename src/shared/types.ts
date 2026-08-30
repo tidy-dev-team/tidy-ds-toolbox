@@ -66,7 +66,6 @@ export interface ModuleManifest {
   // handler here makes `moduleRegistry.ts` import `moduleHandlers.ts`, which
   // pulls every module's `logic.ts`, every `operations.ts`, and the QA engine
   // into the UI bundle - none of which the UI iframe can call.
-  permissionRequirements: string[];
   settingsSchema?: any;
   keywords?: string[]; // Keywords for search
   features?: PluginFeature[]; // Sub-features within the plugin

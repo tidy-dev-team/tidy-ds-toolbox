@@ -1,7 +1,5 @@
 // Icon Finder module types
 
-export type IconFinderAction = "start";
-
 export interface AnalyzedNode {
   id: string;
   name: string;
@@ -23,8 +21,3 @@ export interface NoSelectionMessage {
 export interface LoadingMessage {
   type: "loading";
 }
-
-export type IconFinderShellMessage =
-  | AnalyzePngMessage
-  | NoSelectionMessage
-  | LoadingMessage;

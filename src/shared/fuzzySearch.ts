@@ -107,22 +107,3 @@ export function highlightMatches(text: string, query: string): string {
 
   return result;
 }
-
-/**
- * Search multiple fields and return best match score
- */
-export function fuzzyMatchMultiple(
-  query: string,
-  fields: string[],
-): FuzzyMatch | null {
-  let bestMatch: FuzzyMatch | null = null;
-
-  for (const field of fields) {
-    const match = fuzzyMatch(query, field);
-    if (match && (!bestMatch || match.score > bestMatch.score)) {
-      bestMatch = match;
-    }
-  }
-
-  return bestMatch;
-}

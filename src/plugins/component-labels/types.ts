@@ -14,13 +14,6 @@ export interface LabelConfig {
   groupSecondLeft: boolean;
 }
 
-// Plugin settings
-export interface PluginSettings {
-  spacing: number;
-  fontSize: number;
-  extractElement: boolean;
-}
-
 // Position coordinates
 export interface Position {
   x: number;
@@ -34,22 +27,7 @@ export interface VariantProperty {
   defaultValue: string | boolean;
 }
 
-// Component dropdown props
-export interface DropdownElementProps {
-  value: string;
-  setValue: (value: string) => void;
-  label?: string;
-  icon?: {
-    color: string;
-    symbol: string;
-  };
-}
-
 // Message payloads
-export interface GetVariantPropsPayload {
-  requestId?: string;
-}
-
 export interface BuildLabelsPayload {
   labels: LabelConfig;
   spacing: number;

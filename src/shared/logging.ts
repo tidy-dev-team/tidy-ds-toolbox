@@ -25,24 +25,10 @@ let config: LogConfig = {
 };
 
 /**
- * Configure the logging system
- */
-export function configureLogging(options: Partial<LogConfig>): void {
-  config = { ...config, ...options };
-}
-
-/**
  * Enable debug logging (useful for development)
  */
 export function enableDebugLogging(): void {
   config.level = LogLevel.DEBUG;
-}
-
-/**
- * Disable all logging
- */
-export function disableLogging(): void {
-  config.level = LogLevel.NONE;
 }
 
 /**
@@ -128,14 +114,4 @@ export class Logger {
  */
 export function createLogger(moduleName: string): Logger {
   return new Logger(moduleName);
-}
-
-/**
- * Legacy function for backward compatibility
- * @deprecated Use createLogger().debug() instead
- */
-export function debugLog(...args: unknown[]): void {
-  if (config.level <= LogLevel.DEBUG) {
-    console.log(...args);
-  }
 }
