@@ -74,10 +74,88 @@ async function createSpecimenScene(
 
 // Pure skip predicate (#72) — whether the Variants Section has anything to
 // render. Operates on plain data so it's unit-testable without building a
-// Figma node.
-export function appliesVariantsSection(spec: DocSpec): boolean {
+// Figma node. `facts` is optional (omitted by callers that only care about
+// the authored-content half) — when present, a component with BOOLEAN
+// properties but no authored variants still applies, since the boolean
+// off/on rows are derived rather than authored.
+export function appliesVariantsSection(
+  spec: DocSpec,
+  facts?: DerivedFacts,
+): boolean {
   const variants = spec.variants;
-  return !!variants && Object.keys(variants).length > 0;
+  const hasAuthoredVariants = !!variants && Object.keys(variants).length > 0;
+  const hasBooleanProperties = (facts?.booleanProperties.length ?? 0) > 0;
+  return hasAuthoredVariants || hasBooleanProperties;
+}
+
+// One off/on PAIR per BOOLEAN property: the default variant with the
+// property forced off and forced on. A pair (rather than a single "on"
+// example) is needed because a property may default to on — showing only
+// "on" would look identical to the default. Ported from the (unwired)
+// vertical-layout matrix section — see buildVariantMatrixSection.ts.
+async function buildBooleanPropsBlock(
+  source: ComponentNode | ComponentSetNode,
+  facts: DerivedFacts,
+): Promise<FrameNode> {
+  const defaultFamilyValue =
+    source.type === "COMPONENT_SET" && facts.familyAxis.name
+      ? (source.defaultVariant?.variantProperties?.[facts.familyAxis.name] ??
+        facts.familyAxis.values[0] ??
+        "")
+      : (facts.familyAxis.values[0] ?? "");
+
+  const group = buildAutoLayoutFrame(
+    "variants — boolean props",
+    "VERTICAL",
+    0,
+    0,
+    DOC_SPACING.block,
+  );
+
+  for (const prop of facts.booleanProperties) {
+    const row = buildAutoLayoutFrame(
+      `variants — boolean — ${prop.name}`,
+      "HORIZONTAL",
+      0,
+      0,
+      DOC_SPACING.block,
+    );
+    row.counterAxisAlignItems = "CENTER";
+    row.appendChild(
+      await createText(prop.name, DOC_SCALE.caption, undefined, TOKENS.muted),
+    );
+
+    for (const value of [false, true]) {
+      const cell = buildAutoLayoutFrame(
+        `variants — boolean — ${prop.name} — ${value ? "on" : "off"}`,
+        "VERTICAL",
+        0,
+        0,
+        DOC_SPACING.title,
+      );
+      cell.counterAxisAlignItems = "CENTER";
+
+      const instance = createSpecimenInstance(source, {
+        familyValue: defaultFamilyValue,
+        facts,
+        booleanOverrides: { [prop.key]: value },
+      });
+      cell.appendChild(instance);
+      cell.appendChild(
+        await createText(
+          value ? "on" : "off",
+          DOC_SCALE.caption,
+          undefined,
+          TOKENS.faint,
+        ),
+      );
+      row.appendChild(cell);
+    }
+
+    group.appendChild(row);
+  }
+
+  return group;
 }
 
 export async function buildVariantsSection(
@@ -131,6 +209,10 @@ export async function buildVariantsSection(
     block.appendChild(specimen);
 
     section.appendChild(block);
+  }
+
+  if (facts.booleanProperties.length > 0) {
+    section.appendChild(await buildBooleanPropsBlock(source, facts));
   }
 
   return section;

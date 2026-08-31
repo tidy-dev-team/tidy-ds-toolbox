@@ -56,6 +56,19 @@ describe("appliesVariantsSection", () => {
     });
     expect(appliesVariantsSection(spec)).toBe(true);
   });
+
+  it("is true when no variants are authored but the component has boolean properties", () => {
+    const facts = baseFacts({
+      booleanProperties: [
+        { key: "helper#1:1", name: "helper", defaultValue: true },
+      ],
+    });
+    expect(appliesVariantsSection(baseSpec(), facts)).toBe(true);
+  });
+
+  it("is false when neither variants nor boolean properties are present", () => {
+    expect(appliesVariantsSection(baseSpec(), baseFacts())).toBe(false);
+  });
 });
 
 describe("appliesBreakdownSection", () => {

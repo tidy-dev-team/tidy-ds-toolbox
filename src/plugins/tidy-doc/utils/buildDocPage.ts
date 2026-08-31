@@ -94,7 +94,7 @@ const HORIZONTAL_SECTIONS: SectionDescriptor[] = [
   {
     id: "variants",
     title: "Variants",
-    applies: ({ spec }) => appliesVariantsSection(spec),
+    applies: ({ spec, facts }) => appliesVariantsSection(spec, facts),
     render: ({ source, spec, facts }) =>
       buildVariantsSection(source, spec, facts),
   },
