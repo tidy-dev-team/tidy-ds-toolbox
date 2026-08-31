@@ -13,8 +13,10 @@ import {
   buildBulletList,
   buildTitleBlock,
   createText,
+  fill,
   DOC_SCALE,
   DOC_SPACING,
+  FONT_SEMIBOLD,
   TOKENS,
 } from "./buildChrome";
 import { createSpecimenInstance } from "./specimenFactory";
@@ -92,7 +94,46 @@ export function appliesVariantsSection(
 // property forced off and forced on. A pair (rather than a single "on"
 // example) is needed because a property may default to on — showing only
 // "on" would look identical to the default. Ported from the (unwired)
-// vertical-layout matrix section — see buildVariantMatrixSection.ts.
+// vertical-layout matrix section — see buildVariantMatrixSection.ts — and
+// re-styled to the approved reference page: a titled row per property, each
+// holding two tinted cards (specimen over an uppercase OFF/ON caption)
+// rather than the matrix's bare label-prefixed row.
+async function buildBooleanPropCard(
+  source: ComponentNode | ComponentSetNode,
+  facts: DerivedFacts,
+  familyValue: string,
+  propKey: string,
+  value: boolean,
+): Promise<FrameNode> {
+  const card = buildAutoLayoutFrame(
+    `variants — boolean — ${propKey} — ${value ? "on" : "off"}`,
+    "VERTICAL",
+    DOC_SPACING.card,
+    DOC_SPACING.card,
+    DOC_SPACING.block,
+  );
+  card.counterAxisAlignItems = "CENTER";
+  fill(card, TOKENS.specimenGround);
+  card.cornerRadius = 8;
+
+  const instance = createSpecimenInstance(source, {
+    familyValue,
+    facts,
+    booleanOverrides: { [propKey]: value },
+  });
+  card.appendChild(instance);
+  card.appendChild(
+    await createText(
+      value ? "ON" : "OFF",
+      DOC_SCALE.caption,
+      FONT_SEMIBOLD,
+      TOKENS.muted,
+    ),
+  );
+
+  return card;
+}
+
 async function buildBooleanPropsBlock(
   source: ComponentNode | ComponentSetNode,
   facts: DerivedFacts,
@@ -109,48 +150,48 @@ async function buildBooleanPropsBlock(
     "VERTICAL",
     0,
     0,
-    DOC_SPACING.block,
+    DOC_SPACING.section,
   );
 
   for (const prop of facts.booleanProperties) {
     const row = buildAutoLayoutFrame(
       `variants — boolean — ${prop.name}`,
+      "VERTICAL",
+      0,
+      0,
+      DOC_SPACING.title,
+    );
+
+    row.appendChild(
+      await createText(prop.name, DOC_SCALE.blockTitle, FONT_SEMIBOLD),
+    );
+
+    const cards = buildAutoLayoutFrame(
+      `variants — boolean — ${prop.name} — cards`,
       "HORIZONTAL",
       0,
       0,
       DOC_SPACING.block,
     );
-    row.counterAxisAlignItems = "CENTER";
-    row.appendChild(
-      await createText(prop.name, DOC_SCALE.caption, undefined, TOKENS.muted),
-    );
-
-    for (const value of [false, true]) {
-      const cell = buildAutoLayoutFrame(
-        `variants — boolean — ${prop.name} — ${value ? "on" : "off"}`,
-        "VERTICAL",
-        0,
-        0,
-        DOC_SPACING.title,
-      );
-      cell.counterAxisAlignItems = "CENTER";
-
-      const instance = createSpecimenInstance(source, {
-        familyValue: defaultFamilyValue,
+    cards.appendChild(
+      await buildBooleanPropCard(
+        source,
         facts,
-        booleanOverrides: { [prop.key]: value },
-      });
-      cell.appendChild(instance);
-      cell.appendChild(
-        await createText(
-          value ? "on" : "off",
-          DOC_SCALE.caption,
-          undefined,
-          TOKENS.faint,
-        ),
-      );
-      row.appendChild(cell);
-    }
+        defaultFamilyValue,
+        prop.key,
+        false,
+      ),
+    );
+    cards.appendChild(
+      await buildBooleanPropCard(
+        source,
+        facts,
+        defaultFamilyValue,
+        prop.key,
+        true,
+      ),
+    );
+    row.appendChild(cards);
 
     group.appendChild(row);
   }
