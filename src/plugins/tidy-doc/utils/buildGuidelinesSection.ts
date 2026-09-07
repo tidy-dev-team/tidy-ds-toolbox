@@ -95,6 +95,11 @@ export async function buildScene(
     12,
   );
   frame.counterAxisAlignItems = "CENTER";
+  // figma.createFrame() defaults to an opaque white fill; left alone, this
+  // sits on top of buildVerdictPanel's tinted ground and hides it. Every
+  // other wrapper nested inside a tinted panel clears its fill for the same
+  // reason (buildBreakdownSection, buildConstraintsSection).
+  frame.fills = [];
 
   for (const instanceSpec of scene.instances) {
     const instance = createSceneInstance(source, instanceSpec.props, facts);
@@ -136,6 +141,9 @@ async function buildVerdictBadge(verdict: "good" | "bad"): Promise<FrameNode> {
     DOC_SPACING.title,
   );
   badge.counterAxisAlignItems = "CENTER";
+  // Same default-white-fill hazard as buildScene's frame above — this badge
+  // sits inside buildVerdictPanel's tinted ground too.
+  badge.fills = [];
 
   const disc = buildAutoLayoutFrame("icon", "HORIZONTAL", 0, 0, 0);
   disc.primaryAxisSizingMode = "FIXED";
@@ -190,8 +198,12 @@ async function buildVerdictPanel(
 }
 
 /**
- * Size both panels of a pair alike: wide and tall enough for the larger of
- * the two scenes, never below the reference's 378×256 floor.
+ * Size every panel in a Section alike: wide and tall enough for the largest
+ * of all the scenes across every row, never below the reference's 378×256
+ * floor. Takes every pair in the Section, not just one row's — a Do/Don't
+ * grid reads as a comparison down the *page*, and a card that hugs its own
+ * row's content while its neighbour hugs a wider one leaves the Do/Don't
+ * columns unaligned from row to row.
  *
  * The scenes are measured while both panels still hug, before either is
  * fixed, because a panel already stretched to a floor no longer reports what
@@ -243,15 +255,22 @@ function wrapInColumn(text: TextNode): TextNode {
   return text;
 }
 
-async function buildDoDontRow(
+interface DoDontRowParts {
+  description: FrameNode;
+  built: Array<{ panel: FrameNode; specimen: FrameNode }>;
+}
+
+// Builds a row's description column and its two (unsized) verdict panels,
+// without assembling them into a row frame yet — sizing has to run once,
+// across every row's panels together (see sizePanelPair), before the panels
+// can be placed inside their row's "panels" frame.
+async function buildDoDontRowParts(
   source: ComponentNode | ComponentSetNode,
   pair: DoDontPair,
   facts: DerivedFacts,
   index: number,
-): Promise<FrameNode> {
+): Promise<DoDontRowParts> {
   const name = `do/dont — ${index}`;
-  const row = buildAutoLayoutFrame(name, "HORIZONTAL", 0, 0, DODONT_COLUMN_GAP);
-  row.counterAxisAlignItems = "MIN";
 
   const description = buildAutoLayoutFrame(
     `${name} — description`,
@@ -288,7 +307,22 @@ async function buildDoDontRow(
       ),
     ),
   );
-  row.appendChild(description);
+
+  const built = [
+    await buildVerdictPanel(source, "good", pair.good, facts, `${name} — good`),
+    await buildVerdictPanel(source, "bad", pair.bad, facts, `${name} — bad`),
+  ];
+
+  return { description, built };
+}
+
+// Assembles one row from its already-sized parts: description column beside
+// a "panels" frame holding the (by now uniformly sized) good/bad panels.
+function assembleDoDontRow(parts: DoDontRowParts, index: number): FrameNode {
+  const name = `do/dont — ${index}`;
+  const row = buildAutoLayoutFrame(name, "HORIZONTAL", 0, 0, DODONT_COLUMN_GAP);
+  row.counterAxisAlignItems = "MIN";
+  row.appendChild(parts.description);
 
   const panels = buildAutoLayoutFrame(
     `${name} — panels`,
@@ -297,12 +331,7 @@ async function buildDoDontRow(
     0,
     DODONT_PANEL_GAP,
   );
-  const built = [
-    await buildVerdictPanel(source, "good", pair.good, facts, `${name} — good`),
-    await buildVerdictPanel(source, "bad", pair.bad, facts, `${name} — bad`),
-  ];
-  sizePanelPair(built);
-  for (const { panel } of built) panels.appendChild(panel);
+  for (const { panel } of parts.built) panels.appendChild(panel);
   row.appendChild(panels);
 
   return row;
@@ -393,10 +422,17 @@ export async function buildGuidelinesSection(
       0,
       DODONT_ROW_GAP,
     );
+    const rowParts: DoDontRowParts[] = [];
     for (let i = 0; i < guidelines.doDonts.length; i++) {
-      rows.appendChild(
-        await buildDoDontRow(source, guidelines.doDonts[i], facts, i),
+      rowParts.push(
+        await buildDoDontRowParts(source, guidelines.doDonts[i], facts, i),
       );
+    }
+    // Size every panel in the Section together — not row by row — so every
+    // Do/Don't card shares one width and the columns line up down the page.
+    sizePanelPair(rowParts.flatMap((parts) => parts.built));
+    for (let i = 0; i < rowParts.length; i++) {
+      rows.appendChild(assembleDoDontRow(rowParts[i], i));
     }
     block.appendChild(rows);
 

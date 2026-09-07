@@ -147,23 +147,45 @@ rm -rf "$CLAUDE_PLUGIN_PATH"
 mkdir -p "$CLAUDE_PLUGIN_PATH"
 cp -r dist-plugin/. "$CLAUDE_PLUGIN_PATH/"
 
-# Drop the one-click installer beside the marketplace tree. The `.command`
-# extension lets macOS designers double-click it from Finder; it self-locates
-# the sibling marketplace tree, so the Drive mount path doesn't matter.
-cp scripts/install-claude-plugin.sh "$ACTUAL_PATH/Install Tidy DS (Claude Code).command"
-chmod +x "$ACTUAL_PATH/Install Tidy DS (Claude Code).command"
+# Drop the one-click installer beside the marketplace tree, zipped. The
+# `.command` extension lets macOS designers double-click it from Finder once
+# unzipped; it self-locates the sibling marketplace tree, so the Drive mount
+# path doesn't matter. It ships as a zip, not a bare file, because Google
+# Drive's virtual filesystem does not reliably preserve the Unix executable
+# bit for files it streams — a designer who downloads the bare .command sees
+# "you do not have appropriate access privileges" even though chmod +x ran
+# right here before upload. A zip survives that: `ditto` below records the
+# executable bit in the archive's own metadata, and macOS Archive Utility
+# restores it on unzip, independent of whatever bit Drive itself stored.
+INSTALLER_NAME="Install Tidy DS (Claude Code).command"
+INSTALLER_STAGING="$(mktemp -d)/$INSTALLER_NAME"
+cp scripts/install-claude-plugin.sh "$INSTALLER_STAGING"
+chmod +x "$INSTALLER_STAGING"
+rm -f "$ACTUAL_PATH/$INSTALLER_NAME.zip"
+ditto -c -k "$INSTALLER_STAGING" "$ACTUAL_PATH/$INSTALLER_NAME.zip"
+rm -rf "$(dirname "$INSTALLER_STAGING")"
+# Remove any stale bare .command from a previous deploy so designers can't
+# find and run the permission-stripped copy by mistake.
+rm -f "$ACTUAL_PATH/$INSTALLER_NAME"
 
 echo -e "${GREEN}✅ Claude Code plugin deployed!${NC}"
 echo "  - $CLAUDE_PLUGIN_PATH/"
-echo "  - $ACTUAL_PATH/Install Tidy DS (Claude Code).command"
+echo "  - $ACTUAL_PATH/$INSTALLER_NAME.zip"
 echo ""
 
 # Cleanup old releases
 echo -e "${BLUE}🗑️  Managing release history...${NC}"
 RELEASES_DIR="$ACTUAL_PATH/releases"
 if [ -d "$RELEASES_DIR" ]; then
-  OLD_RELEASES=$(ls -1d "$RELEASES_DIR"/v* 2>/dev/null | sort -V | head -n -$MAX_RELEASES)
-  
+  # `head -n -N` (drop the last N lines) is GNU-only; BSD head on macOS
+  # rejects a negative count with "illegal line count". Compute how many to
+  # keep instead, so this works on both.
+  RELEASE_COUNT=$(ls -1d "$RELEASES_DIR"/v* 2>/dev/null | wc -l | tr -d ' ')
+  OLD_RELEASES=""
+  if [ "$RELEASE_COUNT" -gt "$MAX_RELEASES" ]; then
+    OLD_RELEASES=$(ls -1d "$RELEASES_DIR"/v* 2>/dev/null | sort -V | head -n "$((RELEASE_COUNT - MAX_RELEASES))")
+  fi
+
   if [ -n "$OLD_RELEASES" ]; then
     echo "Archiving old releases (keeping last $MAX_RELEASES):"
     mkdir -p "$ACTUAL_PATH/archive"

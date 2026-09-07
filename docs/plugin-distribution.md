@@ -82,14 +82,25 @@ Figma plugin under `Shared drives/shared kido/Tidy/plugins/`:
 - `claude-plugin-latest/` — the marketplace tree (a **local-path marketplace**;
   relative `source` paths resolve because the whole directory is synced locally,
   unlike URL-based marketplaces which fetch only the JSON).
-- `Install Tidy DS (Claude Code).command` — the one-click installer
+- `Install Tidy DS (Claude Code).command.zip` — the one-click installer
   (`scripts/install-claude-plugin.sh`), self-locating so the Drive mount path
-  doesn't matter.
+  doesn't matter. Shipped zipped rather than as a bare `.command`: Google
+  Drive's virtual filesystem does not reliably preserve the Unix executable
+  bit for a file it streams, so a bare `.command` downloaded through Drive can
+  fail with "you do not have appropriate access privileges" even though it was
+  `chmod +x`'d before upload. A zip survives that — Archive Utility restores
+  the bit from the archive's own metadata on unzip, independent of Drive.
 
-A designer double-clicks the `.command` file (or runs the script). It registers
-the synced directory as a marketplace and installs `tidy-ds`. To update, they
-let Drive re-sync and run it again — the installer refreshes the marketplace and
-re-installs the newer version.
+A designer double-clicks the `.zip` to unzip it (macOS does this on double-click,
+no extra tool needed), then double-clicks the unzipped `.command` file. It
+registers the synced directory as a marketplace and installs `tidy-ds`. To
+update, they let Drive re-sync and unzip + run it again — the installer
+refreshes the marketplace and re-installs the newer version.
+
+**If a designer already has a bare, permission-stripped `.command` from before
+this fix:** either have them re-sync and use the new `.zip`, or tell them to
+run `chmod +x "Install Tidy DS (Claude Code).command"` on it themselves before
+double-clicking.
 
 **Fallback (if a Claude Code version can't add a local-path marketplace):** run
 the bundled server directly, no marketplace —
